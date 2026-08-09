@@ -124,12 +124,13 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         if (IsClientProfileLocked(profileRef))
             throw new Exception($"Profile {profileRef} folder is currently locked by another process.");
 
+        // Upstream Enhanced/Legacy: Saved → GameSaved → profile (all profile files visible,
+        // including Game_*.db). For Enhanced use a single hop Saved → profile so ExtractedMods
+        // and SaveGames resolve without broken cross-volume file symlinks.
         SetupJunction(_setup.GetPrimaryJunction(), profile.ProfileFolder);
-        if (_setup.IsEnhanced && _setup.Config.ManageClient)
-            EnsureHybridSavedLayout(profile.ProfileFolder);
-        else
+        if (_setup.Config.ManageClient)
         {
-            EnsureClientSavedPointsAtPrimaryJunction();
+            EnsureClientSavedPointsAtProfile(profile.ProfileFolder);
             EnsureExtractedModsDirectory(profile.ProfileFolder);
         }
 
@@ -1134,7 +1135,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     {
         var savedDir = Path.Combine(_setup.GetClientFolder(), Constants.FolderGameSave);
 
-        // Hybrid Saved: Config junction -> profile\Config
+        // Leftover Hybrid Saved: Config junction -> profile\Config
         var configLink = Path.Combine(savedDir, Constants.FolderConfig);
         if (!_osSpecific.IsSymbolicLink(savedDir) && _osSpecific.IsSymbolicLink(configLink))
         {
@@ -1158,7 +1159,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         var target = _osSpecific.GetSymbolicLinkTarget(savedDir);
         if (string.IsNullOrEmpty(target)) return target;
 
-        // Saved -> GameSaved -> profile
+        // Enhanced: Saved -> profile (single hop). Legacy: Saved -> GameSaved -> profile.
         var primaryPath = Path.GetFullPath(_setup.GetPrimaryJunction());
         if (string.Equals(Path.GetFullPath(target), primaryPath, StringComparison.OrdinalIgnoreCase)
             && _osSpecific.IsSymbolicLink(target))
@@ -1177,222 +1178,113 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         return _osSpecific.GetSymbolicLinkTarget(path);
     }
 
-    private void EnsureClientSavedPointsAtPrimaryJunction()
+    /// <summary>
+    /// Matches upstream Totchinuko profile loading: whole Saved folder junctions into the
+    /// active profile so Game_*.db / SaveGames / Config are visible to the client.
+    /// Enhanced uses a single hop (Saved → profile) to avoid broken nested junctions.
+    /// Legacy keeps Saved → GameSaved (GameSaved already points at the profile).
+    /// </summary>
+    private void EnsureClientSavedPointsAtProfile(string profileFolder)
     {
         if (!_setup.Config.ManageClient) return;
         if (string.IsNullOrEmpty(_setup.Config.ClientPath)) return;
 
         var savedDir = Path.Combine(_setup.GetClientFolder(), Constants.FolderGameSave);
-        var primary = Path.GetFullPath(_setup.GetPrimaryJunction());
+        var profilePath = Path.GetFullPath(profileFolder);
+        Directory.CreateDirectory(profilePath);
+
+        // Convert leftover Hybrid Saved (real dir + child junctions) back to whole-folder junction.
+        if (Directory.Exists(savedDir) && !_osSpecific.IsSymbolicLink(savedDir))
+            ConvertHybridSavedToWholeProfileJunction(savedDir, profilePath);
+
+        var target = _setup.IsEnhanced
+            ? profilePath
+            : Path.GetFullPath(_setup.GetPrimaryJunction());
 
         if (_osSpecific.IsSymbolicLink(savedDir))
         {
             var current = _osSpecific.GetSymbolicLinkTarget(savedDir);
             if (!string.IsNullOrEmpty(current)
-                && string.Equals(Path.GetFullPath(current), primary, StringComparison.OrdinalIgnoreCase))
+                && string.Equals(Path.GetFullPath(current), target, StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogInformation(
+                    "Whole-Saved profile layout ready: {savedDir} -> {target}",
+                    savedDir,
+                    target);
                 return;
+            }
 
-            _logger.LogWarning("Client Saved junction points elsewhere ({current}); repairing -> {primary}", current, primary);
-            _osSpecific.MakeSymbolicLink(savedDir, primary);
+            _logger.LogWarning("Client Saved junction points elsewhere ({current}); repairing -> {target}", current, target);
+            _osSpecific.MakeSymbolicLink(savedDir, target);
             return;
         }
 
         if (Directory.Exists(savedDir))
         {
-            _logger.LogWarning(
-                "Client Saved is a real directory while ManageClient is on; cannot repair at launch. Re-run client install in Settings.");
-            return;
+            _logger.LogInformation("Merging remaining real Saved into profile before whole junction");
+            MergeDirectory(savedDir, profilePath);
+            Directory.Delete(savedDir, true);
+        }
+        else
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(savedDir)!);
         }
 
-        _logger.LogInformation("Client Saved missing; creating junction -> {primary}", primary);
-        Directory.CreateDirectory(Path.GetDirectoryName(savedDir)!);
-        _osSpecific.MakeSymbolicLink(savedDir, primary);
+        _osSpecific.MakeSymbolicLink(savedDir, target);
+        _logger.LogInformation("Whole-Saved profile layout ready: {savedDir} -> {target}", savedDir, target);
     }
 
-    /// <summary>
-    /// Enhanced needs a real on-disk ExtractedMods under the game Saved folder.
-    /// Profile data is linked via Config/Logs/… junctions and root file symlinks.
-    /// </summary>
-    private void EnsureHybridSavedLayout(string profileFolder)
+    private void ConvertHybridSavedToWholeProfileJunction(string savedDir, string profilePath)
     {
-        if (string.IsNullOrEmpty(_setup.Config.ClientPath))
-            throw new Exception("ClientPath is not configured.");
-
-        var savedDir = Path.Combine(_setup.GetClientFolder(), Constants.FolderGameSave);
-        var extractedMods = Path.Combine(savedDir, Constants.FolderExtractedMods);
-        Directory.CreateDirectory(profileFolder);
-
-        if (_osSpecific.IsSymbolicLink(savedDir))
-        {
-            _logger.LogInformation("Converting whole-Saved junction to Hybrid Saved at {savedDir}", savedDir);
-            _osSpecific.RemoveSymbolicLink(savedDir);
-        }
-
-        Directory.CreateDirectory(savedDir);
-
-        // Keep ExtractedMods as a real directory on the game drive (never junction it away).
-        if (_osSpecific.IsSymbolicLink(extractedMods))
-        {
-            _logger.LogWarning("ExtractedMods was a reparse point; replacing with a real directory");
-            _osSpecific.RemoveSymbolicLink(extractedMods);
-        }
-
-        var profileExtracted = Path.Combine(profileFolder, Constants.FolderExtractedMods);
-        if (Directory.Exists(profileExtracted) && !_osSpecific.IsSymbolicLink(profileExtracted))
-        {
-            if (!Directory.Exists(extractedMods))
-                Directory.CreateDirectory(extractedMods);
-            // Best-effort merge of any previously misplaced extracts into the game Saved folder.
-            foreach (var entry in Directory.EnumerateFileSystemEntries(profileExtracted))
-            {
-                var name = Path.GetFileName(entry);
-                var dest = Path.Combine(extractedMods, name);
-                if (Directory.Exists(entry) && !Directory.Exists(dest))
-                    Directory.Move(entry, dest);
-                else if (File.Exists(entry) && !File.Exists(dest))
-                    File.Move(entry, dest);
-            }
-        }
-
-        Directory.CreateDirectory(extractedMods);
-
-        // Preserve any real Saved-side DBs/files into the profile before (re)linking.
-        SyncSavedRootFilesIntoProfile(savedDir, profileFolder);
-
-        var linkedRoots = 0;
-        foreach (var child in Constants.HybridSavedLinkedDirectories)
-            EnsureSavedChildJunction(savedDir, profileFolder, child);
-
-        foreach (var file in Directory.EnumerateFiles(profileFolder))
-        {
-            var name = Path.GetFileName(file);
-            if (string.Equals(name, "profile.json", StringComparison.OrdinalIgnoreCase))
-                continue;
-            if (string.Equals(name, Constants.FolderExtractedMods, StringComparison.OrdinalIgnoreCase))
-                continue;
-            var linkPath = Path.Combine(savedDir, name);
-            EnsureSavedRootFileLink(linkPath, file);
-            linkedRoots++;
-        }
-
-        var configLink = Path.Combine(savedDir, Constants.FolderConfig);
-        var configTarget = _osSpecific.IsSymbolicLink(configLink)
-            ? _osSpecific.GetSymbolicLinkTarget(configLink)
-            : string.Empty;
-
-        _logger.LogInformation(
-            "Hybrid Saved layout ready: linkedRootFiles={linkedRoots}, extractedMods={extractedMods}, configLink={configLink} -> {configTarget}",
-            linkedRoots,
-            extractedMods,
-            configLink,
-            configTarget);
-        _logger.LogInformation(
-            "Saved layout before launch: savedDir={savedDir}, savedIsJunction={savedIsJunction}, extractedModsIsJunction={extractedModsIsJunction}, configIsJunction={configIsJunction}, extractedModsExists={extractedModsExists}",
-            savedDir,
-            _osSpecific.IsSymbolicLink(savedDir),
-            _osSpecific.IsSymbolicLink(extractedMods),
-            _osSpecific.IsSymbolicLink(configLink),
-            Directory.Exists(extractedMods));
-    }
-
-    private void EnsureSavedChildJunction(string savedDir, string profileFolder, string childName)
-    {
-        var linkPath = Path.Combine(savedDir, childName);
-        var targetPath = Path.Combine(profileFolder, childName);
-        Directory.CreateDirectory(targetPath);
-
-        if (_osSpecific.IsSymbolicLink(linkPath))
-        {
-            var current = _osSpecific.GetSymbolicLinkTarget(linkPath);
-            if (!string.IsNullOrEmpty(current)
-                && string.Equals(Path.GetFullPath(current), Path.GetFullPath(targetPath), StringComparison.OrdinalIgnoreCase))
-            {
-                _logger.LogInformation("Saved child junction already correct: {linkPath} -> {targetPath}", linkPath, targetPath);
-                return;
-            }
-        }
-        else if (Directory.Exists(linkPath))
-        {
-            _logger.LogInformation("Merging real Saved subdirectory {linkPath} into profile before linking", linkPath);
-            MergeDirectory(linkPath, targetPath);
-            Directory.Delete(linkPath, true);
-        }
-        else if (File.Exists(linkPath))
-        {
-            File.Delete(linkPath);
-        }
-
-        _osSpecific.MakeSymbolicLink(linkPath, targetPath);
-        _logger.LogInformation("Saved child junction: {linkPath} -> {targetPath}", linkPath, targetPath);
-    }
-
-    private void SyncSavedRootFilesIntoProfile(string savedDir, string profileFolder)
-    {
-        if (!Directory.Exists(savedDir) || _osSpecific.IsSymbolicLink(savedDir))
-            return;
+        _logger.LogInformation("Converting Hybrid Saved to whole-profile junction at {savedDir}", savedDir);
 
         foreach (var file in Directory.EnumerateFiles(savedDir))
         {
             if (_osSpecific.IsSymbolicLink(file))
+            {
+                _osSpecific.RemoveSymbolicLink(file);
                 continue;
+            }
 
             var name = Path.GetFileName(file);
-            var dest = Path.Combine(profileFolder, name);
+            var dest = Path.Combine(profilePath, name);
             try
             {
-                // Keep the newest copy in the profile (source of truth across launches).
                 if (!File.Exists(dest) || File.GetLastWriteTimeUtc(file) >= File.GetLastWriteTimeUtc(dest))
-                {
                     File.Copy(file, dest, overwrite: true);
-                    _logger.LogInformation("Synced Saved root file into profile: {name}", name);
-                }
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Could not sync Saved root file {file} into profile", file);
+                _logger.LogWarning(ex, "Could not merge Saved root file {file} into profile", file);
             }
         }
-    }
 
-    private void EnsureSavedRootFileLink(string linkPath, string targetFile)
-    {
-        if (_osSpecific.IsSymbolicLink(linkPath))
+        foreach (var dir in Directory.EnumerateDirectories(savedDir))
         {
-            var current = _osSpecific.GetSymbolicLinkTarget(linkPath);
-            if (!string.IsNullOrEmpty(current)
-                && string.Equals(Path.GetFullPath(current), Path.GetFullPath(targetFile), StringComparison.OrdinalIgnoreCase))
-                return;
-            _osSpecific.RemoveSymbolicLink(linkPath);
-        }
-        else if (Directory.Exists(linkPath))
-        {
-            return;
-        }
+            var name = Path.GetFileName(dir);
+            var dest = Path.Combine(profilePath, name);
 
-        // Cross-volume file symlinks often fail without Developer Mode. Never delete the
-        // Saved-side file until a symlink or copy has succeeded — otherwise SP DBs disappear.
-        try
-        {
-            if (File.Exists(linkPath) && !_osSpecific.IsSymbolicLink(linkPath))
-                File.Delete(linkPath);
+            if (_osSpecific.IsSymbolicLink(dir))
+            {
+                // Child already pointed at profile (or elsewhere); drop the link only.
+                _logger.LogInformation("Removing Saved child junction {dir}", dir);
+                _osSpecific.RemoveSymbolicLink(dir);
+                continue;
+            }
 
-            _osSpecific.MakeFileSymbolicLink(linkPath, targetFile);
-            _logger.LogInformation("Linked Saved root file {linkPath} -> {targetFile}", linkPath, targetFile);
-            return;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "File symlink failed for {linkPath}; copying from profile instead", linkPath);
+            _logger.LogInformation("Merging real Saved subdirectory {dir} into profile", dir);
+            MergeDirectory(dir, dest);
+            Directory.Delete(dir, true);
         }
 
         try
         {
-            File.Copy(targetFile, linkPath, overwrite: true);
-            _logger.LogInformation("Copied Saved root file from profile: {linkPath}", linkPath);
+            Directory.Delete(savedDir, true);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Could not expose profile file at {linkPath}", linkPath);
+            _logger.LogWarning(ex, "Could not delete hybrid Saved directory {savedDir}", savedDir);
+            // Fall through — MakeSymbolicLink will replace if empty enough / reparse.
         }
     }
 
@@ -1401,15 +1293,18 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         Directory.CreateDirectory(destDir);
         foreach (var dir in Directory.EnumerateDirectories(sourceDir))
         {
-            var name = Path.GetFileName(dir);
-            MergeDirectory(dir, Path.Combine(destDir, name));
+            if (File.GetAttributes(dir).HasFlag(FileAttributes.ReparsePoint))
+                continue;
+            MergeDirectory(dir, Path.Combine(destDir, Path.GetFileName(dir)));
         }
 
         foreach (var file in Directory.EnumerateFiles(sourceDir))
         {
+            if (File.GetAttributes(file).HasFlag(FileAttributes.ReparsePoint))
+                continue;
             var dest = Path.Combine(destDir, Path.GetFileName(file));
-            if (!File.Exists(dest))
-                File.Copy(file, dest, overwrite: false);
+            if (!File.Exists(dest) || File.GetLastWriteTimeUtc(file) >= File.GetLastWriteTimeUtc(dest))
+                File.Copy(file, dest, overwrite: true);
         }
     }
 
