@@ -5,7 +5,7 @@
                     xmlns:vm="clr-namespace:Trebuchet.ViewModels">
     <DataTemplate x:Key="ModlistItems" x:DataType="vm:IModFile">
         <Panel>
-            <ProgressBar IsVisible="{Binding Progress.IsProgressing}" Minimum="0.0" Maximum="1.0" VerticalAlignment="Stretch" Margin="0 0 0 0" Background="Transparent" Foreground="{DynamicResource TBlueDull}" CornerRadius="3" BorderThickness="0" Value="{Binding Progress.Progress}" IsIndeterminate="{Binding Progress.IsIndeterminate}" />
+            <ProgressBar IsHitTestVisible="False" IsVisible="{Binding Progress.IsProgressing}" Minimum="0.0" Maximum="1.0" VerticalAlignment="Stretch" Margin="0 0 0 0" Background="Transparent" Foreground="{DynamicResource TBlueDull}" CornerRadius="3" BorderThickness="0" Value="{Binding Progress.Progress}" IsIndeterminate="{Binding Progress.IsIndeterminate}" />
             <Border Padding="0 8 8 8">
                 <Grid ColumnDefinitions="Auto, Auto, *, Auto">
                     <Border Margin="4 0 8 0" u:Classes.List="{Binding StatusClasses}" />
