@@ -203,7 +203,7 @@ public static class Tools
         logger?.LogInformation("Client Saved converted to whole-Saved junction at {savedDir} -> {primary}", savedDir, primary);
     }
 
-    private static void MergeDirectorySkippingReparsePoints(string sourceDir, string destDir)
+    public static void MergeDirectorySkippingReparsePoints(string sourceDir, string destDir)
     {
         Directory.CreateDirectory(destDir);
         foreach (var dir in Directory.EnumerateDirectories(sourceDir))
@@ -327,6 +327,14 @@ public static class Tools
     {
         return !string.IsNullOrEmpty(directory) &&
                File.Exists(Path.Combine(directory, Constants.FolderGameBinaries, Constants.GetClientBin(edition)));
+    }
+
+    public static bool IsCrossVolumePath(string pathA, string pathB)
+    {
+        var rootA = Path.GetPathRoot(Path.GetFullPath(pathA));
+        var rootB = Path.GetPathRoot(Path.GetFullPath(pathB));
+        return rootA != null && rootB != null
+               && !string.Equals(rootA, rootB, StringComparison.OrdinalIgnoreCase);
     }
 
     public static bool IsDirectoryWritable(string dirPath, bool throwIfFails = false)

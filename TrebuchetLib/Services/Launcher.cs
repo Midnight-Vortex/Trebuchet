@@ -234,8 +234,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         if (!await PerformCatapultUpdates())
             throw new Exception("Pre-launch update failed");
         
-        SetupJunction(Path.Combine(_setup.GetInstancePath(instance), Constants.FolderGameSave), 
-            profile.ProfileFolder);
+        EnsureServerSavedLayout(instance, profile.ProfileFolder);
 
         await _setup.WriteIni(profile, instance);
         var process = await CreateServerProcess(instance, profile, list);
@@ -1132,7 +1131,17 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             if (server.Value.State.IsRunning()) continue;
             if(_serverSequences.ContainsKey(server.Value.Infos.Instance)) continue;
             
-            _logger.LogInformation("Server {instance} stopped", server.Key);
+            if (server.Value.Process.HasExited)
+            {
+                try { server.Value.Process.Refresh(); } catch { /* best effort */ }
+            }
+
+            var exitCode = server.Value.Process.HasExited ? server.Value.Process.ExitCode : (int?)null;
+            _logger.LogInformation(
+                "Server {instance} stopped (state={State}, exitCode={ExitCode})",
+                server.Key,
+                server.Value.State,
+                exitCode);
             _serverProcesses.Remove(server.Key);
             OnStateChanged();
             var name = _appFiles.Server.Resolve(_setup.Config.GetInstanceProfile(server.Key));
@@ -1197,7 +1206,22 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     private string GetCurrentServerJunction(int instance)
     {
         var path = Path.Combine(_setup.GetInstancePath(instance), Constants.FolderGameSave);
-        return _osSpecific.GetSymbolicLinkTarget(path);
+        if (_osSpecific.IsSymbolicLink(path))
+            return _osSpecific.GetSymbolicLinkTarget(path);
+
+        var configLink = Path.Combine(path, Constants.FolderConfig);
+        if (_osSpecific.IsSymbolicLink(configLink))
+        {
+            var configTarget = _osSpecific.GetSymbolicLinkTarget(configLink);
+            if (!string.IsNullOrEmpty(configTarget))
+            {
+                var profile = Path.GetDirectoryName(Path.GetFullPath(configTarget));
+                if (!string.IsNullOrEmpty(profile))
+                    return profile;
+            }
+        }
+
+        return string.Empty;
     }
 
     private void EnsureClientSavedPointsAtPrimaryJunction(string profileFolder)
@@ -1236,6 +1260,144 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         Directory.CreateDirectory(profileFolder);
         Directory.CreateDirectory(Path.Combine(profileFolder, Constants.FolderExtractedMods));
     }
+
+    /// <summary>
+    /// Enhanced server instances on a different volume than the profile need real ExtractedMods on
+    /// the instance drive; UE5 fails to create/write mod extracts through a cross-volume Saved junction.
+    /// </summary>
+    private void EnsureServerSavedLayout(int instance, string profileFolder)
+    {
+        var savedDir = Path.Combine(_setup.GetInstancePath(instance), Constants.FolderGameSave);
+        Directory.CreateDirectory(profileFolder);
+        EnsureExtractedModsDirectory(profileFolder);
+
+        if (!_setup.IsEnhanced || !Tools.IsCrossVolumePath(savedDir, profileFolder))
+        {
+            SetupJunction(savedDir, profileFolder);
+            return;
+        }
+
+        EnsureServerHybridSavedLayout(savedDir, profileFolder);
+    }
+
+    private void EnsureServerHybridSavedLayout(string savedDir, string profileFolder)
+    {
+        var extractedMods = Path.Combine(savedDir, Constants.FolderExtractedMods);
+        var profileExtracted = Path.Combine(profileFolder, Constants.FolderExtractedMods);
+
+        if (_osSpecific.IsSymbolicLink(savedDir))
+        {
+            _logger.LogInformation(
+                "Converting server whole-Saved junction to hybrid layout at {savedDir} (ExtractedMods on instance volume)",
+                savedDir);
+            _osSpecific.RemoveSymbolicLink(savedDir);
+        }
+
+        Directory.CreateDirectory(savedDir);
+        EnsureServerExtractedModsOnInstance(extractedMods, profileExtracted);
+
+        foreach (var childName in ServerHybridSavedLinkedDirectories)
+            EnsureServerSavedChildJunction(savedDir, profileFolder, childName);
+
+        SyncServerProfileRootFilesToSaved(savedDir, profileFolder);
+
+        _logger.LogInformation(
+            "Server hybrid Saved ready: extractedMods={extractedMods}, profile={profileFolder}",
+            extractedMods,
+            profileFolder);
+    }
+
+    private void EnsureServerExtractedModsOnInstance(string extractedMods, string profileExtracted)
+    {
+        if (_osSpecific.IsSymbolicLink(extractedMods))
+        {
+            _logger.LogWarning("Server ExtractedMods was a reparse point; replacing with a real directory on the instance volume");
+            _osSpecific.RemoveSymbolicLink(extractedMods);
+        }
+
+        Directory.CreateDirectory(extractedMods);
+
+        if (!Directory.Exists(profileExtracted) || _osSpecific.IsSymbolicLink(profileExtracted))
+            return;
+
+        foreach (var entry in Directory.EnumerateFileSystemEntries(profileExtracted))
+        {
+            var name = Path.GetFileName(entry);
+            var dest = Path.Combine(extractedMods, name);
+            try
+            {
+                if (Directory.Exists(entry) && !Directory.Exists(dest))
+                    Tools.MergeDirectorySkippingReparsePoints(entry, dest);
+                else if (File.Exists(entry) && !File.Exists(dest))
+                    File.Copy(entry, dest, overwrite: false);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not seed server ExtractedMods entry {name} onto instance volume", name);
+            }
+        }
+    }
+
+    private void EnsureServerSavedChildJunction(string savedDir, string profileFolder, string childName)
+    {
+        var linkPath = Path.Combine(savedDir, childName);
+        var targetPath = Path.Combine(profileFolder, childName);
+        Directory.CreateDirectory(targetPath);
+
+        if (_osSpecific.IsSymbolicLink(linkPath))
+        {
+            var current = _osSpecific.GetSymbolicLinkTarget(linkPath);
+            if (!string.IsNullOrEmpty(current)
+                && string.Equals(Path.GetFullPath(current), Path.GetFullPath(targetPath), StringComparison.OrdinalIgnoreCase))
+                return;
+        }
+        else if (Directory.Exists(linkPath))
+        {
+            Tools.MergeDirectorySkippingReparsePoints(linkPath, targetPath);
+            Directory.Delete(linkPath, true);
+        }
+        else if (File.Exists(linkPath))
+        {
+            File.Delete(linkPath);
+        }
+
+        _osSpecific.MakeSymbolicLink(linkPath, targetPath);
+    }
+
+    private void SyncServerProfileRootFilesToSaved(string savedDir, string profileFolder)
+    {
+        foreach (var file in Directory.EnumerateFiles(profileFolder))
+        {
+            var name = Path.GetFileName(file);
+            if (string.Equals(name, Constants.FileProfileConfig, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var dest = Path.Combine(savedDir, name);
+            if (_osSpecific.IsSymbolicLink(dest))
+                _osSpecific.RemoveSymbolicLink(dest);
+            else if (Directory.Exists(dest))
+                continue;
+
+            try
+            {
+                if (!File.Exists(dest) || File.GetLastWriteTimeUtc(file) >= File.GetLastWriteTimeUtc(dest))
+                    File.Copy(file, dest, overwrite: true);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not expose server profile file {name} at {dest}", name, dest);
+            }
+        }
+    }
+
+    private static readonly string[] ServerHybridSavedLinkedDirectories =
+    [
+        Constants.FolderConfig,
+        Constants.FolderCrashes,
+        Constants.FolderExilesExtreme,
+        Constants.FolderGameSaveLog,
+        Constants.FolderSaveGames
+    ];
 
     private void SetupJunction(string junction, string targetPath)
     {
