@@ -19,7 +19,7 @@ public static class YuuIniServerFiles
             IniSettingAttribute attr = method.GetCustomAttribute<IniSettingAttribute>() ?? throw new Exception($"{method.Name} does not have IniSettingAttribute.");
             if (!documents.TryGetValue(attr.Path, out IniDocument? document))
             {
-                var path = Path.Combine(setup.GetInstancePath(instance), attr.Path);
+                var path = ResolveServerAbsolutePath(setup, profile, instance, attr.Path);
                 var content = await Tools.GetFileContent(path);
                 document = IniParser.Parse(content, iniParserConfiguration);
                 documents.Add(attr.Path, document);
@@ -30,7 +30,7 @@ public static class YuuIniServerFiles
         foreach (var document in documents)
         {
             document.Value.MergeDuplicateSections();
-            var path = Path.Combine(setup.GetInstancePath(instance), document.Key);
+            var path = ResolveServerAbsolutePath(setup, profile, instance, document.Key);
             await Tools.SetFileContent(path, document.Value.ToString()).ConfigureAwait(false);
         }
     }
@@ -40,8 +40,7 @@ public static class YuuIniServerFiles
         var infos = new ConanServerInfos();
         infos.Instance = instance;
 
-        var instancePath = setup.GetInstancePath(instance);
-        string initPath = Path.Combine(instancePath, string.Format(Constants.FileIniServer, "Engine"));
+        string initPath = ResolveServerAbsolutePath(setup, instance, string.Format(Constants.FileIniServer, "Engine"));
         IniDocument document = IniParser.Parse(await Tools.GetFileContent(initPath));
 
         IniSection section = document.GetSection("OnlineSubsystem");
@@ -53,11 +52,47 @@ public static class YuuIniServerFiles
         section = document.GetSection("OnlineSubsystemSteam");
         infos.QueryPort = section.GetValue("GameServerQueryPort", 27015);
 
-        document = IniParser.Parse(await Tools.GetFileContent(Path.Combine(instancePath, string.Format(Constants.FileIniServer, "Game"))));
+        document = IniParser.Parse(await Tools.GetFileContent(
+            ResolveServerAbsolutePath(setup, instance, string.Format(Constants.FileIniServer, "Game"))));
         section = document.GetSection("RconPlugin");
         infos.RConPassword = section.GetValue("RconPassword", string.Empty);
         infos.RConPort = section.GetValue("RconEnabled", false) ? section.GetValue("RconPort", 25575) : 0;
         return infos;
+    }
+
+    /// <summary>
+    /// Paths under Instance\...\Saved go through a junction to Documents profiles.
+    /// Windows RedirectionGuard blocks traversing those junctions from processes that
+    /// enable it — write/read via the resolved profile folder instead (same as client INI).
+    /// </summary>
+    private static string ResolveServerAbsolutePath(AppSetup setup, ServerProfile profile, int instance, string relativePath)
+    {
+        var normalized = relativePath.Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar);
+        const string savedPrefix = @"ConanSandbox\Saved\";
+        if (normalized.StartsWith(savedPrefix, StringComparison.OrdinalIgnoreCase))
+            return Path.GetFullPath(Path.Combine(profile.ProfileFolder, normalized[savedPrefix.Length..]));
+
+        return Tools.ResolveReparsePointsInPath(Path.Combine(setup.GetInstancePath(instance), relativePath));
+    }
+
+    private static string ResolveServerAbsolutePath(AppSetup setup, int instance, string relativePath)
+    {
+        var instancePath = Path.GetFullPath(setup.GetInstancePath(instance));
+        var full = Path.GetFullPath(Path.Combine(instancePath, relativePath));
+        var savedRoot = Path.GetFullPath(Path.Combine(instancePath, Constants.FolderGameSave));
+
+        var relativeToSaved = Path.GetRelativePath(savedRoot, full);
+        if (relativeToSaved == "."
+            || (!relativeToSaved.StartsWith("..", StringComparison.Ordinal) && !Path.IsPathRooted(relativeToSaved)))
+        {
+            var physical = Tools.ResolveReparsePointChain(savedRoot);
+            var resolved = relativeToSaved == "."
+                ? physical
+                : Path.Combine(physical, relativeToSaved);
+            return Tools.ResolveReparsePointsInPath(resolved);
+        }
+
+        return Tools.ResolveReparsePointsInPath(full);
     }
     
     [IniSetting(Constants.FileIniServer, "Engine")]
