@@ -401,8 +401,7 @@ public class Operations : IDisposable
             if (_setup.Config.ManageClient)
             {
                 _logger.LogInformation(@"Creating junction");
-                Directory.CreateDirectory(Path.Combine(_setup.GetClientEmptyJunction(), Constants.FolderExtractedMods));
-                _osSpecific.MakeSymbolicLink(savedDir, _setup.GetClientPrimaryJunction());
+                _osSpecific.MakeSymbolicLink(savedDir, _setup.GetPrimaryJunction());
             }
             else
             {
@@ -436,32 +435,20 @@ public class Operations : IDisposable
             if (!await OnBoardingElevationRequest(clientDirectory, Resources.OnBoardingManageConanUac)) return false;
             var saveName = await OnBoardingChooseClientSaveName();
             _logger.LogInformation(@"Copying game save into trebuchet {saveName}", saveName);
-            var profileDir = _appFiles.Client.GetDirectory(_appFiles.Client.Ref(saveName));
-            var primary = Path.GetFullPath(_setup.GetClientPrimaryJunction());
-            if (Tools.HasChildReparsePoints(savedDir))
-            {
-                _logger.LogInformation(@"Hybrid Saved leftover detected; using safe migration instead of deep copy");
-                Tools.ConvertRealSavedToWholeSavedJunction(savedDir, primary, profileDir, _osSpecific, _logger);
-            }
-            else
-            {
-                await Tools.DeepCopyAsync(savedDir, profileDir, CancellationToken.None);
-                Directory.CreateDirectory(Path.Combine(profileDir, Constants.FolderExtractedMods));
-                await OnBoardingSafeIO(() => Directory.Delete(savedDir, true), savedDir);
-                _osSpecific.MakeSymbolicLink(savedDir, primary);
-            }
+            await Tools.DeepCopyAsync(savedDir, _appFiles.Client.GetDirectory(_appFiles.Client.Ref(saveName)), CancellationToken.None);
+            await OnBoardingSafeIO(() => Directory.Delete(savedDir, true),savedDir);
+            _osSpecific.MakeSymbolicLink(savedDir, _setup.GetPrimaryJunction());
             return true;
         }
 
         if (_osSpecific.IsSymbolicLink(savedDir))
         {
             var path = _osSpecific.GetSymbolicLinkTarget(savedDir);
-            if (!string.IsNullOrEmpty(path)
-                && Path.GetFullPath(path) != Path.GetFullPath(_setup.GetClientPrimaryJunction()))
+            if (Path.GetFullPath(path) != Path.GetFullPath(_setup.GetPrimaryJunction()))
             {
                 if (!await OnBoardingElevationRequest(clientDirectory, Resources.OnBoardingManageConanUac)) return false;
                 _logger.LogWarning(@"Broken junction found, repairing");
-                _osSpecific.MakeSymbolicLink(savedDir, _setup.GetClientPrimaryJunction());
+                _osSpecific.MakeSymbolicLink(savedDir, _setup.GetPrimaryJunction());
             }
         }
 

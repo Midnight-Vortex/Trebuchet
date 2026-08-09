@@ -194,76 +194,6 @@ public class AppSetup
         );
     }
 
-    /// <summary>
-    /// Documents trebuchet tree root for this edition (default profile location).
-    /// </summary>
-    public string GetDocumentsClientDataRoot()
-    {
-        return Path.Combine(GetDataDirectory().FullName, VersionFolder);
-    }
-
-    /// <summary>
-    /// Client data root (GameSaved + ClientProfiles). For Enhanced, when the game install is on a
-    /// different volume than Documents, co-locate on the game volume so whole Saved→GameSaved→profile
-    /// stays same-volume (UE5 can create ExtractedMods; no Hybrid). Matches upstream topology intent.
-    /// </summary>
-    public string GetClientDataRoot()
-    {
-        var documentsRoot = GetDocumentsClientDataRoot();
-        if (!IsEnhanced || string.IsNullOrWhiteSpace(Config.ClientPath))
-            return documentsRoot;
-
-        try
-        {
-            var clientFull = Path.GetFullPath(Config.ClientPath);
-            if (Tools.IsCrossVolumePath(clientFull, documentsRoot))
-            {
-                var gameCommon = Path.GetDirectoryName(clientFull.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-                if (!string.IsNullOrEmpty(gameCommon))
-                    return Path.Combine(gameCommon, "TrebuchetClientData", VersionFolder);
-            }
-        }
-        catch
-        {
-            // Fall back to Documents.
-        }
-
-        return documentsRoot;
-    }
-
-    /// <summary>
-    /// Client GameSaved junction. Co-located with profiles on the Documents volume when
-    /// <see cref="GetPrimaryJunction"/> would live on a different drive than client profiles.
-    /// </summary>
-    public string GetClientPrimaryJunction()
-    {
-        var profileRoot = GetClientDataRoot();
-        var dataPrimary = GetPrimaryJunction();
-        if (!Tools.IsCrossVolumePath(dataPrimary, profileRoot))
-            return dataPrimary;
-
-        if (IsEnhanced)
-            return Path.Combine(profileRoot, Constants.GamePrimaryJunction);
-
-        return Path.Combine(GetDataDirectory().FullName, Constants.GamePrimaryJunction);
-    }
-
-    /// <summary>
-    /// Client EmptyGame junction; follows the same volume rule as <see cref="GetClientPrimaryJunction"/>.
-    /// </summary>
-    public string GetClientEmptyJunction()
-    {
-        var profileRoot = GetClientDataRoot();
-        var dataEmpty = GetEmptyJunction();
-        if (!Tools.IsCrossVolumePath(dataEmpty, profileRoot))
-            return dataEmpty;
-
-        if (IsEnhanced)
-            return Path.Combine(profileRoot, Constants.GameEmptyJunction);
-
-        return Path.Combine(GetDataDirectory().FullName, Constants.GameEmptyJunction);
-    }
-
     public string GetEmptyJunction()
     {
         if (IsEnhanced)
@@ -290,23 +220,4 @@ public class AppSetup
 
     /// <summary>Process image name of the game client for this edition (not BattlEye).</summary>
     public string GetClientProcessName() => Constants.GetClientBin(Edition);
-
-    /// <summary>Upstream default: ServerProfiles under Documents.</summary>
-    public string GetDocumentsServerProfilesBaseFolder()
-    {
-        return Path.Combine(GetDataDirectory().FullName, VersionFolder, Constants.FolderServerProfiles);
-    }
-
-    /// <summary>
-    /// ServerProfiles root. Co-located with server instances on the DataDirectory volume when
-    /// instances and Documents profiles would cross volumes (Enhanced ExtractedMods through Saved junction).
-    /// </summary>
-    public string GetServerProfilesBaseFolder()
-    {
-        var documentsProfiles = GetDocumentsServerProfilesBaseFolder();
-        if (!Tools.IsCrossVolumePath(GetServerInstancePath(), documentsProfiles))
-            return documentsProfiles;
-
-        return Path.Combine(GetCommonAppDataDirectory().FullName, VersionFolder, Constants.FolderServerProfiles);
-    }
 }

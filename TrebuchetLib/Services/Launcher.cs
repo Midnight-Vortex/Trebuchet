@@ -124,10 +124,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         if (IsClientProfileLocked(profileRef))
             throw new Exception($"Profile {profileRef} folder is currently locked by another process.");
 
-        SetupJunction(_setup.GetClientPrimaryJunction(), profile.ProfileFolder);
-        EnsureClientSavedPointsAtPrimaryJunction(profile.ProfileFolder);
-        RepairStaleDataDirectoryGameSavedJunction();
-        EnsureExtractedModsDirectory(profile.ProfileFolder);
+        SetupJunction(_setup.GetPrimaryJunction(), profile.ProfileFolder);
 
         await _setup.WriteIni(profile);
         
@@ -235,7 +232,8 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         if (!await PerformCatapultUpdates())
             throw new Exception("Pre-launch update failed");
         
-        EnsureServerSavedLayout(instance, profile.ProfileFolder);
+        SetupJunction(Path.Combine(_setup.GetInstancePath(instance), Constants.FolderGameSave),
+            profile.ProfileFolder);
 
         await _setup.WriteIni(profile, instance);
         var process = await CreateServerProcess(instance, profile, list);
@@ -257,10 +255,6 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             instance);
 
         ConfigureProcess(profile.ProcessPriority, profile.CPUThreadAffinity, childProcess);
-
-        _logger.LogInformation(
-            "Server shipping process configured; waiting for stable start (instance {Instance})",
-            instance);
 
         AddStartDate(instance);
         return childProcess;
@@ -1193,19 +1187,14 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     private string GetCurrentClientJunction()
     {
         var savedDir = Path.Combine(_setup.GetClientFolder(), Constants.FolderGameSave);
-
         if (!_osSpecific.IsSymbolicLink(savedDir))
-        {
-            var primary = _setup.GetClientPrimaryJunction();
-            return _osSpecific.IsSymbolicLink(primary)
-                ? _osSpecific.GetSymbolicLinkTarget(primary)
-                : string.Empty;
-        }
+            return string.Empty;
 
         var target = _osSpecific.GetSymbolicLinkTarget(savedDir);
         if (string.IsNullOrEmpty(target)) return target;
 
-        var primaryPath = Path.GetFullPath(_setup.GetClientPrimaryJunction());
+        // Enhanced/Legacy ManageClient: Saved -> GameSaved -> profile.
+        var primaryPath = Path.GetFullPath(_setup.GetPrimaryJunction());
         if (string.Equals(Path.GetFullPath(target), primaryPath, StringComparison.OrdinalIgnoreCase)
             && _osSpecific.IsSymbolicLink(target))
         {
@@ -1220,126 +1209,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     private string GetCurrentServerJunction(int instance)
     {
         var path = Path.Combine(_setup.GetInstancePath(instance), Constants.FolderGameSave);
-        if (_osSpecific.IsSymbolicLink(path))
-            return _osSpecific.GetSymbolicLinkTarget(path);
-
-        var configLink = Path.Combine(path, Constants.FolderConfig);
-        if (_osSpecific.IsSymbolicLink(configLink))
-        {
-            var configTarget = _osSpecific.GetSymbolicLinkTarget(configLink);
-            if (!string.IsNullOrEmpty(configTarget))
-            {
-                var profile = Path.GetDirectoryName(Path.GetFullPath(configTarget));
-                if (!string.IsNullOrEmpty(profile))
-                    return profile;
-            }
-        }
-
-        return string.Empty;
-    }
-
-    private void EnsureClientSavedPointsAtPrimaryJunction(string profileFolder)
-    {
-        if (!_setup.Config.ManageClient) return;
-        if (string.IsNullOrEmpty(_setup.Config.ClientPath)) return;
-
-        var savedDir = Path.Combine(_setup.GetClientFolder(), Constants.FolderGameSave);
-        var primary = Path.GetFullPath(_setup.GetClientPrimaryJunction());
-
-        if (_osSpecific.IsSymbolicLink(savedDir))
-        {
-            var current = _osSpecific.GetSymbolicLinkTarget(savedDir);
-            if (!string.IsNullOrEmpty(current)
-                && string.Equals(Path.GetFullPath(current), primary, StringComparison.OrdinalIgnoreCase))
-                return;
-
-            _logger.LogWarning("Client Saved junction points elsewhere ({current}); repairing -> {primary}", current, primary);
-            _osSpecific.MakeSymbolicLink(savedDir, primary);
-            return;
-        }
-
-        if (Directory.Exists(savedDir))
-        {
-            Tools.ConvertRealSavedToWholeSavedJunction(savedDir, primary, profileFolder, _osSpecific, _logger);
-            return;
-        }
-
-        _logger.LogInformation("Client Saved missing; creating junction -> {primary}", primary);
-        Directory.CreateDirectory(Path.GetDirectoryName(savedDir)!);
-        _osSpecific.MakeSymbolicLink(savedDir, primary);
-    }
-
-    /// <summary>
-    /// When client GameSaved is co-located with profiles, reset a stale DataDirectory GameSaved
-    /// junction (e.g. old D: link still pointing at an active profile).
-    /// </summary>
-    private void RepairStaleDataDirectoryGameSavedJunction()
-    {
-        if (!_setup.Config.ManageClient) return;
-
-        var clientPrimary = Path.GetFullPath(_setup.GetClientPrimaryJunction());
-        var dataPrimary = Path.GetFullPath(_setup.GetPrimaryJunction());
-        if (string.Equals(clientPrimary, dataPrimary, StringComparison.OrdinalIgnoreCase))
-            return;
-
-        if (!_osSpecific.IsSymbolicLink(dataPrimary))
-            return;
-
-        var target = _osSpecific.GetSymbolicLinkTarget(dataPrimary);
-        if (string.IsNullOrEmpty(target))
-            return;
-
-        var empty = Path.GetFullPath(_setup.GetEmptyJunction());
-        if (string.Equals(Path.GetFullPath(target), empty, StringComparison.OrdinalIgnoreCase))
-            return;
-
-        _logger.LogWarning(
-            "Stale DataDirectory GameSaved junction {dataPrimary} -> {target}; resetting -> {empty}",
-            dataPrimary,
-            target,
-            empty);
-        _osSpecific.MakeSymbolicLink(dataPrimary, empty);
-    }
-
-    private static void EnsureExtractedModsDirectory(string profileFolder)
-    {
-        Directory.CreateDirectory(profileFolder);
-        Directory.CreateDirectory(Path.Combine(profileFolder, Constants.FolderExtractedMods));
-    }
-
-    private void EnsureServerSavedLayout(int instance, string profileFolder)
-    {
-        var savedDir = Path.Combine(_setup.GetInstancePath(instance), Constants.FolderGameSave);
-        EnsureExtractedModsDirectory(profileFolder);
-
-        if (_osSpecific.IsSymbolicLink(savedDir))
-        {
-            var current = _osSpecific.GetSymbolicLinkTarget(savedDir);
-            if (!string.IsNullOrEmpty(current)
-                && string.Equals(Path.GetFullPath(current), Path.GetFullPath(profileFolder), StringComparison.OrdinalIgnoreCase))
-                return;
-
-            _logger.LogWarning(
-                "Server Saved junction points elsewhere ({current}); repairing -> {profile}",
-                current,
-                profileFolder);
-            _osSpecific.RemoveSymbolicLink(savedDir);
-        }
-
-        if (Directory.Exists(savedDir))
-        {
-            if (Tools.HasChildReparsePoints(savedDir))
-            {
-                _logger.LogInformation(
-                    "Server hybrid Saved leftover at {savedDir}; converting to whole-Saved junction",
-                    savedDir);
-            }
-
-            Tools.ConvertRealSavedToWholeSavedJunction(savedDir, profileFolder, profileFolder, _osSpecific, _logger);
-            return;
-        }
-
-        SetupJunction(savedDir, profileFolder);
+        return _osSpecific.GetSymbolicLinkTarget(path);
     }
 
     private void SetupJunction(string junction, string targetPath)
