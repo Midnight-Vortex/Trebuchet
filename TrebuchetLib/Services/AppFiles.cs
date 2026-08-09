@@ -14,6 +14,7 @@ public class AppFiles(AppSetup setup, IOsPlatformSpecific osSpecific)
     {
         Tools.CreateDir(setup.GetServerInstancePath());
         Tools.MigrateServerProfilesIfNeeded(setup);
+        Tools.MigrateClientProfilesIfNeeded(setup);
         Tools.CreateDir(Client.GetBaseFolder());
         Tools.CreateDir(Server.GetBaseFolder());
         Tools.CreateDir(Mods.GetBaseFolder());

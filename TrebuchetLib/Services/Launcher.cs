@@ -258,6 +258,10 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
 
         ConfigureProcess(profile.ProcessPriority, profile.CPUThreadAffinity, childProcess);
 
+        _logger.LogInformation(
+            "Server shipping process configured; waiting for stable start (instance {Instance})",
+            instance);
+
         AddStartDate(instance);
         return childProcess;
     }
@@ -1007,7 +1011,8 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         process.StartInfo.FileName = filename;
         process.StartInfo.WorkingDirectory = dir;
         process.StartInfo.Arguments = args;
-        process.StartInfo.UseShellExecute = true;
+        // UseShellExecute=false so args/working directory are applied reliably to the proxy→shipping tree.
+        process.StartInfo.UseShellExecute = false;
         process.EnableRaisingEvents = true;
         return process;
     }

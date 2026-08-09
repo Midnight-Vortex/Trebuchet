@@ -259,6 +259,39 @@ public static class Tools
         }
     }
 
+    /// <summary>
+    /// Enhanced: when ClientProfiles move to the game volume, copy from Documents so whole-Saved
+    /// junctions stay same-volume (UE5 ExtractedMods) without Hybrid child links.
+    /// </summary>
+    public static void MigrateClientProfilesIfNeeded(AppSetup setup)
+    {
+        var targetRoot = Path.Combine(setup.GetClientDataRoot(), Constants.FolderClientProfiles);
+        var legacyRoot = Path.Combine(setup.GetDocumentsClientDataRoot(), Constants.FolderClientProfiles);
+        if (string.Equals(Path.GetFullPath(targetRoot), Path.GetFullPath(legacyRoot), StringComparison.OrdinalIgnoreCase))
+            return;
+
+        CreateDir(targetRoot);
+        if (!Directory.Exists(legacyRoot))
+            return;
+
+        foreach (var entry in Directory.EnumerateFileSystemEntries(legacyRoot))
+        {
+            var name = Path.GetFileName(entry);
+            var dest = Path.Combine(targetRoot, name);
+            if (Directory.Exists(entry))
+            {
+                if (Directory.Exists(dest))
+                    MergeDirectorySkippingReparsePoints(entry, dest);
+                else
+                    MergeDirectorySkippingReparsePoints(entry, dest);
+            }
+            else if (File.Exists(entry) && !File.Exists(dest))
+            {
+                File.Copy(entry, dest);
+            }
+        }
+    }
+
     public static void DeleteIfExists(string file)
     {
         if (Directory.Exists(file))

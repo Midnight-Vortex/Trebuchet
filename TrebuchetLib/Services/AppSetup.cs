@@ -195,11 +195,40 @@ public class AppSetup
     }
 
     /// <summary>
-    /// Documents trebuchet tree root for this edition (same volume as <see cref="AppClientFiles"/> profiles).
+    /// Documents trebuchet tree root for this edition (default profile location).
+    /// </summary>
+    public string GetDocumentsClientDataRoot()
+    {
+        return Path.Combine(GetDataDirectory().FullName, VersionFolder);
+    }
+
+    /// <summary>
+    /// Client data root (GameSaved + ClientProfiles). For Enhanced, when the game install is on a
+    /// different volume than Documents, co-locate on the game volume so whole Saved→GameSaved→profile
+    /// stays same-volume (UE5 can create ExtractedMods; no Hybrid). Matches upstream topology intent.
     /// </summary>
     public string GetClientDataRoot()
     {
-        return Path.Combine(GetDataDirectory().FullName, VersionFolder);
+        var documentsRoot = GetDocumentsClientDataRoot();
+        if (!IsEnhanced || string.IsNullOrWhiteSpace(Config.ClientPath))
+            return documentsRoot;
+
+        try
+        {
+            var clientFull = Path.GetFullPath(Config.ClientPath);
+            if (Tools.IsCrossVolumePath(clientFull, documentsRoot))
+            {
+                var gameCommon = Path.GetDirectoryName(clientFull.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+                if (!string.IsNullOrEmpty(gameCommon))
+                    return Path.Combine(gameCommon, "TrebuchetClientData", VersionFolder);
+            }
+        }
+        catch
+        {
+            // Fall back to Documents.
+        }
+
+        return documentsRoot;
     }
 
     /// <summary>
