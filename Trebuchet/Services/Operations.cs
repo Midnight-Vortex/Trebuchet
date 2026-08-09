@@ -394,34 +394,15 @@ public class Operations : IDisposable
         using(_logger.BeginScope((@"SavedDir", savedDir)))
             _logger.LogInformation(@"Applying Conan Management");
 
-        // Enhanced Hybrid Saved: real Saved + real ExtractedMods; Config/etc. junctions into profile.
-        if (_setup.IsEnhanced && _setup.Config.ManageClient && IsHybridSavedLayout(savedDir))
-        {
-            _logger.LogInformation(@"Hybrid Saved layout detected (real Saved with Config junction); leaving as-is");
-            return true;
-        }
-
         if (!Directory.Exists(savedDir))
         {
             _logger.LogWarning(@"Saved Directory does not exists");
             if (!await OnBoardingElevationRequest(clientDirectory, Resources.OnBoardingManageConanUac)) return false;
             if (_setup.Config.ManageClient)
             {
-                if (_setup.IsEnhanced)
-                {
-                    _logger.LogInformation(@"Creating Hybrid Saved layout (real Saved + ExtractedMods)");
-                    Directory.CreateDirectory(savedDir);
-                    Directory.CreateDirectory(Path.Combine(savedDir, Constants.FolderExtractedMods));
-                    Directory.CreateDirectory(Path.Combine(_setup.GetEmptyJunction(), Constants.FolderExtractedMods));
-                    if (!_osSpecific.IsSymbolicLink(_setup.GetPrimaryJunction()))
-                        _osSpecific.MakeSymbolicLink(_setup.GetPrimaryJunction(), _setup.GetEmptyJunction());
-                }
-                else
-                {
-                    _logger.LogInformation(@"Creating junction");
-                    Directory.CreateDirectory(Path.Combine(_setup.GetEmptyJunction(), Constants.FolderExtractedMods));
-                    _osSpecific.MakeSymbolicLink(savedDir, _setup.GetPrimaryJunction());
-                }
+                _logger.LogInformation(@"Creating junction");
+                Directory.CreateDirectory(Path.Combine(_setup.GetEmptyJunction(), Constants.FolderExtractedMods));
+                _osSpecific.MakeSymbolicLink(savedDir, _setup.GetPrimaryJunction());
             }
             else
             {
@@ -458,31 +439,13 @@ public class Operations : IDisposable
             var profileDir = _appFiles.Client.GetDirectory(_appFiles.Client.Ref(saveName));
             await Tools.DeepCopyAsync(savedDir, profileDir, CancellationToken.None);
             Directory.CreateDirectory(Path.Combine(profileDir, Constants.FolderExtractedMods));
-
-            if (_setup.IsEnhanced)
-            {
-                // Keep real Saved/ExtractedMods; client launch wires Config/etc. junctions to the profile.
-                _logger.LogInformation(@"Hybrid Saved prepared; profile junctions will be applied on client launch");
-                _osSpecific.MakeSymbolicLink(_setup.GetPrimaryJunction(), profileDir);
-                Directory.CreateDirectory(Path.Combine(savedDir, Constants.FolderExtractedMods));
-            }
-            else
-            {
-                await OnBoardingSafeIO(() => Directory.Delete(savedDir, true), savedDir);
-                _osSpecific.MakeSymbolicLink(savedDir, _setup.GetPrimaryJunction());
-            }
+            await OnBoardingSafeIO(() => Directory.Delete(savedDir, true), savedDir);
+            _osSpecific.MakeSymbolicLink(savedDir, _setup.GetPrimaryJunction());
             return true;
         }
 
         if (_osSpecific.IsSymbolicLink(savedDir))
         {
-            if (_setup.IsEnhanced && _setup.Config.ManageClient)
-            {
-                // Whole-Saved junction is converted to Hybrid on the next client launch.
-                _logger.LogInformation(@"Whole-Saved junction detected; Hybrid Saved will be applied on client launch");
-                return true;
-            }
-
             var path = _osSpecific.GetSymbolicLinkTarget(savedDir);
             if (!string.IsNullOrEmpty(path)
                 && Path.GetFullPath(path) != Path.GetFullPath(_setup.GetPrimaryJunction()))
@@ -494,14 +457,6 @@ public class Operations : IDisposable
         }
 
         return true;
-    }
-
-    private bool IsHybridSavedLayout(string savedDir)
-    {
-        if (!Directory.Exists(savedDir) || _osSpecific.IsSymbolicLink(savedDir))
-            return false;
-        var config = Path.Combine(savedDir, Constants.FolderConfig);
-        return _osSpecific.IsSymbolicLink(config);
     }
 
     public async Task<string> OnBoardingChooseClientSave()

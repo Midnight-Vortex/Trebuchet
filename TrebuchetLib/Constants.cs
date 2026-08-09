@@ -41,20 +41,6 @@ public static class Constants
     public const string FolderSaveGames = "SaveGames";
     public const string FolderExilesExtreme = "ExilesExtreme";
 
-    /// <summary>
-    /// Under Hybrid Saved (Enhanced + ManageClient), these stay as junctions into the
-    /// client profile. ExtractedMods stays a real directory on the game drive (UE5 cannot
-    /// copy .pak files through a cross-volume junction into Documents).
-    /// </summary>
-    public static readonly string[] HybridSavedLinkedDirectories =
-    [
-        FolderConfig,
-        FolderCrashes,
-        FolderExilesExtreme,
-        FolderGameSaveLog,
-        FolderSaveGames
-    ];
-
     public const string FolderInstancePattern = "Instance_{0}";
     public const string FolderLive = "Live";
     public const string FolderEnhanced = "Enhanced";
