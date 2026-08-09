@@ -394,11 +394,10 @@ public class Operations : IDisposable
         using(_logger.BeginScope((@"SavedDir", savedDir)))
             _logger.LogInformation(@"Applying Conan Management");
 
-        // Match upstream Totchinuko: whole Saved → GameSaved/profile junction for ManageClient.
-        // Hybrid child-junction layout is converted back to whole-Saved on client launch.
+        // Enhanced Hybrid Saved: real Saved + real ExtractedMods; Config/etc. junctions into profile.
         if (_setup.IsEnhanced && _setup.Config.ManageClient && IsHybridSavedLayout(savedDir))
         {
-            _logger.LogInformation(@"Hybrid Saved layout detected; whole-Saved junction will be restored on client launch");
+            _logger.LogInformation(@"Hybrid Saved layout detected (real Saved with Config junction); leaving as-is");
             return true;
         }
 
@@ -408,9 +407,21 @@ public class Operations : IDisposable
             if (!await OnBoardingElevationRequest(clientDirectory, Resources.OnBoardingManageConanUac)) return false;
             if (_setup.Config.ManageClient)
             {
-                _logger.LogInformation(@"Creating junction");
-                Directory.CreateDirectory(Path.Combine(_setup.GetEmptyJunction(), Constants.FolderExtractedMods));
-                _osSpecific.MakeSymbolicLink(savedDir, _setup.GetPrimaryJunction());
+                if (_setup.IsEnhanced)
+                {
+                    _logger.LogInformation(@"Creating Hybrid Saved layout (real Saved + ExtractedMods)");
+                    Directory.CreateDirectory(savedDir);
+                    Directory.CreateDirectory(Path.Combine(savedDir, Constants.FolderExtractedMods));
+                    Directory.CreateDirectory(Path.Combine(_setup.GetEmptyJunction(), Constants.FolderExtractedMods));
+                    if (!_osSpecific.IsSymbolicLink(_setup.GetPrimaryJunction()))
+                        _osSpecific.MakeSymbolicLink(_setup.GetPrimaryJunction(), _setup.GetEmptyJunction());
+                }
+                else
+                {
+                    _logger.LogInformation(@"Creating junction");
+                    Directory.CreateDirectory(Path.Combine(_setup.GetEmptyJunction(), Constants.FolderExtractedMods));
+                    _osSpecific.MakeSymbolicLink(savedDir, _setup.GetPrimaryJunction());
+                }
             }
             else
             {
@@ -447,25 +458,34 @@ public class Operations : IDisposable
             var profileDir = _appFiles.Client.GetDirectory(_appFiles.Client.Ref(saveName));
             await Tools.DeepCopyAsync(savedDir, profileDir, CancellationToken.None);
             Directory.CreateDirectory(Path.Combine(profileDir, Constants.FolderExtractedMods));
-            await OnBoardingSafeIO(() => Directory.Delete(savedDir, true), savedDir);
-            // Enhanced: Saved → profile (single hop). Legacy: Saved → GameSaved.
-            var target = _setup.IsEnhanced ? profileDir : _setup.GetPrimaryJunction();
+
             if (_setup.IsEnhanced)
+            {
+                // Keep real Saved/ExtractedMods; client launch wires Config/etc. junctions to the profile.
+                _logger.LogInformation(@"Hybrid Saved prepared; profile junctions will be applied on client launch");
                 _osSpecific.MakeSymbolicLink(_setup.GetPrimaryJunction(), profileDir);
-            _osSpecific.MakeSymbolicLink(savedDir, target);
+                Directory.CreateDirectory(Path.Combine(savedDir, Constants.FolderExtractedMods));
+            }
+            else
+            {
+                await OnBoardingSafeIO(() => Directory.Delete(savedDir, true), savedDir);
+                _osSpecific.MakeSymbolicLink(savedDir, _setup.GetPrimaryJunction());
+            }
             return true;
         }
 
         if (_osSpecific.IsSymbolicLink(savedDir))
         {
-            var expected = _setup.IsEnhanced && _setup.Config.ManageClient
-                ? Path.GetFullPath(_setup.GetPrimaryJunction()) // repaired to profile on launch
-                : Path.GetFullPath(_setup.GetPrimaryJunction());
+            if (_setup.IsEnhanced && _setup.Config.ManageClient)
+            {
+                // Whole-Saved junction is converted to Hybrid on the next client launch.
+                _logger.LogInformation(@"Whole-Saved junction detected; Hybrid Saved will be applied on client launch");
+                return true;
+            }
+
             var path = _osSpecific.GetSymbolicLinkTarget(savedDir);
-            // Legacy: must point at GameSaved. Enhanced may already point at a profile — leave for launch repair.
-            if (!_setup.IsEnhanced
-                && !string.IsNullOrEmpty(path)
-                && Path.GetFullPath(path) != expected)
+            if (!string.IsNullOrEmpty(path)
+                && Path.GetFullPath(path) != Path.GetFullPath(_setup.GetPrimaryJunction()))
             {
                 if (!await OnBoardingElevationRequest(clientDirectory, Resources.OnBoardingManageConanUac)) return false;
                 _logger.LogWarning(@"Broken junction found, repairing");
