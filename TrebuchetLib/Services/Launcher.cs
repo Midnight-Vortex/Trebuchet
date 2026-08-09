@@ -1256,6 +1256,9 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
 
         Directory.CreateDirectory(extractedMods);
 
+        // Preserve any real Saved-side DBs/files into the profile before (re)linking.
+        SyncSavedRootFilesIntoProfile(savedDir, profileFolder);
+
         var linkedRoots = 0;
         foreach (var child in Constants.HybridSavedLinkedDirectories)
             EnsureSavedChildJunction(savedDir, profileFolder, child);
@@ -1263,6 +1266,8 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         foreach (var file in Directory.EnumerateFiles(profileFolder))
         {
             var name = Path.GetFileName(file);
+            if (string.Equals(name, "profile.json", StringComparison.OrdinalIgnoreCase))
+                continue;
             if (string.Equals(name, Constants.FolderExtractedMods, StringComparison.OrdinalIgnoreCase))
                 continue;
             var linkPath = Path.Combine(savedDir, name);
@@ -1321,6 +1326,34 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         _logger.LogInformation("Saved child junction: {linkPath} -> {targetPath}", linkPath, targetPath);
     }
 
+    private void SyncSavedRootFilesIntoProfile(string savedDir, string profileFolder)
+    {
+        if (!Directory.Exists(savedDir) || _osSpecific.IsSymbolicLink(savedDir))
+            return;
+
+        foreach (var file in Directory.EnumerateFiles(savedDir))
+        {
+            if (_osSpecific.IsSymbolicLink(file))
+                continue;
+
+            var name = Path.GetFileName(file);
+            var dest = Path.Combine(profileFolder, name);
+            try
+            {
+                // Keep the newest copy in the profile (source of truth across launches).
+                if (!File.Exists(dest) || File.GetLastWriteTimeUtc(file) >= File.GetLastWriteTimeUtc(dest))
+                {
+                    File.Copy(file, dest, overwrite: true);
+                    _logger.LogInformation("Synced Saved root file into profile: {name}", name);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not sync Saved root file {file} into profile", file);
+            }
+        }
+    }
+
     private void EnsureSavedRootFileLink(string linkPath, string targetFile)
     {
         if (_osSpecific.IsSymbolicLink(linkPath))
@@ -1331,25 +1364,35 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
                 return;
             _osSpecific.RemoveSymbolicLink(linkPath);
         }
-        else if (File.Exists(linkPath))
-        {
-            // Prefer profile copy; drop the Saved-side duplicate.
-            File.Delete(linkPath);
-        }
         else if (Directory.Exists(linkPath))
         {
             return;
         }
 
+        // Cross-volume file symlinks often fail without Developer Mode. Never delete the
+        // Saved-side file until a symlink or copy has succeeded — otherwise SP DBs disappear.
         try
         {
+            if (File.Exists(linkPath) && !_osSpecific.IsSymbolicLink(linkPath))
+                File.Delete(linkPath);
+
             _osSpecific.MakeFileSymbolicLink(linkPath, targetFile);
             _logger.LogInformation("Linked Saved root file {linkPath} -> {targetFile}", linkPath, targetFile);
+            return;
         }
         catch (Exception ex)
         {
-            // File symlinks need Developer Mode / privilege; Config/ExtractedMods still work without them.
-            _logger.LogWarning(ex, "Could not link Saved root file {linkPath} -> {targetFile}", linkPath, targetFile);
+            _logger.LogWarning(ex, "File symlink failed for {linkPath}; copying from profile instead", linkPath);
+        }
+
+        try
+        {
+            File.Copy(targetFile, linkPath, overwrite: true);
+            _logger.LogInformation("Copied Saved root file from profile: {linkPath}", linkPath);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Could not expose profile file at {linkPath}", linkPath);
         }
     }
 
