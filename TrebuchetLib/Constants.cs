@@ -37,10 +37,14 @@ public static class Constants
     public const string FolderGameBinaries = "ConanSandbox\\Binaries\\Win64";
     public const string FolderGameSave = "ConanSandbox\\Saved";
     public const string FolderGameSaveLog = "Logs";
+    /// <summary>UE5 Enhanced extracts workshop content under Saved/ExtractedMods.</summary>
+    public const string FolderExtractedMods = "ExtractedMods";
 
     public const string FolderInstancePattern = "Instance_{0}";
     public const string FolderLive = "Live";
     public const string FolderEnhanced = "Enhanced";
+    /// <summary>Client profiles/GameSaved sibling folder next to the game install when volumes differ.</summary>
+    public const string FolderTrebuchetClientData = "TrebuchetClientData";
     public const string FolderModlistProfiles = "Modlists";
     public const string FolderSyncProfiles = "Sync";
     public const string FolderServerInstances = "ServerInstances";

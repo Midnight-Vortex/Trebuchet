@@ -125,6 +125,8 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             throw new Exception($"Profile {profileRef} folder is currently locked by another process.");
 
         SetupJunction(_setup.GetPrimaryJunction(), profile.ProfileFolder);
+        EnsureClientSavedPointsAtPrimaryJunction();
+        EnsureExtractedModsDirectory(profile.ProfileFolder);
 
         await _setup.WriteIni(profile);
         
@@ -234,6 +236,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         
         SetupJunction(Path.Combine(_setup.GetInstancePath(instance), Constants.FolderGameSave),
             profile.ProfileFolder);
+        EnsureExtractedModsDirectory(profile.ProfileFolder);
 
         await _setup.WriteIni(profile, instance);
         var process = await CreateServerProcess(instance, profile, list);
@@ -1196,9 +1199,53 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         return _osSpecific.GetSymbolicLinkTarget(path);
     }
 
+    private void EnsureClientSavedPointsAtPrimaryJunction()
+    {
+        if (!_setup.Config.ManageClient) return;
+        if (string.IsNullOrEmpty(_setup.Config.ClientPath)) return;
+
+        var savedDir = Path.Combine(_setup.GetClientFolder(), Constants.FolderGameSave);
+        var primary = Path.GetFullPath(_setup.GetPrimaryJunction());
+        Directory.CreateDirectory(Path.GetDirectoryName(savedDir)!);
+
+        if (_osSpecific.IsSymbolicLink(savedDir))
+        {
+            var current = _osSpecific.GetSymbolicLinkTarget(savedDir);
+            if (!string.IsNullOrEmpty(current)
+                && string.Equals(Path.GetFullPath(current), primary, StringComparison.OrdinalIgnoreCase))
+                return;
+
+            _logger.LogWarning("Client Saved junction points elsewhere ({current}); repairing -> {primary}", current, primary);
+            _osSpecific.MakeSymbolicLink(savedDir, primary);
+            return;
+        }
+
+        if (Directory.Exists(savedDir))
+        {
+            // Real Saved on the game volume: UE5 can create ExtractedMods here directly.
+            Directory.CreateDirectory(Path.Combine(savedDir, Constants.FolderExtractedMods));
+            _logger.LogWarning(
+                "Client Saved is a real directory at {savedDir}; left in place and ensured ExtractedMods (expected junction -> {primary})",
+                savedDir,
+                primary);
+            return;
+        }
+
+        _logger.LogInformation("Client Saved missing; creating junction -> {primary}", primary);
+        _osSpecific.MakeSymbolicLink(savedDir, primary);
+    }
+
+    private static void EnsureExtractedModsDirectory(string profileFolder)
+    {
+        Directory.CreateDirectory(profileFolder);
+        Directory.CreateDirectory(Path.Combine(profileFolder, Constants.FolderExtractedMods));
+    }
+
     private void SetupJunction(string junction, string targetPath)
     {
         _logger.LogInformation("Setup new junction {junction} > {target}", junction, targetPath);
+        Directory.CreateDirectory(targetPath);
+        Directory.CreateDirectory(Path.Combine(targetPath, Constants.FolderExtractedMods));
         _osSpecific.MakeSymbolicLink(junction, targetPath);
     }
 

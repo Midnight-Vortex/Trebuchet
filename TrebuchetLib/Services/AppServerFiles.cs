@@ -14,9 +14,6 @@ public class AppServerFiles(AppSetup appSetup) : IAppServerFiles
 
     public string GetBaseFolder()
     {
-        return Path.Combine(
-            appSetup.GetDataDirectory().FullName,
-            appSetup.VersionFolder,
-            Constants.FolderServerProfiles);
+        return appSetup.GetServerProfilesBaseFolder();
     }
 }

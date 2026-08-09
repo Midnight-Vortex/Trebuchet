@@ -13,12 +13,22 @@ public class AppFiles(AppSetup setup, IOsPlatformSpecific osSpecific)
     public bool SetupFolders()
     {
         Tools.CreateDir(setup.GetServerInstancePath());
+        if (setup.IsEnhanced)
+        {
+            Tools.MigrateDirectoryTreeIfNeeded(
+                Path.Combine(setup.GetDocumentsDataRoot(), Constants.FolderClientProfiles),
+                Path.Combine(setup.GetClientDataRoot(), Constants.FolderClientProfiles));
+            Tools.MigrateDirectoryTreeIfNeeded(
+                Path.Combine(setup.GetDocumentsDataRoot(), Constants.FolderServerProfiles),
+                setup.GetServerProfilesBaseFolder());
+        }
         Tools.CreateDir(Client.GetBaseFolder());
         Tools.CreateDir(Server.GetBaseFolder());
         Tools.CreateDir(Mods.GetBaseFolder());
         Tools.CreateDir(Sync.GetBaseFolder());
         Tools.CreateDir(setup.GetWorkshopFolder());
         Tools.CreateDir(setup.GetEmptyJunction());
+        Tools.CreateDir(Path.Combine(setup.GetEmptyJunction(), Constants.FolderExtractedMods));
         if(!osSpecific.IsSymbolicLink(setup.GetPrimaryJunction()))
             osSpecific.MakeSymbolicLink(setup.GetPrimaryJunction(), setup.GetEmptyJunction());
 

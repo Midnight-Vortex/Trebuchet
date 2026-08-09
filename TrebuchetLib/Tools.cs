@@ -189,6 +189,69 @@ public static class Tools
                File.Exists(Path.Combine(directory, Constants.FolderGameBinaries, Constants.GetClientBin(edition)));
     }
 
+    public static bool IsCrossVolumePath(string pathA, string pathB)
+    {
+        try
+        {
+            var rootA = Path.GetPathRoot(Path.GetFullPath(pathA));
+            var rootB = Path.GetPathRoot(Path.GetFullPath(pathB));
+            return rootA != null && rootB != null
+                   && !string.Equals(rootA, rootB, StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// One-time copy of profile folders when Enhanced co-locates onto another volume.
+    /// </summary>
+    public static void MigrateDirectoryTreeIfNeeded(string legacyRoot, string targetRoot)
+    {
+        if (string.Equals(Path.GetFullPath(legacyRoot), Path.GetFullPath(targetRoot), StringComparison.OrdinalIgnoreCase))
+            return;
+
+        CreateDir(targetRoot);
+        if (!Directory.Exists(legacyRoot))
+            return;
+
+        foreach (var entry in Directory.EnumerateFileSystemEntries(legacyRoot))
+        {
+            var name = Path.GetFileName(entry);
+            var dest = Path.Combine(targetRoot, name);
+            if (Directory.Exists(entry))
+            {
+                if (!Directory.Exists(dest))
+                    CopyDirectoryRecursive(entry, dest);
+            }
+            else if (File.Exists(entry) && !File.Exists(dest))
+            {
+                File.Copy(entry, dest);
+            }
+        }
+    }
+
+    private static void CopyDirectoryRecursive(string sourceDir, string destDir)
+    {
+        Directory.CreateDirectory(destDir);
+        foreach (var dir in Directory.EnumerateDirectories(sourceDir))
+        {
+            if (File.GetAttributes(dir).HasFlag(FileAttributes.ReparsePoint))
+                continue;
+            CopyDirectoryRecursive(dir, Path.Combine(destDir, Path.GetFileName(dir)));
+        }
+
+        foreach (var file in Directory.EnumerateFiles(sourceDir))
+        {
+            if (File.GetAttributes(file).HasFlag(FileAttributes.ReparsePoint))
+                continue;
+            var dest = Path.Combine(destDir, Path.GetFileName(file));
+            if (!File.Exists(dest) || File.GetLastWriteTimeUtc(file) >= File.GetLastWriteTimeUtc(dest))
+                File.Copy(file, dest, overwrite: true);
+        }
+    }
+
     public static bool IsDirectoryWritable(string dirPath, bool throwIfFails = false)
     {
         try
