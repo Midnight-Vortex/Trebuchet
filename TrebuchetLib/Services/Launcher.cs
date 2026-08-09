@@ -124,8 +124,20 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         if (IsClientProfileLocked(profileRef))
             throw new Exception($"Profile {profileRef} folder is currently locked by another process.");
 
-        SetupJunction(_setup.GetPrimaryJunction(), profile.ProfileFolder);
-        EnsureClientSavedPointsAtPrimaryJunction();
+        // Enhanced + ManageClient: one hop Saved→profile (same volume via TrebuchetClientData).
+        // Two hops Saved→GameSaved→profile make UE5 fail "ensure ExtractedMods".
+        // Legacy keeps e61b381 style: only GameSaved→profile (Saved already → GameSaved from onboarding).
+        if (_setup.IsEnhanced && _setup.Config.ManageClient && !string.IsNullOrEmpty(_setup.Config.ClientPath))
+        {
+            SetupJunction(_setup.GetPrimaryJunction(), profile.ProfileFolder);
+            SetupJunction(
+                Path.Combine(_setup.GetClientFolder(), Constants.FolderGameSave),
+                profile.ProfileFolder);
+        }
+        else
+        {
+            SetupJunction(_setup.GetPrimaryJunction(), profile.ProfileFolder);
+        }
         EnsureExtractedModsDirectory(profile.ProfileFolder);
 
         await _setup.WriteIni(profile);
@@ -1197,42 +1209,6 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     {
         var path = Path.Combine(_setup.GetInstancePath(instance), Constants.FolderGameSave);
         return _osSpecific.GetSymbolicLinkTarget(path);
-    }
-
-    private void EnsureClientSavedPointsAtPrimaryJunction()
-    {
-        if (!_setup.Config.ManageClient) return;
-        if (string.IsNullOrEmpty(_setup.Config.ClientPath)) return;
-
-        var savedDir = Path.Combine(_setup.GetClientFolder(), Constants.FolderGameSave);
-        var primary = Path.GetFullPath(_setup.GetPrimaryJunction());
-        Directory.CreateDirectory(Path.GetDirectoryName(savedDir)!);
-
-        if (_osSpecific.IsSymbolicLink(savedDir))
-        {
-            var current = _osSpecific.GetSymbolicLinkTarget(savedDir);
-            if (!string.IsNullOrEmpty(current)
-                && string.Equals(Path.GetFullPath(current), primary, StringComparison.OrdinalIgnoreCase))
-                return;
-
-            _logger.LogWarning("Client Saved junction points elsewhere ({current}); repairing -> {primary}", current, primary);
-            _osSpecific.MakeSymbolicLink(savedDir, primary);
-            return;
-        }
-
-        if (Directory.Exists(savedDir))
-        {
-            // Real Saved on the game volume: UE5 can create ExtractedMods here directly.
-            Directory.CreateDirectory(Path.Combine(savedDir, Constants.FolderExtractedMods));
-            _logger.LogWarning(
-                "Client Saved is a real directory at {savedDir}; left in place and ensured ExtractedMods (expected junction -> {primary})",
-                savedDir,
-                primary);
-            return;
-        }
-
-        _logger.LogInformation("Client Saved missing; creating junction -> {primary}", primary);
-        _osSpecific.MakeSymbolicLink(savedDir, primary);
     }
 
     private static void EnsureExtractedModsDirectory(string profileFolder)
