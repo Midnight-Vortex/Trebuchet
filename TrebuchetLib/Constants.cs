@@ -12,7 +12,9 @@ public static class Constants
     public const string FileBuildID = "buildid";
     public const string FileClientBEBin = "ConanSandbox_BE.exe";
     public const string FileClientBin = "ConanSandbox.exe";
+    public const string FileClientEnhancedBin = "ConanSandbox-Win64-Shipping.exe";
     public const string FileLiveConfig = "settings.live.json";
+    public const string FileEnhancedConfig = "settings.enhanced.json";
     public const string FileTestLiveConfig = "settings.testlive.json";
     public const string FileGeneratedModlist = "modlist.txt";
     public const string FileIniBase = "Engine\\Config\\Base{0}.ini";
@@ -57,6 +59,7 @@ public static class Constants
     
     public const string argLive = "--live";
     public const string argTestLive = "--testlive";
+    public const string argEnhanced = "--enhanced";
     public const string argCatapult = "--catapult";
     public const string argExperiment = "--experiment";
     public const string argBoulderSave = "--save";
@@ -76,12 +79,13 @@ public static class Constants
     public const string UriClientHost = "clients";
     public const string UriServerHost = "servers";
     
-    public static string GetConfigPath(bool testlive)
+    public static string GetConfigPath(bool testlive, bool enhanced)
     {
         var folder = AppSetup.GetAppConfigDirectory();
         if(!folder.Exists)
             Directory.CreateDirectory(folder.FullName);
-        return Path.Combine(folder.FullName, testlive ? Constants.FileTestLiveConfig : Constants.FileLiveConfig);
+        return Path.Combine(folder.FullName,
+            testlive ? FileTestLiveConfig : (enhanced ? FileEnhancedConfig : FileLiveConfig));
     }
     
     public static DirectoryInfo GetLoggingDirectory()

@@ -10,6 +10,7 @@ using System.Text.RegularExpressions;
 using SteamWorksWebAPI;
 using tot_lib;
 using tot_lib.OsSpecific;
+using TrebuchetLib.Services;
 
 namespace TrebuchetLib;
 
@@ -152,15 +153,21 @@ public static class Tools
         return Path.GetDirectoryName(AppDomain.CurrentDomain.BaseDirectory) ?? throw new DirectoryNotFoundException("Assembly directory is not found.");
     }
 
-    public static bool IsClientInstallValid(Config config)
+    public static bool IsClientInstallValid(AppSetup setup)
     {
-        return IsClientInstallValid(config.ClientPath);
+        return IsClientInstallValid(setup.Config.ClientPath, setup.IsEnhanced);
     }
 
-    public static bool IsClientInstallValid(string directory)
+    public static bool IsClientInstallValid(string directory, bool enhanced)
     {
         return !string.IsNullOrEmpty(directory) &&
-               File.Exists(Path.Combine(directory, Constants.FolderGameBinaries, Constants.FileClientBin));
+               File.Exists(GetClientInstallPath(directory, enhanced));
+    }
+    
+    public static string GetClientInstallPath(string directory, bool enhanced)
+    {
+        return Path.Combine(directory, Constants.FolderGameBinaries,
+            enhanced ? Constants.FileClientEnhancedBin : Constants.FileClientBin);
     }
 
     public static bool IsDirectoryWritable(string dirPath, bool throwIfFails = false)

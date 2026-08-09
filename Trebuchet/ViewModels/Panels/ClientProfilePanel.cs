@@ -28,7 +28,7 @@ namespace Trebuchet.ViewModels.Panels
             _appFiles = appFiles;
             _logger = logger;
             _uiConfig = uiConfig;
-            CanBeOpened = Tools.IsClientInstallValid(_setup.Config) && _setup.Config.ManageClient;
+            CanBeOpened = Tools.IsClientInstallValid(_setup) && _setup.Config.ManageClient;
 
             ClientConnectionList = clientConnectionList;
             ClientConnectionList.ConnectionListChanged += OnConnectionListChanged;
@@ -77,7 +77,7 @@ namespace Trebuchet.ViewModels.Panels
         public async Task RefreshPanel()
         {
             _logger.LogDebug(@"Refresh panel");
-            CanBeOpened = Tools.IsClientInstallValid(_setup.Config) && _setup.Config.ManageClient;
+            CanBeOpened = Tools.IsClientInstallValid(_setup) && _setup.Config.ManageClient;
             _profile = _appFiles.Client.Get(FileMenu.Selected);
             foreach (var f in Fields.OfType<IValueField>())
                 f.Update.Execute().Subscribe();

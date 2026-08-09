@@ -9,7 +9,7 @@
             $([System.IO.File]::ReadAllText("$(MSBuildProjectDirectory)\\..\\VERSION"))
             .$([MSBuild]::Divide($([MSBuild]::Modulo($([System.DateTimeOffset]::UtcNow.ToUnixTimeSeconds()), 86400)), 2))
         </Version>
-        <PublishSingleFile>true</PublishSingleFile>
+        <!--<PublishSingleFile>true</PublishSingleFile>-->
         <SelfContained>true</SelfContained>
         <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
         <Deterministic>true</Deterministic>

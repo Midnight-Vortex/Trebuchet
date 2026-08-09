@@ -5,9 +5,10 @@ namespace TrebuchetLib.Services;
 
 public class AppSetup
 {
-    public AppSetup(Config config, bool isTestLive, bool catapult, bool experiment)
+    public AppSetup(Config config, bool isTestLive, bool enhanced, bool catapult, bool experiment)
     {
         IsTestLive = isTestLive;
+        IsEnhanced = enhanced;
         Catapult = catapult;
         Config = config;
         Experiment = experiment;
@@ -16,6 +17,8 @@ public class AppSetup
     public Config Config { get; }
     
     public bool IsTestLive { get; }
+    
+    public bool IsEnhanced { get; }
     
     public bool Catapult { get; }
     
@@ -173,6 +176,8 @@ public class AppSetup
     {
         return Path.Combine(GetClientFolder(),
             Constants.FolderGameBinaries,
-            battleEye ? Constants.FileClientBEBin : Constants.FileClientBin);
+            battleEye
+                ? Constants.FileClientBEBin
+                : (IsEnhanced ? Constants.FileClientEnhancedBin : Constants.FileClientBin));
     }
 }

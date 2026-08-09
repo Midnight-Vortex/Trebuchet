@@ -11,19 +11,26 @@ public class GameBuildViewModel : ReactiveObject
     {
         _app = app;
         LiveCommand = ReactiveCommand.Create(OnLiveClicked);
+        EnhancedCommand = ReactiveCommand.Create(OnEnhancedClicked);
         TestLiveCommand = ReactiveCommand.Create(OnTestLiveClicked);
     }
 
     public ReactiveCommand<Unit, Unit> LiveCommand { get; }
+    public ReactiveCommand<Unit, Unit> EnhancedCommand { get; }
     public ReactiveCommand<Unit, Unit> TestLiveCommand { get; }
         
     private void OnLiveClicked()
     {
-        _app.OpenApp(false);
+        _app.OpenApp(false, false);
     }
 
+    private void OnEnhancedClicked()
+    {
+        _app.OpenApp(false, true);
+    }
+    
     private void OnTestLiveClicked()
     {
-        _app.OpenApp(true);
+        _app.OpenApp(true, false);
     }
 }

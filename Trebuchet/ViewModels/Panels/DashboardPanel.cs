@@ -38,7 +38,7 @@ namespace Trebuchet.ViewModels.Panels
             _blocker = blocker;
             _operations = operations;
             _logger = logger;
-            CanBeOpened = Tools.IsClientInstallValid(_setup.Config) || Tools.IsServerInstallValid(_setup.Config);
+            CanBeOpened = Tools.IsClientInstallValid(_setup) || Tools.IsServerInstallValid(_setup.Config);
 
             launcher.SequenceProgressChanged += OnSequenceProgressChanged;
 
@@ -273,8 +273,8 @@ namespace Trebuchet.ViewModels.Panels
         public Task RefreshPanel()
         {
             _logger.LogDebug(@"Refresh panel");
-            CanBeOpened = Tools.IsClientInstallValid(_setup.Config) || Tools.IsServerInstallValid(_setup.Config);
-            Client.CanUseDashboard = Tools.IsClientInstallValid(_setup.Config);
+            CanBeOpened = Tools.IsClientInstallValid(_setup) || Tools.IsServerInstallValid(_setup.Config);
+            Client.CanUseDashboard = Tools.IsClientInstallValid(_setup);
             int installedCount = _operations.GetInstalledServerInstanceCount();
             foreach (var instance in Instances)
             {

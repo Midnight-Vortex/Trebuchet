@@ -61,7 +61,7 @@ public partial class App : Application, IApplication
         AvaloniaXamlLoader.Load(this);
     }
 
-    public void OpenApp(bool testlive)
+    public void OpenApp(bool testlive, bool enhanced)
     {
         if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
             throw new Exception(@"Not supported");
@@ -79,7 +79,7 @@ public partial class App : Application, IApplication
    
         
         var serviceCollection = new ServiceCollection();
-        ConfigureServices(serviceCollection, testlive, catapult, experiment);
+        ConfigureServices(serviceCollection, testlive, enhanced, catapult, experiment);
         _serviceProvider = serviceCollection.BuildServiceProvider();
         _logger = _serviceProvider.GetRequiredService<ILogger<App>>();
         var osSpecifics = _serviceProvider.GetRequiredService<IOsPlatformSpecific>();
@@ -125,12 +125,17 @@ public partial class App : Application, IApplication
             {
                 if (desktop.Args.Contains(Constants.argTestLive))
                 {
-                    OpenApp(true);
+                    OpenApp(true, false);
+                    return;
+                }
+                else if (desktop.Args.Contains(Constants.argEnhanced))
+                {
+                    OpenApp(false, true);
                     return;
                 }
                 else if (desktop.Args.Contains(Constants.argLive))
                 {
-                    OpenApp(false);
+                    OpenApp(false, false);
                     return;
                 }
             }
@@ -179,10 +184,10 @@ public partial class App : Application, IApplication
     }
 
     [Localizable(false)]
-    private void ConfigureServices(IServiceCollection services, bool testlive, bool catapult, bool experiment)
+    private void ConfigureServices(IServiceCollection services, bool testlive, bool enhanced, bool catapult, bool experiment)
     {
         services.AddSingleton(
-            new AppSetup(Config.LoadConfig(Constants.GetConfigPath(testlive)), testlive, catapult, experiment));
+            new AppSetup(Config.LoadConfig(Constants.GetConfigPath(testlive, enhanced)), testlive, enhanced, catapult, experiment));
         services.AddSingleton(_uiConfig!);
         services.AddSingleton<ILanguageManager>(_langManager!);
         services.AddSingleton<IUpdater>(

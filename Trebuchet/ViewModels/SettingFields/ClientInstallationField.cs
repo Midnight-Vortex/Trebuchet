@@ -30,7 +30,7 @@ public class ClientInstallationField : DescriptiveElement<ClientInstallationFiel
         
         Install = ReactiveCommand.CreateFromTask(InstallClientPath);
 
-        Installed = Tools.IsClientInstallValid(setup.Config);
+        Installed = Tools.IsClientInstallValid(setup);
         InstallPath = setup.Config.ClientPath;
         ManageFiles = setup.Config.ManageClient;
     }

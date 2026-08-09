@@ -909,4 +909,7 @@ WARNUNG: Dies kann dazu führen, dass die Erkennung von Zombie-Prozessen nicht m
     <data name="Yes" xml:space="preserve">
         <value>Ja</value>
     </data>
+    <data name="Enhanced" xml:space="preserve">
+        <value>Enhanced</value>
+    </data>
 </root>

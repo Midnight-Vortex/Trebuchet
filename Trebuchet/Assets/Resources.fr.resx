@@ -1228,4 +1228,7 @@ Losques des séquences sont utilisé, cela n'inclus que la mise en ligne et la d
     <data name="SequenceMainActionText" xml:space="preserve">
         <value>Exécute l'action principal de la séquence. Pour une séquence d'arret, l'arret du serveur est ordonné. Pour une séquence de démarrage, le démarrage du serveur est ordonné.</value>
     </data>
+    <data name="Enhanced" xml:space="preserve">
+        <value>Enhanced</value>
+    </data>
 </root>

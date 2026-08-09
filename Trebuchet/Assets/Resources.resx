@@ -1236,4 +1236,7 @@ When using sequences, this only include when the server is online, and when a se
     <data name="SequenceMainActionText" xml:space="preserve">
         <value>Execute the main action of this sequence. On a stopping sequence, it order the server to stop. On a starting sequence, it order the server to start.</value>
     </data>
+    <data name="Enhanced" xml:space="preserve">
+        <value>Enhanced</value>
+    </data>
 </root>

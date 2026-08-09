@@ -407,7 +407,9 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
 
     public async Task<ConanClientProcessInfos?> FindClientProcess()
     {
-        var data = (await _tOsSpecific.GetProcessesWithName(Constants.FileClientBin)).FirstOrDefault();
+        var data = (await _tOsSpecific.GetProcessesWithName(_setup.IsEnhanced
+            ? Constants.FileClientEnhancedBin
+            : Constants.FileClientBin)).FirstOrDefault();
 
         if (data.IsEmpty) return null;
         if (!data.TryGetProcess(out var process)) return null;
@@ -820,7 +822,9 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         while (target.IsEmpty && !parent.HasExited)
         {
             if ((DateTime.UtcNow - start).TotalSeconds > 20) return null;
-            target = (await _tOsSpecific.GetProcessesWithName(Constants.FileClientBin)).FirstOrDefault();
+            target = (await _tOsSpecific.GetProcessesWithName(_setup.IsEnhanced
+                ? Constants.FileClientEnhancedBin
+                : Constants.FileClientBin)).FirstOrDefault();
             await Task.Delay(25);
         }
 

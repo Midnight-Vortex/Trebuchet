@@ -72,7 +72,7 @@ public class Operations : IDisposable
 
     public async Task<bool> RepairBrokenJunctions()
     {
-        if (!Tools.IsClientInstallValid(_setup.Config)) return true;
+        if (!Tools.IsClientInstallValid(_setup)) return true;
         return await OnBoardingApplyConanManagement();
     }
 
@@ -174,7 +174,7 @@ public class Operations : IDisposable
     
     public async Task<bool> OnBoardingFirstLaunch()
     {
-        var configPath = Constants.GetConfigPath(_setup.IsTestLive);
+        var configPath = Constants.GetConfigPath(_setup.IsTestLive, _setup.IsEnhanced);
         if(File.Exists(configPath)) return true;
         if (!await OnBoardingUsageChoice()) return false;
         _setup.Config.SaveFile();
@@ -341,7 +341,7 @@ public class Operations : IDisposable
 
     public async Task<bool> OnBoardingFindConanExile(bool force = false)
     {
-        if (Tools.IsClientInstallValid(_setup.Config.ClientPath) && !force)
+        if (Tools.IsClientInstallValid(_setup) && !force)
             return await OnBoardingApplyConanManagement();
         
         var finder = new OnBoardingDirectory(Resources.OnBoardingLocateConan, Resources.OnBoardingLocateConanText, _setup.Config.ClientPath)
@@ -358,7 +358,7 @@ public class Operations : IDisposable
     {
         if(string.IsNullOrEmpty(path))
             return Validation.Invalid(Resources.ErrorValueEmpty);
-        if (!Tools.IsClientInstallValid(path))
+        if (!Tools.IsClientInstallValid(path, _setup.IsEnhanced))
             return new Validation(false, Resources.OnBoardingLocateConanError);
         return new Validation(true, string.Empty);
     }
@@ -378,7 +378,7 @@ public class Operations : IDisposable
 
     public async Task<bool> OnBoardingApplyConanManagement()
     {
-        if (!Tools.IsClientInstallValid(_setup.Config)) return false;
+        if (!Tools.IsClientInstallValid(_setup)) return false;
         var clientDirectory = Path.GetFullPath(_setup.Config.ClientPath);
         var savedDir = Path.Combine(clientDirectory, Constants.FolderGameSave);
         using(_logger.BeginScope((@"SavedDir", savedDir)))
@@ -580,7 +580,7 @@ public class Operations : IDisposable
                     configuration.InstallPath = string.Empty;
                     configuration.ManageClient = true;
                     configJson = JsonSerializer.Serialize(configuration);
-                    await File.WriteAllTextAsync(Constants.GetConfigPath(false), configJson);
+                    await File.WriteAllTextAsync(Constants.GetConfigPath(false, false), configJson);
                 }
                 File.Delete(configLive);
             }
@@ -596,7 +596,7 @@ public class Operations : IDisposable
                     configuration.InstallPath = string.Empty;
                     configuration.ManageClient = true;
                     configJson = JsonSerializer.Serialize(configuration);
-                    await File.WriteAllTextAsync(Constants.GetConfigPath(true), configJson);
+                    await File.WriteAllTextAsync(Constants.GetConfigPath(true, false), configJson);
                 }
                 File.Delete(configTestlive);
             }

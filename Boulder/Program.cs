@@ -19,6 +19,7 @@ namespace Boulder;
 class Program
 {
     private static bool _testlive = false;
+    private static bool _enhanced = false;
     private static bool _experiment = false;
     
     static async Task<int> Main(string[] args)
@@ -30,6 +31,7 @@ class Program
         var parser = new CommandLineBuilder(rootCommand).UseDefaults().Build();
         var result = parser.Parse(args);
         _testlive = result.UnmatchedTokens.Contains(Constants.argTestLive);
+        _enhanced = result.UnmatchedTokens.Contains(Constants.argEnhanced);
         _experiment = result.UnmatchedTokens.Contains(Constants.argExperiment);
         return await result.InvokeAsync();
     }
@@ -37,7 +39,7 @@ class Program
     public static void ConfigureServices(IServiceCollection collection)
     {
         collection.AddSingleton(
-            new AppSetup(Config.LoadConfig(Constants.GetConfigPath(_testlive)), _testlive, false, _experiment));
+            new AppSetup(Config.LoadConfig(Constants.GetConfigPath(_testlive, _enhanced)), _testlive, _enhanced, false, _experiment));
         collection.AddLogging(builder => builder.AddSerilog(GetLogger(), true));
         collection.AddSingleton<BackupManager>();
         collection.AddSingleton<ConanProcessFactory>();

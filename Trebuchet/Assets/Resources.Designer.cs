@@ -456,6 +456,15 @@ namespace Trebuchet.Assets {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Enhanced.
+        /// </summary>
+        public static string Enhanced {
+            get {
+                return ResourceManager.GetString("Enhanced", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Error.
         /// </summary>
         public static string Error {
