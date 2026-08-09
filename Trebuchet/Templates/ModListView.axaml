@@ -4,7 +4,18 @@
     <DataTemplate x:Key="ModListView" x:DataType="vm:ModListViewModel">
         <DockPanel LastChildFill="True">
             <ProgressBar DockPanel.Dock="Top" IsIndeterminate="True" IsVisible="{Binding IsLoading}" Margin="0 0 0 12" />
-            <ListBox DockPanel.Dock="Top" Classes.NoSelection="{Binding IsReadOnly}" Classes.draggableVirtualizing="{Binding !IsReadOnly}" SelectionMode="Multiple" ItemsSource="{Binding List}"/>
+            <!-- StackPanel: reliable hold-drag reorder; VirtualizingStackPanel breaks ListBoxItem parent/drag. -->
+            <ListBox DockPanel.Dock="Top"
+                     Classes.NoSelection="{Binding IsReadOnly}"
+                     Classes.draggableVirtualizing="{Binding !IsReadOnly}"
+                     SelectionMode="Multiple"
+                     ItemsSource="{Binding List}">
+                <ListBox.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <StackPanel Orientation="Vertical" />
+                    </ItemsPanelTemplate>
+                </ListBox.ItemsPanel>
+            </ListBox>
         </DockPanel>
     </DataTemplate>
 </ResourceDictionary>
