@@ -36,6 +36,24 @@ public static class Constants
     public const string FolderGameSaveLog = "Logs";
     /// <summary>Enhanced client extracts workshop/pak content here under Saved.</summary>
     public const string FolderExtractedMods = "ExtractedMods";
+    public const string FolderConfig = "Config";
+    public const string FolderCrashes = "Crashes";
+    public const string FolderSaveGames = "SaveGames";
+    public const string FolderExilesExtreme = "ExilesExtreme";
+
+    /// <summary>
+    /// Under Hybrid Saved (Enhanced + ManageClient), these stay as junctions into the
+    /// client profile. ExtractedMods must remain a real directory on the game drive.
+    /// </summary>
+    public static readonly string[] HybridSavedLinkedDirectories =
+    [
+        FolderConfig,
+        FolderCrashes,
+        FolderExilesExtreme,
+        FolderGameSaveLog,
+        FolderSaveGames
+    ];
+
     public const string FolderInstancePattern = "Instance_{0}";
     public const string FolderLive = "Live";
     public const string FolderEnhanced = "Enhanced";

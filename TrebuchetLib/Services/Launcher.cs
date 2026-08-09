@@ -124,9 +124,14 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         if (IsClientProfileLocked(profileRef))
             throw new Exception($"Profile {profileRef} folder is currently locked by another process.");
 
-        EnsureClientSavedPointsAtPrimaryJunction();
         SetupJunction(_setup.GetPrimaryJunction(), profile.ProfileFolder);
-        EnsureExtractedModsDirectory(profile.ProfileFolder);
+        if (_setup.IsEnhanced && _setup.Config.ManageClient)
+            EnsureHybridSavedLayout(profile.ProfileFolder);
+        else
+        {
+            EnsureClientSavedPointsAtPrimaryJunction();
+            EnsureExtractedModsDirectory(profile.ProfileFolder);
+        }
 
         await _setup.WriteIni(profile);
         
@@ -1127,13 +1132,35 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
 
     private string GetCurrentClientJunction()
     {
-        var path = Path.Combine(_setup.GetClientFolder(), Constants.FolderGameSave);
-        var target = _osSpecific.GetSymbolicLinkTarget(path);
+        var savedDir = Path.Combine(_setup.GetClientFolder(), Constants.FolderGameSave);
+
+        // Hybrid Saved: Config junction -> profile\Config
+        var configLink = Path.Combine(savedDir, Constants.FolderConfig);
+        if (!_osSpecific.IsSymbolicLink(savedDir) && _osSpecific.IsSymbolicLink(configLink))
+        {
+            var configTarget = _osSpecific.GetSymbolicLinkTarget(configLink);
+            if (!string.IsNullOrEmpty(configTarget))
+            {
+                var profile = Path.GetDirectoryName(Path.GetFullPath(configTarget));
+                if (!string.IsNullOrEmpty(profile))
+                    return profile;
+            }
+        }
+
+        if (!_osSpecific.IsSymbolicLink(savedDir))
+        {
+            var primary = _setup.GetPrimaryJunction();
+            return _osSpecific.IsSymbolicLink(primary)
+                ? _osSpecific.GetSymbolicLinkTarget(primary)
+                : string.Empty;
+        }
+
+        var target = _osSpecific.GetSymbolicLinkTarget(savedDir);
         if (string.IsNullOrEmpty(target)) return target;
 
-        // Saved -> GameSaved -> profile: resolve the second hop for lock checks.
-        var primary = Path.GetFullPath(_setup.GetPrimaryJunction());
-        if (string.Equals(Path.GetFullPath(target), primary, StringComparison.OrdinalIgnoreCase)
+        // Saved -> GameSaved -> profile
+        var primaryPath = Path.GetFullPath(_setup.GetPrimaryJunction());
+        if (string.Equals(Path.GetFullPath(target), primaryPath, StringComparison.OrdinalIgnoreCase)
             && _osSpecific.IsSymbolicLink(target))
         {
             var profileTarget = _osSpecific.GetSymbolicLinkTarget(target);
@@ -1182,6 +1209,167 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         _osSpecific.MakeSymbolicLink(savedDir, primary);
     }
 
+    /// <summary>
+    /// Enhanced needs a real on-disk ExtractedMods under the game Saved folder.
+    /// Profile data is linked via Config/Logs/… junctions and root file symlinks.
+    /// </summary>
+    private void EnsureHybridSavedLayout(string profileFolder)
+    {
+        if (string.IsNullOrEmpty(_setup.Config.ClientPath))
+            throw new Exception("ClientPath is not configured.");
+
+        var savedDir = Path.Combine(_setup.GetClientFolder(), Constants.FolderGameSave);
+        var extractedMods = Path.Combine(savedDir, Constants.FolderExtractedMods);
+        Directory.CreateDirectory(profileFolder);
+
+        if (_osSpecific.IsSymbolicLink(savedDir))
+        {
+            _logger.LogInformation("Converting whole-Saved junction to Hybrid Saved at {savedDir}", savedDir);
+            _osSpecific.RemoveSymbolicLink(savedDir);
+        }
+
+        Directory.CreateDirectory(savedDir);
+
+        // Keep ExtractedMods as a real directory on the game drive (never junction it away).
+        if (_osSpecific.IsSymbolicLink(extractedMods))
+        {
+            _logger.LogWarning("ExtractedMods was a reparse point; replacing with a real directory");
+            _osSpecific.RemoveSymbolicLink(extractedMods);
+        }
+
+        var profileExtracted = Path.Combine(profileFolder, Constants.FolderExtractedMods);
+        if (Directory.Exists(profileExtracted) && !_osSpecific.IsSymbolicLink(profileExtracted))
+        {
+            if (!Directory.Exists(extractedMods))
+                Directory.CreateDirectory(extractedMods);
+            // Best-effort merge of any previously misplaced extracts into the game Saved folder.
+            foreach (var entry in Directory.EnumerateFileSystemEntries(profileExtracted))
+            {
+                var name = Path.GetFileName(entry);
+                var dest = Path.Combine(extractedMods, name);
+                if (Directory.Exists(entry) && !Directory.Exists(dest))
+                    Directory.Move(entry, dest);
+                else if (File.Exists(entry) && !File.Exists(dest))
+                    File.Move(entry, dest);
+            }
+        }
+
+        Directory.CreateDirectory(extractedMods);
+
+        var linkedRoots = 0;
+        foreach (var child in Constants.HybridSavedLinkedDirectories)
+            EnsureSavedChildJunction(savedDir, profileFolder, child);
+
+        foreach (var file in Directory.EnumerateFiles(profileFolder))
+        {
+            var name = Path.GetFileName(file);
+            if (string.Equals(name, Constants.FolderExtractedMods, StringComparison.OrdinalIgnoreCase))
+                continue;
+            var linkPath = Path.Combine(savedDir, name);
+            EnsureSavedRootFileLink(linkPath, file);
+            linkedRoots++;
+        }
+
+        var configLink = Path.Combine(savedDir, Constants.FolderConfig);
+        var configTarget = _osSpecific.IsSymbolicLink(configLink)
+            ? _osSpecific.GetSymbolicLinkTarget(configLink)
+            : string.Empty;
+
+        _logger.LogInformation(
+            "Hybrid Saved layout ready: linkedRootFiles={linkedRoots}, extractedMods={extractedMods}, configLink={configLink} -> {configTarget}",
+            linkedRoots,
+            extractedMods,
+            configLink,
+            configTarget);
+        _logger.LogInformation(
+            "Saved layout before launch: savedDir={savedDir}, savedIsJunction={savedIsJunction}, extractedModsIsJunction={extractedModsIsJunction}, configIsJunction={configIsJunction}, extractedModsExists={extractedModsExists}",
+            savedDir,
+            _osSpecific.IsSymbolicLink(savedDir),
+            _osSpecific.IsSymbolicLink(extractedMods),
+            _osSpecific.IsSymbolicLink(configLink),
+            Directory.Exists(extractedMods));
+    }
+
+    private void EnsureSavedChildJunction(string savedDir, string profileFolder, string childName)
+    {
+        var linkPath = Path.Combine(savedDir, childName);
+        var targetPath = Path.Combine(profileFolder, childName);
+        Directory.CreateDirectory(targetPath);
+
+        if (_osSpecific.IsSymbolicLink(linkPath))
+        {
+            var current = _osSpecific.GetSymbolicLinkTarget(linkPath);
+            if (!string.IsNullOrEmpty(current)
+                && string.Equals(Path.GetFullPath(current), Path.GetFullPath(targetPath), StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogInformation("Saved child junction already correct: {linkPath} -> {targetPath}", linkPath, targetPath);
+                return;
+            }
+        }
+        else if (Directory.Exists(linkPath))
+        {
+            _logger.LogInformation("Merging real Saved subdirectory {linkPath} into profile before linking", linkPath);
+            MergeDirectory(linkPath, targetPath);
+            Directory.Delete(linkPath, true);
+        }
+        else if (File.Exists(linkPath))
+        {
+            File.Delete(linkPath);
+        }
+
+        _osSpecific.MakeSymbolicLink(linkPath, targetPath);
+        _logger.LogInformation("Saved child junction: {linkPath} -> {targetPath}", linkPath, targetPath);
+    }
+
+    private void EnsureSavedRootFileLink(string linkPath, string targetFile)
+    {
+        if (_osSpecific.IsSymbolicLink(linkPath))
+        {
+            var current = _osSpecific.GetSymbolicLinkTarget(linkPath);
+            if (!string.IsNullOrEmpty(current)
+                && string.Equals(Path.GetFullPath(current), Path.GetFullPath(targetFile), StringComparison.OrdinalIgnoreCase))
+                return;
+            _osSpecific.RemoveSymbolicLink(linkPath);
+        }
+        else if (File.Exists(linkPath))
+        {
+            // Prefer profile copy; drop the Saved-side duplicate.
+            File.Delete(linkPath);
+        }
+        else if (Directory.Exists(linkPath))
+        {
+            return;
+        }
+
+        try
+        {
+            _osSpecific.MakeFileSymbolicLink(linkPath, targetFile);
+            _logger.LogInformation("Linked Saved root file {linkPath} -> {targetFile}", linkPath, targetFile);
+        }
+        catch (Exception ex)
+        {
+            // File symlinks need Developer Mode / privilege; Config/ExtractedMods still work without them.
+            _logger.LogWarning(ex, "Could not link Saved root file {linkPath} -> {targetFile}", linkPath, targetFile);
+        }
+    }
+
+    private static void MergeDirectory(string sourceDir, string destDir)
+    {
+        Directory.CreateDirectory(destDir);
+        foreach (var dir in Directory.EnumerateDirectories(sourceDir))
+        {
+            var name = Path.GetFileName(dir);
+            MergeDirectory(dir, Path.Combine(destDir, name));
+        }
+
+        foreach (var file in Directory.EnumerateFiles(sourceDir))
+        {
+            var dest = Path.Combine(destDir, Path.GetFileName(file));
+            if (!File.Exists(dest))
+                File.Copy(file, dest, overwrite: false);
+        }
+    }
+
     private static void EnsureExtractedModsDirectory(string profileFolder)
     {
         Directory.CreateDirectory(profileFolder);
@@ -1191,7 +1379,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     private void SetupJunction(string junction, string targetPath)
     {
         _logger.LogInformation("Setup new junction {junction} > {target}", junction, targetPath);
-        EnsureExtractedModsDirectory(targetPath);
+        Directory.CreateDirectory(targetPath);
         _osSpecific.MakeSymbolicLink(junction, targetPath);
     }
 
