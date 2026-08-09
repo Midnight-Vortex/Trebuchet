@@ -34,6 +34,8 @@ public static class Constants
     public const string FolderGameBinaries = "ConanSandbox\\Binaries\\Win64";
     public const string FolderGameSave = "ConanSandbox\\Saved";
     public const string FolderGameSaveLog = "Logs";
+    /// <summary>Enhanced client extracts workshop/pak content here under Saved.</summary>
+    public const string FolderExtractedMods = "ExtractedMods";
     public const string FolderInstancePattern = "Instance_{0}";
     public const string FolderLive = "Live";
     public const string FolderEnhanced = "Enhanced";

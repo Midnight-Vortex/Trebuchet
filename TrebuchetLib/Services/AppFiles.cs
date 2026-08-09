@@ -19,6 +19,8 @@ public class AppFiles(AppSetup setup, IOsPlatformSpecific osSpecific)
         Tools.CreateDir(Sync.GetBaseFolder());
         Tools.CreateDir(setup.GetWorkshopFolder());
         Tools.CreateDir(setup.GetEmptyJunction());
+        // Enhanced fails mod mount if Saved/ExtractedMods cannot be created through the junction chain.
+        Tools.CreateDir(Path.Combine(setup.GetEmptyJunction(), Constants.FolderExtractedMods));
         if(!osSpecific.IsSymbolicLink(setup.GetPrimaryJunction()))
             osSpecific.MakeSymbolicLink(setup.GetPrimaryJunction(), setup.GetEmptyJunction());
 

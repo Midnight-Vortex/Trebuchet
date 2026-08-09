@@ -124,7 +124,9 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         if (IsClientProfileLocked(profileRef))
             throw new Exception($"Profile {profileRef} folder is currently locked by another process.");
 
+        EnsureClientSavedPointsAtPrimaryJunction();
         SetupJunction(_setup.GetPrimaryJunction(), profile.ProfileFolder);
+        EnsureExtractedModsDirectory(profile.ProfileFolder);
 
         await _setup.WriteIni(profile);
         
@@ -1126,7 +1128,20 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     private string GetCurrentClientJunction()
     {
         var path = Path.Combine(_setup.GetClientFolder(), Constants.FolderGameSave);
-        return _osSpecific.GetSymbolicLinkTarget(path);
+        var target = _osSpecific.GetSymbolicLinkTarget(path);
+        if (string.IsNullOrEmpty(target)) return target;
+
+        // Saved -> GameSaved -> profile: resolve the second hop for lock checks.
+        var primary = Path.GetFullPath(_setup.GetPrimaryJunction());
+        if (string.Equals(Path.GetFullPath(target), primary, StringComparison.OrdinalIgnoreCase)
+            && _osSpecific.IsSymbolicLink(target))
+        {
+            var profileTarget = _osSpecific.GetSymbolicLinkTarget(target);
+            if (!string.IsNullOrEmpty(profileTarget))
+                return profileTarget;
+        }
+
+        return target;
     }
 
     private string GetCurrentServerJunction(int instance)
@@ -1135,9 +1150,48 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         return _osSpecific.GetSymbolicLinkTarget(path);
     }
 
+    private void EnsureClientSavedPointsAtPrimaryJunction()
+    {
+        if (!_setup.Config.ManageClient) return;
+        if (string.IsNullOrEmpty(_setup.Config.ClientPath)) return;
+
+        var savedDir = Path.Combine(_setup.GetClientFolder(), Constants.FolderGameSave);
+        var primary = Path.GetFullPath(_setup.GetPrimaryJunction());
+
+        if (_osSpecific.IsSymbolicLink(savedDir))
+        {
+            var current = _osSpecific.GetSymbolicLinkTarget(savedDir);
+            if (!string.IsNullOrEmpty(current)
+                && string.Equals(Path.GetFullPath(current), primary, StringComparison.OrdinalIgnoreCase))
+                return;
+
+            _logger.LogWarning("Client Saved junction points elsewhere ({current}); repairing -> {primary}", current, primary);
+            _osSpecific.MakeSymbolicLink(savedDir, primary);
+            return;
+        }
+
+        if (Directory.Exists(savedDir))
+        {
+            _logger.LogWarning(
+                "Client Saved is a real directory while ManageClient is on; cannot repair at launch. Re-run client install in Settings.");
+            return;
+        }
+
+        _logger.LogInformation("Client Saved missing; creating junction -> {primary}", primary);
+        Directory.CreateDirectory(Path.GetDirectoryName(savedDir)!);
+        _osSpecific.MakeSymbolicLink(savedDir, primary);
+    }
+
+    private static void EnsureExtractedModsDirectory(string profileFolder)
+    {
+        Directory.CreateDirectory(profileFolder);
+        Directory.CreateDirectory(Path.Combine(profileFolder, Constants.FolderExtractedMods));
+    }
+
     private void SetupJunction(string junction, string targetPath)
     {
         _logger.LogInformation("Setup new junction {junction} > {target}", junction, targetPath);
+        EnsureExtractedModsDirectory(targetPath);
         _osSpecific.MakeSymbolicLink(junction, targetPath);
     }
 

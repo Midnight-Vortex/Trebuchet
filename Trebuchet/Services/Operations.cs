@@ -401,6 +401,7 @@ public class Operations : IDisposable
             if (_setup.Config.ManageClient)
             {
                 _logger.LogInformation(@"Creating junction");
+                Directory.CreateDirectory(Path.Combine(_setup.GetEmptyJunction(), Constants.FolderExtractedMods));
                 _osSpecific.MakeSymbolicLink(savedDir, _setup.GetPrimaryJunction());
             }
             else
@@ -435,7 +436,9 @@ public class Operations : IDisposable
             if (!await OnBoardingElevationRequest(clientDirectory, Resources.OnBoardingManageConanUac)) return false;
             var saveName = await OnBoardingChooseClientSaveName();
             _logger.LogInformation(@"Copying game save into trebuchet {saveName}", saveName);
-            await Tools.DeepCopyAsync(savedDir, _appFiles.Client.GetDirectory(_appFiles.Client.Ref(saveName)), CancellationToken.None);
+            var profileDir = _appFiles.Client.GetDirectory(_appFiles.Client.Ref(saveName));
+            await Tools.DeepCopyAsync(savedDir, profileDir, CancellationToken.None);
+            Directory.CreateDirectory(Path.Combine(profileDir, Constants.FolderExtractedMods));
             await OnBoardingSafeIO(() => Directory.Delete(savedDir, true),savedDir);
             _osSpecific.MakeSymbolicLink(savedDir, _setup.GetPrimaryJunction());
             return true;
