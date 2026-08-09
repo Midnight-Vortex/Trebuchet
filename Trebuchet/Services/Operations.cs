@@ -354,6 +354,8 @@ public class Operations : IDisposable
         using(_logger.BeginScope((@"ClientPath", finder.Value)))
             _logger.LogInformation(@"Changing conan exiles directory");
         _setup.Config.ClientPath = finder.Value;
+        // Persist before management/UAC/copy so Settings keeps the path even if later steps fail.
+        _setup.Config.SaveFile();
         await OnBoardingAllowConanManagement();
         return Tools.IsClientInstallValid(_setup.Config, _setup.Edition);
     }
@@ -380,6 +382,7 @@ public class Operations : IDisposable
         using(_logger.BeginScope((@"ManageClient", choice.Result)))
             _logger.LogInformation(@"Change client management");
         _setup.Config.ManageClient = choice.Result == 1;
+        _setup.Config.SaveFile();
         return await OnBoardingApplyConanManagement();
     }
 

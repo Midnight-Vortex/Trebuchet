@@ -85,11 +85,14 @@ public class ClientInstallationField : DescriptiveElement<ClientInstallationFiel
         {
             // Path may already be set before a later cancel (e.g. Manage prompt).
         }
-
-        // Always refresh UI from config (cancel/UAC may leave ClientPath set without reaching here previously).
-        SyncFromConfig();
-        if (Installed)
-            _setup.Config.SaveFile();
+        finally
+        {
+            // Always refresh UI from config. Persist whenever a path was chosen — do not require
+            // Installed==true (post-copy / junction errors used to leave Settings empty).
+            SyncFromConfig();
+            if (!string.IsNullOrEmpty(_setup.Config.ClientPath))
+                _setup.Config.SaveFile();
+        }
     }
 
     public void SyncFromConfig()
