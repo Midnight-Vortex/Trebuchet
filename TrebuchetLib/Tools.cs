@@ -12,6 +12,7 @@ using Microsoft.Extensions.Logging;
 using SteamWorksWebAPI;
 using tot_lib;
 using tot_lib.OsSpecific;
+using TrebuchetLib.Services;
 
 namespace TrebuchetLib;
 
@@ -220,6 +221,41 @@ public static class Tools
             var dest = Path.Combine(destDir, Path.GetFileName(file));
             if (!File.Exists(dest) || File.GetLastWriteTimeUtc(file) >= File.GetLastWriteTimeUtc(dest))
                 File.Copy(file, dest, overwrite: true);
+        }
+    }
+
+    /// <summary>
+    /// When server instances live on a custom DataDirectory volume, move ServerProfiles from
+    /// Documents to the co-located DataDirectory tree (whole Saved junction stays D→D).
+    /// </summary>
+    public static void MigrateServerProfilesIfNeeded(AppSetup setup)
+    {
+        var target = setup.GetServerProfilesBaseFolder();
+        var legacy = setup.GetDocumentsServerProfilesBaseFolder();
+        if (string.Equals(Path.GetFullPath(target), Path.GetFullPath(legacy), StringComparison.OrdinalIgnoreCase))
+            return;
+
+        CreateDir(target);
+        if (!Directory.Exists(legacy))
+            return;
+
+        foreach (var entry in Directory.EnumerateFileSystemEntries(legacy))
+        {
+            var name = Path.GetFileName(entry);
+            var dest = Path.Combine(target, name);
+            if (Directory.Exists(entry))
+            {
+                if (Directory.Exists(dest))
+                    MergeDirectorySkippingReparsePoints(entry, dest);
+                else if (IsCrossVolumePath(entry, dest))
+                    MergeDirectorySkippingReparsePoints(entry, dest);
+                else
+                    Directory.Move(entry, dest);
+            }
+            else if (File.Exists(entry) && !File.Exists(dest))
+            {
+                File.Copy(entry, dest);
+            }
         }
     }
 

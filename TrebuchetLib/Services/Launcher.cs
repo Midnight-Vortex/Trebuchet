@@ -124,8 +124,9 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         if (IsClientProfileLocked(profileRef))
             throw new Exception($"Profile {profileRef} folder is currently locked by another process.");
 
-        SetupJunction(_setup.GetPrimaryJunction(), profile.ProfileFolder);
+        SetupJunction(_setup.GetClientPrimaryJunction(), profile.ProfileFolder);
         EnsureClientSavedPointsAtPrimaryJunction(profile.ProfileFolder);
+        RepairStaleDataDirectoryGameSavedJunction();
         EnsureExtractedModsDirectory(profile.ProfileFolder);
 
         await _setup.WriteIni(profile);
@@ -1182,7 +1183,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
 
         if (!_osSpecific.IsSymbolicLink(savedDir))
         {
-            var primary = _setup.GetPrimaryJunction();
+            var primary = _setup.GetClientPrimaryJunction();
             return _osSpecific.IsSymbolicLink(primary)
                 ? _osSpecific.GetSymbolicLinkTarget(primary)
                 : string.Empty;
@@ -1191,7 +1192,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         var target = _osSpecific.GetSymbolicLinkTarget(savedDir);
         if (string.IsNullOrEmpty(target)) return target;
 
-        var primaryPath = Path.GetFullPath(_setup.GetPrimaryJunction());
+        var primaryPath = Path.GetFullPath(_setup.GetClientPrimaryJunction());
         if (string.Equals(Path.GetFullPath(target), primaryPath, StringComparison.OrdinalIgnoreCase)
             && _osSpecific.IsSymbolicLink(target))
         {
@@ -1230,7 +1231,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         if (string.IsNullOrEmpty(_setup.Config.ClientPath)) return;
 
         var savedDir = Path.Combine(_setup.GetClientFolder(), Constants.FolderGameSave);
-        var primary = Path.GetFullPath(_setup.GetPrimaryJunction());
+        var primary = Path.GetFullPath(_setup.GetClientPrimaryJunction());
 
         if (_osSpecific.IsSymbolicLink(savedDir))
         {
@@ -1255,149 +1256,78 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         _osSpecific.MakeSymbolicLink(savedDir, primary);
     }
 
+    /// <summary>
+    /// When client GameSaved is co-located with profiles, reset a stale DataDirectory GameSaved
+    /// junction (e.g. old D: link still pointing at an active profile).
+    /// </summary>
+    private void RepairStaleDataDirectoryGameSavedJunction()
+    {
+        if (!_setup.Config.ManageClient) return;
+
+        var clientPrimary = Path.GetFullPath(_setup.GetClientPrimaryJunction());
+        var dataPrimary = Path.GetFullPath(_setup.GetPrimaryJunction());
+        if (string.Equals(clientPrimary, dataPrimary, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        if (!_osSpecific.IsSymbolicLink(dataPrimary))
+            return;
+
+        var target = _osSpecific.GetSymbolicLinkTarget(dataPrimary);
+        if (string.IsNullOrEmpty(target))
+            return;
+
+        var empty = Path.GetFullPath(_setup.GetEmptyJunction());
+        if (string.Equals(Path.GetFullPath(target), empty, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        _logger.LogWarning(
+            "Stale DataDirectory GameSaved junction {dataPrimary} -> {target}; resetting -> {empty}",
+            dataPrimary,
+            target,
+            empty);
+        _osSpecific.MakeSymbolicLink(dataPrimary, empty);
+    }
+
     private static void EnsureExtractedModsDirectory(string profileFolder)
     {
         Directory.CreateDirectory(profileFolder);
         Directory.CreateDirectory(Path.Combine(profileFolder, Constants.FolderExtractedMods));
     }
 
-    /// <summary>
-    /// Enhanced server instances on a different volume than the profile need real ExtractedMods on
-    /// the instance drive; UE5 fails to create/write mod extracts through a cross-volume Saved junction.
-    /// </summary>
     private void EnsureServerSavedLayout(int instance, string profileFolder)
     {
         var savedDir = Path.Combine(_setup.GetInstancePath(instance), Constants.FolderGameSave);
-        Directory.CreateDirectory(profileFolder);
         EnsureExtractedModsDirectory(profileFolder);
-
-        if (!_setup.IsEnhanced || !Tools.IsCrossVolumePath(savedDir, profileFolder))
-        {
-            SetupJunction(savedDir, profileFolder);
-            return;
-        }
-
-        EnsureServerHybridSavedLayout(savedDir, profileFolder);
-    }
-
-    private void EnsureServerHybridSavedLayout(string savedDir, string profileFolder)
-    {
-        var extractedMods = Path.Combine(savedDir, Constants.FolderExtractedMods);
-        var profileExtracted = Path.Combine(profileFolder, Constants.FolderExtractedMods);
 
         if (_osSpecific.IsSymbolicLink(savedDir))
         {
-            _logger.LogInformation(
-                "Converting server whole-Saved junction to hybrid layout at {savedDir} (ExtractedMods on instance volume)",
-                savedDir);
+            var current = _osSpecific.GetSymbolicLinkTarget(savedDir);
+            if (!string.IsNullOrEmpty(current)
+                && string.Equals(Path.GetFullPath(current), Path.GetFullPath(profileFolder), StringComparison.OrdinalIgnoreCase))
+                return;
+
+            _logger.LogWarning(
+                "Server Saved junction points elsewhere ({current}); repairing -> {profile}",
+                current,
+                profileFolder);
             _osSpecific.RemoveSymbolicLink(savedDir);
         }
 
-        Directory.CreateDirectory(savedDir);
-        EnsureServerExtractedModsOnInstance(extractedMods, profileExtracted);
-
-        foreach (var childName in ServerHybridSavedLinkedDirectories)
-            EnsureServerSavedChildJunction(savedDir, profileFolder, childName);
-
-        SyncServerProfileRootFilesToSaved(savedDir, profileFolder);
-
-        _logger.LogInformation(
-            "Server hybrid Saved ready: extractedMods={extractedMods}, profile={profileFolder}",
-            extractedMods,
-            profileFolder);
-    }
-
-    private void EnsureServerExtractedModsOnInstance(string extractedMods, string profileExtracted)
-    {
-        if (_osSpecific.IsSymbolicLink(extractedMods))
+        if (Directory.Exists(savedDir))
         {
-            _logger.LogWarning("Server ExtractedMods was a reparse point; replacing with a real directory on the instance volume");
-            _osSpecific.RemoveSymbolicLink(extractedMods);
-        }
+            if (Tools.HasChildReparsePoints(savedDir))
+            {
+                _logger.LogInformation(
+                    "Server hybrid Saved leftover at {savedDir}; converting to whole-Saved junction",
+                    savedDir);
+            }
 
-        Directory.CreateDirectory(extractedMods);
-
-        if (!Directory.Exists(profileExtracted) || _osSpecific.IsSymbolicLink(profileExtracted))
+            Tools.ConvertRealSavedToWholeSavedJunction(savedDir, profileFolder, profileFolder, _osSpecific, _logger);
             return;
-
-        foreach (var entry in Directory.EnumerateFileSystemEntries(profileExtracted))
-        {
-            var name = Path.GetFileName(entry);
-            var dest = Path.Combine(extractedMods, name);
-            try
-            {
-                if (Directory.Exists(entry) && !Directory.Exists(dest))
-                    Tools.MergeDirectorySkippingReparsePoints(entry, dest);
-                else if (File.Exists(entry) && !File.Exists(dest))
-                    File.Copy(entry, dest, overwrite: false);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Could not seed server ExtractedMods entry {name} onto instance volume", name);
-            }
         }
+
+        SetupJunction(savedDir, profileFolder);
     }
-
-    private void EnsureServerSavedChildJunction(string savedDir, string profileFolder, string childName)
-    {
-        var linkPath = Path.Combine(savedDir, childName);
-        var targetPath = Path.Combine(profileFolder, childName);
-        Directory.CreateDirectory(targetPath);
-
-        if (_osSpecific.IsSymbolicLink(linkPath))
-        {
-            var current = _osSpecific.GetSymbolicLinkTarget(linkPath);
-            if (!string.IsNullOrEmpty(current)
-                && string.Equals(Path.GetFullPath(current), Path.GetFullPath(targetPath), StringComparison.OrdinalIgnoreCase))
-                return;
-        }
-        else if (Directory.Exists(linkPath))
-        {
-            Tools.MergeDirectorySkippingReparsePoints(linkPath, targetPath);
-            Directory.Delete(linkPath, true);
-        }
-        else if (File.Exists(linkPath))
-        {
-            File.Delete(linkPath);
-        }
-
-        _osSpecific.MakeSymbolicLink(linkPath, targetPath);
-    }
-
-    private void SyncServerProfileRootFilesToSaved(string savedDir, string profileFolder)
-    {
-        foreach (var file in Directory.EnumerateFiles(profileFolder))
-        {
-            var name = Path.GetFileName(file);
-            if (string.Equals(name, Constants.FileProfileConfig, StringComparison.OrdinalIgnoreCase))
-                continue;
-
-            var dest = Path.Combine(savedDir, name);
-            if (_osSpecific.IsSymbolicLink(dest))
-                _osSpecific.RemoveSymbolicLink(dest);
-            else if (Directory.Exists(dest))
-                continue;
-
-            try
-            {
-                if (!File.Exists(dest) || File.GetLastWriteTimeUtc(file) >= File.GetLastWriteTimeUtc(dest))
-                    File.Copy(file, dest, overwrite: true);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Could not expose server profile file {name} at {dest}", name, dest);
-            }
-        }
-    }
-
-    private static readonly string[] ServerHybridSavedLinkedDirectories =
-    [
-        Constants.FolderConfig,
-        Constants.FolderCrashes,
-        Constants.FolderExilesExtreme,
-        Constants.FolderGameSaveLog,
-        Constants.FolderSaveGames
-    ];
 
     private void SetupJunction(string junction, string targetPath)
     {

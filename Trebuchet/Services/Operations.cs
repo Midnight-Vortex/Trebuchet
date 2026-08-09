@@ -401,8 +401,8 @@ public class Operations : IDisposable
             if (_setup.Config.ManageClient)
             {
                 _logger.LogInformation(@"Creating junction");
-                Directory.CreateDirectory(Path.Combine(_setup.GetEmptyJunction(), Constants.FolderExtractedMods));
-                _osSpecific.MakeSymbolicLink(savedDir, _setup.GetPrimaryJunction());
+                Directory.CreateDirectory(Path.Combine(_setup.GetClientEmptyJunction(), Constants.FolderExtractedMods));
+                _osSpecific.MakeSymbolicLink(savedDir, _setup.GetClientPrimaryJunction());
             }
             else
             {
@@ -437,7 +437,7 @@ public class Operations : IDisposable
             var saveName = await OnBoardingChooseClientSaveName();
             _logger.LogInformation(@"Copying game save into trebuchet {saveName}", saveName);
             var profileDir = _appFiles.Client.GetDirectory(_appFiles.Client.Ref(saveName));
-            var primary = Path.GetFullPath(_setup.GetPrimaryJunction());
+            var primary = Path.GetFullPath(_setup.GetClientPrimaryJunction());
             if (Tools.HasChildReparsePoints(savedDir))
             {
                 _logger.LogInformation(@"Hybrid Saved leftover detected; using safe migration instead of deep copy");
@@ -457,11 +457,11 @@ public class Operations : IDisposable
         {
             var path = _osSpecific.GetSymbolicLinkTarget(savedDir);
             if (!string.IsNullOrEmpty(path)
-                && Path.GetFullPath(path) != Path.GetFullPath(_setup.GetPrimaryJunction()))
+                && Path.GetFullPath(path) != Path.GetFullPath(_setup.GetClientPrimaryJunction()))
             {
                 if (!await OnBoardingElevationRequest(clientDirectory, Resources.OnBoardingManageConanUac)) return false;
                 _logger.LogWarning(@"Broken junction found, repairing");
-                _osSpecific.MakeSymbolicLink(savedDir, _setup.GetPrimaryJunction());
+                _osSpecific.MakeSymbolicLink(savedDir, _setup.GetClientPrimaryJunction());
             }
         }
 
