@@ -113,8 +113,8 @@ public static class Constants
 
     public static string GetVersionFolder(GameEdition edition) => edition switch
     {
-        // e61b381: Enhanced shares Live data folder (profiles/instances), not a separate Enhanced tree.
-        GameEdition.Enhanced => FolderLive,
+        // Separate data trees so Enhanced does not show Legacy profiles/modlists/saves.
+        GameEdition.Enhanced => FolderEnhanced,
         GameEdition.TestLive => FolderTestLive,
         _ => FolderLive
     };

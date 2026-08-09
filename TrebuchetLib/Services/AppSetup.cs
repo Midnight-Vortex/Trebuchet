@@ -77,7 +77,15 @@ public class AppSetup
     
     public string GetWorkshopFolder()
     {
-        // e61b381: shared Workshop root (Enhanced shares Live data layout).
+        if (IsEnhanced)
+        {
+            return Path.Combine(
+                GetCommonAppDataDirectory().FullName,
+                VersionFolder,
+                Constants.FolderWorkshop
+            );
+        }
+
         return Path.Combine(
             GetCommonAppDataDirectory().FullName,
             Constants.FolderWorkshop
@@ -171,7 +179,15 @@ public class AppSetup
     
     public string GetPrimaryJunction()
     {
-        // e61b381: flat GameSaved under DataDirectory (Enhanced shares with Live).
+        if (IsEnhanced)
+        {
+            return Path.Combine(
+                GetCommonAppDataDirectory().FullName,
+                VersionFolder,
+                Constants.GamePrimaryJunction
+            );
+        }
+
         return Path.Combine(
             GetCommonAppDataDirectory().FullName,
             Constants.GamePrimaryJunction
@@ -180,7 +196,15 @@ public class AppSetup
 
     public string GetEmptyJunction()
     {
-        // e61b381: flat EmptyGame under DataDirectory (Enhanced shares with Live).
+        if (IsEnhanced)
+        {
+            return Path.Combine(
+                GetCommonAppDataDirectory().FullName,
+                VersionFolder,
+                Constants.GameEmptyJunction
+            );
+        }
+
         return Path.Combine(
             GetCommonAppDataDirectory().FullName,
             Constants.GameEmptyJunction
