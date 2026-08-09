@@ -39,6 +39,24 @@ public static class Constants
     public const string FolderGameSaveLog = "Logs";
     /// <summary>UE5 Enhanced extracts workshop content under Saved/ExtractedMods.</summary>
     public const string FolderExtractedMods = "ExtractedMods";
+    public const string FolderConfig = "Config";
+    public const string FolderCrashes = "Crashes";
+    public const string FolderSaveGames = "SaveGames";
+    public const string FolderExilesExtreme = "ExilesExtreme";
+
+    /// <summary>
+    /// Hybrid Saved (Enhanced): these stay as junctions into the profile.
+    /// ExtractedMods stays a real directory on the game/instance drive — UE5 RedirectionGuard
+    /// rejects ensuring ExtractedMods behind any whole-Saved junction.
+    /// </summary>
+    public static readonly string[] HybridSavedLinkedDirectories =
+    [
+        FolderConfig,
+        FolderCrashes,
+        FolderExilesExtreme,
+        FolderGameSaveLog,
+        FolderSaveGames
+    ];
 
     public const string FolderInstancePattern = "Instance_{0}";
     public const string FolderLive = "Live";
