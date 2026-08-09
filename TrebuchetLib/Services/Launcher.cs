@@ -1186,24 +1186,8 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
 
     private string GetCurrentClientJunction()
     {
-        var savedDir = Path.Combine(_setup.GetClientFolder(), Constants.FolderGameSave);
-        if (!_osSpecific.IsSymbolicLink(savedDir))
-            return string.Empty;
-
-        var target = _osSpecific.GetSymbolicLinkTarget(savedDir);
-        if (string.IsNullOrEmpty(target)) return target;
-
-        // Enhanced/Legacy ManageClient: Saved -> GameSaved -> profile.
-        var primaryPath = Path.GetFullPath(_setup.GetPrimaryJunction());
-        if (string.Equals(Path.GetFullPath(target), primaryPath, StringComparison.OrdinalIgnoreCase)
-            && _osSpecific.IsSymbolicLink(target))
-        {
-            var profileTarget = _osSpecific.GetSymbolicLinkTarget(target);
-            if (!string.IsNullOrEmpty(profileTarget))
-                return profileTarget;
-        }
-
-        return target;
+        var path = Path.Combine(_setup.GetClientFolder(), Constants.FolderGameSave);
+        return _osSpecific.GetSymbolicLinkTarget(path);
     }
 
     private string GetCurrentServerJunction(int instance)
@@ -1215,7 +1199,6 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     private void SetupJunction(string junction, string targetPath)
     {
         _logger.LogInformation("Setup new junction {junction} > {target}", junction, targetPath);
-        Directory.CreateDirectory(targetPath);
         _osSpecific.MakeSymbolicLink(junction, targetPath);
     }
 

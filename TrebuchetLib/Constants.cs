@@ -12,7 +12,10 @@ public static class Constants
     public const string FileBuildID = "buildid";
     public const string FileClientBEBin = "ConanSandbox_BE.exe";
     public const string FileClientBin = "ConanSandbox.exe";
-    public const string FileClientBinShipping = "ConanSandbox-Win64-Shipping.exe";
+    /// <summary>Enhanced (UE5) shipping client — e61b381 <c>FileClientEnhancedBin</c>.</summary>
+    public const string FileClientEnhancedBin = "ConanSandbox-Win64-Shipping.exe";
+    /// <summary>Alias kept for call sites that used the shipping name before e61b381 naming.</summary>
+    public const string FileClientBinShipping = FileClientEnhancedBin;
     public const string FileLiveConfig = "settings.live.json";
     public const string FileEnhancedConfig = "settings.enhanced.json";
     public const string FileTestLiveConfig = "settings.testlive.json";
@@ -34,12 +37,6 @@ public static class Constants
     public const string FolderGameBinaries = "ConanSandbox\\Binaries\\Win64";
     public const string FolderGameSave = "ConanSandbox\\Saved";
     public const string FolderGameSaveLog = "Logs";
-    /// <summary>Enhanced client extracts workshop/pak content here under Saved.</summary>
-    public const string FolderExtractedMods = "ExtractedMods";
-    public const string FolderConfig = "Config";
-    public const string FolderCrashes = "Crashes";
-    public const string FolderSaveGames = "SaveGames";
-    public const string FolderExilesExtreme = "ExilesExtreme";
 
     public const string FolderInstancePattern = "Instance_{0}";
     public const string FolderLive = "Live";
@@ -116,7 +113,8 @@ public static class Constants
 
     public static string GetVersionFolder(GameEdition edition) => edition switch
     {
-        GameEdition.Enhanced => FolderEnhanced,
+        // e61b381: Enhanced shares Live data folder (profiles/instances), not a separate Enhanced tree.
+        GameEdition.Enhanced => FolderLive,
         GameEdition.TestLive => FolderTestLive,
         _ => FolderLive
     };
@@ -125,7 +123,7 @@ public static class Constants
         edition == GameEdition.Enhanced ? FileIniUserEnhanced : FileIniUser;
 
     public static string GetClientBin(GameEdition edition) =>
-        edition == GameEdition.Enhanced ? FileClientBinShipping : FileClientBin;
+        edition == GameEdition.Enhanced ? FileClientEnhancedBin : FileClientBin;
 
     /// <summary>Steam Workshop tag set by the Enhanced modkit uploader.</summary>
     public const string WorkshopTagEnhanced = "Enhanced";

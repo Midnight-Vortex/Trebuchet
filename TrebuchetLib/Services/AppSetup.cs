@@ -77,15 +77,7 @@ public class AppSetup
     
     public string GetWorkshopFolder()
     {
-        if (IsEnhanced)
-        {
-            return Path.Combine(
-                GetCommonAppDataDirectory().FullName,
-                VersionFolder,
-                Constants.FolderWorkshop
-            );
-        }
-
+        // e61b381: shared Workshop root (Enhanced shares Live data layout).
         return Path.Combine(
             GetCommonAppDataDirectory().FullName,
             Constants.FolderWorkshop
@@ -179,15 +171,7 @@ public class AppSetup
     
     public string GetPrimaryJunction()
     {
-        if (IsEnhanced)
-        {
-            return Path.Combine(
-                GetCommonAppDataDirectory().FullName,
-                VersionFolder,
-                Constants.GamePrimaryJunction
-            );
-        }
-
+        // e61b381: flat GameSaved under DataDirectory (Enhanced shares with Live).
         return Path.Combine(
             GetCommonAppDataDirectory().FullName,
             Constants.GamePrimaryJunction
@@ -196,15 +180,7 @@ public class AppSetup
 
     public string GetEmptyJunction()
     {
-        if (IsEnhanced)
-        {
-            return Path.Combine(
-                GetCommonAppDataDirectory().FullName,
-                VersionFolder,
-                Constants.GameEmptyJunction
-            );
-        }
-
+        // e61b381: flat EmptyGame under DataDirectory (Enhanced shares with Live).
         return Path.Combine(
             GetCommonAppDataDirectory().FullName,
             Constants.GameEmptyJunction
@@ -215,9 +191,12 @@ public class AppSetup
     {
         return Path.Combine(GetClientFolder(),
             Constants.FolderGameBinaries,
-            battleEye ? Constants.FileClientBEBin : Constants.GetClientBin(Edition));
+            battleEye
+                ? Constants.FileClientBEBin
+                : (IsEnhanced ? Constants.FileClientEnhancedBin : Constants.FileClientBin));
     }
 
     /// <summary>Process image name of the game client for this edition (not BattlEye).</summary>
-    public string GetClientProcessName() => Constants.GetClientBin(Edition);
+    public string GetClientProcessName() =>
+        IsEnhanced ? Constants.FileClientEnhancedBin : Constants.FileClientBin;
 }
