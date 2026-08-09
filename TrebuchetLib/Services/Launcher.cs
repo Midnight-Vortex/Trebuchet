@@ -1214,8 +1214,8 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     }
 
     /// <summary>
-    /// Enhanced needs a real on-disk ExtractedMods under the game Saved folder.
-    /// Profile data is linked via Config/Logs/SaveGames junctions; root files (Game_*.db) are copied.
+    /// Enhanced Hybrid Saved: real Saved on the game drive; Config/Logs/SaveGames/ExtractedMods
+    /// junction into the profile (Conan-normal ExtractedMods location). Root files (Game_*.db) copied.
     /// </summary>
     private void EnsureHybridSavedLayout(string profileFolder)
     {
@@ -1225,6 +1225,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         var savedDir = Path.Combine(_setup.GetClientFolder(), Constants.FolderGameSave);
         var extractedMods = Path.Combine(savedDir, Constants.FolderExtractedMods);
         Directory.CreateDirectory(profileFolder);
+        Directory.CreateDirectory(Path.Combine(profileFolder, Constants.FolderExtractedMods));
 
         if (_osSpecific.IsSymbolicLink(savedDir))
         {
@@ -1233,38 +1234,6 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         }
 
         Directory.CreateDirectory(savedDir);
-
-        // Keep ExtractedMods as a real directory on the game drive (never junction it away).
-        if (_osSpecific.IsSymbolicLink(extractedMods))
-        {
-            _logger.LogWarning("ExtractedMods was a reparse point; replacing with a real directory");
-            _osSpecific.RemoveSymbolicLink(extractedMods);
-        }
-
-        var profileExtracted = Path.Combine(profileFolder, Constants.FolderExtractedMods);
-        if (Directory.Exists(profileExtracted) && !_osSpecific.IsSymbolicLink(profileExtracted))
-        {
-            if (!Directory.Exists(extractedMods))
-                Directory.CreateDirectory(extractedMods);
-            foreach (var entry in Directory.EnumerateFileSystemEntries(profileExtracted))
-            {
-                var name = Path.GetFileName(entry);
-                var dest = Path.Combine(extractedMods, name);
-                try
-                {
-                    if (Directory.Exists(entry) && !Directory.Exists(dest))
-                        Directory.Move(entry, dest);
-                    else if (File.Exists(entry) && !File.Exists(dest))
-                        File.Move(entry, dest);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Could not migrate ExtractedMods entry {name} onto game drive", name);
-                }
-            }
-        }
-
-        Directory.CreateDirectory(extractedMods);
 
         SyncSavedRootFilesIntoProfile(savedDir, profileFolder);
 
@@ -1276,8 +1245,6 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         {
             var name = Path.GetFileName(file);
             if (string.Equals(name, "profile.json", StringComparison.OrdinalIgnoreCase))
-                continue;
-            if (string.Equals(name, Constants.FolderExtractedMods, StringComparison.OrdinalIgnoreCase))
                 continue;
             var linkPath = Path.Combine(savedDir, name);
             EnsureSavedRootFileCopy(linkPath, file);

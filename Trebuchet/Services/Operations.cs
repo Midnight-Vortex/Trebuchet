@@ -394,7 +394,7 @@ public class Operations : IDisposable
         using(_logger.BeginScope((@"SavedDir", savedDir)))
             _logger.LogInformation(@"Applying Conan Management");
 
-        // Enhanced Hybrid Saved: real Saved + real ExtractedMods; Config/etc. junctions into profile.
+        // Enhanced Hybrid Saved: real Saved; Config/ExtractedMods/etc. junctions into profile.
         if (_setup.IsEnhanced && _setup.Config.ManageClient && IsHybridSavedLayout(savedDir))
         {
             _logger.LogInformation(@"Hybrid Saved layout detected (real Saved with Config junction); leaving as-is");
@@ -409,9 +409,8 @@ public class Operations : IDisposable
             {
                 if (_setup.IsEnhanced)
                 {
-                    _logger.LogInformation(@"Creating Hybrid Saved layout (real Saved + ExtractedMods)");
+                    _logger.LogInformation(@"Creating Hybrid Saved layout (real Saved; ExtractedMods in profile)");
                     Directory.CreateDirectory(savedDir);
-                    Directory.CreateDirectory(Path.Combine(savedDir, Constants.FolderExtractedMods));
                     Directory.CreateDirectory(Path.Combine(_setup.GetEmptyJunction(), Constants.FolderExtractedMods));
                     if (!_osSpecific.IsSymbolicLink(_setup.GetPrimaryJunction()))
                         _osSpecific.MakeSymbolicLink(_setup.GetPrimaryJunction(), _setup.GetEmptyJunction());
@@ -461,10 +460,9 @@ public class Operations : IDisposable
 
             if (_setup.IsEnhanced)
             {
-                // Keep real Saved/ExtractedMods; client launch wires Config/etc. junctions to the profile.
+                // Keep real Saved; client launch wires Config/ExtractedMods/etc. junctions to the profile.
                 _logger.LogInformation(@"Hybrid Saved prepared; profile junctions will be applied on client launch");
                 _osSpecific.MakeSymbolicLink(_setup.GetPrimaryJunction(), profileDir);
-                Directory.CreateDirectory(Path.Combine(savedDir, Constants.FolderExtractedMods));
             }
             else
             {

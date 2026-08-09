@@ -43,13 +43,14 @@ public static class Constants
 
     /// <summary>
     /// Under Hybrid Saved (Enhanced + ManageClient), these stay as junctions into the
-    /// client profile. ExtractedMods must remain a real directory on the game drive.
+    /// client profile (including ExtractedMods — Conan-normal location under the profile).
     /// </summary>
     public static readonly string[] HybridSavedLinkedDirectories =
     [
         FolderConfig,
         FolderCrashes,
         FolderExilesExtreme,
+        FolderExtractedMods,
         FolderGameSaveLog,
         FolderSaveGames
     ];
