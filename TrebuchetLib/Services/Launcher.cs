@@ -1132,17 +1132,25 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             if (server.Value.State.IsRunning()) continue;
             if(_serverSequences.ContainsKey(server.Value.Infos.Instance)) continue;
             
+            var exitCodeText = "n/a";
             if (server.Value.Process.HasExited)
             {
                 try { server.Value.Process.Refresh(); } catch { /* best effort */ }
+                try
+                {
+                    exitCodeText = server.Value.Process.ExitCode.ToString();
+                }
+                catch (InvalidOperationException)
+                {
+                    // Attached via GetProcessById — exit code unavailable
+                }
             }
 
-            var exitCode = server.Value.Process.HasExited ? server.Value.Process.ExitCode : (int?)null;
             _logger.LogInformation(
                 "Server {instance} stopped (state={State}, exitCode={ExitCode})",
                 server.Key,
                 server.Value.State,
-                exitCode);
+                exitCodeText);
             _serverProcesses.Remove(server.Key);
             OnStateChanged();
             var name = _appFiles.Server.Resolve(_setup.Config.GetInstanceProfile(server.Key));
