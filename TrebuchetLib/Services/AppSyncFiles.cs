@@ -40,10 +40,21 @@ public class AppSyncFiles(AppSetup setup) : IAppSyncFiles
             return false;
 
         string[] files = Directory.GetFiles(folder, "*.pak", SearchOption.TopDirectoryOnly);
-        if (files.Length == 0)
+        if (files.Length > 0)
+        {
+            mod = files[0];
+            return true;
+        }
+
+        var hasIoStore = Directory.EnumerateFiles(folder, "*.ucas", SearchOption.TopDirectoryOnly).Any()
+                         && Directory.EnumerateFiles(folder, "*.utoc", SearchOption.TopDirectoryOnly).Any();
+        if (!hasIoStore)
             return false;
 
-        mod = files[0];
+        var any = Directory.EnumerateFiles(folder, "*", SearchOption.TopDirectoryOnly).FirstOrDefault();
+        if (any is null)
+            return false;
+        mod = any;
         return true;
     }
     

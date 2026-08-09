@@ -12,9 +12,10 @@ namespace Trebuchet.ViewModels;
 
 public sealed class WorkshopSearchViewModel : ReactiveObject
 {
-    public WorkshopSearchViewModel(Steam steam)
+    public WorkshopSearchViewModel(Steam steam, AppSetup setup)
     {
         _steam = steam;
+        _setup = setup;
         SearchFirstPage = ReactiveCommand.CreateFromTask(() =>
         {
             Page = 1;
@@ -41,6 +42,7 @@ public sealed class WorkshopSearchViewModel : ReactiveObject
     private bool _testLiveWorkshop;
     private string _searchTerm = string.Empty;
     private readonly Steam _steam;
+    private readonly AppSetup _setup;
     private bool _isLoading;
     private int _maxPage = 1;
     private uint _page = 1;
@@ -90,25 +92,28 @@ public sealed class WorkshopSearchViewModel : ReactiveObject
         IsLoading = true;
 
         var appId = testLive ? Constants.AppIDTestLiveClient : Constants.AppIDLiveClient;
-        var response = await _steam.QueryWorkshopSearch(appId, searchTerm, 20, page);
+        // TestLive workshop toggle uses its own AppID; otherwise filter by current edition tags.
+        string? requiredTag = null;
+        string? excludedTag = null;
+        if (!testLive)
+        {
+            requiredTag = Constants.GetWorkshopRequiredTag(_setup.Edition);
+            excludedTag = Constants.GetWorkshopExcludedTag(_setup.Edition);
+        }
+        var response = await _steam.QueryWorkshopSearch(appId, searchTerm, 20, page, requiredTag, excludedTag);
         if (response is null)
         {
             IsLoading = false;
             return;
         }
-        MaxPage = Math.Max((int)response.total / 20, 1);
-        if (response.total > 0)
+        MaxPage = Math.Max((int)Math.Ceiling(response.total / 20.0), 1);
+        SearchResults.Clear();
+        foreach (var file in response.publishedfiledetails)
         {
-            SearchResults.Clear();
-            foreach (var file in response.publishedfiledetails)
-            {
-                var searchResult = new WorkshopSearchResult(file);
-                searchResult.ModAdded += OnModAdded;
-                SearchResults.Add(searchResult);
-            }
+            var searchResult = new WorkshopSearchResult(file);
+            searchResult.ModAdded += OnModAdded;
+            SearchResults.Add(searchResult);
         }
-        else
-            SearchResults.Clear();
 
         PageLoaded?.Invoke(this, EventArgs.Empty);
         IsLoading = false;

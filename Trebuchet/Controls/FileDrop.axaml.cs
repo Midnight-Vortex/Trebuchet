@@ -60,7 +60,7 @@ public partial class FileDrop : UserControl
 
     private void OnDragEnter(object? sender, DragEventArgs e)
     {
-        var items = e.Data.GetFiles();
+        var items = e.DataTransfer.TryGetFiles();
         if (items is not null &&
             items.All(x => x.Path.IsFile && System.IO.Path.GetExtension(x.Path.LocalPath) == @".pak"))
             DropPanelVisible = true;
@@ -69,7 +69,7 @@ public partial class FileDrop : UserControl
     private void OnDrop(object? sender, DragEventArgs e)
     {
         DropPanelVisible = false;
-        var items = e.Data.GetFiles()?.ToList();
+        var items = e.DataTransfer.TryGetFiles()?.ToList();
         if (items is null) return;
         
         if (DroppedCommand is null) return;

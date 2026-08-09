@@ -1,0 +1,392 @@
+---
+description: Vibecoding Pro+ €60 — cp monorepo (Golden Rule, Research, Subagent routing, EN/FR)
+alwaysApply: true
+---
+
+## ⛔ MANDATORY — every request · EN
+
+**This file is binding.** `alwaysApply: true` — applies even without `@` mention.
+
+**Before any tool call, edit, or subagent:**
+
+1. **Line 1 of every reply** (exact fields, fill concrete values — never leave placeholders):
+
+   ```
+   Vibecoding: ACTIVE · Model: {model} · Effort: Sx · Phase: {phase} · Rules: {rules} · Task: {task}
+   ```
+
+   | Field | How to fill |
+   |-------|-------------|
+   | Vibecoding | `ACTIVE` (default) or `INACTIVE` if user disabled this mode |
+   | Model | Identity for **this** turn: e.g. `Composer`, `Auto`, `Claude Sonnet`, `Claude Opus`, `GPT-5.6`. If only the router name is known → `Auto`. If a subagent runs later, parent line stays parent model; mention subagent model in Task or after Delegation. |
+   | Effort | `S0`–`S4` (see Subagent routing table below) |
+   | Phase | `Research` \| `Implement` \| `Review` \| `Plan` |
+   | Rules | Primary file `vibecoding-cost-efficient.mdc`; append `+name` for each extra rule loaded this turn |
+   | Task | ≤8 words: what is actively being worked on |
+
+   Example: `Vibecoding: ACTIVE · Model: Composer · Effort: S2 · Phase: Implement · Rules: vibecoding-cost-efficient.mdc · Task: Fix status header format`
+
+2. Follow: Golden Rule → Research → Subagent routing → understand-then-implement (no blind copy).
+3. **Subagents:** every Task prompt MUST include:  
+   `MANDATORY: follow .cursor/rules/vibecoding-cost-efficient.mdc (Golden Rule, research first).`
+4. No code until research protocol exists (S2+).
+5. If you skipped this rule → **stop**, realign, then continue.
+
+**User check:** if line 1 is missing or still has `{placeholders}` → reply: `Bitte Vibecoding-Regel einhalten` / `Please follow vibecoding rule`.
+
+## ⛔ OBLIGATOIRE — chaque requête · FR
+
+**Ce fichier est impératif.** `alwaysApply: true` — s’applique même sans `@`.
+
+**Avant tout outil, edit ou subagent :**
+
+1. **Ligne 1 de chaque réponse** (mêmes champs, valeurs concrètes — jamais de placeholders) :
+
+   ```
+   Vibecoding: ACTIVE · Model: {model} · Effort: Sx · Phase: {phase} · Rules: {rules} · Task: {task}
+   ```
+
+   Phase FR : `Recherche` \| `Impl` \| `Review` \| `Plan`. Autres champs comme en EN.
+
+2. Respecter : règle d’or → recherche → routage subagent → comprendre puis implémenter (pas de copie aveugle).
+3. **Subagents :** chaque prompt Task DOIT inclure la règle ci-dessus.
+4. Pas de code sans protocole de recherche (S2+).
+5. Règle ignorée → **stop**, realigner, continuer.
+
+---
+
+# Vibecoding — Pro+ (€60/month) + Subagent routing · EN
+
+**Plan:** Pro+ · ~**$70 API pool** + **Auto/Composer pool** (separate).
+
+The **parent agent is the orchestrator**: assess effort → **research phase** → launch matching subagent + model → brief summary. Parent does **not** code, except S0.
+
+---
+
+## ⚠️ GOLDEN RULE (every step)
+
+> **Build only the one function in scope. Nothing extra.**
+
+- One function = one work package: **describe → code → test** — then move on.
+- Then clarify: how does it talk to others (data, threads, locks)?
+- If the AI did something **not requested** → discard and redo.
+- No “while we’re at it”, no preemptive helpers, no extra features.
+- **Each step ends with:** tests OK (if user says test/build) → then next step.
+
+### Subproject rule (foundation — check every task)
+
+1. **One app per task** unless user explicitly asks cross-app (`acp`, `ucp-dev`, `ucp-live`, `server-setup`).
+2. **Read that app’s `AGENTS.md`** (Laravel Boost) before editing PHP/Blade in that app.
+3. **Run commands from the app directory** — `cd acp` / `ucp-dev` / `ucp-live`.
+4. **Legacy PHP** (`app/Support/legacy_functions.php`): understand behavior → implement in Laravel conventions; no blind paste.
+5. **Skills/config** (`.agent`, `.agents`, `.claude`): do not mix with app runtime code unless asked.
+
+---
+
+## Understand — never blind copy
+
+- **Legacy PHP** and old patterns are **reference only**.
+- **Forbidden:** blind copy-paste from legacy code into new Laravel layers.
+- **Required:** understand behavior → implement with Eloquent, services, Livewire/Flux, existing app conventions.
+- Read reference snippets, derive semantics, write clean code in the target file.
+
+---
+
+## Research before execution (quality > speed)
+
+**No rush to code.** Research everything for verification first, then implement.
+
+### Mandatory research (parent or subagent before code)
+
+1. **Scope:** which app, which file(s), which **one** function, what is off-limits?
+2. **Subproject:** correct app? read its `AGENTS.md`? Laravel Boost tools available?
+3. **Existing code:** `grep` + **read** affected files (don’t guess).
+4. **Reference (if porting legacy):** relevant lines only — note behavior, don’t copy.
+5. **Interfaces:** routes, models, services, config keys — lock down before writing.
+6. **Risks:** wrong app (dev vs live), N+1 queries, auth/validation gaps — 2–3 bullets.
+
+### Flow
+
+```
+Research (explore readonly) → brief protocol (5–8 bullets) → scope OK? → implementation
+```
+
+- **S3/S4:** research **always** as its own step; subagent prompt includes research output.
+- Prefer **one clarifying question** over wrong code.
+- Build/test only when research + scope are solid.
+
+---
+
+## Subagent routing
+
+| Tier | When | `subagent_type` | `model` | `readonly` |
+|------|------|-----------------|---------|------------|
+| **S0** | 1 grep, yes/no, no change | parent direct | — | — |
+| **S1** | lookup, read 1 file | `explore` | `composer-2.5-fast` | **true** (research) |
+| **S2** | bugfix 1–3 files | `generalPurpose` | `composer-2.5-fast` | false |
+| **S3** | complex feature, migrations, auth, cross-layer | `generalPurpose` | `claude-sonnet-5-thinking-high` | false |
+| **S4 Review** | review only, bugbot | `explore` / `bugbot` | `claude-sonnet-5-thinking-high` | **true** |
+| **S4 Architecture** | large refactor | `generalPurpose` | `claude-opus-4-8-thinking-high` | false |
+
+**S2+ with code:** subagent starts only after research protocol is in the prompt.
+
+## Implementation flow
+
+1. **First line:** same status header as §Mandatory (Model · Effort · Phase · Rules · Task). Optional after header: `Delegation: {subagent_type}/{model}` when a subagent is launched.
+2. **Research subagent** (readonly) if scope/subproject/legacy unclear.
+3. **Implement subagent** with research protocol + Golden Rule + no blind copy.
+4. Parent reply: max 5–8 lines.
+
+## Subagent prompt (required fields)
+
+```
+Repo: E:\programme\cp
+App: [acp | ucp-dev | ucp-live | server-setup]
+Golden Rule: only [one function], nothing extra
+Research: [bullets: app, files, routes/models, risks]
+Scope: only [file] — [function]
+Off-limits: [files/features/other apps]
+Test: yes/no
+Output: changed files + what must be tested
+```
+
+## Two pools (Pro+)
+
+| Pool | Models | Tiers |
+|------|--------|-------|
+| Auto/Composer | `composer-2.5-fast` | S1, S2 |
+| API | Sonnet, Opus | S3, S4 |
+
+API pool >85% → `composer-2.5-fast` only.
+
+## Project (cp monorepo)
+
+- **Repo:** `E:\programme\cp`
+- **Stack:** Laravel 13, Livewire 4, Flux UI, Tailwind 4, PHPUnit 13, PHP 8.5
+
+### Apps
+
+| App | Path | Role |
+|-----|------|------|
+| ACP | `acp/` | Admin Control Panel |
+| UCP dev | `ucp-dev/` | UCP development |
+| UCP live | `ucp-live/` | UCP production |
+| Server setup | `server-setup/` | Deployment / migration scripts |
+
+Each Laravel app has its own **`AGENTS.md`** (Laravel Boost) — read it when editing that app.
+
+### Project pitfalls (check before coding)
+
+- **Wrong app:** `ucp-dev` vs `ucp-live` — confirm with user if unclear.
+- **Commands:** run `php artisan`, `npm`, `pint` from the **app directory**, not monorepo root.
+- **Laravel Boost:** prefer Boost MCP tools (`search-docs`, `database-schema`) inside the target app.
+- **Legacy:** `app/Support/legacy_functions.php` — reference only; implement in Laravel patterns.
+- **Tests:** PHPUnit only (no Pest); run minimal filter after changes.
+- **Frontend:** UI not updating → `npm run dev` / `composer run dev` in that app.
+
+### Build & test
+
+```
+cd acp   # or ucp-dev / ucp-live
+php artisan test --compact --filter=TestName
+vendor/bin/pint --dirty --format agent
+npm run dev   # or: composer run dev
+```
+
+- Test/build only when user says so or fix must be verified.
+- `vendor/`, `node_modules/` — never commit.
+
+### Definition of done (per function)
+
+- [ ] Only requested function changed (Golden Rule)
+- [ ] Correct app; that app’s `AGENTS.md` followed
+- [ ] Affected tests pass (if tests run)
+- [ ] Pint run on changed PHP (if PHP changed)
+- [ ] Manual check described (route/page/action to verify)
+
+### Git
+
+- **Never commit** unless user explicitly asks.
+- No destructive git ops without user approval.
+
+## Communication
+
+- Replies to user: **English or French**, clear and concise (match user language).
+- Code/comments/commits: **English** (project convention).
+
+## Stop signals
+
+- Unrequested change → revert / don’t commit.
+- Subagent without research at S2+ → stop, run `explore` first.
+- Design deviation from existing app patterns → **ask user**.
+- Subagent fails → escalate once (S2→S3 model), then ask user.
+- Done → short reply, no essay.
+
+---
+
+# Vibecoding — Pro+ (60 €/mois) + routage subagents · FR
+
+**Forfait :** Pro+ · ~**70 $ pool API** + **pool Auto/Composer** (séparés).
+
+L’**agent parent est l’orchestrateur** : évaluer l’effort → **phase recherche** → lancer le subagent + modèle adaptés → résumé court. Le parent **ne code pas**, sauf S0.
+
+---
+
+## ⚠️ RÈGLE D’OR (chaque étape)
+
+> **Ne construire que la seule fonction prévue. Rien en plus.**
+
+- Une fonction = un lot : **décrire → coder → tester** — puis continuer.
+- Ensuite : comment communique-t-elle (données, threads, locks) ?
+- Si l’IA fait quelque chose **non demandé** → jeter et refaire.
+- Pas de « autant en profiter pour », pas d’helpers préventifs, pas de features en plus.
+- **Chaque étape se termine par :** tests OK (si l’utilisateur dit test/build) → étape suivante.
+
+### Règle sous-projet (fondation — vérifier chaque tâche)
+
+1. **Une app par tâche** sauf demande explicite cross-app (`acp`, `ucp-dev`, `ucp-live`, `server-setup`).
+2. **Lire le `AGENTS.md` de l’app** (Laravel Boost) avant d’éditer PHP/Blade.
+3. **Commandes depuis le dossier de l’app** — `cd acp` / `ucp-dev` / `ucp-live`.
+4. **Legacy PHP** (`app/Support/legacy_functions.php`) : comprendre le comportement → implémenter en Laravel ; pas de copie aveugle.
+5. **Skills/config** (`.agent`, `.agents`, `.claude`) : ne pas mélanger avec le runtime sauf demande.
+
+---
+
+## Comprendre — ne jamais copier aveuglément
+
+- **Legacy PHP** et anciens patterns = **référence uniquement**.
+- **Interdit :** copier-coller aveugle du legacy dans les couches Laravel.
+- **Obligatoire :** comprendre le comportement → implémenter avec Eloquent, services, Livewire/Flux, conventions de l’app.
+- Lire les extraits de référence, en déduire la sémantique, écrire du code propre.
+
+---
+
+## Recherche avant exécution (qualité > vitesse)
+
+**Pas de précipitation.** Tout rechercher pour vérifier, puis implémenter.
+
+### Recherche obligatoire (parent ou subagent avant code)
+
+1. **Périmètre :** quelle app, quels fichiers, quelle **une** fonction, quoi est interdit ?
+2. **Sous-projet :** bonne app ? `AGENTS.md` lu ? outils Laravel Boost dispo ?
+3. **Existant :** `grep` + **lire** les fichiers (ne pas deviner).
+4. **Référence (port legacy) :** lignes pertinentes — noter le comportement, ne pas copier.
+5. **Interfaces :** routes, models, services, clés config — figer avant d’écrire.
+6. **Risques :** mauvaise app (dev vs live), N+1, auth/validation — 2–3 puces.
+
+### Déroulement
+
+```
+Recherche (explore readonly) → protocole court (5–8 puces) → périmètre OK ? → implémentation
+```
+
+- **S3/S4 :** recherche **toujours** en étape séparée ; prompt subagent inclut le résultat.
+- Mieux **une question** qu’un mauvais code.
+- Build/test seulement si recherche + périmètre sont solides.
+
+---
+
+## Routage subagents
+
+| Niveau | Quand | `subagent_type` | `model` | `readonly` |
+|--------|-------|-----------------|---------|------------|
+| **S0** | 1 grep, oui/non, pas de changement | parent direct | — | — |
+| **S1** | lookup, lire 1 fichier | `explore` | `composer-2.5-fast` | **true** (recherche) |
+| **S2** | bugfix 1–3 fichiers | `generalPurpose` | `composer-2.5-fast` | false |
+| **S3** | feature complexe, migrations, auth, multi-couches | `generalPurpose` | `claude-sonnet-5-thinking-high` | false |
+| **S4 Review** | review seulement | `explore` / `bugbot` | `claude-sonnet-5-thinking-high` | **true** |
+| **S4 Architecture** | gros refactor | `generalPurpose` | `claude-opus-4-8-thinking-high` | false |
+
+**S2+ avec code :** subagent seulement après protocole de recherche dans le prompt.
+
+## Flux implémentation
+
+1. **Première ligne :** même en-tête que §Obligatoire (Model · Effort · Phase · Rules · Task). Optionnel ensuite : `Delegation: {subagent_type}/{model}` si un subagent est lancé.
+2. **Subagent recherche** (readonly) si périmètre/sous-projet/legacy flous.
+3. **Subagent impl** avec protocole + règle d’or + pas de copie aveugle.
+4. Réponse parent : max 5–8 lignes.
+
+## Prompt subagent (champs requis)
+
+```
+Repo: E:\programme\cp
+App: [acp | ucp-dev | ucp-live | server-setup]
+Règle d'or: une seule [fonction], rien en plus
+Recherche: [puces: app, fichiers, routes/models, risques]
+Périmètre: seulement [fichier] — [fonction]
+Interdit: [fichiers/features/autres apps]
+Test: oui/non
+Résultat: fichiers modifiés + tests à faire
+```
+
+## Deux pools (Pro+)
+
+| Pool | Modèles | Niveaux |
+|------|---------|---------|
+| Auto/Composer | `composer-2.5-fast` | S1, S2 |
+| API | Sonnet, Opus | S3, S4 |
+
+Pool API >85 % → `composer-2.5-fast` uniquement.
+
+## Projet (monorepo cp)
+
+- **Repo :** `E:\programme\cp`
+- **Stack :** Laravel 13, Livewire 4, Flux UI, Tailwind 4, PHPUnit 13, PHP 8.5
+
+### Apps
+
+| App | Chemin | Rôle |
+|-----|--------|------|
+| ACP | `acp/` | Admin Control Panel |
+| UCP dev | `ucp-dev/` | UCP développement |
+| UCP live | `ucp-live/` | UCP production |
+| Server setup | `server-setup/` | Scripts déploiement / migration |
+
+Chaque app Laravel a son **`AGENTS.md`** (Laravel Boost) — le lire avant d’éditer.
+
+### Pièges projet (vérifier avant code)
+
+- **Mauvaise app :** `ucp-dev` vs `ucp-live` — demander si flou.
+- **Commandes :** `php artisan`, `npm`, `pint` depuis le **dossier de l’app**.
+- **Laravel Boost :** préférer les outils MCP dans l’app cible.
+- **Legacy :** `app/Support/legacy_functions.php` — référence ; implémenter en Laravel.
+- **Tests :** PHPUnit uniquement ; filtre minimal après changements.
+- **Frontend :** UI pas à jour → `npm run dev` / `composer run dev` dans l’app.
+
+### Build & test
+
+```
+cd acp   # ou ucp-dev / ucp-live
+php artisan test --compact --filter=TestName
+vendor/bin/pint --dirty --format agent
+npm run dev   # ou: composer run dev
+```
+
+- Test/build seulement si l’utilisateur le demande ou si le fix doit être vérifié.
+- `vendor/`, `node_modules/` — ne jamais committer.
+
+### Definition of done (par fonction)
+
+- [ ] Seule la fonction demandée modifiée (règle d’or)
+- [ ] Bonne app ; `AGENTS.md` de l’app respecté
+- [ ] Tests concernés OK (si tests lancés)
+- [ ] Pint sur PHP modifié (si PHP changé)
+- [ ] Vérification manuelle décrite (route/page/action)
+
+### Git
+
+- **Jamais committer** sans demande explicite.
+- Pas d’ops git destructives sans accord utilisateur.
+
+## Communication
+
+- Réponses utilisateur : **anglais ou français**, clair et concis (langue de l’utilisateur).
+- Code/commentaires/commits : **anglais** (convention projet).
+
+## Signaux d’arrêt
+
+- Changement non demandé → revert / ne pas committer.
+- Subagent sans recherche en S2+ → stop, lancer `explore` d’abord.
+- Écart de design vs patterns existants de l’app → **demander à l’utilisateur**.
+- Échec subagent → escalade une fois (S2→S3 modèle), puis demander.
+- Terminé → réponse courte, pas d’essai.

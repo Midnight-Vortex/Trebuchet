@@ -17,12 +17,13 @@ public static class YuuIniClientFiles
         foreach (var method in GetIniMethods())
         {
             IniSettingAttribute attr = method.GetCustomAttribute<IniSettingAttribute>() ?? throw new Exception($"{method.Name} does not have IniSettingAttribute.");
-            if (!documents.TryGetValue(attr.Path, out IniDocument? document))
+            var relativePath = ResolveClientIniPath(setup, attr.Path);
+            if (!documents.TryGetValue(relativePath, out IniDocument? document))
             {
-                var iniPath = Path.Combine(setup.GetClientFolder(), attr.Path);
+                var iniPath = ResolveClientAbsolutePath(setup, relativePath);
                 var iniContent = await Tools.GetFileContent(iniPath);
                 document = IniParser.Parse(iniContent, iniParserConfiguration);
-                documents.Add(attr.Path, document);
+                documents.Add(relativePath, document);
             }
             method.Invoke(null, [setup, profile, document]);
         }
@@ -30,7 +31,7 @@ public static class YuuIniClientFiles
         foreach (var document in documents)
         {
             document.Value.MergeDuplicateSections();
-            await Tools.SetFileContent(Path.Combine(setup.GetClientFolder(), document.Key), document.Value.ToString());
+            await Tools.SetFileContent(ResolveClientAbsolutePath(setup, document.Key), document.Value.ToString());
         }
     }
 
@@ -39,7 +40,7 @@ public static class YuuIniClientFiles
         // Modify the default SectionName parse because funcom sometime does an oupsi and generate sections with an empty name
         var iniParserConfiguration = new IniParserConfiguration();
         iniParserConfiguration.SectionNameRegex = "\\s*[^\\[\\]]*\\s*";
-        var iniPath = Path.Combine(setup.GetClientFolder(), string.Format(Constants.FileIniUser, "Game"));
+        var iniPath = ResolveClientAbsolutePath(setup, string.Format(Constants.GetFileIniUser(setup.Edition), "Game"));
         var iniContent = await Tools.GetFileContent(iniPath);
         var document = IniParser.Parse(iniContent, iniParserConfiguration);
         
@@ -135,5 +136,45 @@ public static class YuuIniClientFiles
                 meth.GetParameters()[1].ParameterType == typeof(ClientProfile) &&
                 meth.GetParameters()[2].ParameterType == typeof(IniDocument)
                 );
+    }
+
+    /// <summary>
+    /// Resolves a client-relative path to an absolute path, following junction chains under Saved
+    /// so file I/O avoids untrusted mount-point traversal (WinError 448).
+    /// </summary>
+    private static string ResolveClientAbsolutePath(AppSetup setup, string relativePath)
+    {
+        var clientFolder = Path.GetFullPath(setup.GetClientFolder());
+        var full = Path.GetFullPath(Path.Combine(clientFolder, relativePath));
+        var savedRoot = Path.GetFullPath(Path.Combine(clientFolder, Constants.FolderGameSave));
+
+        var relativeToSaved = Path.GetRelativePath(savedRoot, full);
+        if (relativeToSaved == "." || (!relativeToSaved.StartsWith("..", StringComparison.Ordinal) && !Path.IsPathRooted(relativeToSaved)))
+        {
+            var physical = Tools.ResolveReparsePointChain(savedRoot);
+            var resolved = relativeToSaved == "."
+                ? physical
+                : Path.Combine(physical, relativeToSaved);
+            return Tools.ResolveReparsePointsInPath(resolved);
+        }
+
+        return Tools.ResolveReparsePointsInPath(full);
+    }
+
+    /// <summary>
+    /// Attributes still use <see cref="Constants.FileIniUser"/> (WindowsNoEditor).
+    /// Enhanced client configs live under Saved\Config\Windows\.
+    /// </summary>
+    private static string ResolveClientIniPath(AppSetup setup, string attributePath)
+    {
+        if (setup.Edition != GameEdition.Enhanced)
+            return attributePath;
+
+        const string legacyFolder = "WindowsNoEditor";
+        const string enhancedFolder = "Windows";
+        if (attributePath.Contains(legacyFolder, StringComparison.OrdinalIgnoreCase))
+            return attributePath.Replace(legacyFolder, enhancedFolder, StringComparison.OrdinalIgnoreCase);
+
+        return attributePath;
     }
 }

@@ -100,9 +100,9 @@ internal sealed class ConanClientProcess : IConanProcess
         Process.Dispose();
     }
 
-    public Task RefreshAsync()
+    public async Task RefreshAsync()
     {
-        Process.Refresh();
+        await Task.Run(() => Process.Refresh());
         switch (State)
         {
             case ProcessState.RUNNING:
@@ -114,8 +114,6 @@ internal sealed class ConanClientProcess : IConanProcess
                     State = ProcessState.STOPPED;
                 break;
         }
-
-        return Task.CompletedTask;
     }
 
     public Task KillAsync()

@@ -456,15 +456,6 @@ namespace Trebuchet.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Enhanced.
-        /// </summary>
-        public static string Enhanced {
-            get {
-                return ResourceManager.GetString("Enhanced", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to Error.
         /// </summary>
         public static string Error {
@@ -787,13 +778,67 @@ namespace Trebuchet.Assets {
                 return ResourceManager.GetString("Live", resourceCulture);
             }
         }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Legacy.
+        /// </summary>
+        public static string Legacy {
+            get {
+                return ResourceManager.GetString("Legacy", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Enhanced.
+        /// </summary>
+        public static string Enhanced {
+            get {
+                return ResourceManager.GetString("Enhanced", resourceCulture);
+            }
+        }
         
         /// <summary>
-        ///   Looks up a localized string similar to Steam Workshop (Live).
+        ///   Looks up a localized string similar to Steam Workshop (Legacy).
         /// </summary>
         public static string LiveMod {
             get {
                 return ResourceManager.GetString("LiveMod", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Steam Workshop (Legacy).
+        /// </summary>
+        public static string LegacyMod {
+            get {
+                return ResourceManager.GetString("LegacyMod", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to Steam Workshop (Enhanced).
+        /// </summary>
+        public static string EnhancedMod {
+            get {
+                return ResourceManager.GetString("EnhancedMod", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to The mod "{0}" is not compatible with {1}....
+        /// </summary>
+        public static string ErrorModWrongEdition {
+            get {
+                return ResourceManager.GetString("ErrorModWrongEdition", resourceCulture);
+            }
+        }
+
+        /// <summary>
+        ///   Looks up a localized string similar to This folder is not a valid {0} client install....
+        /// </summary>
+        public static string ErrorClientWrongEdition {
+            get {
+                return ResourceManager.GetString("ErrorClientWrongEdition", resourceCulture);
             }
         }
         
@@ -2042,6 +2087,24 @@ namespace Trebuchet.Assets {
         public static string SettingExperimentsText {
             get {
                 return ResourceManager.GetString("SettingExperimentsText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Debug mode.
+        /// </summary>
+        public static string SettingDebugMode {
+            get {
+                return ResourceManager.GetString("SettingDebugMode", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Writes a detailed log next to Trebuchet (logs\debug-*.log) for troubleshooting on other PCs. Requires restart..
+        /// </summary>
+        public static string SettingDebugModeText {
+            get {
+                return ResourceManager.GetString("SettingDebugModeText", resourceCulture);
             }
         }
         

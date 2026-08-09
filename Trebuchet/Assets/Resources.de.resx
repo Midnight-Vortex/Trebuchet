@@ -197,8 +197,26 @@
     <data name="Live" xml:space="preserve">
         <value>Live</value>
     </data>
+    <data name="Legacy" xml:space="preserve">
+        <value>Legacy</value>
+    </data>
+    <data name="Enhanced" xml:space="preserve">
+        <value>Enhanced</value>
+    </data>
     <data name="LiveMod" xml:space="preserve">
-        <value>Steam Workshop (live)</value>
+        <value>Steam Workshop (Legacy)</value>
+    </data>
+    <data name="LegacyMod" xml:space="preserve">
+        <value>Steam Workshop (Legacy)</value>
+    </data>
+    <data name="EnhancedMod" xml:space="preserve">
+        <value>Steam Workshop (Enhanced)</value>
+    </data>
+    <data name="ErrorModWrongEdition" xml:space="preserve">
+        <value>Die Mod „{0}“ ist nicht mit {1} kompatibel. Nutze eine Mod mit dem passenden Workshop-Tag.</value>
+    </data>
+    <data name="ErrorClientWrongEdition" xml:space="preserve">
+        <value>Dieser Ordner ist keine gültige {0}-Installation (erwartet: {1} unter ConanSandbox\Binaries\Win64).</value>
     </data>
     <data name="Loading" xml:space="preserve">
         <value>Lädt</value>
@@ -909,7 +927,10 @@ WARNUNG: Dies kann dazu führen, dass die Erkennung von Zombie-Prozessen nicht m
     <data name="Yes" xml:space="preserve">
         <value>Ja</value>
     </data>
-    <data name="Enhanced" xml:space="preserve">
-        <value>Enhanced</value>
+    <data name="SettingDebugMode" xml:space="preserve">
+        <value>Debug-Modus</value>
+    </data>
+    <data name="SettingDebugModeText" xml:space="preserve">
+        <value>Schreibt ein detailliertes Debug-Log, vorzugsweise neben Trebuchet (logs\debug-*.log). Fallback auf AppData-Logs, wenn der Installationsordner nicht beschreibbar ist. Neustart erforderlich.</value>
     </data>
 </root>

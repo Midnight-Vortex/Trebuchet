@@ -10,6 +10,7 @@ using Humanizer;
 using Microsoft.Extensions.Logging;
 using ReactiveUI;
 using tot_lib;
+using AppResources = Trebuchet.Assets.Resources;
 using Trebuchet.Services;
 using Trebuchet.ViewModels.InnerContainer;
 using TrebuchetLib;
@@ -129,15 +130,39 @@ public class ModListViewModel : ReactiveObject
     {
         if (IsReadOnly) return;
         if (List.Any(x => x is IPublishedModFile pub && pub.PublishedId == mod.PublishedFileId)) return;
-        _logger.LogInformation(@"Adding mod {mod} from workshop", mod.PublishedFileId);
+
         IsLoading = true;
-        List.Add(_modFileFactory.Create(mod.PublishedFileId.ToString())
-            .SetActions(RemoveModFile, UpdateModFile).Build()
-        );
-        await QueryFromWorkshop(List, false);
-        IsLoading = false;
-        Size = CalculateModListSize().Bytes().Humanize();
+        try
+        {
+            // Search protobuf may omit tags; details API is authoritative for edition checks.
+            var details = await _steam.RequestModDetails([mod.PublishedFileId]);
+            var published = details.FirstOrDefault();
+            var tags = published?.Tags is { Count: > 0 } detailTags ? detailTags : mod.Tags;
+            var appId = published?.ConsumerAppId ?? mod.AppId;
+            var title = published?.Title ?? mod.Title;
+
+            if (!Constants.IsWorkshopModCompatible(_setup.Edition, tags, appId, title))
+            {
+                await _dialogueBox.OpenErrorAsync(string.Format(
+                    AppResources.ErrorModWrongEdition,
+                    title,
+                    Constants.GetEditionDisplayName(_setup.Edition)));
+                return;
+            }
+
+            _logger.LogInformation(@"Adding mod {mod} from workshop", mod.PublishedFileId);
+            List.Add(_modFileFactory.Create(mod.PublishedFileId.ToString())
+                .SetActions(RemoveModFile, UpdateModFile).Build()
+            );
+            await QueryFromWorkshop(List, false);
+            Size = CalculateModListSize().Bytes().Humanize();
+        }
+        finally
+        {
+            IsLoading = false;
+        }
     }
+
 
     public void Add(string file)
     {

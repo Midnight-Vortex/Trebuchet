@@ -1,6 +1,4 @@
 ﻿using System.CommandLine;
-using System.CommandLine.Builder;
-using System.CommandLine.Parsing;
 using Boulder.Commands;
 using Microsoft.Extensions.DependencyInjection;
 using Serilog;
@@ -12,26 +10,27 @@ using TrebuchetLib;
 using TrebuchetLib.Processes;
 using TrebuchetLib.Services;
 using TrebuchetLib.YuuIni;
-using IConsole = System.CommandLine.IConsole;
 
 namespace Boulder;
 
 class Program
 {
-    private static bool _testlive = false;
-    private static bool _enhanced = false;
+    private static GameEdition _edition = GameEdition.Legacy;
     private static bool _experiment = false;
     
     static async Task<int> Main(string[] args)
     {
         var rootCommand = new RootCommand("Boulder - Trebuchet's CLI");
-        rootCommand.AddCommand(LambCommand.Command);
-        rootCommand.AddCommand(KillCommand.Command);
+        rootCommand.Add(LambCommand.Command);
+        rootCommand.Add(KillCommand.Command);
         
-        var parser = new CommandLineBuilder(rootCommand).UseDefaults().Build();
-        var result = parser.Parse(args);
-        _testlive = result.UnmatchedTokens.Contains(Constants.argTestLive);
-        _enhanced = result.UnmatchedTokens.Contains(Constants.argEnhanced);
+        var result = rootCommand.Parse(args);
+        if (result.UnmatchedTokens.Contains(Constants.argTestLive))
+            _edition = GameEdition.TestLive;
+        else if (result.UnmatchedTokens.Contains(Constants.argEnhanced))
+            _edition = GameEdition.Enhanced;
+        else if (result.UnmatchedTokens.Contains(Constants.argLive))
+            _edition = GameEdition.Legacy;
         _experiment = result.UnmatchedTokens.Contains(Constants.argExperiment);
         return await result.InvokeAsync();
     }
@@ -39,7 +38,7 @@ class Program
     public static void ConfigureServices(IServiceCollection collection)
     {
         collection.AddSingleton(
-            new AppSetup(Config.LoadConfig(Constants.GetConfigPath(_testlive, _enhanced)), _testlive, _enhanced, false, _experiment));
+            new AppSetup(Config.LoadConfig(Constants.GetConfigPath(_edition)), _edition, false, _experiment));
         collection.AddLogging(builder => builder.AddSerilog(GetLogger(), true));
         collection.AddSingleton<BackupManager>();
         collection.AddSingleton<ConanProcessFactory>();

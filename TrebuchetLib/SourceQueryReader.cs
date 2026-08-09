@@ -113,7 +113,7 @@ namespace TrebuchetLib
         
         public void Refresh()
         {
-            if ((DateTime.Now - _lastUpdate).TotalMilliseconds < _refreshRate)
+            if (Online && (DateTime.Now - _lastUpdate).TotalMilliseconds < _refreshRate)
                 return;
             _lastUpdate = DateTime.Now;
 
@@ -207,6 +207,7 @@ namespace TrebuchetLib
 
             while (!token.IsCancellationRequested)
             {
+                var sleepMs = rate;
                 try
                 {
                     udp.Send(REQUEST, REQUEST.Length, _endpoint);
@@ -218,8 +219,9 @@ namespace TrebuchetLib
                 {
                     lock (this)
                         _buffer = [];
+                    sleepMs = Math.Min(rate, 1000);
                 }
-                Thread.Sleep(rate);
+                Thread.Sleep(sleepMs);
             }
         }
 

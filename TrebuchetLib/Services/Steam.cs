@@ -1,4 +1,5 @@
-﻿using DepotDownloader;
+﻿using System.Collections.Concurrent;
+using DepotDownloader;
 using Microsoft.Extensions.Logging;
 using SteamKit2;
 using SteamKit2.Internal;
@@ -28,16 +29,24 @@ public class Steam : IDebugListener, IDisposable
         ContentDownloader.Config.LoginID = null;
         ContentDownloader.Config.Progress = progress;
         UpdateDownloaderConfig();
-        _session = ContentDownloader.InitializeSteam3(null, null, _appSetup.Config.CellId);
-        _session.Connected += (_, _) => Connected?.Invoke(this, EventArgs.Empty);
-        _session.Disconnected += (_, _) => Disconnected?.Invoke(this, EventArgs.Empty);
+        // SteamKit session is created on first use (Connect / workshop / download).
+        _sessionLazy = new Lazy<Steam3Session>(CreateSession, LazyThreadSafetyMode.ExecutionAndPublication);
+    }
+
+    private Steam3Session CreateSession()
+    {
+        var session = ContentDownloader.InitializeSteam3(null, null, _appSetup.Config.CellId);
+        session.Connected += (_, _) => Connected?.Invoke(this, EventArgs.Empty);
+        session.Disconnected += (_, _) => Disconnected?.Invoke(this, EventArgs.Empty);
+        return session;
     }
         
     private readonly ILogger<Steam> _logger;
     private readonly IOsPlatformSpecific _osSpecific;
     private readonly AppSetup _appSetup;
     private readonly IProgressCallback<DepotDownloader.Progress> _progress;
-    private readonly Steam3Session _session;
+    private readonly Lazy<Steam3Session> _sessionLazy;
+    private Steam3Session _session => _sessionLazy.Value;
     private readonly Dictionary<ulong, SteamWorksWebAPI.PublishedFile> _publishedFiles = [];
     private DateTime _lastCacheClear = DateTime.MinValue;
     private SteamStatus _status = SteamStatus.StandBy;
@@ -46,7 +55,7 @@ public class Steam : IDebugListener, IDisposable
     public event EventHandler? Connected;
     public event EventHandler? Disconnected;
     public event EventHandler<SteamStatus>? StatusChanged;
-    public bool IsConnected => _session.IsLoggedOn;
+    public bool IsConnected => _sessionLazy.IsValueCreated && _session.IsLoggedOn;
 
     public SteamStatus Status
     {
@@ -87,31 +96,33 @@ public class Steam : IDebugListener, IDisposable
         
     public async Task<List<PublishedMod>> RequestModDetails(List<ulong> list)
     {
-        var results = GetCache(list);
-        if (list.Count <= 0) return GetPublishedModFiles(results).ToList();
-        using(_logger.BeginScope((@"ModList", list)))
-            _logger.LogInformation(@"Seeking mod details");
-        try
+        var pending = list.ToList();
+        var results = GetCache(pending);
+        if (pending.Count > 0)
         {
-            var response = await SteamRemoteStorage.GetPublishedFileDetails(new GetPublishedFileDetailsQuery(list),
-                CancellationToken.None);
-            foreach (var r in response.PublishedFileDetails)
+            using (_logger.BeginScope((@"ModList", pending)))
+                _logger.LogInformation(@"Seeking mod details");
+            try
             {
-                results.Add(r);
-                _publishedFiles[r.PublishedFileID] = r;
+                var response = await SteamRemoteStorage.GetPublishedFileDetails(new GetPublishedFileDetailsQuery(pending),
+                    CancellationToken.None);
+                foreach (var r in response.PublishedFileDetails)
+                {
+                    results.Add(r);
+                    _publishedFiles[r.PublishedFileID] = r;
+                }
             }
-
-            return GetPublishedModFiles(results).ToList();
-        }
-        catch (OperationCanceledException)
-        {
-        }
-        catch (HttpRequestException ex)
-        {
-            _logger.LogWarning(ex, @"Could not download mod infos");
+            catch (OperationCanceledException)
+            {
+            }
+            catch (HttpRequestException ex)
+            {
+                _logger.LogWarning(ex, @"Could not download mod infos");
+            }
         }
 
-        return [];
+        await EnrichEmptyTagsFromSteamKit(results);
+        return GetPublishedModFiles(results).ToList();
     }
 
     public void ClearModDetailsCache()
@@ -119,6 +130,33 @@ public class Steam : IDebugListener, IDisposable
         _logger.LogInformation(@"Invalidating mod details cache");
         _publishedFiles.Clear();
         _lastCacheClear = DateTime.UtcNow;
+    }
+
+    /// <summary>
+    /// Throws when any workshop mod is tagged for the wrong game edition (e.g. Legacy pak on Enhanced).
+    /// </summary>
+    public async Task EnsureModsCompatibleWithEdition(IEnumerable<ulong> modIds)
+    {
+        var ids = modIds.Distinct().ToList();
+        if (ids.Count == 0) return;
+
+        var details = await RequestModDetails(ids);
+        foreach (var mod in details.Where(m => m.Tags.Count == 0))
+        {
+            _logger.LogWarning(
+                "Workshop mod {Title} ({PublishedFileId}) has no Steam tags; using title fallback for edition check (impliesEnhanced={Implies})",
+                mod.Title, mod.PublishedFileId, Constants.TitleImpliesEnhanced(mod.Title));
+        }
+
+        var incompatible = details
+            .Where(m => !Constants.IsWorkshopModCompatible(_appSetup.Edition, m.Tags, m.ConsumerAppId, m.Title))
+            .Select(m => m.Title)
+            .ToList();
+
+        if (incompatible.Count == 0) return;
+
+        throw new InvalidOperationException(
+            $"These workshop mods are not compatible with {Constants.GetEditionDisplayName(_appSetup.Edition)}: {string.Join(", ", incompatible)}");
     }
 
     /// <summary>
@@ -193,25 +231,71 @@ public class Steam : IDebugListener, IDisposable
     }
 
     public async Task<CPublishedFile_QueryFiles_Response?> QueryWorkshopSearch(uint appId, string searchTerms, uint perPage,
-        uint page)
+        uint page, string? requiredTags = null, string? excludedTags = null)
     {
         var data = new Dictionary<string, object>
         {
             {@"search", searchTerms},
             {@"perPage", perPage},
-            {@"page", page}
+            {@"page", page},
+            {@"requiredTags", requiredTags ?? string.Empty},
+            {@"excludedTags", excludedTags ?? string.Empty}
         };
         using var scope = _logger.BeginScope(data);
         _logger.LogInformation(@"Begin workshop search");
         try
         {
-            return await _session.QueryPublishedFileSearch(appId, searchTerms, perPage, page);
+            // Server-side requiredtags/excludedtags + return_tags (DepotDownloader ForkTrebuchet).
+            var response = await _session.QueryPublishedFileSearch(
+                appId, searchTerms, perPage, page, requiredTags, excludedTags);
+
+            // Client-side safety net when tags are present; server-side filter handles untagged rows.
+            FilterWorkshopSearchByTags(response, requiredTags, excludedTags);
+            return response;
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed");
             return null;
         }
+    }
+
+    private void FilterWorkshopSearchByTags(CPublishedFile_QueryFiles_Response response, string? requiredTag,
+        string? excludedTag)
+    {
+        if (string.IsNullOrEmpty(requiredTag) && string.IsNullOrEmpty(excludedTag))
+            return;
+
+        var before = response.publishedfiledetails.Count;
+        for (var i = response.publishedfiledetails.Count - 1; i >= 0; i--)
+        {
+            var file = response.publishedfiledetails[i];
+            if (!WorkshopFilePassesTagFilter(file, requiredTag, excludedTag))
+                response.publishedfiledetails.RemoveAt(i);
+        }
+
+        var removed = before - response.publishedfiledetails.Count;
+        if (removed > 0)
+            _logger.LogInformation(@"Filtered {Removed} workshop results by tags (required={Required}, excluded={Excluded})",
+                removed, requiredTag ?? @"-", excludedTag ?? @"-");
+    }
+
+    private static bool WorkshopFilePassesTagFilter(PublishedFileDetails file, string? requiredTag, string? excludedTag)
+    {
+        var tags = file.tags;
+        // Search rows often omit tags; trust server-side requiredtags/excludedtags filtering.
+        if (tags is null || tags.Count == 0)
+            return true;
+
+        if (!string.IsNullOrEmpty(requiredTag) &&
+            !tags.Any(t => string.Equals(t.tag, requiredTag, StringComparison.OrdinalIgnoreCase)))
+            return false;
+
+        if (!string.IsNullOrEmpty(excludedTag) &&
+            tags.Any(t => string.Equals(t.tag, excludedTag, StringComparison.OrdinalIgnoreCase)))
+            return false;
+
+        return true;
     }
 
     public IEnumerable<PublishedMod> GetPublishedModFiles(List<SteamWorksWebAPI.PublishedFile> files)
@@ -232,12 +316,20 @@ public class Steam : IDebugListener, IDisposable
     public List<UGCFileStatus> CheckModsForUpdate(ICollection<(ulong pubId, ulong manifestId)> mods)
     {
         var updated = GetUpdatedUGCFileIDs(mods).ToList();
-        
-        foreach (var (pubId, _) in mods)
+        var known = updated.Select(x => x.PublishedId).ToHashSet();
+        var missing = new ConcurrentBag<ulong>();
+        Parallel.ForEach(mods, new ParallelOptions
         {
-            if (!_appSetup.TryGetModPath(pubId.ToString(), out _) && updated.All(x => x.PublishedId != pubId))
-                updated.Add(new UGCFileStatus(pubId, UGCStatus.Missing));
-        } 
+            MaxDegreeOfParallelism = Math.Max(2, Environment.ProcessorCount / 2)
+        }, item =>
+        {
+            var (pubId, _) = item;
+            if (known.Contains(pubId)) return;
+            if (!_appSetup.TryGetModPath(pubId.ToString(), out _))
+                missing.Add(pubId);
+        });
+        foreach (var id in missing)
+            updated.Add(new UGCFileStatus(id, UGCStatus.Missing));
         return updated;
     }
 
@@ -258,13 +350,18 @@ public class Steam : IDebugListener, IDisposable
         foreach (var (pubID, manisfestID) in keyValuePairs)
         {
             if (!depotConfigStore.InstalledUGCManifestIDs.TryGetValue(pubID, out ulong manisfest))
+            {
                 yield return new UGCFileStatus(pubID, UGCStatus.Missing);
+                continue;
+            }
+
             if (manisfest != manisfestID)
             {
-                if(manisfest == ContentDownloader.INVALID_MANIFEST_ID)
+                if (manisfest == ContentDownloader.INVALID_MANIFEST_ID)
                     yield return new UGCFileStatus(pubID, UGCStatus.Corrupted);
                 else
                     yield return new UGCFileStatus(pubID, UGCStatus.Updatable);
+                continue;
             }
 
             yield return new UGCFileStatus(pubID, UGCStatus.UpToDate);
@@ -369,7 +466,8 @@ public class Steam : IDebugListener, IDisposable
 
     public void Dispose()
     {
-        Disconnect();
+        if (_sessionLazy.IsValueCreated)
+            Disconnect();
     }
     
     public void CancelOperation()
@@ -491,16 +589,69 @@ public class Steam : IDebugListener, IDisposable
         ContentDownloader.Config.CellID = 0; //TODO: Offer regional download selection
         ContentDownloader.Config.MaxDownloads = _appSetup.Config.MaxDownloads;
         ContentDownloader.Config.DepotConfigDirectory = Path.Combine(_appSetup.GetWorkshopFolder(), ContentDownloader.CONFIG_DIR);
-        AccountSettingsStore.LoadFromFile(
-            Path.Combine(_appSetup.GetWorkshopFolder(), 
-                _appSetup.VersionFolder, 
-                "account.config"));
+        var accountConfigPath = _appSetup.IsEnhanced
+            ? Path.Combine(_appSetup.GetWorkshopFolder(), "account.config")
+            : Path.Combine(_appSetup.GetWorkshopFolder(), _appSetup.VersionFolder, "account.config");
+        AccountSettingsStore.LoadFromFile(accountConfigPath);
     }
     
+    /// <summary>
+    /// Web API GetPublishedFileDetails often omits tags; SteamKit GetDetails with includetags fills them in.
+    /// </summary>
+    private async Task EnrichEmptyTagsFromSteamKit(List<SteamWorksWebAPI.PublishedFile> files)
+    {
+        var idsNeedingTags = files
+            .Where(f => f.Tags is null || f.Tags.Length == 0)
+            .Select(f => f.PublishedFileID)
+            .Distinct()
+            .ToList();
+        if (idsNeedingTags.Count == 0) return;
+
+        if (!IsConnected && !await WaitSteamConnectionAsync())
+        {
+            _logger.LogWarning("Cannot enrich workshop tags: not connected to Steam");
+            return;
+        }
+
+        try
+        {
+            foreach (var appId in new[] { Constants.AppIDLiveClient, Constants.AppIDTestLiveClient })
+            {
+                var stillNeeding = idsNeedingTags
+                    .Where(id => _publishedFiles.TryGetValue(id, out var f) && (f.Tags is null || f.Tags.Length == 0))
+                    .ToList();
+                if (stillNeeding.Count == 0) break;
+
+                var details = await _session.GetPublishedFileDetails(appId, stillNeeding);
+                foreach (var detail in details)
+                {
+                    if (detail.tags is null || detail.tags.Count == 0) continue;
+                    if (!_publishedFiles.TryGetValue(detail.publishedfileid, out var file)) continue;
+
+                    file.Tags = detail.tags
+                        .Select(t => new SteamWorksWebAPI.SteamTag { tag = t.tag })
+                        .Where(t => !string.IsNullOrWhiteSpace(t.tag))
+                        .ToArray();
+                }
+            }
+
+            foreach (var id in idsNeedingTags)
+            {
+                if (_publishedFiles.TryGetValue(id, out var file) && (file.Tags is null || file.Tags.Length == 0))
+                    _logger.LogWarning("Workshop mod {PublishedFileId} still has no tags after Steam enrichment", id);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not enrich workshop tags from Steam session");
+        }
+    }
+
     private List<SteamWorksWebAPI.PublishedFile> GetCache(List<ulong> list)
     {
         List<SteamWorksWebAPI.PublishedFile> results = [];
-        if ((DateTime.UtcNow - _lastCacheClear).TotalMinutes > 1.0)
+        // Keep workshop details longer to avoid Steam round-trips on large modlists.
+        if ((DateTime.UtcNow - _lastCacheClear).TotalMinutes > 15.0)
             ClearModDetailsCache();
         for (var i = list.Count - 1; i >= 0; i--)
         {

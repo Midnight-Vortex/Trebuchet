@@ -69,10 +69,15 @@ public class ServerInstallationField : DescriptiveElement<ServerInstallationFiel
             if (success)
             {
                 _setup.Config.SaveFile();
-                Installed = true;
-                InstanceCount = _setup.Config.ServerInstanceCount;
+                SyncFromConfig();
             }
         }
         catch(OperationCanceledException) {}
+    }
+
+    public void SyncFromConfig()
+    {
+        InstanceCount = _setup.Config.ServerInstanceCount;
+        Installed = _setup.Config.ServerInstanceCount > 0;
     }
 }

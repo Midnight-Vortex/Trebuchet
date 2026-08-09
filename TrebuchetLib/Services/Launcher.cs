@@ -38,6 +38,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     private readonly Dictionary<int, SequenceRunner> _serverSequences = [];
     private IConanProcess? _conanClientProcess;
     private bool _hasCatapulted;
+    private int _tickCounter;
     private readonly List<IPRefWithModList> _modListNeedUpdate = [];
     private readonly List<PublishedMod> _modNeedUpdate = [];
     private bool _serverNeedUpdate;
@@ -133,10 +134,20 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
                 throw new Exception("Auto connection address is invalid");
             await _setup.WriteLastConnection(connection);
         }
+
+        await EnsureWorkshopModsCompatible(modList);
         
         var process = await CreateClientProcess(profile, modList, isBattleEye, autoConnect is not null);
-
+        var args = process.StartInfo.Arguments ?? string.Empty;
+        _logger.LogInformation(
+            "Starting client process: exe={Exe}, workDir={WorkDir}, battleEye={BattleEye}, argsLength={ArgsLength}, args={Args}",
+            process.StartInfo.FileName,
+            process.StartInfo.WorkingDirectory,
+            isBattleEye,
+            args.Length,
+            args);
         process.Start();
+        _logger.LogInformation("Client parent process started PID={Pid}", process.Id);
 
         var childProcess = await CatchClientChildProcess(process);
         if (childProcess == null)
@@ -385,13 +396,22 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         }
 
         await CleanStoppedProcesses();
-        await FindExistingClient();
-        await FindExistingServers();
+
+        // Process discovery is relatively expensive (WMI); refresh every tick when missing, else every other tick.
+        _tickCounter++;
+        var needClientScan = _conanClientProcess is null || (_tickCounter % 2) == 0;
+        var needServerScan = _serverProcesses.Count < _setup.Config.ServerInstanceCount || (_tickCounter % 2) == 0;
+        if (needClientScan)
+            await FindExistingClient();
+        if (needServerScan)
+            await FindExistingServers();
+
         await PerformPeriodicUpdateCheck();
         await PerformAutomaticRestarts();
 
-        if(_conanClientProcess is not null)
-            await _conanClientProcess.RefreshAsync();
+        var refreshTasks = new List<Task>();
+        if (_conanClientProcess is not null)
+            refreshTasks.Add(_conanClientProcess.RefreshAsync());
         foreach (var process in _serverProcesses.Values)
         {
             var name = _appFiles.Server.Resolve(_setup.Config.GetInstanceProfile(process.Infos.Instance));
@@ -401,24 +421,37 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
                 process.KillZombies = profile.KillZombies;
                 process.ZombieCheckSeconds = profile.ZombieCheckSeconds;
             }
-            await process.RefreshAsync();
+            refreshTasks.Add(process.RefreshAsync());
         }
+        if (refreshTasks.Count > 0)
+            await Task.WhenAll(refreshTasks);
     }
 
     public async Task<ConanClientProcessInfos?> FindClientProcess()
     {
-        var data = (await _tOsSpecific.GetProcessesWithName(_setup.IsEnhanced
-            ? Constants.FileClientEnhancedBin
-            : Constants.FileClientBin)).FirstOrDefault();
+        var clientFolder = _setup.GetClientFolder();
+        if (string.IsNullOrWhiteSpace(clientFolder))
+            return null;
 
-        if (data.IsEmpty) return null;
-        if (!data.TryGetProcess(out var process)) return null;
+        var processName = _setup.GetClientProcessName();
+        var clientRoot = Path.GetFullPath(clientFolder)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var processes = await _tOsSpecific.GetProcessesWithName(processName);
 
-        return new ConanClientProcessInfos()
+        foreach (var data in processes.OrderByDescending(p => p.start))
         {
-            Process = process,
-            Start = data.start
-        };
+            if (data.IsEmpty) continue;
+            if (!IsProcessUnderClientInstall(data.filename, clientRoot)) continue;
+            if (!data.TryGetProcess(out var process)) continue;
+
+            return new ConanClientProcessInfos()
+            {
+                Process = process,
+                Start = data.start
+            };
+        }
+
+        return null;
     }
     
     public async IAsyncEnumerable<ConanServerProcessInfos> FindServerProcesses()
@@ -728,8 +761,10 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
 
     private async Task PerformPeriodicUpdateCheck()
     {
-        //if ((DateTime.UtcNow - _lastUpdateCheckTime) >= _setup.Config.UpdateCheckFrequency)
-        if ((DateTime.UtcNow - _lastUpdateCheckTime) >= TimeSpan.FromMinutes(1))
+        var frequency = _setup.Config.UpdateCheckFrequency;
+        if (frequency < TimeSpan.FromMinutes(1))
+            frequency = TimeSpan.FromMinutes(1);
+        if ((DateTime.UtcNow - _lastUpdateCheckTime) >= frequency)
         {
             if (!await CheckModUpdates()) return;
             if (!await CheckServerUpdate()) return;
@@ -794,9 +829,57 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         return true;
     }
 
+    private async Task EnsureWorkshopModsCompatible(IEnumerable<string> modList)
+    {
+        var ids = modList
+            .Where(m => ulong.TryParse(m, out _))
+            .Select(ulong.Parse)
+            .ToList();
+        if (ids.Count == 0) return;
+        await _steam.EnsureModsCompatibleWithEdition(ids);
+    }
+
+    /// <summary>
+    /// True when <paramref name="filename"/> is under the configured client install root
+    /// (directory-boundary safe — avoids matching sibling folders like "Conan Exiles UE4").
+    /// </summary>
+    private bool IsProcessUnderClientInstall(string? filename, string? clientRootPrefix = null)
+    {
+        if (string.IsNullOrEmpty(filename)) return false;
+        try
+        {
+            var full = Path.GetFullPath(filename);
+            string root;
+            if (!string.IsNullOrEmpty(clientRootPrefix))
+                root = clientRootPrefix;
+            else
+            {
+                var clientFolder = _setup.GetClientFolder();
+                if (string.IsNullOrWhiteSpace(clientFolder))
+                    return false;
+                root = Path.GetFullPath(clientFolder)
+                    .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            }
+
+            if (full.Equals(root, StringComparison.OrdinalIgnoreCase))
+                return true;
+            var prefix = root + Path.DirectorySeparatorChar;
+            return full.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
     private async Task<Process> CreateClientProcess(ClientProfile profile, IEnumerable<string> modList, bool isBattleEye, bool autoConnect)
     {
         var filename = _setup.GetBinFile(isBattleEye);
+        if (!File.Exists(filename))
+            throw new FileNotFoundException(
+                $"Client binary for {Constants.GetEditionDisplayName(_setup.Edition)} was not found: {filename}",
+                filename);
+
         var modlistFile = Path.GetTempFileName();
         await File.WriteAllLinesAsync(modlistFile, _setup.GetModsPath(modList));
         var args = profile.GetClientArgs(modlistFile, autoConnect);
@@ -817,19 +900,49 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
 
     private async Task<Process?> CatchClientChildProcess(Process parent)
     {
-        var target = ProcessData.Empty;
-        DateTime start = DateTime.UtcNow;
-        while (target.IsEmpty && !parent.HasExited)
+        var gameBinName = _setup.GetClientProcessName();
+        var launchedName = Path.GetFileName(parent.StartInfo.FileName);
+
+        // Direct launch of the game binary (no BattlEye stub) — parent is the client.
+        if (string.Equals(launchedName, gameBinName, StringComparison.OrdinalIgnoreCase) && !parent.HasExited)
+            return parent;
+
+        DateTime notBefore;
+        try
         {
-            if ((DateTime.UtcNow - start).TotalSeconds > 20) return null;
-            target = (await _tOsSpecific.GetProcessesWithName(_setup.IsEnhanced
-                ? Constants.FileClientEnhancedBin
-                : Constants.FileClientBin)).FirstOrDefault();
-            await Task.Delay(25);
+            notBefore = parent.StartTime.ToUniversalTime().AddSeconds(-2);
+        }
+        catch
+        {
+            notBefore = DateTime.UtcNow.AddSeconds(-5);
         }
 
-        if (target.IsEmpty) return null;
-        return !target.TryGetProcess(out var targetProcess) ? null : targetProcess;
+        var clientFolder = _setup.GetClientFolder();
+        if (string.IsNullOrWhiteSpace(clientFolder))
+            return null;
+
+        var clientRoot = Path.GetFullPath(clientFolder)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var deadline = DateTime.UtcNow.AddSeconds(20);
+        // WMI enumeration is relatively expensive; start snappy, then back off.
+        var delayMs = 25;
+        while (!parent.HasExited && DateTime.UtcNow < deadline)
+        {
+            var candidates = await _tOsSpecific.GetProcessesWithName(gameBinName);
+            var match = candidates
+                .Where(p => !p.IsEmpty && p.start >= notBefore && IsProcessUnderClientInstall(p.filename, clientRoot))
+                .OrderByDescending(p => p.start)
+                .FirstOrDefault();
+
+            if (!match.IsEmpty && match.TryGetProcess(out var targetProcess))
+                return targetProcess;
+
+            await Task.Delay(delayMs);
+            if (delayMs < 100)
+                delayMs = Math.Min(100, delayMs + 25);
+        }
+
+        return null;
     }
 
     private void ConfigureProcess(int priority, long threadAffinity, Process process)
@@ -862,7 +975,13 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         var process = new Process();
 
         var filename = _setup.GetIntanceBinary(instance);
-        
+
+        // Server depot remains shared Live (443030); do not apply Enhanced client workshop-tag rules here.
+        if (_setup.IsEnhanced)
+            _logger.LogWarning(
+                "Enhanced edition uses shared server AppID {ServerAppId}; verify the dedicated server build matches the Enhanced client",
+                _setup.ServerAppId);
+
         var modfileFile = Path.GetTempFileName();
         await File.WriteAllLinesAsync(modfileFile, _setup.GetModsPath(modlist));
         

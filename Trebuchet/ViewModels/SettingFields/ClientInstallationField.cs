@@ -30,7 +30,7 @@ public class ClientInstallationField : DescriptiveElement<ClientInstallationFiel
         
         Install = ReactiveCommand.CreateFromTask(InstallClientPath);
 
-        Installed = Tools.IsClientInstallValid(setup);
+        Installed = Tools.IsClientInstallValid(setup.Config, setup.Edition);
         InstallPath = setup.Config.ClientPath;
         ManageFiles = setup.Config.ManageClient;
     }
@@ -79,16 +79,24 @@ public class ClientInstallationField : DescriptiveElement<ClientInstallationFiel
     {
         try
         {
-            var success = await _operations.OnBoardingFindConanExile(force:true);
-            if (success)
-            {
-                _setup.Config.SaveFile();
-                Installed = true;
-                InstallPath = _setup.Config.ClientPath;
-                ManageFiles = _setup.Config.ManageClient;
-            }
+            await _operations.OnBoardingFindConanExile(force: true);
         }
-        catch(OperationCanceledException) {}
+        catch (OperationCanceledException)
+        {
+            // Path may already be set before a later cancel (e.g. Manage prompt).
+        }
+
+        // Always refresh UI from config (cancel/UAC may leave ClientPath set without reaching here previously).
+        SyncFromConfig();
+        if (Installed)
+            _setup.Config.SaveFile();
+    }
+
+    public void SyncFromConfig()
+    {
+        Installed = Tools.IsClientInstallValid(_setup.Config, _setup.Edition);
+        InstallPath = _setup.Config.ClientPath ?? "";
+        ManageFiles = _setup.Config.ManageClient;
     }
 
     private async Task UninstallClientPath()

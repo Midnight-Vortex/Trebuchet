@@ -59,12 +59,24 @@ public partial class App : Application, IApplication
         _langManager.SetLanguage(_uiConfig.UICulture);
         
         AvaloniaXamlLoader.Load(this);
+#if DEBUG
+        this.AttachDeveloperTools();
+#endif
     }
 
-    public void OpenApp(bool testlive, bool enhanced)
+    public void OpenApp(bool testlive)
+        => OpenApp(testlive ? GameEdition.TestLive : GameEdition.Legacy);
+
+    public void OpenApp(GameEdition edition)
+        => OpenAppAsync(edition).GetAwaiter().GetResult();
+
+    public async Task OpenAppAsync(GameEdition edition)
     {
         if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
             throw new Exception(@"Not supported");
+
+        // Per-edition UI config so Legacy/Enhanced/TestLive profile selections do not clash.
+        LoadEditionUiConfig(edition);
         
         bool catapult = false;
         
@@ -79,27 +91,66 @@ public partial class App : Application, IApplication
    
         
         var serviceCollection = new ServiceCollection();
-        ConfigureServices(serviceCollection, testlive, enhanced, catapult, experiment);
+        ConfigureServices(serviceCollection, edition, catapult, experiment);
         _serviceProvider = serviceCollection.BuildServiceProvider();
         _logger = _serviceProvider.GetRequiredService<ILogger<App>>();
         var osSpecifics = _serviceProvider.GetRequiredService<IOsPlatformSpecific>();
+        var setup = _serviceProvider.GetRequiredService<AppSetup>();
         
         CodeHighlighting.RegisterHighlight(@"Trebuchet.Assets.LogHightlighting.xshd", @"Log", [@".log"]);
         
+        if (_uiConfig!.DebugMode)
+        {
+            var installLogDir = ResolveDebugLogDirectory();
+            _logger.LogInformation("Debug mode ON — debug log: {Path}", Path.Combine(installLogDir, "debug-*.log"));
+            _logger.LogInformation("ClientPath: {ClientPath}", setup.Config.ClientPath);
+            _logger.LogInformation("Edition: {Edition}", edition);
+            _logger.LogInformation("ManageClient: {ManageClient}", setup.Config.ManageClient);
+            _logger.LogInformation("IsElevated: {IsElevated}", osSpecifics.IsProcessElevated());
+            _logger.LogInformation("OS: {OS}", RuntimeInformation.OSDescription);
+            _logger.LogInformation("InstallDirectory: {InstallDirectory}", GetInstallDirectory());
+            _logger.LogInformation("BaseDirectory: {BaseDirectory}", AppDomain.CurrentDomain.BaseDirectory);
+        }
+        
         _logger.LogInformation(@"Starting Trebuchet");
-        _logger.LogInformation(@$"Selecting {(testlive ? @"testlive" : @"live")}");
+        _logger.LogInformation(@$"Selecting {edition}");
         if(osSpecifics.IsProcessElevated())
             _logger.LogInformation(@"Process is elevated");
+
+        await Task.Run(() => _serviceProvider.GetRequiredService<AppFiles>().SetupFolders());
 
         MainWindow mainWindow = new ();
         var currentWindow = desktop.MainWindow;
         desktop.MainWindow = mainWindow;
-        _serviceProvider.GetRequiredService<AppFiles>().SetupFolders();
         mainWindow.DataContext = _serviceProvider.GetRequiredService<TrebuchetApp>();
         mainWindow.Show();
         currentWindow?.Close();
     }
          
+    private void LoadEditionUiConfig(GameEdition edition)
+    {
+        var path = AppConstants.GetUIConfigPath(edition);
+        if (edition == GameEdition.Legacy || File.Exists(path))
+        {
+            _uiConfig = UIConfig.LoadConfig(path);
+            return;
+        }
+
+        // First Enhanced/TestLive open: seed shared prefs from Legacy UI, clear edition-specific selections.
+        var seed = _uiConfig ?? UIConfig.LoadConfig(AppConstants.GetUIConfigPath(GameEdition.Legacy));
+        var created = UIConfig.CreateConfig(path);
+        created.UICulture = seed.UICulture;
+        created.PlateformTheme = seed.PlateformTheme;
+        created.FoldedMenu = seed.FoldedMenu;
+        created.DisplayWarningOnKill = seed.DisplayWarningOnKill;
+        created.DisplayProcessPerformance = seed.DisplayProcessPerformance;
+        created.Experiments = seed.Experiments;
+        created.DebugMode = seed.DebugMode;
+        created.ConsoleFilters = seed.ConsoleFilters?.ToArray() ?? [];
+        created.SaveFile();
+        _uiConfig = created;
+    }
+
     public void Crash() => HasCrashed = true;
 
     public static async Task HandleAppCrash(Exception ex)
@@ -125,17 +176,17 @@ public partial class App : Application, IApplication
             {
                 if (desktop.Args.Contains(Constants.argTestLive))
                 {
-                    OpenApp(true, false);
+                    OpenApp(GameEdition.TestLive);
                     return;
                 }
-                else if (desktop.Args.Contains(Constants.argEnhanced))
+                if (desktop.Args.Contains(Constants.argEnhanced))
                 {
-                    OpenApp(false, true);
+                    OpenApp(GameEdition.Enhanced);
                     return;
                 }
-                else if (desktop.Args.Contains(Constants.argLive))
+                if (desktop.Args.Contains(Constants.argLive))
                 {
-                    OpenApp(false, false);
+                    OpenApp(GameEdition.Legacy);
                     return;
                 }
             }
@@ -160,7 +211,7 @@ public partial class App : Application, IApplication
         var tOsSpecific = provider.GetRequiredService<ITrebuchetOsSpecific>();
         
         var data = tOsSpecific.GetProcess(Environment.ProcessId);
-        var version = setup.IsTestLive ? Constants.argTestLive : Constants.argLive;
+        var version = Constants.GetCliArg(setup.Edition);
         List<string> arguments = data.args.Split(' ').ToList();
         if (!arguments.Contains(version))
             arguments.Add(version);
@@ -184,10 +235,10 @@ public partial class App : Application, IApplication
     }
 
     [Localizable(false)]
-    private void ConfigureServices(IServiceCollection services, bool testlive, bool enhanced, bool catapult, bool experiment)
+    private void ConfigureServices(IServiceCollection services, GameEdition edition, bool catapult, bool experiment)
     {
         services.AddSingleton(
-            new AppSetup(Config.LoadConfig(Constants.GetConfigPath(testlive, enhanced)), testlive, enhanced, catapult, experiment));
+            new AppSetup(Config.LoadConfig(Constants.GetConfigPath(edition)), edition, catapult, experiment));
         services.AddSingleton(_uiConfig!);
         services.AddSingleton<ILanguageManager>(_langManager!);
         services.AddSingleton<IUpdater>(
@@ -201,26 +252,51 @@ public partial class App : Application, IApplication
 
         _internalLogSink = new InternalLogSink();
         services.AddSingleton(_internalLogSink);
-        
-        Log.Logger = new LoggerConfiguration()
+
+        string? installLogDir = null;
+        if (_uiConfig?.DebugMode == true)
+            installLogDir = ResolveDebugLogDirectory();
+
+        var logTemplate = new ExpressionTemplate("{@t:yyyy-MM-dd HH:mm:ss.fff zzz} " +
+                                                 "[{@l:u3}]" +
+                                                 "{#if SourceContext is not null} " +
+                                                      "{Substring(SourceContext, LastIndexOf(SourceContext, '.') + 1),-15}:" +
+                                                 "{#end} " +
+                                                 "{@m} " +
+                                                 "{#each name, value in Rest(true)}({name}:{value}) {#end}" +
+                                                 "{#if @x is not null}\n{@x}{#end}\n");
+
+        var loggerConfig = new LoggerConfiguration();
+        if (_uiConfig?.DebugMode == true)
+            loggerConfig = loggerConfig.MinimumLevel.Debug();
 #if !DEBUG
-            .MinimumLevel.Information()
+        else
+            loggerConfig = loggerConfig.MinimumLevel.Information();
 #endif
+
+        loggerConfig = loggerConfig
             .WriteTo.Logger(fl => fl
                 .WriteTo.File(
-                    new ExpressionTemplate("{@t:yyyy-MM-dd HH:mm:ss.fff zzz} " +
-                                           "[{@l:u3}]" +
-                                           "{#if SourceContext is not null} " +
-                                                "{Substring(SourceContext, LastIndexOf(SourceContext, '.') + 1),-15}:" +
-                                           "{#end} " +
-                                           "{@m} " +
-                                           "{#each name, value in Rest(true)}({name}:{value}) {#end}" +
-                                           "{#if @x is not null}\n{@x}{#end}\n"),
+                    logTemplate,
                     Path.Combine(Constants.GetLoggingDirectory().FullName, @"app.log"),
                     retainedFileTimeLimit: TimeSpan.FromDays(7),
                     rollingInterval: RollingInterval.Day)
                 .Filter.ByExcluding(Matching.WithProperty<ConsoleLogSource>(@"TrebSource", _ => true))
-            )
+            );
+
+        if (_uiConfig?.DebugMode == true)
+        {
+            loggerConfig = loggerConfig.WriteTo.Logger(fl => fl
+                .WriteTo.File(
+                    logTemplate,
+                    Path.Combine(installLogDir!, "debug-.log"),
+                    retainedFileTimeLimit: TimeSpan.FromDays(14),
+                    rollingInterval: RollingInterval.Day)
+                .Filter.ByExcluding(Matching.WithProperty<ConsoleLogSource>(@"TrebSource", _ => true))
+            );
+        }
+
+        Log.Logger = loggerConfig
             .WriteTo.Sink(_internalLogSink, new BatchingOptions()
             {
                 BatchSizeLimit = 20,
@@ -258,6 +334,41 @@ public partial class App : Application, IApplication
         services.AddSingleton<IPanel, DashboardPanel>();
         services.AddSingleton<IPanel, ToolboxPanel>();
         services.AddSingleton<IPanel, SettingsPanel>();
+    }
+
+    private static string ResolveDebugLogDirectory()
+    {
+        var preferred = Path.Combine(GetInstallDirectory(), Constants.LogFolder);
+        try
+        {
+            Directory.CreateDirectory(preferred);
+            var probe = Path.Combine(preferred, ".write-test");
+            File.WriteAllText(probe, "ok");
+            File.Delete(probe);
+            return preferred;
+        }
+        catch (Exception)
+        {
+            var fallback = Constants.GetLoggingDirectory();
+            Directory.CreateDirectory(fallback.FullName);
+            return fallback.FullName;
+        }
+    }
+
+    /// <summary>
+    /// Directory containing Trebuchet.exe (not a single-file extract temp folder).
+    /// </summary>
+    private static string GetInstallDirectory()
+    {
+        var processPath = Environment.ProcessPath ?? Process.GetCurrentProcess().MainModule?.FileName;
+        if (!string.IsNullOrEmpty(processPath))
+        {
+            var dir = Path.GetDirectoryName(processPath);
+            if (!string.IsNullOrEmpty(dir))
+                return Path.GetFullPath(dir);
+        }
+
+        return Path.GetFullPath(AppDomain.CurrentDomain.BaseDirectory);
     }
 
     private void OnShutdownRequested(object? sender, ShutdownRequestedEventArgs e)

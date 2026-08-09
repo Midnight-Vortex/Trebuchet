@@ -96,7 +96,7 @@ public class ConanProcessBuilder : IConanProcessServerBuilderLogTracked
         if(_logAtBeginning) logReader.StartAtBeginning();
         else logReader.Start();
         
-        var sourceQuery = new SourceQueryReader(new IPEndPoint(IPAddress.Loopback, serverInfo.QueryPort), 4 * 1000, 5 * 1000);
+        var sourceQuery = new SourceQueryReader(new IPEndPoint(IPAddress.Loopback, serverInfo.QueryPort), 1500, 2000);
         sourceQuery.StartQueryThread();
 
         IRcon? rcon = null;

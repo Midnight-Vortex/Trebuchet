@@ -79,7 +79,19 @@
     <value>Steam Workshop (TestLive)</value>
     </data>
     <data name="LiveMod" xml:space="preserve">
-    <value>Steam Workshop (Live)</value>
+    <value>Steam Workshop (Legacy)</value>
+    </data>
+    <data name="LegacyMod" xml:space="preserve">
+    <value>Steam Workshop (Legacy)</value>
+    </data>
+    <data name="EnhancedMod" xml:space="preserve">
+    <value>Steam Workshop (Enhanced)</value>
+    </data>
+    <data name="ErrorModWrongEdition" xml:space="preserve">
+    <value>The mod "{0}" is not compatible with {1}. Use a mod tagged for this game build.</value>
+    </data>
+    <data name="ErrorClientWrongEdition" xml:space="preserve">
+    <value>This folder is not a valid {0} client install (expected {1} under ConanSandbox\Binaries\Win64).</value>
     </data>
     <data name="LocalMod" xml:space="preserve">
     <value>Local File</value>
@@ -730,6 +742,12 @@ Do you wish to proceed ?</value>
     <data name="Live" xml:space="preserve">
         <value>Live</value>
     </data>
+    <data name="Legacy" xml:space="preserve">
+        <value>Legacy</value>
+    </data>
+    <data name="Enhanced" xml:space="preserve">
+        <value>Enhanced</value>
+    </data>
     <data name="AddToList" xml:space="preserve">
         <value>Add to list</value>
     </data>
@@ -984,6 +1002,12 @@ DO NOT place it in your Steam Directory.</value>
     <data name="SettingExperimentsText" xml:space="preserve">
         <value>Unable the experimental features of Trebuchet, which are not always stable or even finished at all.</value>
     </data>
+    <data name="SettingDebugMode" xml:space="preserve">
+        <value>Debug mode</value>
+    </data>
+    <data name="SettingDebugModeText" xml:space="preserve">
+        <value>Writes a detailed debug log, preferably next to Trebuchet (logs\debug-*.log). Falls back to AppData logs if the install folder is not writable. Requires restart.</value>
+    </data>
     <data name="WatermarkServerIp" xml:space="preserve">
         <value>IP Address</value>
     </data>
@@ -1235,8 +1259,5 @@ When using sequences, this only include when the server is online, and when a se
     </data>
     <data name="SequenceMainActionText" xml:space="preserve">
         <value>Execute the main action of this sequence. On a stopping sequence, it order the server to stop. On a starting sequence, it order the server to start.</value>
-    </data>
-    <data name="Enhanced" xml:space="preserve">
-        <value>Enhanced</value>
     </data>
 </root>

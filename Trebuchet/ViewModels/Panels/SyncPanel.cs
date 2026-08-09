@@ -131,7 +131,7 @@ public class SyncPanel : ReactiveObject, IRefreshablePanel, IDisplablePanel, IRe
     {
         var editor = new OnBoardingNameSelection(Resources.Sync, Resources.SyncText);
         editor.Value = _profile.SyncURL;
-        editor.Watermark = @"https://";
+        editor.PlaceholderText = @"https://";
         await _dialogueBox.OpenAsync(editor);
         if (editor.Value is null) return;
         _profile.SyncURL = editor.Value;

@@ -19,7 +19,7 @@ using TrebuchetLib.Services;
 
 namespace Trebuchet.ViewModels.Panels;
 
-public class SettingsPanel : ReactiveObject, IRefreshingPanel, IBottomPanel, IStartingPanel
+public class SettingsPanel : ReactiveObject, IRefreshablePanel, IRefreshingPanel, IBottomPanel, IStartingPanel
 {
 
 
@@ -57,11 +57,10 @@ public class SettingsPanel : ReactiveObject, IRefreshingPanel, IBottomPanel, ISt
 
         _foldedMenu = uiConfig.FoldedMenu;
         ToggleFoldedMenu = ReactiveCommand.CreateFromTask(OnToggleFoldedMenu);
-        
-        BuildFields();
     }
 
     private readonly IOsPlatformSpecific _osPlatformSpecific;
+    private bool _fieldsBuilt;
     private readonly AppSetup _setup;
     private readonly UIConfig _uiConfig;
     private readonly Operations _operations;
@@ -104,6 +103,16 @@ public class SettingsPanel : ReactiveObject, IRefreshingPanel, IBottomPanel, ISt
     }
 
     public event AsyncEventHandler? RequestRefresh;
+
+    public Task RefreshPanel()
+    {
+        EnsureFields();
+        foreach (var f in Fields.OfType<ClientInstallationField>())
+            f.SyncFromConfig();
+        foreach (var f in Fields.OfType<ServerInstallationField>())
+            f.SyncFromConfig();
+        return Task.CompletedTask;
+    }
     
     public async Task<bool> StartPanel()
     {
@@ -172,6 +181,13 @@ public class SettingsPanel : ReactiveObject, IRefreshingPanel, IBottomPanel, ISt
         Utils.Utils.ApplyPlateformTheme((PlateformTheme)_uiConfig.PlateformTheme);
     }
 
+    private void EnsureFields()
+    {
+        if (_fieldsBuilt) return;
+        _fieldsBuilt = true;
+        BuildFields();
+    }
+
     private void BuildFields()
     {
         Fields.Add(new TitleField().SetTitle(Resources.OnBoardingUsageChoice));
@@ -191,8 +207,8 @@ public class SettingsPanel : ReactiveObject, IRefreshingPanel, IBottomPanel, ISt
         );
         Fields.Add(new TitleField().SetTitle(Resources.CatMiscellaneous));
 
-        var appName = _setup.IsTestLive ? AppConstants.AutoStartTestLive : AppConstants.AutoStartLive;
-        var content = Utils.Utils.GetAutoStartValue(_setup.IsTestLive);
+        var appName = AppConstants.GetAutoStartName(_setup.Edition);
+        var content = Utils.Utils.GetAutoStartValue(_setup.Edition);
         if(content is not null)
             Fields.Add(new ToggleField()
                 .SetTitle(Resources.SettingRunOnLogon)
@@ -235,6 +251,15 @@ public class SettingsPanel : ReactiveObject, IRefreshingPanel, IBottomPanel, ISt
             .SetGetter(() => _uiConfig.Experiments)
             .SetSetter((v) => _uiConfig.Experiments = v)
             .SetDefault(() => UIConfig.ExperimentsDefault)
+            );
+        Fields.Add(new ToggleField()
+            .WhenFieldChanged(SaveUiConfig)
+            .WhenFieldChanged(RestartProcess)
+            .SetTitle(Resources.SettingDebugMode)
+            .SetDescription(Resources.SettingDebugModeText)
+            .SetGetter(() => _uiConfig.DebugMode)
+            .SetSetter((v) => _uiConfig.DebugMode = v)
+            .SetDefault(() => UIConfig.DebugModeDefault)
             );
         Fields.Add(new TitleField().SetTitle(Resources.CatUpdates));
         Fields.Add(new ComboBoxField()

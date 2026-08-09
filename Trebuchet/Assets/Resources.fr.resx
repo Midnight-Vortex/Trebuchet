@@ -194,8 +194,26 @@
     <data name="Live" xml:space="preserve">
         <value>Live</value>
     </data>
+    <data name="Legacy" xml:space="preserve">
+        <value>Legacy</value>
+    </data>
+    <data name="Enhanced" xml:space="preserve">
+        <value>Enhanced</value>
+    </data>
     <data name="LiveMod" xml:space="preserve">
-        <value>Workshop Steam (Live)</value>
+        <value>Workshop Steam (Legacy)</value>
+    </data>
+    <data name="LegacyMod" xml:space="preserve">
+        <value>Workshop Steam (Legacy)</value>
+    </data>
+    <data name="EnhancedMod" xml:space="preserve">
+        <value>Workshop Steam (Enhanced)</value>
+    </data>
+    <data name="ErrorModWrongEdition" xml:space="preserve">
+        <value>Le mod « {0} » n'est pas compatible avec {1}. Utilisez un mod avec le tag Workshop approprié.</value>
+    </data>
+    <data name="ErrorClientWrongEdition" xml:space="preserve">
+        <value>Ce dossier n'est pas une installation client {0} valide (attendu : {1} sous ConanSandbox\Binaries\Win64).</value>
     </data>
     <data name="Loading" xml:space="preserve">
         <value>Chargement</value>
@@ -976,6 +994,12 @@ Ne le placez JAMAIS dans votre dossier Steam.</value>
     <data name="SettingExperimentsText" xml:space="preserve">
         <value>Active les fonctions expérimental de Trebuchet, qui ne sont pas forcement stable ou finie.</value>
     </data>
+    <data name="SettingDebugMode" xml:space="preserve">
+        <value>Mode débogage</value>
+    </data>
+    <data name="SettingDebugModeText" xml:space="preserve">
+        <value>Écrit un journal de débogage détaillé, de préférence à côté de Trebuchet (logs\debug-*.log). Utilise les logs AppData si le dossier d'installation n'est pas accessible en écriture. Redémarrage requis.</value>
+    </data>
     <data name="WatermarkServerIp" xml:space="preserve">
         <value>Adresse IP</value>
     </data>
@@ -1227,8 +1251,5 @@ Losques des séquences sont utilisé, cela n'inclus que la mise en ligne et la d
     </data>
     <data name="SequenceMainActionText" xml:space="preserve">
         <value>Exécute l'action principal de la séquence. Pour une séquence d'arret, l'arret du serveur est ordonné. Pour une séquence de démarrage, le démarrage du serveur est ordonné.</value>
-    </data>
-    <data name="Enhanced" xml:space="preserve">
-        <value>Enhanced</value>
     </data>
 </root>

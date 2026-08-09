@@ -1,36 +1,55 @@
 ﻿using System.Reactive;
+using System.Threading.Tasks;
+using Avalonia.Threading;
 using ReactiveUI;
+using TrebuchetLib;
 
 namespace Trebuchet.ViewModels;
 
 public class GameBuildViewModel : ReactiveObject
 {
     private readonly App _app;
+    private bool _isOpening;
 
     public GameBuildViewModel(App app)
     {
         _app = app;
-        LiveCommand = ReactiveCommand.Create(OnLiveClicked);
-        EnhancedCommand = ReactiveCommand.Create(OnEnhancedClicked);
-        TestLiveCommand = ReactiveCommand.Create(OnTestLiveClicked);
+        LiveCommand = ReactiveCommand.CreateFromTask(OnLiveClicked);
+        EnhancedCommand = ReactiveCommand.CreateFromTask(OnEnhancedClicked);
+        TestLiveCommand = ReactiveCommand.CreateFromTask(OnTestLiveClicked);
     }
 
+    /// <summary>Legacy build (former Live).</summary>
     public ReactiveCommand<Unit, Unit> LiveCommand { get; }
     public ReactiveCommand<Unit, Unit> EnhancedCommand { get; }
     public ReactiveCommand<Unit, Unit> TestLiveCommand { get; }
-        
-    private void OnLiveClicked()
+
+    public bool IsOpening
     {
-        _app.OpenApp(false, false);
+        get => _isOpening;
+        private set => this.RaiseAndSetIfChanged(ref _isOpening, value);
+    }
+        
+    private async Task OnLiveClicked()
+    {
+        await OpenEditionAsync(GameEdition.Legacy);
     }
 
-    private void OnEnhancedClicked()
+    private async Task OnEnhancedClicked()
     {
-        _app.OpenApp(false, true);
+        await OpenEditionAsync(GameEdition.Enhanced);
     }
-    
-    private void OnTestLiveClicked()
+
+    private async Task OnTestLiveClicked()
     {
-        _app.OpenApp(true, false);
+        await OpenEditionAsync(GameEdition.TestLive);
+    }
+
+    private async Task OpenEditionAsync(GameEdition edition)
+    {
+        if (IsOpening) return;
+        IsOpening = true;
+        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+        await _app.OpenAppAsync(edition);
     }
 }

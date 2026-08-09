@@ -1,10 +1,10 @@
-﻿using System;
+using System;
 using System.Reactive;
 using System.Reactive.Linq;
 using Avalonia.Threading;
 using Humanizer;
 using ReactiveUI;
-using Trebuchet.Assets;
+using AppResources = Trebuchet.Assets.Resources;
 using Trebuchet.Services;
 using TrebuchetLib;
 using TrebuchetLib.Services;
@@ -36,7 +36,7 @@ namespace Trebuchet.ViewModels
             CancelCommand = ReactiveCommand.Create(() =>
             {
                 steam.CancelOperation();
-                Description = @$"{Resources.Cancelling}...";
+                Description = @$"{AppResources.Cancelling}...";
             });
 
             var canConnect = this.WhenAnyValue(x => x.CanConnect, x => x.IsConnected, (can, isc) => can && !isc);
@@ -53,10 +53,10 @@ namespace Trebuchet.ViewModels
             switch (e)
             {
                 case SteamStatus.UpdatingMods:
-                    Description = Resources.UpdateModsLabel;
+                    Description = AppResources.UpdateModsLabel;
                     break;
                 case SteamStatus.UpdatingServers:
-                    Description = Resources.UpdateServersLabel;
+                    Description = AppResources.UpdateServersLabel;
                     break;
                 case SteamStatus.QueryingModDetails:
                 case SteamStatus.StandBy:

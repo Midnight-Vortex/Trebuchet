@@ -1,0 +1,448 @@
+{
+  "runtimeTarget": {
+    "name": ".NETCoreApp,Version=v10.0",
+    "signature": ""
+  },
+  "compilationOptions": {},
+  "targets": {
+    ".NETCoreApp,Version=v10.0": {
+      "TrebuchetLib/1.0.0": {
+        "dependencies": {
+          "DepotDownloader": "3.4.0",
+          "Discord.Net.Webhook": "3.18.0-beta.2",
+          "Microsoft.Extensions.DependencyInjection": "10.0.10",
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.10",
+          "SteamWorksWebAPI": "1.0.0",
+          "System.Management": "10.0.10",
+          "Yuu.Ini": "0.2.0",
+          "tot-lib": "1.0.0"
+        },
+        "runtime": {
+          "TrebuchetLib.dll": {}
+        }
+      },
+      "Discord.Net.Core/3.18.0-beta.2": {
+        "dependencies": {
+          "Newtonsoft.Json": "13.0.3",
+          "System.Interactive.Async": "6.0.1"
+        },
+        "runtime": {
+          "lib/net9.0/Discord.Net.Core.dll": {
+            "assemblyVersion": "3.18.0.0",
+            "fileVersion": "3.18.0.0"
+          }
+        }
+      },
+      "Discord.Net.Rest/3.18.0-beta.2": {
+        "dependencies": {
+          "Discord.Net.Core": "3.18.0-beta.2"
+        },
+        "runtime": {
+          "lib/net9.0/Discord.Net.Rest.dll": {
+            "assemblyVersion": "3.18.0.0",
+            "fileVersion": "3.18.0.0"
+          }
+        }
+      },
+      "Discord.Net.Webhook/3.18.0-beta.2": {
+        "dependencies": {
+          "Discord.Net.Core": "3.18.0-beta.2",
+          "Discord.Net.Rest": "3.18.0-beta.2"
+        },
+        "runtime": {
+          "lib/net9.0/Discord.Net.Webhook.dll": {
+            "assemblyVersion": "3.18.0.0",
+            "fileVersion": "3.18.0.0"
+          }
+        }
+      },
+      "Microsoft.Bcl.AsyncInterfaces/6.0.0": {
+        "runtime": {
+          "lib/netstandard2.1/Microsoft.Bcl.AsyncInterfaces.dll": {
+            "assemblyVersion": "6.0.0.0",
+            "fileVersion": "6.0.21.52210"
+          }
+        }
+      },
+      "Microsoft.Extensions.DependencyInjection/10.0.10": {
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.10"
+        },
+        "runtime": {
+          "lib/net10.0/Microsoft.Extensions.DependencyInjection.dll": {
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.1026.32716"
+          }
+        }
+      },
+      "Microsoft.Extensions.DependencyInjection.Abstractions/10.0.10": {
+        "runtime": {
+          "lib/net10.0/Microsoft.Extensions.DependencyInjection.Abstractions.dll": {
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.1026.32716"
+          }
+        }
+      },
+      "Microsoft.Extensions.Logging.Abstractions/10.0.10": {
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection.Abstractions": "10.0.10"
+        },
+        "runtime": {
+          "lib/net10.0/Microsoft.Extensions.Logging.Abstractions.dll": {
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.1026.32716"
+          }
+        }
+      },
+      "Newtonsoft.Json/13.0.3": {
+        "runtime": {
+          "lib/net6.0/Newtonsoft.Json.dll": {
+            "assemblyVersion": "13.0.0.0",
+            "fileVersion": "13.0.3.27908"
+          }
+        }
+      },
+      "protobuf-net/3.2.56": {
+        "dependencies": {
+          "protobuf-net.Core": "3.2.56"
+        },
+        "runtime": {
+          "lib/net8.0/protobuf-net.dll": {
+            "assemblyVersion": "3.0.0.0",
+            "fileVersion": "3.2.56.57311"
+          }
+        }
+      },
+      "protobuf-net.Core/3.2.56": {
+        "runtime": {
+          "lib/net8.0/protobuf-net.Core.dll": {
+            "assemblyVersion": "3.0.0.0",
+            "fileVersion": "3.2.56.57311"
+          }
+        }
+      },
+      "SteamKit2/3.4.0": {
+        "dependencies": {
+          "System.IO.Hashing": "10.0.1",
+          "ZstdSharp.Port": "0.8.7",
+          "protobuf-net": "3.2.56"
+        },
+        "runtime": {
+          "lib/net10.0/SteamKit2.dll": {
+            "assemblyVersion": "3.4.0.0",
+            "fileVersion": "3.4.0.0"
+          }
+        }
+      },
+      "System.CodeDom/10.0.10": {
+        "runtime": {
+          "lib/net10.0/System.CodeDom.dll": {
+            "assemblyVersion": "10.0.0.0",
+            "fileVersion": "10.0.1026.32716"
+          }
+        }
+      },
+      "System.CommandLine/2.0.0-beta4.22272.1": {
+        "runtime": {
+          "lib/net6.0/System.CommandLine.dll": {
+            "assemblyVersion": "2.0.0.0",
+            "fileVersion": "2.0.22.27201"
+          }
+        },
+        "resources": {
+          "lib/net6.0/cs/System.CommandLine.resources.dll": {
+            "locale": "cs"
+          },
+          "lib/net6.0/de/System.CommandLine.resources.dll": {
+            "locale": "de"
+          },
+          "lib/net6.0/es/System.CommandLine.resources.dll": {
+            "locale": "es"
+          },
+          "lib/net6.0/fr/System.CommandLine.resources.dll": {
+            "locale": "fr"
+          },
+          "lib/net6.0/it/System.CommandLine.resources.dll": {
+            "locale": "it"
+          },
+          "lib/net6.0/ja/System.CommandLine.resources.dll": {
+            "locale": "ja"
+          },
+          "lib/net6.0/ko/System.CommandLine.resources.dll": {
+            "locale": "ko"
+          },
+          "lib/net6.0/pl/System.CommandLine.resources.dll": {
+            "locale": "pl"
+          },
+          "lib/net6.0/pt-BR/System.CommandLine.resources.dll": {
+            "locale": "pt-BR"
+          },
+          "lib/net6.0/ru/System.CommandLine.resources.dll": {
+            "locale": "ru"
+          },
+          "lib/net6.0/tr/System.CommandLine.resources.dll": {
+            "locale": "tr"
+          },
+          "lib/net6.0/zh-Hans/System.CommandLine.resources.dll": {
+            "locale": "zh-Hans"
+          },
+          "lib/net6.0/zh-Hant/System.CommandLine.resources.dll": {
+            "locale": "zh-Hant"
+          }
+        }
+      },
+      "System.Interactive.Async/6.0.1": {
+        "dependencies": {
+          "System.Linq.Async": "6.0.1"
+        },
+        "runtime": {
+          "lib/net6.0/System.Interactive.Async.dll": {
+            "assemblyVersion": "6.0.0.0",
+            "fileVersion": "6.0.1.35981"
+          }
+        }
+      },
+      "System.IO.Hashing/10.0.1": {
+        "runtime": {
+          "lib/net10.0/System.IO.Hashing.dll": {
+            "assemblyVersion": "10.0.0.1",
+            "fileVersion": "10.0.125.57005"
+          }
+        }
+      },
+      "System.Linq.Async/6.0.1": {
+        "dependencies": {
+          "Microsoft.Bcl.AsyncInterfaces": "6.0.0"
+        },
+        "runtime": {
+          "lib/net6.0/System.Linq.Async.dll": {
+            "assemblyVersion": "6.0.0.0",
+            "fileVersion": "6.0.1.35981"
+          }
+        }
+      },
+      "System.Management/10.0.10": {
+        "dependencies": {
+          "System.CodeDom": "10.0.10"
+        },
+        "runtime": {
+          "lib/net10.0/System.Management.dll": {
+            "assemblyVersion": "10.0.0.10",
+            "fileVersion": "10.0.1026.32716"
+          }
+        },
+        "runtimeTargets": {
+          "runtimes/win/lib/net10.0/System.Management.dll": {
+            "rid": "win",
+            "assetType": "runtime",
+            "assemblyVersion": "10.0.0.10",
+            "fileVersion": "10.0.1026.32716"
+          }
+        }
+      },
+      "Yuu.Ini/0.2.0": {
+        "runtime": {
+          "lib/net6.0/Yuu.Ini.dll": {
+            "assemblyVersion": "0.2.0.0",
+            "fileVersion": "0.2.0.0"
+          }
+        }
+      },
+      "ZstdSharp.Port/0.8.7": {
+        "runtime": {
+          "lib/net9.0/ZstdSharp.dll": {
+            "assemblyVersion": "0.8.7.0",
+            "fileVersion": "0.8.7.0"
+          }
+        }
+      },
+      "DepotDownloader/3.4.0": {
+        "dependencies": {
+          "SteamKit2": "3.4.0",
+          "protobuf-net": "3.2.56"
+        },
+        "runtime": {
+          "DepotDownloader.dll": {
+            "assemblyVersion": "3.4.0.0",
+            "fileVersion": "3.4.0.0"
+          }
+        }
+      },
+      "SteamWorksWebAPI/1.0.0": {
+        "runtime": {
+          "SteamWorksWebAPI.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      },
+      "tot-lib/1.0.0": {
+        "dependencies": {
+          "Microsoft.Extensions.DependencyInjection": "10.0.10",
+          "System.CommandLine": "2.0.0-beta4.22272.1"
+        },
+        "runtime": {
+          "tot-lib.dll": {
+            "assemblyVersion": "1.0.0.0",
+            "fileVersion": "1.0.0.0"
+          }
+        }
+      }
+    }
+  },
+  "libraries": {
+    "TrebuchetLib/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "Discord.Net.Core/3.18.0-beta.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-qyrYgolgsBzrZoowV+aty8uMmmfZMgUo7uLzStZfQH6OjDK0DhSYK7CC8ReSHRBL3zx1blZc3RYErzenpAHD2g==",
+      "path": "discord.net.core/3.18.0-beta.2",
+      "hashPath": "discord.net.core.3.18.0-beta.2.nupkg.sha512"
+    },
+    "Discord.Net.Rest/3.18.0-beta.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-EDCU6dp7c3/zJIMPqzFzNDk4Rw68Zj8OsVE1/7YuGtjtUfUQa/LD50XO4gmrpVJZjCHVzIinzy1jOCHIBy0gvg==",
+      "path": "discord.net.rest/3.18.0-beta.2",
+      "hashPath": "discord.net.rest.3.18.0-beta.2.nupkg.sha512"
+    },
+    "Discord.Net.Webhook/3.18.0-beta.2": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-ntWtn5fV4nJFU4HmqoBvoijooI46r4W3A3GguWnYq+vkGirwuiUSfBhjb9tL3mC9tsqC5hvWVNxQjFGGebyeNA==",
+      "path": "discord.net.webhook/3.18.0-beta.2",
+      "hashPath": "discord.net.webhook.3.18.0-beta.2.nupkg.sha512"
+    },
+    "Microsoft.Bcl.AsyncInterfaces/6.0.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-UcSjPsst+DfAdJGVDsu346FX0ci0ah+lw3WRtn18NUwEqRt70HaOQ7lI72vy3+1LxtqI3T5GWwV39rQSrCzAeg==",
+      "path": "microsoft.bcl.asyncinterfaces/6.0.0",
+      "hashPath": "microsoft.bcl.asyncinterfaces.6.0.0.nupkg.sha512"
+    },
+    "Microsoft.Extensions.DependencyInjection/10.0.10": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-ANyvsgkNBRvcJh2XLgn8veGmajf+8m0AbKK+HPWdRL1yraSNVVSmQhFntLtdz/C795jxqqup+k05cs/3jZQPOA==",
+      "path": "microsoft.extensions.dependencyinjection/10.0.10",
+      "hashPath": "microsoft.extensions.dependencyinjection.10.0.10.nupkg.sha512"
+    },
+    "Microsoft.Extensions.DependencyInjection.Abstractions/10.0.10": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-z/2xXlFw2aLGjHyEm6E0tQ+In6VfzQzTrtArbQ2c0TQE16ZbyDCMGPvaUT9I0s8rgy9sRWlU2P9waW37qV04qA==",
+      "path": "microsoft.extensions.dependencyinjection.abstractions/10.0.10",
+      "hashPath": "microsoft.extensions.dependencyinjection.abstractions.10.0.10.nupkg.sha512"
+    },
+    "Microsoft.Extensions.Logging.Abstractions/10.0.10": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-zkFxGYUvdxAvIKTyXHrmW+Sux53D4SezD9dMyZ6hrwwzPQJNuwCRy1f5W7AvYTqacEGhWF2XderRQG1OvbV8og==",
+      "path": "microsoft.extensions.logging.abstractions/10.0.10",
+      "hashPath": "microsoft.extensions.logging.abstractions.10.0.10.nupkg.sha512"
+    },
+    "Newtonsoft.Json/13.0.3": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-HrC5BXdl00IP9zeV+0Z848QWPAoCr9P3bDEZguI+gkLcBKAOxix/tLEAAHC+UvDNPv4a2d18lOReHMOagPa+zQ==",
+      "path": "newtonsoft.json/13.0.3",
+      "hashPath": "newtonsoft.json.13.0.3.nupkg.sha512"
+    },
+    "protobuf-net/3.2.56": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-4IPJeTYAMNewlN8MDaFkcmR/9hLhJeo9eARnTh104zh7mf+vXT2gu5MUfUnkSQU+CH578Q6vcdU7LQDQPG6eaw==",
+      "path": "protobuf-net/3.2.56",
+      "hashPath": "protobuf-net.3.2.56.nupkg.sha512"
+    },
+    "protobuf-net.Core/3.2.56": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-d6QOukTpDzs7zZv9tPnBZMtvHDNeHJQXUhMx54g4urUQsXK3oo9U70H9HvklYq7hlQ4A7AHJl7EVEqyCXXIl8Q==",
+      "path": "protobuf-net.core/3.2.56",
+      "hashPath": "protobuf-net.core.3.2.56.nupkg.sha512"
+    },
+    "SteamKit2/3.4.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-3UZ5Useeh+5BJ19gazEpeFc3wRasMEUkrdkgzIhwAAK9VXL9sPbQu11bp6E3W7HsPCbm2s262yuyBbYLzA+4AA==",
+      "path": "steamkit2/3.4.0",
+      "hashPath": "steamkit2.3.4.0.nupkg.sha512"
+    },
+    "System.CodeDom/10.0.10": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-lru5igKxs4OgWKfMeOpMAYpfB1tNSSXHk2zyiSDO/h0u8RVAhN6KqW9d3ANybDB+ePIHg6HM/NlE8HlpOk4k5A==",
+      "path": "system.codedom/10.0.10",
+      "hashPath": "system.codedom.10.0.10.nupkg.sha512"
+    },
+    "System.CommandLine/2.0.0-beta4.22272.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-1uqED/q2H0kKoLJ4+hI2iPSBSEdTuhfCYADeJrAqERmiGQ2NNacYKRNEQ+gFbU4glgVyK8rxI+ZOe1onEtr/Pg==",
+      "path": "system.commandline/2.0.0-beta4.22272.1",
+      "hashPath": "system.commandline.2.0.0-beta4.22272.1.nupkg.sha512"
+    },
+    "System.Interactive.Async/6.0.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-f8H1O4ZWDQo344y5NQU76G4SIjWMuKDVXL9OM1dg6K5YZnLkc8iCdQDybBvMcC6ufk61jzXGVAX6UCDu0qDSjA==",
+      "path": "system.interactive.async/6.0.1",
+      "hashPath": "system.interactive.async.6.0.1.nupkg.sha512"
+    },
+    "System.IO.Hashing/10.0.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-Dy6ULPb2S0GmNndjKrEIpfibNsc8+FTOoZnqygtFDuyun8vWboQbfMpQtKUXpgTxokR5E4zFHETpNnGfeWY6NA==",
+      "path": "system.io.hashing/10.0.1",
+      "hashPath": "system.io.hashing.10.0.1.nupkg.sha512"
+    },
+    "System.Linq.Async/6.0.1": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-0YhHcaroWpQ9UCot3Pizah7ryAzQhNvobLMSxeDIGmnXfkQn8u5owvpOH0K6EVB+z9L7u6Cc4W17Br/+jyttEQ==",
+      "path": "system.linq.async/6.0.1",
+      "hashPath": "system.linq.async.6.0.1.nupkg.sha512"
+    },
+    "System.Management/10.0.10": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-U13ksdXfQlF2WDdu3S4ZPVpikFs2HgV3dbJJZLeZpBIQ4z/xCmQnwEf6LsEEIC2zSamVVa1acA9RdVhZwnWKeA==",
+      "path": "system.management/10.0.10",
+      "hashPath": "system.management.10.0.10.nupkg.sha512"
+    },
+    "Yuu.Ini/0.2.0": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-JB2EijsD39H0T9XTjr2Mcy97v6VztEcqEAHXieiQKhMky2dGUFgGEZQ5qI8X4hBCh+8l51YkodRuU9aCR8Fhlw==",
+      "path": "yuu.ini/0.2.0",
+      "hashPath": "yuu.ini.0.2.0.nupkg.sha512"
+    },
+    "ZstdSharp.Port/0.8.7": {
+      "type": "package",
+      "serviceable": true,
+      "sha512": "sha512-+4VpxvzEKaHpfTjsLRMhQHx6brqGBkIA+fjUM3wUW8ZoWpPFAeKrO2Nf4uZDeBjjzNDNxSRvLQH4b3S9Ku4JJQ==",
+      "path": "zstdsharp.port/0.8.7",
+      "hashPath": "zstdsharp.port.0.8.7.nupkg.sha512"
+    },
+    "DepotDownloader/3.4.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "SteamWorksWebAPI/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    },
+    "tot-lib/1.0.0": {
+      "type": "project",
+      "serviceable": false,
+      "sha512": ""
+    }
+  }
+}

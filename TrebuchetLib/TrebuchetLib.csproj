@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
     <PropertyGroup>
-        <TargetFramework>net9.0</TargetFramework>
+        <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
@@ -19,9 +19,9 @@
 
     <ItemGroup>
         <PackageReference Include="Discord.Net.Webhook" Version="3.18.0-beta.2" />
-        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.4" />
-        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="9.0.4" />
-        <PackageReference Include="System.Management" Version="9.0.4" />
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.10" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.10" />
+        <PackageReference Include="System.Management" Version="10.0.10" />
         <PackageReference Include="Yuu.Ini" Version="0.2.0" />
     </ItemGroup>
 

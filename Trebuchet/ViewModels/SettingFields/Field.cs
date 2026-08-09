@@ -241,6 +241,7 @@ namespace Trebuchet.ViewModels.SettingFields
 
         public F WhenFieldChanged(ReactiveCommand<Unit,Unit> command)
         {
+            ArgumentNullException.ThrowIfNull(command);
             ValueChanged.Where(x => x).Select(_ => Unit.Default).InvokeCommand(command);
             return (F)this;
         }

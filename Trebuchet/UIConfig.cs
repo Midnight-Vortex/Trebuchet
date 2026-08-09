@@ -15,6 +15,7 @@ namespace Trebuchet
         public string UICulture { get; set; } = UICultureDefault;
         public int PlateformTheme { get; set; } = PlatformThemeDefault;
         public bool Experiments { get; set; } = ExperimentsDefault;
+        public bool DebugMode { get; set; } = DebugModeDefault;
 
         public int[] ConsoleFilters
         {
@@ -27,6 +28,7 @@ namespace Trebuchet
         public static readonly string UICultureDefault = string.Empty;
         public static readonly int PlatformThemeDefault = 0;
         public static readonly bool ExperimentsDefault = false;
+        public static readonly bool DebugModeDefault = false;
         private int[] _consoleFilters = [];
 
         public void SetInstanceFilter(int instance, ConsoleLogSource source, bool active)

@@ -77,7 +77,11 @@ public class BackupManager(AppSetup setup, AppFiles appFiles)
 
     private string GetBackupDirectory()
     {
-        var directory = Path.Combine(setup.GetDataDirectory().FullName, Constants.FolderBackup);
+        var basePath = setup.GetDataDirectory().FullName;
+        if (setup.IsEnhanced)
+            basePath = Path.Combine(basePath, setup.VersionFolder);
+
+        var directory = Path.Combine(basePath, Constants.FolderBackup);
         Directory.CreateDirectory(directory);
         return directory;
     }

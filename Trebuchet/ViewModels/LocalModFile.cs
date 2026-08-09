@@ -2,7 +2,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using Humanizer;
 using ReactiveUI;
-using Trebuchet.Assets;
+using AppResources = Trebuchet.Assets.Resources;
 
 namespace Trebuchet.ViewModels;
 
@@ -15,19 +15,19 @@ public class LocalModFile : ReactiveObject, IModFile
         FilePath = path;
         Title = Path.GetFileName(path);
         IconClasses.Add(@"Local");
-        IconToolTip = Resources.LocalMod;
+        IconToolTip = AppResources.LocalMod;
         
         var fileInfo = new FileInfo(path);
         if (fileInfo.Exists)
         {
             StatusClasses.Add(@"Found");
             FileSize = fileInfo.Length;
-            LastUpdate = @$"{Resources.Found} - {Resources.LastModified}: {fileInfo.LastWriteTime.Humanize()} ({FileSize.Bytes().Humanize()})";
+            LastUpdate = @$"{AppResources.Found} - {AppResources.LastModified}: {fileInfo.LastWriteTime.Humanize()} ({FileSize.Bytes().Humanize()})";
         }
         else
         {
             StatusClasses.Add(@"Missing");
-            LastUpdate = Resources.Missing;
+            LastUpdate = AppResources.Missing;
             FileSize = 0;
         }
     }

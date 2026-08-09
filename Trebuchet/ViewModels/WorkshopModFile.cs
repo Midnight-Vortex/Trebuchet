@@ -1,10 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Linq;
 using Humanizer;
 using ReactiveUI;
 using SteamWorksWebAPI;
-using Trebuchet.Assets;
+using AppResources = Trebuchet.Assets.Resources;
 using TrebuchetLib;
 
 namespace Trebuchet.ViewModels;
@@ -19,10 +21,10 @@ public class WorkshopModFile : ReactiveObject, IPublishedModFile
         PublishedId = file.PublishedFileId;
         Title = file.Title;
         AppId = file.ConsumerAppId;
+        Tags = file.Tags;
         var updateDate = Tools.UnixTimeStampToDateTime(file.TimeUpdated).ToLocalTime();
         LastDateUpdate = updateDate;
-        IconClasses.Add(file.ConsumerAppId == Constants.AppIDTestLiveClient ? @"TestLive" : @"Live");
-        IconToolTip = file.ConsumerAppId == Constants.AppIDTestLiveClient ? Resources.TestLiveMod : Resources.LiveMod;
+        ApplyEditionIcon(file.ConsumerAppId, file.Tags);
         FileSize = file.FileSize;
         Status = status;
         GetStatusElements(out var label, out var xamlClass);
@@ -38,9 +40,9 @@ public class WorkshopModFile : ReactiveObject, IPublishedModFile
         PublishedId = file.PublishedFileId;
         Title = file.Title;
         AppId = file.AppId;
+        Tags = file.Tags;
         LastDateUpdate = file.LastUpdate;
-        IconClasses.Add(file.AppId == Constants.AppIDTestLiveClient ? @"TestLive" : @"Live");
-        IconToolTip = file.AppId == Constants.AppIDTestLiveClient ? Resources.TestLiveMod : Resources.LiveMod;
+        ApplyEditionIcon(file.AppId, file.Tags);
         FileSize = (long)file.Size;
         Status = status;
         GetStatusElements(out var label, out var xamlClass);
@@ -56,10 +58,10 @@ public class WorkshopModFile : ReactiveObject, IPublishedModFile
         PublishedId = file.PublishedId;
         Title = file.Title;
         AppId = file.AppId;
+        Tags = file.Tags;
         Status = file.Status;
         LastDateUpdate = file.LastDateUpdate;
-        IconClasses.Add(file.AppId == Constants.AppIDTestLiveClient ? @"TestLive" : @"Live");
-        IconToolTip = file.AppId == Constants.AppIDTestLiveClient ? Resources.TestLiveMod : Resources.LiveMod;
+        ApplyEditionIcon(file.AppId, file.Tags);
         FileSize = file.FileSize;
         GetStatusElements(out var label, out var xamlClass);
         LastUpdate = label;
@@ -68,6 +70,7 @@ public class WorkshopModFile : ReactiveObject, IPublishedModFile
     
     public UGCFileStatus Status { get; }
     public uint AppId { get; }
+    public IReadOnlyList<string> Tags { get; }
     public ulong PublishedId { get; }
     public string Title { get; }
     public string FilePath { get; }
@@ -75,7 +78,7 @@ public class WorkshopModFile : ReactiveObject, IPublishedModFile
     public DateTime LastDateUpdate { get; }
     public ObservableCollection<string> StatusClasses { get; } = [];
     public ObservableCollection<string> IconClasses { get; } = [];
-    public string IconToolTip { get; }
+    public string IconToolTip { get; private set; } = string.Empty;
     public string LastUpdate { get; }
     public ObservableCollection<ModFileAction> Actions { get; } = [];
     public ModProgressViewModel Progress { get; } = new();
@@ -84,11 +87,31 @@ public class WorkshopModFile : ReactiveObject, IPublishedModFile
         return PublishedId.ToString();
     }
 
+    private void ApplyEditionIcon(uint appId, IReadOnlyList<string> tags)
+    {
+        if (appId == Constants.AppIDTestLiveClient)
+        {
+            IconClasses.Add(@"TestLive");
+            IconToolTip = AppResources.TestLiveMod;
+            return;
+        }
+
+        if (tags.Any(t => string.Equals(t, Constants.WorkshopTagEnhanced, StringComparison.OrdinalIgnoreCase)))
+        {
+            IconClasses.Add(@"Enhanced");
+            IconToolTip = AppResources.EnhancedMod;
+            return;
+        }
+
+        IconClasses.Add(@"Live");
+        IconToolTip = AppResources.LegacyMod;
+    }
+
     private void GetStatusElements(out string label, out string xamlClass)
     {
         if (string.IsNullOrEmpty(FilePath) || !File.Exists(FilePath))
         {
-            label = @$"{Resources.Missing} - {Resources.LastUpdate}: {LastDateUpdate.Humanize()}";
+            label = @$"{AppResources.Missing} - {AppResources.LastUpdate}: {LastDateUpdate.Humanize()}";
             xamlClass = @"Missing";
             return;
         }
@@ -96,19 +119,19 @@ public class WorkshopModFile : ReactiveObject, IPublishedModFile
         switch (Status.Status)
         {
             case UGCStatus.Corrupted:
-                label = @$"{Resources.Corrupted} - {Resources.LastUpdate}: {LastDateUpdate.Humanize()} ({FileSize.Bytes().Humanize()})";
+                label = @$"{AppResources.Corrupted} - {AppResources.LastUpdate}: {LastDateUpdate.Humanize()} ({FileSize.Bytes().Humanize()})";
                 xamlClass = @"Missing";
                 break;
             case UGCStatus.Updatable:
-                label = @$"{Resources.UpdateAvailable} - {Resources.LastUpdate}: {LastDateUpdate.Humanize()} ({FileSize.Bytes().Humanize()})";
+                label = @$"{AppResources.UpdateAvailable} - {AppResources.LastUpdate}: {LastDateUpdate.Humanize()} ({FileSize.Bytes().Humanize()})";
                 xamlClass = @"UpdateAvailable";
                 break;
             case UGCStatus.UpToDate:
-                label = @$"{Resources.UpToDate} - {Resources.LastUpdate}: {LastDateUpdate.Humanize()} ({FileSize.Bytes().Humanize()})";
+                label = @$"{AppResources.UpToDate} - {AppResources.LastUpdate}: {LastDateUpdate.Humanize()} ({FileSize.Bytes().Humanize()})";
                 xamlClass = @"Up2Date";
                 break;
             default:
-                label = @$"{Resources.Missing} - {Resources.LastUpdate}: {LastDateUpdate.Humanize()} ({FileSize.Bytes().Humanize()})";
+                label = @$"{AppResources.Missing} - {AppResources.LastUpdate}: {LastDateUpdate.Humanize()} ({FileSize.Bytes().Humanize()})";
                 xamlClass = @"Missing";
                 break;
         }

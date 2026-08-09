@@ -9,6 +9,7 @@ using tot_lib;
 using Trebuchet.Services;
 using Trebuchet.ViewModels.InnerContainer;
 using Trebuchet.ViewModels.Panels;
+using TrebuchetLib;
 using TrebuchetLib.Services;
 
 namespace Trebuchet.ViewModels;
@@ -19,6 +20,7 @@ public sealed class TrebuchetApp : ReactiveObject, IDisposable
     
     public TrebuchetApp(
         UIConfig uiConfig,
+        AppSetup setup,
         SteamWidget steamWidget,
         DialogueBox dialogueBox,
         Operations operations,
@@ -29,6 +31,8 @@ public sealed class TrebuchetApp : ReactiveObject, IDisposable
         _panels = panels.ToList();
         SteamWidget = steamWidget;
         DialogueBox = dialogueBox;
+        WindowTitle = $"Tot!Trebuchet — {Constants.GetEditionDisplayName(setup.Edition)}";
+        EditionLabel = Constants.GetEditionDisplayName(setup.Edition);
         
         foreach (var panel in _panels)
         {
@@ -47,7 +51,8 @@ public sealed class TrebuchetApp : ReactiveObject, IDisposable
         _activePanel = BottomPanels.First(x => x.Panel.CanBeOpened);
 
         FoldedMenu = uiConfig.FoldedMenu;
-        _timer = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Background, OnTimerTick);
+        // 2s is enough for process attach / dashboard; halves WMI + panel tick load vs 1s.
+        _timer = new DispatcherTimer(TimeSpan.FromSeconds(2), DispatcherPriority.Background, OnTimerTick);
 
         Start();
     }
@@ -78,11 +83,17 @@ public sealed class TrebuchetApp : ReactiveObject, IDisposable
         
     public DialogueBox DialogueBox { get; }
 
+    public string WindowTitle { get; }
+
+    public string EditionLabel { get; }
+
     private async Task OnTabClicked(object? sender, PanelTab tab)
     {
         ActivePanel.Active = false;
         ActivePanel = tab;
         ActivePanel.Active = true;
+        if (ActivePanel.Panel is IRefreshablePanel refreshable)
+            await refreshable.RefreshPanel();
         if (ActivePanel.Panel is IDisplablePanel displayable)
             await displayable.DisplayPanel();
     }
@@ -92,9 +103,9 @@ public sealed class TrebuchetApp : ReactiveObject, IDisposable
         try
         {
             _timer.Stop();
-            foreach (var panel in _panels)
-                if(panel is ITickingPanel ticking)
-                    await ticking.TickPanel();
+            var tasks = _panels.OfType<ITickingPanel>().Select(p => p.TickPanel()).ToArray();
+            if (tasks.Length > 0)
+                await Task.WhenAll(tasks);
             _timer.Start();
         }
         catch (OperationCanceledException) {}
@@ -112,7 +123,7 @@ public sealed class TrebuchetApp : ReactiveObject, IDisposable
             _activePanel.Active = true;
             if(_activePanel.Panel is IDisplablePanel displayed) 
                 await displayed.DisplayPanel(); 
-            await RefreshPanels();
+            await RefreshActivePanel();
             await StartActions();
         }
         catch (OperationCanceledException){}
@@ -121,6 +132,13 @@ public sealed class TrebuchetApp : ReactiveObject, IDisposable
             await App.HandleAppCrash(ex);
         }
         
+    }
+
+    private async Task RefreshActivePanel()
+    {
+        FoldedMenu = _uiConfig.FoldedMenu;
+        if (ActivePanel.Panel is IRefreshablePanel refreshable)
+            await refreshable.RefreshPanel();
     }
 
     private async Task RefreshPanels()

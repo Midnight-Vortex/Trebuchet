@@ -5,20 +5,29 @@ namespace TrebuchetLib.Services;
 
 public class AppSetup
 {
-    public AppSetup(Config config, bool isTestLive, bool enhanced, bool catapult, bool experiment)
+    public AppSetup(Config config, GameEdition edition, bool catapult, bool experiment)
     {
-        IsTestLive = isTestLive;
-        IsEnhanced = enhanced;
+        Edition = edition;
         Catapult = catapult;
         Config = config;
         Experiment = experiment;
     }
 
+    /// <summary>Compatibility ctor for Legacy / TestLive only.</summary>
+    public AppSetup(Config config, bool isTestLive, bool catapult, bool experiment)
+        : this(config, isTestLive ? GameEdition.TestLive : GameEdition.Legacy, catapult, experiment)
+    {
+    }
+
     public Config Config { get; }
-    
-    public bool IsTestLive { get; }
-    
-    public bool IsEnhanced { get; }
+
+    public GameEdition Edition { get; }
+
+    public bool IsTestLive => Edition == GameEdition.TestLive;
+
+    public bool IsEnhanced => Edition == GameEdition.Enhanced;
+
+    public bool IsLegacy => Edition == GameEdition.Legacy;
     
     public bool Catapult { get; }
     
@@ -26,7 +35,7 @@ public class AppSetup
 
     public uint ServerAppId => IsTestLive ? Constants.AppIDTestLiveServer : Constants.AppIDLiveServer;
     
-    public string VersionFolder => IsTestLive ? Constants.FolderTestLive : Constants.FolderLive;
+    public string VersionFolder => Constants.GetVersionFolder(Edition);
     
     public DirectoryInfo GetDataDirectory()
     {
@@ -62,12 +71,21 @@ public class AppSetup
     {
         return Path.Combine(
             GetCommonAppDataDirectory().FullName, 
-            IsTestLive ? Constants.FolderTestLive : Constants.FolderLive, 
+            VersionFolder, 
             Constants.FolderServerInstances);
     }
     
     public string GetWorkshopFolder()
     {
+        if (IsEnhanced)
+        {
+            return Path.Combine(
+                GetCommonAppDataDirectory().FullName,
+                VersionFolder,
+                Constants.FolderWorkshop
+            );
+        }
+
         return Path.Combine(
             GetCommonAppDataDirectory().FullName,
             Constants.FolderWorkshop
@@ -103,10 +121,13 @@ public class AppSetup
     }
 
     public string GetBaseInstancePath(bool testlive)
+        => GetBaseInstancePath(testlive ? GameEdition.TestLive : GameEdition.Legacy);
+
+    public string GetBaseInstancePath(GameEdition edition)
     {
         return Path.Combine(
             GetCommonAppDataDirectory().FullName,
-            testlive ? Constants.FolderTestLive : Constants.FolderLive,
+            Constants.GetVersionFolder(edition),
             Constants.FolderServerInstances);
     }
 
@@ -158,6 +179,15 @@ public class AppSetup
     
     public string GetPrimaryJunction()
     {
+        if (IsEnhanced)
+        {
+            return Path.Combine(
+                GetCommonAppDataDirectory().FullName,
+                VersionFolder,
+                Constants.GamePrimaryJunction
+            );
+        }
+
         return Path.Combine(
             GetCommonAppDataDirectory().FullName,
             Constants.GamePrimaryJunction
@@ -166,6 +196,15 @@ public class AppSetup
 
     public string GetEmptyJunction()
     {
+        if (IsEnhanced)
+        {
+            return Path.Combine(
+                GetCommonAppDataDirectory().FullName,
+                VersionFolder,
+                Constants.GameEmptyJunction
+            );
+        }
+
         return Path.Combine(
             GetCommonAppDataDirectory().FullName,
             Constants.GameEmptyJunction
@@ -176,8 +215,9 @@ public class AppSetup
     {
         return Path.Combine(GetClientFolder(),
             Constants.FolderGameBinaries,
-            battleEye
-                ? Constants.FileClientBEBin
-                : (IsEnhanced ? Constants.FileClientEnhancedBin : Constants.FileClientBin));
+            battleEye ? Constants.FileClientBEBin : Constants.GetClientBin(Edition));
     }
+
+    /// <summary>Process image name of the game client for this edition (not BattlEye).</summary>
+    public string GetClientProcessName() => Constants.GetClientBin(Edition);
 }

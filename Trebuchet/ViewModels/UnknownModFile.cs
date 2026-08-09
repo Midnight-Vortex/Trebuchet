@@ -2,7 +2,7 @@ using System.Collections.ObjectModel;
 using System.IO;
 using Humanizer;
 using ReactiveUI;
-using Trebuchet.Assets;
+using AppResources = Trebuchet.Assets.Resources;
 
 namespace Trebuchet.ViewModels;
 
@@ -16,18 +16,18 @@ public class UnknownModFile : ReactiveObject, IPublishedModFile
         FilePath = path;
         Title = Path.GetFileName(path);
         IconClasses.Add(@"Unknown");
-        IconToolTip = Resources.UnknownMod;
+        IconToolTip = AppResources.UnknownMod;
         if (!string.IsNullOrEmpty(path) && File.Exists(path))
         {
             var fileInfo = new FileInfo(path);
             StatusClasses.Add(@"Found");
-            LastUpdate = @$"{Resources.Found} - {Resources.LastModified}: {fileInfo.LastWriteTime.Humanize()} ({FileSize.Bytes().Humanize()})";
+            LastUpdate = @$"{AppResources.Found} - {AppResources.LastModified}: {fileInfo.LastWriteTime.Humanize()} ({FileSize.Bytes().Humanize()})";
             FileSize = fileInfo.Length;
         }
         else
         {
             StatusClasses.Add(@"Missing");
-            LastUpdate = Resources.Missing;
+            LastUpdate = AppResources.Missing;
             FileSize = 0;
         }
     }

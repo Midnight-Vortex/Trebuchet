@@ -38,10 +38,14 @@ internal static class Utils
 
     [Localizable(false)]
     public static string? GetAutoStartValue(bool testLive)
+        => GetAutoStartValue(testLive ? GameEdition.TestLive : GameEdition.Legacy);
+
+    [Localizable(false)]
+    public static string? GetAutoStartValue(GameEdition edition)
     {
         var process = Process.GetCurrentProcess().MainModule?.FileName;
         if (process is null) return null;
 
-        return $"\"{process}\" {(testLive ? Constants.argTestLive : Constants.argLive)}";
+        return $"\"{process}\" {Constants.GetCliArg(edition)}";
     }
 }

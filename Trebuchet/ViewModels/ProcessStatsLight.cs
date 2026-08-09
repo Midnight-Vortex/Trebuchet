@@ -1,10 +1,10 @@
-﻿using System;
+using System;
 using System.Reactive.Linq;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using Humanizer;
 using ReactiveUI;
-using Trebuchet.Assets;
+using AppResources = Trebuchet.Assets.Resources;
 using TrebuchetLib;
 using TrebuchetLib.Processes;
 using tot_gui_lib;
@@ -13,15 +13,29 @@ namespace Trebuchet.ViewModels
 {
     public class ProcessStatsLight : ReactiveObject, IProcessStats
     {
+        private IConanProcess? _stateSubscribedProcess;
+
         public ProcessStatsLight()
         {
-            var timer = new DispatcherTimer(TimeSpan.FromSeconds(1), DispatcherPriority.Background, (_, _) => Tick());
+            var timer = new DispatcherTimer(TimeSpan.FromSeconds(2), DispatcherPriority.Background, (_, _) => Tick());
             timer.Stop();
             _details = ConanProcess.Empty;
 
             this.WhenAnyValue(x => x.Details)
                 .Subscribe((d) =>
                 {
+                    if (_stateSubscribedProcess is not null)
+                    {
+                        _stateSubscribedProcess.StateChanged -= OnDetailsStateChanged;
+                        _stateSubscribedProcess = null;
+                    }
+
+                    if (d is IConanProcess conan && !ReferenceEquals(conan, ConanProcess.Empty))
+                    {
+                        _stateSubscribedProcess = conan;
+                        conan.StateChanged += OnDetailsStateChanged;
+                    }
+
                     if (d.State.IsRunning())
                     {
                         State = d.State;
@@ -107,24 +121,29 @@ namespace Trebuchet.ViewModels
             private set => this.RaiseAndSetIfChanged(ref _uptime, value);
         }
 
+        private void OnDetailsStateChanged(object? sender, ProcessState e)
+        {
+            Dispatcher.UIThread.Post(() => State = e);
+        }
+
         private string TranslateState(ProcessState state)
         {
             switch (state)
             {
                 case ProcessState.NEW:
-                    return Resources.StatusNew;
+                    return AppResources.StatusNew;
                 case ProcessState.STOPPED:
-                    return Resources.StatusStopped;
+                    return AppResources.StatusStopped;
                 case ProcessState.FAILED:
-                    return Resources.StatusFailed;
+                    return AppResources.StatusFailed;
                 case ProcessState.STOPPING:
-                    return Resources.StatusStopping;
+                    return AppResources.StatusStopping;
                 case ProcessState.RUNNING:
-                    return Resources.StatusRunning;
+                    return AppResources.StatusRunning;
                 case ProcessState.ONLINE:
-                    return Resources.StatusOnline;
+                    return AppResources.StatusOnline;
                 case ProcessState.CRASHED:
-                    return Resources.StatusCrashed;
+                    return AppResources.StatusCrashed;
                 default:
                     return String.Empty;
             }
@@ -149,7 +168,7 @@ namespace Trebuchet.ViewModels
 
             State = _details.State;
             long memoryConsumption = _details.MemoryUsage;
-            CpuUsage = string.Format(Resources.CpuFormat, (await GetCpuUsageForProcess()).ToString(@"N2"));
+            CpuUsage = string.Format(AppResources.CpuFormat, (await GetCpuUsageForProcess()).ToString(@"N2"));
             _peakMemoryConsumption = Math.Max(memoryConsumption, _peakMemoryConsumption);
             MemoryConsumption = memoryConsumption.Bytes().Humanize();
             MemoryPeakConsumption = _peakMemoryConsumption.Bytes().Humanize();
@@ -164,7 +183,7 @@ namespace Trebuchet.ViewModels
             var startTime = DateTime.UtcNow;
             var startUsage = _details.CpuTime;
 
-            await Task.Delay(500);
+            await Task.Delay(250);
             
             var endTime = DateTime.UtcNow;
             var endUsage = _details.CpuTime;

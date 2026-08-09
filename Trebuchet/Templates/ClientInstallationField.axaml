@@ -20,11 +20,13 @@
                 </Border>
                 <Border Classes="DarkPanel Bordered" Padding="12" Margin="0 0 0 12">
                     <StackPanel>
-                        <TextBlock Margin="0 0 0 12">
-                            <Run Text="{x:Static a:Resources.CurrentLocation}" FontWeight="Bold" />
-                            <Run Text=": " />
-                            <Run Text="{Binding InstallPath}" />
-                        </TextBlock>
+                        <StackPanel Spacing="4" Margin="0 0 0 12">
+                            <TextBlock>
+                                <Run Text="{x:Static a:Resources.CurrentLocation}" FontWeight="Bold" />
+                                <Run Text=": " />
+                            </TextBlock>
+                            <TextBlock Text="{Binding InstallPath}" TextWrapping="Wrap" />
+                        </StackPanel>
                         <TextBlock>
                             <Run Text="{x:Static a:Resources.SettingManageClient}" FontWeight="Bold" />
                             <Run Text=": " />

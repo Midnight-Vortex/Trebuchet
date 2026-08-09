@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using System.Management;
+using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Security.AccessControl;
 using System.Security.Principal;
@@ -10,7 +12,7 @@ public class TrebuchetOsWindows : ITrebuchetOsSpecific
 {
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     private static extern int SetForegroundWindow(IntPtr hwnd);
-    
+
     public IEnumerable<ProcessData> GetChildProcesses(int parentId)
     {
         var query = $"Select * From Win32_Process Where ParentProcessId = {parentId}";

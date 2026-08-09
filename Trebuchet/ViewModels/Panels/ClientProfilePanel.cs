@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Reactive;
@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Humanizer;
 using Microsoft.Extensions.Logging;
 using ReactiveUI;
-using Trebuchet.Assets;
+using AppResources = Trebuchet.Assets.Resources;
 using Trebuchet.ViewModels.InnerContainer;
 using Trebuchet.ViewModels.SettingFields;
 using TrebuchetLib;
@@ -28,7 +28,7 @@ namespace Trebuchet.ViewModels.Panels
             _appFiles = appFiles;
             _logger = logger;
             _uiConfig = uiConfig;
-            CanBeOpened = Tools.IsClientInstallValid(_setup) && _setup.Config.ManageClient;
+            CanBeOpened = Tools.IsClientInstallValid(_setup.Config, _setup.Edition) && _setup.Config.ManageClient;
 
             ClientConnectionList = clientConnectionList;
             ClientConnectionList.ConnectionListChanged += OnConnectionListChanged;
@@ -36,16 +36,16 @@ namespace Trebuchet.ViewModels.Panels
             var startingProfile = _appFiles.Client.Resolve(_uiConfig.CurrentClientProfile);
             _profile = _appFiles.Client.Get(startingProfile);
             
-            FileMenu = new FileMenuViewModel<ClientProfile, ClientProfileRef>(Resources.PanelGameSaves, appFiles.Client, box, _logger);
+            // SaveProfile must exist before FileMenu.Selected — selection fires FileSelected → RefreshPanel → EnsureFields.
+            SaveProfile = ReactiveCommand.Create(() => _profile.SaveFile());
+
+            FileMenu = new FileMenuViewModel<ClientProfile, ClientProfileRef>(AppResources.PanelGameSaves, appFiles.Client, box, _logger);
             FileMenu.FileSelected += OnFileSelected;
             FileMenu.Selected = startingProfile;
-
-            SaveProfile = ReactiveCommand.Create(() => _profile.SaveFile());
-            
-            BuildFields();
         }
 
         private readonly AppSetup _setup;
+        private bool _fieldsBuilt;
         private readonly AppFiles _appFiles;
         private readonly ILogger<ClientProfilePanel> _logger;
         private readonly UIConfig _uiConfig;
@@ -54,7 +54,7 @@ namespace Trebuchet.ViewModels.Panels
         private bool _canBeOpened;
 
         public string Icon => @"mdi-controller";
-        public string Label => Resources.PanelGameSaves;
+        public string Label => AppResources.PanelGameSaves;
         public ObservableCollection<FieldElement> Fields { get; } = [];
 
         public FileMenuViewModel<ClientProfile, ClientProfileRef> FileMenu { get; }
@@ -76,8 +76,9 @@ namespace Trebuchet.ViewModels.Panels
 
         public async Task RefreshPanel()
         {
+            EnsureFields();
             _logger.LogDebug(@"Refresh panel");
-            CanBeOpened = Tools.IsClientInstallValid(_setup) && _setup.Config.ManageClient;
+            CanBeOpened = Tools.IsClientInstallValid(_setup.Config, _setup.Edition) && _setup.Config.ManageClient;
             _profile = _appFiles.Client.Get(FileMenu.Selected);
             foreach (var f in Fields.OfType<IValueField>())
                 f.Update.Execute().Subscribe();
@@ -106,77 +107,84 @@ namespace Trebuchet.ViewModels.Panels
             ProfileSize = size.Bytes().Humanize();
         }
 
+        private void EnsureFields()
+        {
+            if (_fieldsBuilt) return;
+            _fieldsBuilt = true;
+            BuildFields();
+        }
+
         private void BuildFields()
         {
-            Fields.Add(new TitleField().SetTitle(Resources.CatGeneral));
+            Fields.Add(new TitleField().SetTitle(AppResources.CatGeneral));
             Fields.Add(new ToggleField()
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingBackgroundSound)
-                .SetDescription(Resources.SettingBackgroundSoundText)
+                .SetTitle(AppResources.SettingBackgroundSound)
+                .SetDescription(AppResources.SettingBackgroundSoundText)
                 .SetSetter((v) => _profile.BackgroundSound = v)
                 .SetGetter(() => _profile.BackgroundSound)
                 .SetDefault(() => ClientProfile.BackgroundSoundDefault)
             );
             Fields.Add(new ToggleField()
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingIntroVid)
-                .SetDescription(Resources.SettingIntroVidText)
+                .SetTitle(AppResources.SettingIntroVid)
+                .SetDescription(AppResources.SettingIntroVidText)
                 .SetGetter(() => _profile.RemoveIntroVideo)
                 .SetSetter((v) => _profile.RemoveIntroVideo = v)
                 .SetDefault(() => ClientProfile.RemoveIntroVideoDefault)
             );
-            Fields.Add(new TitleField().SetTitle(Resources.CatProcessPerformance));
+            Fields.Add(new TitleField().SetTitle(AppResources.CatProcessPerformance));
             Fields.Add(new ToggleField()
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingUseAllCore)
-                .SetDescription(Resources.SettingUseAllCoreText)
+                .SetTitle(AppResources.SettingUseAllCore)
+                .SetDescription(AppResources.SettingUseAllCoreText)
                 .SetGetter(() => _profile.UseAllCores)
                 .SetSetter((v) => _profile.UseAllCores = v)
                 .SetDefault(() => ClientProfile.UseAllCoresDefault)
             );
             Fields.Add(new ComboBoxField()
                 .WhenFieldChanged(SaveProfile)
-                .SetDescription(Resources.SettingProcessPrioText)
-                .SetTitle(Resources.SettingProcessPrio)
-                .AddOption(Resources.SettingProcessPrioNormal)
-                .AddOption(Resources.SettingProcessPrioAboveNormal)
-                .AddOption(Resources.SettingProcessPrioHigh)
-                .AddOption(Resources.SettingProcessPrioRealtime)
+                .SetDescription(AppResources.SettingProcessPrioText)
+                .SetTitle(AppResources.SettingProcessPrio)
+                .AddOption(AppResources.SettingProcessPrioNormal)
+                .AddOption(AppResources.SettingProcessPrioAboveNormal)
+                .AddOption(AppResources.SettingProcessPrioHigh)
+                .AddOption(AppResources.SettingProcessPrioRealtime)
                 .SetGetter(() => _profile.ProcessPriority)
                 .SetSetter((v) => _profile.ProcessPriority = v)
                 .SetDefault(() => ClientProfile.ProcessPriorityDefault)
             );
             Fields.Add(new CpuAffinityField()
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingCpuAffinity)
-                .SetDescription(Resources.SettingCpuAffinityText)
+                .SetTitle(AppResources.SettingCpuAffinity)
+                .SetDescription(AppResources.SettingCpuAffinityText)
                 .SetSetter((v) => _profile.CPUThreadAffinity = v)
                 .SetGetter(() => _profile.CPUThreadAffinity)
                 .SetDefault(CpuAffinityField.DefaultValue)
             );
-            Fields.Add(new TitleField().SetTitle(Resources.CatGraphics));
+            Fields.Add(new TitleField().SetTitle(AppResources.CatGraphics));
             Fields.Add(new ToggleField()
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingUltraAniso)
-                .SetDescription(Resources.SettingUltraAnisoText)
+                .SetTitle(AppResources.SettingUltraAniso)
+                .SetDescription(AppResources.SettingUltraAnisoText)
                 .SetGetter(() => _profile.UltraAnisotropy)
                 .SetSetter((v) => _profile.UltraAnisotropy = v)
                 .SetDefault(() => ClientProfile.UltraAnisotropyDefault));
             Fields.Add(new IntSliderField(0, 4000, 100)
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingTexPool)
-                .SetDescription(Resources.SettingTexPoolText)
+                .SetTitle(AppResources.SettingTexPool)
+                .SetDescription(AppResources.SettingTexPoolText)
                 .SetGetter(() => _profile.AddedTexturePool)
                 .SetSetter((v) => _profile.AddedTexturePool = v)
                 .SetDefault(() => ClientProfile.AddedTexturePoolDefault)
             );
-            Fields.Add(new TitleField().SetTitle(Resources.CatMiscellaneous));
+            Fields.Add(new TitleField().SetTitle(AppResources.CatMiscellaneous));
             if(_setup.Experiment)
                 Fields.Add(new ToggleField()
                     .WhenFieldChanged(SaveProfile)
                     .SetExperiment()
-                    .SetTitle(Resources.SettingAsyncScene)
-                    .SetDescription(Resources.SettingAsyncSceneText)
+                    .SetTitle(AppResources.SettingAsyncScene)
+                    .SetDescription(AppResources.SettingAsyncSceneText)
                     .SetGetter(() => _profile.EnableAsyncScene)
                     .SetSetter((v) => _profile.EnableAsyncScene = v)
                     .SetDefault(() => ClientProfile.EnableAsyncSceneDefault)
@@ -185,32 +193,32 @@ namespace Trebuchet.ViewModels.Panels
                 Fields.Add(new IntSliderField(10000, 100000, 1000)
                     .WhenFieldChanged(SaveProfile)
                     .SetExperiment()
-                    .SetTitle(Resources.SettingInternetSpeed)
-                    .SetDescription(Resources.SettingInternetSpeedText)
+                    .SetTitle(AppResources.SettingInternetSpeed)
+                    .SetDescription(AppResources.SettingInternetSpeedText)
                     .SetGetter(() => _profile.ConfiguredInternetSpeed)
                     .SetSetter((v) => _profile.ConfiguredInternetSpeed = v)
                     .SetDefault(() => ClientProfile.ConfiguredInternetSpeedDefault)
                 );
             Fields.Add(new ToggleField()
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingLog)
-                .SetDescription(Resources.SettingLogText)
+                .SetTitle(AppResources.SettingLog)
+                .SetDescription(AppResources.SettingLogText)
                 .SetGetter(() => _profile.Log)
                 .SetSetter((v) => _profile.Log = v)
                 .SetDefault(() => ClientProfile.LogDefault)
             );
             Fields.Add(new ToggleField()
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingAdminServerList)
-                .SetDescription(Resources.SettingAdminServerListText)
+                .SetTitle(AppResources.SettingAdminServerList)
+                .SetDescription(AppResources.SettingAdminServerListText)
                 .SetGetter(() => _profile.TotAdminDoNotLoadServerList)
                 .SetSetter((v) => _profile.TotAdminDoNotLoadServerList = v)
                 .SetDefault(() => ClientProfile.TotAdminDoNotLoadServerListDefault)
             );
             Fields.Add(new MultiLineTextField()
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingLogFilter)
-                .SetDescription(Resources.SettingLogFilterText)
+                .SetTitle(AppResources.SettingLogFilter)
+                .SetDescription(AppResources.SettingLogFilterText)
                 .SetGetter(() => string.Join(Environment.NewLine, _profile.LogFilters))
                 .SetSetter((v) => _profile.LogFilters = v.Trim().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries).ToList())
                 .SetDefault(() => string.Join(Environment.NewLine, ClientProfile.LogFiltersDefault))

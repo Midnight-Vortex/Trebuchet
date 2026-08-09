@@ -9,4 +9,8 @@ public class PublishedMod(SteamWorksWebAPI.PublishedFile published, UGCFileStatu
     public long FileSize { get;  } = published.FileSize;
     public uint CreatorAppId { get;  } = published.CreatorAppId;
     public uint ConsumerAppId { get; } = published.ConsumerAppId;
+    public IReadOnlyList<string> Tags { get; } = published.Tags?
+        .Select(t => t.tag)
+        .Where(t => !string.IsNullOrWhiteSpace(t))
+        .ToList() ?? [];
 }

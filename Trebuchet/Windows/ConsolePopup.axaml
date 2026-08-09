@@ -12,8 +12,7 @@
         MinHeight="600" MinWidth="800"
         WindowStartupLocation="CenterScreen"
         ExtendClientAreaToDecorationsHint="True"
-        ExtendClientAreaChromeHints="NoChrome"
-        SystemDecorations="Full"
+        WindowDecorations="Full"
         ExtendClientAreaTitleBarHeightHint="40"
         UseLayoutRounding="True"
         Classes="Trebuchet">

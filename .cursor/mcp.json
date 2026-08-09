@@ -1,0 +1,23 @@
+{
+    "mcpServers": {
+        "laravel-boost-acp": {
+            "command": "C:\\php\\php.exe",
+            "args": ["C:\\cp\\acp\\artisan", "boost:mcp"],
+            "env": {
+                "CACHE_STORE": "array"
+            }
+        },
+        "laravel-boost-ucp-dev": {
+            "command": "C:\\php\\php.exe",
+            "args": ["C:\\cp\\ucp-dev\\artisan", "boost:mcp"]
+        },
+        "laravel-boost-ucp-live": {
+            "command": "C:\\php\\php.exe",
+            "args": ["C:\\cp\\ucp-live\\artisan", "boost:mcp"],
+            "env": {
+                "APP_ENV": "local",
+                "CACHE_STORE": "array"
+            }
+        }
+    }
+}

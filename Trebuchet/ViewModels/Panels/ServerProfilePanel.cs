@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 using Humanizer;
 using Microsoft.Extensions.Logging;
 using ReactiveUI;
-using Trebuchet.Assets;
+using AppResources = Trebuchet.Assets.Resources;
 using Trebuchet.ViewModels.InnerContainer;
 using Trebuchet.ViewModels.Sequences;
 using Trebuchet.ViewModels.SettingFields;
@@ -47,12 +47,12 @@ namespace Trebuchet.ViewModels.Panels
             _profile = _appFiles.Server.Get(startingProfile);
             SaveProfile = ReactiveCommand.Create(() => _profile.SaveFile());
 
-            FileMenu = new FileMenuViewModel<ServerProfile, ServerProfileRef>(Resources.PanelServerSaves, appFiles.Server, box, _logger);
+            FileMenu = new FileMenuViewModel<ServerProfile, ServerProfileRef>(AppResources.PanelServerSaves, appFiles.Server, box, _logger);
             FileMenu.FileSelected += OnFileSelected;
             FileMenu.Selected = startingProfile;
-           
-            BuildFields();
         }
+
+        private bool _fieldsBuilt;
 
         public ObservableCollection<FieldElement> Fields { get; } = [];
 
@@ -67,7 +67,7 @@ namespace Trebuchet.ViewModels.Panels
         }
 
         public string Icon => @"mdi-server-network";
-        public string Label => Resources.PanelServerSaves;
+        public string Label => AppResources.PanelServerSaves;
 
         public bool CanBeOpened
         {
@@ -77,6 +77,7 @@ namespace Trebuchet.ViewModels.Panels
 
         public async Task RefreshPanel()
         {
+            EnsureFields();
             _logger.LogDebug(@"Refresh panel");
             CanBeOpened = Tools.IsServerInstallValid(_setup.Config);
             _profile = _appFiles.Server.Get(FileMenu.Selected);
@@ -87,6 +88,7 @@ namespace Trebuchet.ViewModels.Panels
 
         public async Task DisplayPanel()
         {
+            EnsureFields();
             _logger.LogDebug(@"Display panel");
             await RefreshProfileSize(FileMenu.Selected);
         }
@@ -139,141 +141,148 @@ namespace Trebuchet.ViewModels.Panels
             ProfileSize = size.Bytes().Humanize();
         }
 
+        private void EnsureFields()
+        {
+            if (_fieldsBuilt) return;
+            _fieldsBuilt = true;
+            BuildFields();
+        }
+
         private void BuildFields()
         {
-            Fields.Add(new TitleField().SetTitle(Resources.CatServerSettings));
+            Fields.Add(new TitleField().SetTitle(AppResources.CatServerSettings));
             Fields.Add(new TextField()
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingServerName)
-                .SetDescription(Resources.SettingServerNameText)
+                .SetTitle(AppResources.SettingServerName)
+                .SetDescription(AppResources.SettingServerNameText)
                 .SetGetter(() => _profile.ServerName)
                 .SetSetter((v) => _profile.ServerName = v)
                 .SetDefault(() => ServerProfile.ServerNameDefault)
             );
             Fields.Add(new PasswordField()
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingServerPass)
-                .SetDescription(Resources.SettingServerPassText)
+                .SetTitle(AppResources.SettingServerPass)
+                .SetDescription(AppResources.SettingServerPassText)
                 .SetGetter(() => _profile.ServerPassword)
                 .SetSetter((v) => _profile.ServerPassword = v)
                 .SetDefault(() => ServerProfile.ServerPasswordDefault)
             );
             Fields.Add(new PasswordField()
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingServerAdminPass)
-                .SetDescription(Resources.SettingServerAdminPassText)
+                .SetTitle(AppResources.SettingServerAdminPass)
+                .SetDescription(AppResources.SettingServerAdminPassText)
                 .SetGetter(() => _profile.AdminPassword)
                 .SetSetter((v) => _profile.AdminPassword = v)
                 .SetDefault(() => ServerProfile.AdminPasswordDefault)
             );
             Fields.Add(new IntField(0,int.MaxValue)
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingServerMaxPlayer)
-                .SetDescription(Resources.SettingServerMaxPlayerText)
+                .SetTitle(AppResources.SettingServerMaxPlayer)
+                .SetDescription(AppResources.SettingServerMaxPlayerText)
                 .SetGetter(() => _profile.MaxPlayers)
                 .SetSetter((v) => _profile.MaxPlayers = v)
                 .SetDefault(() => ServerProfile.MaxPlayersDefault)
             );
             Fields.Add(new ComboBoxField()
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingServerRegion)
-                .SetDescription(Resources.SettingServerRegionText)
-                .AddOption(Resources.SettingServerRegionEurope)
-                .AddOption(Resources.SettingServerRegionNorthAmerica)
-                .AddOption(Resources.SettingServerRegionAsia)
-                .AddOption(Resources.SettingServerRegionAustralia)
-                .AddOption(Resources.SettingServerRegionSouthAmerica)
-                .AddOption(Resources.SettingServerRegionJapan)
+                .SetTitle(AppResources.SettingServerRegion)
+                .SetDescription(AppResources.SettingServerRegionText)
+                .AddOption(AppResources.SettingServerRegionEurope)
+                .AddOption(AppResources.SettingServerRegionNorthAmerica)
+                .AddOption(AppResources.SettingServerRegionAsia)
+                .AddOption(AppResources.SettingServerRegionAustralia)
+                .AddOption(AppResources.SettingServerRegionSouthAmerica)
+                .AddOption(AppResources.SettingServerRegionJapan)
                 .SetGetter(() => _profile.ServerRegion)
                 .SetSetter((v) => _profile.ServerRegion = v)
                 .SetDefault(() => ServerProfile.ServerRegionDefault)
             );
             Fields.Add(new MapField()
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingServerMap)
-                .SetDescription(Resources.SettingServerMapText)
+                .SetTitle(AppResources.SettingServerMap)
+                .SetDescription(AppResources.SettingServerMapText)
                 .SetGetter(() => _profile.Map)
                 .SetSetter((v) => _profile.Map = v)
                 .SetDefault(() => ServerProfile.MapDefault)
             );
             Fields.Add(new MultiLineTextField()
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingSudoAdminList)
-                .SetDescription(Resources.SettingSudoAdminListText)
+                .SetTitle(AppResources.SettingSudoAdminList)
+                .SetDescription(AppResources.SettingSudoAdminListText)
                 .SetGetter(() => string.Join(Environment.NewLine, _profile.SudoSuperAdmins))
                 .SetSetter((v) => _profile.SudoSuperAdmins = v.Split(Environment.NewLine).ToList())
                 .SetDefault(() => string.Join(Environment.NewLine, ServerProfile.SudoSuperAdminsDefault))
             );
             Fields.Add(new ToggleField()
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingTotAdminPrecision)
-                .SetDescription(Resources.SettingTotAdminPrecisionText)
+                .SetTitle(AppResources.SettingTotAdminPrecision)
+                .SetDescription(AppResources.SettingTotAdminPrecisionText)
                 .SetGetter(() => _profile.DisableHighPrecisionMoveTool)
                 .SetSetter((v) => _profile.DisableHighPrecisionMoveTool = v)
                 .SetDefault(() => ServerProfile.DisableHighPrecisionMoveToolDefault)
             );
-            Fields.Add(new TitleField().SetTitle(Resources.CatRestartSettings));
+            Fields.Add(new TitleField().SetTitle(AppResources.CatRestartSettings));
             Fields.Add(new SequenceEditorField(
-                Resources.SettingServerStartingSequenceText, 
+                AppResources.SettingServerStartingSequenceText, 
                 _profile.StartingSequence,
                 ReactiveCommand.Create<Sequence>(EditSequence))
-                .SetTitle(Resources.SettingServerStartingSequence)
+                .SetTitle(AppResources.SettingServerStartingSequence)
                 );
             Fields.Add(new SequenceEditorField(
-                    Resources.SettingServerStoppingSequenceText, 
+                    AppResources.SettingServerStoppingSequenceText, 
                     _profile.StoppingSequence,
                     ReactiveCommand.Create<Sequence>(EditSequence))
-                .SetTitle(Resources.SettingServerStoppingSequence)
+                .SetTitle(AppResources.SettingServerStoppingSequence)
             );
             Fields.Add(new ToggleField()
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingServerKillZombies)
-                .SetDescription(Resources.SettingServerKillZombiesText)
+                .SetTitle(AppResources.SettingServerKillZombies)
+                .SetDescription(AppResources.SettingServerKillZombiesText)
                 .SetGetter(() => _profile.KillZombies)
                 .SetSetter((v) => _profile.KillZombies = v)
                 .SetDefault(() => ServerProfile.KillZombiesDefault)
             );
             Fields.Add(new IntField(30, int.MaxValue)
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingServerZombieDuration)
-                .SetDescription(Resources.SettingServerZombieDurationText)
+                .SetTitle(AppResources.SettingServerZombieDuration)
+                .SetDescription(AppResources.SettingServerZombieDurationText)
                 .SetGetter(() => _profile.ZombieCheckSeconds)
                 .SetSetter((v) => _profile.ZombieCheckSeconds = v)
                 .SetDefault(() => ServerProfile.ZombieCheckSecondsDefault)
             );
             Fields.Add(new ToggleField()
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingServerCrashRestart)
-                .SetDescription(Resources.SettingServerCrashRestartText)
+                .SetTitle(AppResources.SettingServerCrashRestart)
+                .SetDescription(AppResources.SettingServerCrashRestartText)
                 .SetGetter(() => _profile.RestartWhenDown)
                 .SetSetter((v) => _profile.RestartWhenDown = v)
                 .SetDefault(() => ServerProfile.RestartWhenDownDefault)
             );
             var autoRestart = new ToggleField()
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingServerAutoRestart)
-                .SetDescription(Resources.SettingServerAutoRestartText)
+                .SetTitle(AppResources.SettingServerAutoRestart)
+                .SetDescription(AppResources.SettingServerAutoRestartText)
                 .SetGetter(() => _profile.AutoRestart)
                 .SetSetter((v) => _profile.AutoRestart = v)
                 .SetDefault(() => ServerProfile.AutoRestartDefault);
             var autoRestartTimes = new TimeOfDayListField(false)
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingServerAutoRestartDailyTime)
-                .SetDescription(Resources.SettingServerAutoRestartDailyTimeText)
+                .SetTitle(AppResources.SettingServerAutoRestartDailyTime)
+                .SetDescription(AppResources.SettingServerAutoRestartDailyTimeText)
                 .SetGetter(() => _profile.AutoRestartDailyTime)
                 .SetSetter((v) => _profile.AutoRestartDailyTime = v)
                 .SetDefault(() => ServerProfile.AutoRestartDailyTimeDefault);
             var autoRestartMaxPerDay = new IntField(minimum:0,maximum:Int32.MaxValue)
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingServerAutoRestartMaxPerDay)
-                .SetDescription(Resources.SettingServerAutoRestartMaxPerDayText)
+                .SetTitle(AppResources.SettingServerAutoRestartMaxPerDay)
+                .SetDescription(AppResources.SettingServerAutoRestartMaxPerDayText)
                 .SetGetter(() => _profile.AutoRestartMaxPerDay)
                 .SetSetter((v) => _profile.AutoRestartMaxPerDay = v)
                 .SetDefault(() => ServerProfile.AutoRestartMaxPerDayDefault);
             var autoRestartMinUptime = new DurationField(minDuration:TimeSpan.FromMinutes(10),maxDuration:TimeSpan.MaxValue)
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingServerAutoRestartMinUptime)
-                .SetDescription(Resources.SettingServerAutoRestartMinUptimeText)
+                .SetTitle(AppResources.SettingServerAutoRestartMinUptime)
+                .SetDescription(AppResources.SettingServerAutoRestartMinUptimeText)
                 .SetGetter(() => _profile.AutoRestartMinUptime)
                 .SetSetter((v) => _profile.AutoRestartMinUptime = v)
                 .SetDefault(() => ServerProfile.AutoRestartMinUptimeDefault);
@@ -289,56 +298,56 @@ namespace Trebuchet.ViewModels.Panels
             Fields.Add(autoRestartMaxPerDay);
             Fields.Add(autoRestartMinUptime);
             
-            Fields.Add(new TitleField().SetTitle(Resources.CatPerformance));
+            Fields.Add(new TitleField().SetTitle(AppResources.CatPerformance));
             Fields.Add(new IntField(1, int.MaxValue)
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingServerMaximumTickRate)
-                .SetDescription(Resources.SettingServerMaximumTickRateText)
+                .SetTitle(AppResources.SettingServerMaximumTickRate)
+                .SetDescription(AppResources.SettingServerMaximumTickRateText)
                 .SetGetter(() => _profile.MaximumTickRate)
                 .SetSetter((v) => _profile.MaximumTickRate = v)
                 .SetDefault(() => ServerProfile.MaximumTickRateDefault)
             );
             Fields.Add(new ToggleField()
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingServerUseAllCores)
-                .SetDescription(Resources.SettingServerUseAllCoresText)
+                .SetTitle(AppResources.SettingServerUseAllCores)
+                .SetDescription(AppResources.SettingServerUseAllCoresText)
                 .SetGetter(() => _profile.UseAllCores)
                 .SetSetter((v) => _profile.UseAllCores = v)
                 .SetDefault(() => ServerProfile.UseAllCoresDefault)
             );
             Fields.Add(new ComboBoxField()
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingServerProcessPriority)
-                .SetDescription(Resources.SettingServerProcessPriorityText)
-                .AddOption(Resources.SettingProcessPrioNormal)
-                .AddOption(Resources.SettingProcessPrioAboveNormal)
-                .AddOption(Resources.SettingProcessPrioHigh)
-                .AddOption(Resources.SettingProcessPrioRealtime)
+                .SetTitle(AppResources.SettingServerProcessPriority)
+                .SetDescription(AppResources.SettingServerProcessPriorityText)
+                .AddOption(AppResources.SettingProcessPrioNormal)
+                .AddOption(AppResources.SettingProcessPrioAboveNormal)
+                .AddOption(AppResources.SettingProcessPrioHigh)
+                .AddOption(AppResources.SettingProcessPrioRealtime)
                 .SetGetter(() => _profile.ProcessPriority)
                 .SetSetter((v) => _profile.ProcessPriority = v)
                 .SetDefault(() => ServerProfile.ProcessPriorityDefault)
             );
             Fields.Add(new CpuAffinityField()
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingServerCPUThreadAffinity)
-                .SetDescription(Resources.SettingServerCPUThreadAffinityText)
+                .SetTitle(AppResources.SettingServerCPUThreadAffinity)
+                .SetDescription(AppResources.SettingServerCPUThreadAffinityText)
                 .SetGetter(() => _profile.CPUThreadAffinity)
                 .SetSetter((v) => _profile.CPUThreadAffinity = v)
                 .SetDefault(() => ServerProfile.CPUThreadAffinityDefault)
             );
-            Fields.Add(new TitleField().SetTitle(Resources.CatPorts));
+            Fields.Add(new TitleField().SetTitle(AppResources.CatPorts));
             var gameClientPort = new IntField(int.MinValue, int.MaxValue)
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingServerGameClientPort)
-                .SetDescription(Resources.SettingServerGameClientPortText)
+                .SetTitle(AppResources.SettingServerGameClientPort)
+                .SetDescription(AppResources.SettingServerGameClientPortText)
                 .SetGetter(() => _profile.GameClientPort)
                 .SetSetter((v) => _profile.GameClientPort = v)
                 .SetDefault(() => ServerProfile.GameClientPortDefault);
             Fields.Add(gameClientPort);
             Fields.Add(new IntField(int.MinValue, int.MaxValue)
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingServerRawUDPPort)
-                .SetDescription(Resources.SettingServerRawUDPPortText)
+                .SetTitle(AppResources.SettingServerRawUDPPort)
+                .SetDescription(AppResources.SettingServerRawUDPPortText)
                 .SetGetter(() => _profile.GameClientPort+1)
                 .SetDefault(() => ServerProfile.GameClientPortDefault+1)
                 .SetEnabled(false)
@@ -346,57 +355,57 @@ namespace Trebuchet.ViewModels.Panels
             );
             Fields.Add(new IntField(int.MinValue, int.MaxValue)
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingServerSourceQueryPort)
-                .SetDescription(Resources.SettingServerSourceQueryPortText)
+                .SetTitle(AppResources.SettingServerSourceQueryPort)
+                .SetDescription(AppResources.SettingServerSourceQueryPortText)
                 .SetGetter(() => _profile.SourceQueryPort)
                 .SetSetter((v) => _profile.SourceQueryPort = v)
                 .SetDefault(() => ServerProfile.SourceQueryPortDefault)
             );
             var multiHome = new ToggleField()
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingServerEnableMultiHome)
-                .SetDescription(Resources.SettingServerEnableMultiHomeText)
+                .SetTitle(AppResources.SettingServerEnableMultiHome)
+                .SetDescription(AppResources.SettingServerEnableMultiHomeText)
                 .SetGetter(() => _profile.EnableMultiHome)
                 .SetSetter((v) => _profile.EnableMultiHome = v)
                 .SetDefault(() => ServerProfile.EnableMultiHomeDefault);
             Fields.Add(multiHome);
             var multiHomeAdress = new TextField()
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingServerMultiHomeAddress)
-                .SetDescription(Resources.SettingServerMultiHomeAddressText)
+                .SetTitle(AppResources.SettingServerMultiHomeAddress)
+                .SetDescription(AppResources.SettingServerMultiHomeAddressText)
                 .SetGetter(() => _profile.MultiHomeAddress)
                 .SetSetter((v) => _profile.MultiHomeAddress = v)
                 .SetDefault(() => ServerProfile.MultiHomeAddressDefault);
             Fields.Add(multiHomeAdress);
             multiHome.WhenAnyValue(x => x.Value).Subscribe(x => multiHomeAdress.IsVisible = x);
             
-            Fields.Add(new TitleField().SetTitle(Resources.CatRCon));
+            Fields.Add(new TitleField().SetTitle(AppResources.CatRCon));
             var rcon = new ToggleField()
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingServerEnableRCon)
-                .SetDescription(Resources.SettingServerEnableRConText)
+                .SetTitle(AppResources.SettingServerEnableRCon)
+                .SetDescription(AppResources.SettingServerEnableRConText)
                 .SetGetter(() => _profile.EnableRCon)
                 .SetSetter((v) => _profile.EnableRCon = v)
                 .SetDefault(() => ServerProfile.EnableRConDefault);
             Fields.Add(rcon);
             var rconPort = new IntField(0, 65535)
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingServerRConPort)
-                .SetDescription(Resources.SettingServerRConPortText)
+                .SetTitle(AppResources.SettingServerRConPort)
+                .SetDescription(AppResources.SettingServerRConPortText)
                 .SetGetter(() => _profile.RConPort)
                 .SetSetter((v) => _profile.RConPort = v)
                 .SetDefault(() => ServerProfile.RConPortDefault);
             var rconPass = new PasswordField()
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingServerRConPassword)
-                .SetDescription(Resources.SettingServerRConPasswordText)
+                .SetTitle(AppResources.SettingServerRConPassword)
+                .SetDescription(AppResources.SettingServerRConPasswordText)
                 .SetGetter(() => _profile.RConPassword)
                 .SetSetter((v) => _profile.RConPassword = v)
                 .SetDefault(() => ServerProfile.RConPasswordDefault);
             var rconKarma = new IntField(0, int.MaxValue)
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingServerRConMaxKarma)
-                .SetDescription(Resources.SettingServerRConMaxKarmaText)
+                .SetTitle(AppResources.SettingServerRConMaxKarma)
+                .SetDescription(AppResources.SettingServerRConMaxKarmaText)
                 .SetGetter(() => _profile.RConMaxKarma)
                 .SetSetter((v) => _profile.RConMaxKarma = v)
                 .SetDefault(() => ServerProfile.RConMaxKarmaDefault);
@@ -411,51 +420,51 @@ namespace Trebuchet.ViewModels.Panels
                     rconKarma.IsVisible = x;
                 });
                 
-            Fields.Add(new TitleField().SetTitle(Resources.CatAntiCheat));
+            Fields.Add(new TitleField().SetTitle(AppResources.CatAntiCheat));
             Fields.Add(new ToggleField()
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingServerEnableVAC)
-                .SetDescription(Resources.SettingServerEnableVACText)
+                .SetTitle(AppResources.SettingServerEnableVAC)
+                .SetDescription(AppResources.SettingServerEnableVACText)
                 .SetGetter(() => _profile.EnableVAC)
                 .SetSetter((v) => _profile.EnableVAC = v)
                 .SetDefault(() => ServerProfile.EnableVACDefault)
             );
             Fields.Add(new ToggleField()
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingServerEnableBattleEye)
-                .SetDescription(Resources.SettingServerEnableBattleEyeText)
+                .SetTitle(AppResources.SettingServerEnableBattleEye)
+                .SetDescription(AppResources.SettingServerEnableBattleEyeText)
                 .SetGetter(() => _profile.EnableBattleEye)
                 .SetSetter((v) => _profile.EnableBattleEye = v)
                 .SetDefault(() => ServerProfile.EnableBattleEyeDefault)
             );
-            Fields.Add(new TitleField().SetTitle(Resources.CatMiscellaneous));
+            Fields.Add(new TitleField().SetTitle(AppResources.CatMiscellaneous));
             Fields.Add(new TextField()
-                .SetTitle(Resources.SettingServerDiscordNotificationsWebhook)
-                .SetDescription(Resources.SettingServerDiscordNotificationsWebhookText)
+                .SetTitle(AppResources.SettingServerDiscordNotificationsWebhook)
+                .SetDescription(AppResources.SettingServerDiscordNotificationsWebhookText)
                 .SetGetter(() => _profile.DiscordWebHookNotifications)
                 .SetSetter((v) => _profile.DiscordWebHookNotifications = v)
                 .SetDefault(() => ServerProfile.DiscordWebHookNotificationsDefault)
                 );
             Fields.Add(new ToggleField()
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingServerLog)
-                .SetDescription(Resources.SettingServerLogText)
+                .SetTitle(AppResources.SettingServerLog)
+                .SetDescription(AppResources.SettingServerLogText)
                 .SetGetter(() => _profile.Log)
                 .SetSetter((v) => _profile.Log = v)
                 .SetDefault(() => ServerProfile.LogDefault)
             );
             Fields.Add(new ToggleField()
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingServerNoAISpawn)
-                .SetDescription(Resources.SettingServerNoAISpawnText)
+                .SetTitle(AppResources.SettingServerNoAISpawn)
+                .SetDescription(AppResources.SettingServerNoAISpawnText)
                 .SetGetter(() => _profile.NoAISpawn)
                 .SetSetter((v) => _profile.NoAISpawn = v)
                 .SetDefault(() => ServerProfile.NoAISpawnDefault)
             );
             Fields.Add(new MultiLineTextField()
                 .WhenFieldChanged(SaveProfile)
-                .SetTitle(Resources.SettingServerLogFilters)
-                .SetDescription(Resources.SettingServerLogFiltersText)
+                .SetTitle(AppResources.SettingServerLogFilters)
+                .SetDescription(AppResources.SettingServerLogFiltersText)
                 .SetGetter(() => string.Join(Environment.NewLine, _profile.LogFilters))
                 .SetSetter((v) => _profile.LogFilters = v.Trim().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries).ToList())
                 .SetDefault(() => string.Join(Environment.NewLine, ServerProfile.LogFiltersDefault))

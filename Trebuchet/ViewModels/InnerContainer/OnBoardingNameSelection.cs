@@ -10,11 +10,11 @@ public class OnBoardingNameSelection(string title, string description)
         return value?.Trim() ?? string.Empty;
     }
 
-    private string _watermark = string.Empty;
+    private string _placeholderText = string.Empty;
 
-    public string Watermark
+    public string PlaceholderText
     {
-        get => _watermark;
-        set => this.RaiseAndSetIfChanged(ref _watermark, value);
+        get => _placeholderText;
+        set => this.RaiseAndSetIfChanged(ref _placeholderText, value);
     }
 }

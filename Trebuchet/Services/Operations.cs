@@ -72,7 +72,7 @@ public class Operations : IDisposable
 
     public async Task<bool> RepairBrokenJunctions()
     {
-        if (!Tools.IsClientInstallValid(_setup)) return true;
+        if (!Tools.IsClientInstallValid(_setup.Config, _setup.Edition)) return true;
         return await OnBoardingApplyConanManagement();
     }
 
@@ -174,7 +174,7 @@ public class Operations : IDisposable
     
     public async Task<bool> OnBoardingFirstLaunch()
     {
-        var configPath = Constants.GetConfigPath(_setup.IsTestLive, _setup.IsEnhanced);
+        var configPath = Constants.GetConfigPath(_setup.Edition);
         if(File.Exists(configPath)) return true;
         if (!await OnBoardingUsageChoice()) return false;
         _setup.Config.SaveFile();
@@ -341,8 +341,11 @@ public class Operations : IDisposable
 
     public async Task<bool> OnBoardingFindConanExile(bool force = false)
     {
-        if (Tools.IsClientInstallValid(_setup) && !force)
-            return await OnBoardingApplyConanManagement();
+        if (Tools.IsClientInstallValid(_setup.Config.ClientPath, _setup.Edition) && !force)
+        {
+            await OnBoardingApplyConanManagement();
+            return Tools.IsClientInstallValid(_setup.Config, _setup.Edition);
+        }
         
         var finder = new OnBoardingDirectory(Resources.OnBoardingLocateConan, Resources.OnBoardingLocateConanText, _setup.Config.ClientPath)
             .SetValidation(ValidateConanExileLocation);
@@ -351,15 +354,19 @@ public class Operations : IDisposable
         using(_logger.BeginScope((@"ClientPath", finder.Value)))
             _logger.LogInformation(@"Changing conan exiles directory");
         _setup.Config.ClientPath = finder.Value;
-        return await OnBoardingAllowConanManagement();
+        await OnBoardingAllowConanManagement();
+        return Tools.IsClientInstallValid(_setup.Config, _setup.Edition);
     }
 
     public Validation ValidateConanExileLocation(string? path)
     {
         if(string.IsNullOrEmpty(path))
             return Validation.Invalid(Resources.ErrorValueEmpty);
-        if (!Tools.IsClientInstallValid(path, _setup.IsEnhanced))
-            return new Validation(false, Resources.OnBoardingLocateConanError);
+        if (!Tools.IsClientInstallValid(path, _setup.Edition))
+            return new Validation(false, string.Format(
+                Resources.ErrorClientWrongEdition,
+                Constants.GetEditionDisplayName(_setup.Edition),
+                Constants.GetClientBin(_setup.Edition)));
         return new Validation(true, string.Empty);
     }
 
@@ -378,12 +385,12 @@ public class Operations : IDisposable
 
     public async Task<bool> OnBoardingApplyConanManagement()
     {
-        if (!Tools.IsClientInstallValid(_setup)) return false;
+        if (!Tools.IsClientInstallValid(_setup.Config, _setup.Edition)) return false;
         var clientDirectory = Path.GetFullPath(_setup.Config.ClientPath);
         var savedDir = Path.Combine(clientDirectory, Constants.FolderGameSave);
         using(_logger.BeginScope((@"SavedDir", savedDir)))
             _logger.LogInformation(@"Applying Conan Management");
-        
+
         if (!Directory.Exists(savedDir))
         {
             _logger.LogWarning(@"Saved Directory does not exists");
@@ -408,9 +415,9 @@ public class Operations : IDisposable
         if (_osSpecific.IsSymbolicLink(savedDir) && !_setup.Config.ManageClient)
         {
             _logger.LogWarning(@"Junction found, but does not manage");
-            if (!await OnBoardingElevationRequest(clientDirectory, Resources.OnBoardingManageConanUac)) return false;
             if (!_appFiles.Client.GetList().Any())
                 return true;
+            if (!await OnBoardingElevationRequest(clientDirectory, Resources.OnBoardingManageConanUac)) return false;
             var saveName = await OnBoardingChooseClientSave();
             _logger.LogInformation(@"Copying trebuchet save back to game {saveName}", saveName);
             _osSpecific.RemoveSymbolicLink(savedDir);
@@ -498,7 +505,9 @@ public class Operations : IDisposable
                 _logger.LogInformation(@"Requesting elevation");
             await _dialogueBox.OpenAsync(uac);
             if(uac.Result < 0) throw new OperationCanceledException(@"OnBoarding was cancelled");
-            
+
+            // Persist ClientPath / ManageClient before elevation restart so Settings shows them after relaunch.
+            _setup.Config.SaveFile();
             _logger.LogInformation(@"Restarting as elevated");
             App.RestartProcess(true);
             return false;
@@ -580,7 +589,7 @@ public class Operations : IDisposable
                     configuration.InstallPath = string.Empty;
                     configuration.ManageClient = true;
                     configJson = JsonSerializer.Serialize(configuration);
-                    await File.WriteAllTextAsync(Constants.GetConfigPath(false, false), configJson);
+                    await File.WriteAllTextAsync(Constants.GetConfigPath(false), configJson);
                 }
                 File.Delete(configLive);
             }
@@ -596,7 +605,7 @@ public class Operations : IDisposable
                     configuration.InstallPath = string.Empty;
                     configuration.ManageClient = true;
                     configJson = JsonSerializer.Serialize(configuration);
-                    await File.WriteAllTextAsync(Constants.GetConfigPath(true, false), configJson);
+                    await File.WriteAllTextAsync(Constants.GetConfigPath(true), configJson);
                 }
                 File.Delete(configTestlive);
             }

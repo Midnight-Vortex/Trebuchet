@@ -7,10 +7,10 @@ using System.Security.Principal;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using System.Threading;
 using SteamWorksWebAPI;
 using tot_lib;
 using tot_lib.OsSpecific;
-using TrebuchetLib.Services;
 
 namespace TrebuchetLib;
 
@@ -60,16 +60,21 @@ public static class Tools
         var files = dirInfo.GetFiles("*.*", SearchOption.AllDirectories);
         if (files.Length == 0) return;
         
-        long total = files.Select(f => f.Length).Aggregate((a, b) => a + b);
+        long total = files.Sum(f => f.Length);
         long count = 0;
-        foreach (FileInfo file in files)
+        var maxParallel = Math.Clamp(Environment.ProcessorCount, 2, 8);
+        await Parallel.ForEachAsync(files, new ParallelOptions
         {
-            if (token.IsCancellationRequested)
-                return;
-            await Task.Run(() => File.Copy(file.FullName, file.FullName.Replace(directory, destinationDir), true));
-            count += file.Length;
-            progress?.Report((double)count / total);
-        }
+            MaxDegreeOfParallelism = maxParallel,
+            CancellationToken = token
+        }, (file, ct) =>
+        {
+            ct.ThrowIfCancellationRequested();
+            File.Copy(file.FullName, file.FullName.Replace(directory, destinationDir), true);
+            var copied = Interlocked.Add(ref count, file.Length);
+            progress?.Report((double)copied / total);
+            return ValueTask.CompletedTask;
+        });
     }
 
     public static void RemoveAllJunctions(string directory)
@@ -153,21 +158,34 @@ public static class Tools
         return Path.GetDirectoryName(AppDomain.CurrentDomain.BaseDirectory) ?? throw new DirectoryNotFoundException("Assembly directory is not found.");
     }
 
-    public static bool IsClientInstallValid(AppSetup setup)
+    public static bool IsClientInstallValid(Config config)
     {
-        return IsClientInstallValid(setup.Config.ClientPath, setup.IsEnhanced);
+        return IsClientInstallValid(config.ClientPath);
     }
 
-    public static bool IsClientInstallValid(string directory, bool enhanced)
+    public static bool IsClientInstallValid(Config config, GameEdition edition)
+    {
+        return IsClientInstallValid(config.ClientPath, edition);
+    }
+
+    /// <summary>
+    /// True if the folder looks like any Conan client install (Legacy or Enhanced).
+    /// </summary>
+    public static bool IsClientInstallValid(string directory)
+    {
+        if (string.IsNullOrEmpty(directory)) return false;
+        var binaries = Path.Combine(directory, Constants.FolderGameBinaries);
+        return File.Exists(Path.Combine(binaries, Constants.FileClientBin))
+               || File.Exists(Path.Combine(binaries, Constants.FileClientBinShipping));
+    }
+
+    /// <summary>
+    /// Edition-aware check: Enhanced expects the shipping client; Legacy/TestLive expect ConanSandbox.exe.
+    /// </summary>
+    public static bool IsClientInstallValid(string directory, GameEdition edition)
     {
         return !string.IsNullOrEmpty(directory) &&
-               File.Exists(GetClientInstallPath(directory, enhanced));
-    }
-    
-    public static string GetClientInstallPath(string directory, bool enhanced)
-    {
-        return Path.Combine(directory, Constants.FolderGameBinaries,
-            enhanced ? Constants.FileClientEnhancedBin : Constants.FileClientBin);
+               File.Exists(Path.Combine(directory, Constants.FolderGameBinaries, Constants.GetClientBin(edition)));
     }
 
     public static bool IsDirectoryWritable(string dirPath, bool throwIfFails = false)
@@ -218,6 +236,77 @@ public static class Tools
     public static bool IsSymbolicLink(string path)
     {
         return Directory.Exists(path) && File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint);
+    }
+
+    /// <summary>
+    /// Follows NTFS junction/mount-point reparse targets to the final physical path.
+    /// Does not traverse into child directories.
+    /// </summary>
+    public static string ResolveReparsePointChain(string path, int maxHops = 5)
+    {
+        var current = Path.GetFullPath(path);
+        if (!OperatingSystem.IsWindows())
+            return current;
+
+        for (var hop = 0; hop < maxHops; hop++)
+        {
+            try
+            {
+                if (!JunctionPoint.Exists(current))
+                    break;
+
+                current = Path.GetFullPath(JunctionPoint.GetTarget(current));
+            }
+            catch (IOException)
+            {
+                break;
+            }
+        }
+
+        return current;
+    }
+
+    /// <summary>
+    /// Resolves every junction prefix along <paramref name="path"/> so nested child links
+    /// (e.g. Saved\Config → profile) map to physical locations for file I/O.
+    /// </summary>
+    public static string ResolveReparsePointsInPath(string path, int maxHops = 5)
+    {
+        var full = Path.GetFullPath(path);
+        if (!OperatingSystem.IsWindows())
+            return full;
+
+        if (maxHops <= 0)
+            return full;
+
+        var root = Path.GetPathRoot(full) ?? string.Empty;
+        var relative = full[root.Length..].TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        if (string.IsNullOrEmpty(relative))
+            return ResolveReparsePointChain(full);
+
+        var segments = relative.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var prefix = root.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        if (string.IsNullOrEmpty(prefix))
+            prefix = root;
+
+        for (var i = 0; i < segments.Length; i++)
+        {
+            prefix = Path.Combine(prefix, segments[i]);
+
+            var isDirectoryPrefix = i < segments.Length - 1 || Directory.Exists(prefix);
+            if (!isDirectoryPrefix)
+                break;
+
+            if (!JunctionPoint.Exists(prefix))
+                continue;
+
+            var resolved = ResolveReparsePointChain(prefix);
+            var remainder = string.Join(Path.DirectorySeparatorChar.ToString(), segments[(i + 1)..]);
+            var combined = string.IsNullOrEmpty(remainder) ? resolved : Path.Combine(resolved, remainder);
+            return ResolveReparsePointsInPath(combined, maxHops - 1);
+        }
+
+        return full;
     }
 
     public static string PosixFullName(this string path) => path.Replace(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);

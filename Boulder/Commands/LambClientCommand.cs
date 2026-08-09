@@ -1,5 +1,4 @@
 using System.CommandLine;
-using System.CommandLine.IO;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using SteamKit2.GC.CSGO.Internal;

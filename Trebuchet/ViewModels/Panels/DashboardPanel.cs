@@ -38,7 +38,7 @@ namespace Trebuchet.ViewModels.Panels
             _blocker = blocker;
             _operations = operations;
             _logger = logger;
-            CanBeOpened = Tools.IsClientInstallValid(_setup) || Tools.IsServerInstallValid(_setup.Config);
+            CanBeOpened = Tools.IsClientInstallValid(_setup.Config, _setup.Edition) || Tools.IsServerInstallValid(_setup.Config);
 
             launcher.SequenceProgressChanged += OnSequenceProgressChanged;
 
@@ -237,6 +237,9 @@ namespace Trebuchet.ViewModels.Panels
                     dashboard.SelectedModlist.ModList.Uri.OriginalString,
                     dashboard.SelectedProfile.Uri.OriginalString);
                 await _launcher.CatapultServer(dashboard.Instance);
+                var process = _launcher.GetServerProcesses()
+                    .FirstOrDefault(x => x.Infos.Instance == dashboard.Instance);
+                await dashboard.ProcessRefresh(process, _uiConfig.DisplayProcessPerformance);
             }
             catch (Exception ex)
             {
@@ -265,16 +268,17 @@ namespace Trebuchet.ViewModels.Panels
             AnyModUpdate = Instances.Any(x => x.UpdateNeeded) || Client.UpdateNeeded;
             ServerUpdateAvailable = _launcher.HasServerUpdate();
             
-            await Client.ProcessRefresh(_launcher.GetClientProcess(), _uiConfig.DisplayProcessPerformance);
+            var refreshes = new List<Task> { Client.ProcessRefresh(_launcher.GetClientProcess(), _uiConfig.DisplayProcessPerformance) };
             foreach (var instance in _launcher.GetServerProcesses())
-                await Instances[instance.Infos.Instance].ProcessRefresh(instance, _uiConfig.DisplayProcessPerformance);
+                refreshes.Add(Instances[instance.Infos.Instance].ProcessRefresh(instance, _uiConfig.DisplayProcessPerformance));
+            await Task.WhenAll(refreshes);
         }
 
         public Task RefreshPanel()
         {
             _logger.LogDebug(@"Refresh panel");
-            CanBeOpened = Tools.IsClientInstallValid(_setup) || Tools.IsServerInstallValid(_setup.Config);
-            Client.CanUseDashboard = Tools.IsClientInstallValid(_setup);
+            CanBeOpened = Tools.IsClientInstallValid(_setup.Config, _setup.Edition) || Tools.IsServerInstallValid(_setup.Config);
+            Client.CanUseDashboard = Tools.IsClientInstallValid(_setup.Config, _setup.Edition);
             int installedCount = _operations.GetInstalledServerInstanceCount();
             foreach (var instance in Instances)
             {

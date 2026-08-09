@@ -12,8 +12,7 @@
         Title="{x:Static a:Resources.SequenceEditor}"        
         WindowStartupLocation="CenterScreen"
         ExtendClientAreaToDecorationsHint="True"
-        ExtendClientAreaChromeHints="NoChrome"
-        SystemDecorations="Full"
+        WindowDecorations="Full"
         ExtendClientAreaTitleBarHeightHint="40"
         UseLayoutRounding="True"
         Classes="Trebuchet">

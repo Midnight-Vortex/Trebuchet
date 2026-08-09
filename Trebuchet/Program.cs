@@ -3,9 +3,9 @@ using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
-using Avalonia.ReactiveUI;
-using Projektanker.Icons.Avalonia;
-using Projektanker.Icons.Avalonia.MaterialDesign;
+using ReactiveUI.Avalonia;
+using Optris.Icons.Avalonia;
+using Optris.Icons.Avalonia.MaterialDesign;
 using tot_lib.OsSpecific;
 using Trebuchet.Utils;
 using TrebuchetLib;
@@ -46,7 +46,7 @@ static class Program
             .Register<MaterialDesignIconProvider>();
         
         return AppBuilder.Configure<App>()
-            .UseReactiveUI()
+            .UseReactiveUI(_ => { })
             .UsePlatformDetect()
             .WithInterFont()
             .LogToTrace();

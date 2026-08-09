@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Reactive;
 using Humanizer;
 using ReactiveUI;
@@ -23,6 +25,10 @@ namespace Trebuchet.ViewModels
             VoteDown = result.vote_data.votes_down;
             VoteUp = result.vote_data.votes_up;
             PreviewUrl = result.preview_url;
+            Tags = result.tags?
+                .Select(t => t.tag)
+                .Where(t => !string.IsNullOrWhiteSpace(t))
+                .ToList() ?? [];
             AddModCommand = ReactiveCommand.Create(() => ModAdded?.Invoke(this, this));
             OpenWeb = ReactiveCommand.Create(() =>
             {
@@ -55,6 +61,8 @@ namespace Trebuchet.ViewModels
         public uint VoteDown { get; }
 
         public uint VoteUp { get; }
+
+        public IReadOnlyList<string> Tags { get; }
         
         public ReactiveCommand<Unit,Unit> AddModCommand { get; }
         public ReactiveCommand<Unit,Unit> OpenWeb { get; }

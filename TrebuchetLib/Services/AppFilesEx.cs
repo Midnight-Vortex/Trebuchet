@@ -474,11 +474,24 @@ public static class AppFilesEx
         if (!Directory.Exists(folder))
             return false;
 
+        // Legacy: *.pak. Enhanced/IoStore: accept .pak or IoStore pair (.ucas/.utoc).
         string[] files = Directory.GetFiles(folder, "*.pak", SearchOption.TopDirectoryOnly);
-        if (files.Length == 0)
+        if (files.Length > 0)
+        {
+            mod = files[0];
+            return true;
+        }
+
+        var hasIoStore = Directory.EnumerateFiles(folder, "*.ucas", SearchOption.TopDirectoryOnly).Any()
+                         && Directory.EnumerateFiles(folder, "*.utoc", SearchOption.TopDirectoryOnly).Any();
+        if (!hasIoStore)
             return false;
 
-        mod = files[0];
+        // Prefer any remaining content file for modlist path; IoStore mounts from the workshop folder.
+        var any = Directory.EnumerateFiles(folder, "*", SearchOption.TopDirectoryOnly).FirstOrDefault();
+        if (any is null)
+            return false;
+        mod = any;
         return true;
     }
     
