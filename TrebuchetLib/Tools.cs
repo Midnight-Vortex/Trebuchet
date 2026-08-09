@@ -8,6 +8,7 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 using SteamWorksWebAPI;
 using tot_lib;
 using tot_lib.OsSpecific;
@@ -80,6 +81,146 @@ public static class Tools
     public static void RemoveAllJunctions(string directory)
     {
 
+    }
+
+    private static readonly string[] SavedContentSubdirectories =
+    [
+        Constants.FolderConfig,
+        Constants.FolderCrashes,
+        Constants.FolderExilesExtreme,
+        Constants.FolderGameSaveLog,
+        Constants.FolderSaveGames,
+        Constants.FolderExtractedMods
+    ];
+
+    /// <summary>
+    /// True when <paramref name="directory"/> has direct child junctions/mount points (Hybrid Saved leftover).
+    /// </summary>
+    public static bool HasChildReparsePoints(string directory)
+    {
+        if (!Directory.Exists(directory))
+            return false;
+
+        foreach (var entry in Directory.EnumerateFileSystemEntries(directory))
+        {
+            if (File.GetAttributes(entry).HasFlag(FileAttributes.ReparsePoint))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// One-time migration from a real Saved directory (including leftover Hybrid child junctions)
+    /// to upstream whole Saved→GameSaved→profile.
+    /// </summary>
+    public static void ConvertRealSavedToWholeSavedJunction(
+        string savedDir,
+        string primary,
+        string profileFolder,
+        IOsPlatformSpecific osSpecific,
+        ILogger? logger = null)
+    {
+        logger?.LogInformation(
+            "Converting real client Saved at {savedDir} to whole-Saved junction -> {primary} (profile {profileFolder})",
+            savedDir,
+            primary,
+            profileFolder);
+
+        Directory.CreateDirectory(profileFolder);
+
+        foreach (var childName in SavedContentSubdirectories)
+        {
+            var childPath = Path.Combine(savedDir, childName);
+            if (!Directory.Exists(childPath) && !File.Exists(childPath))
+                continue;
+
+            var profileChild = Path.Combine(profileFolder, childName);
+
+            if (osSpecific.IsSymbolicLink(childPath))
+            {
+                var linkTarget = osSpecific.GetSymbolicLinkTarget(childPath);
+                if (!string.IsNullOrEmpty(linkTarget)
+                    && !string.Equals(
+                        Path.GetFullPath(linkTarget),
+                        Path.GetFullPath(profileChild),
+                        StringComparison.OrdinalIgnoreCase)
+                    && Directory.Exists(linkTarget))
+                {
+                    logger?.LogInformation(
+                        "Merging Saved child junction {childPath} target into profile before conversion",
+                        childPath);
+                    MergeDirectorySkippingReparsePoints(linkTarget, profileChild);
+                }
+
+                osSpecific.RemoveSymbolicLink(childPath);
+                continue;
+            }
+
+            if (Directory.Exists(childPath))
+            {
+                logger?.LogInformation("Merging real Saved subdirectory {childPath} into profile", childPath);
+                MergeDirectorySkippingReparsePoints(childPath, profileChild);
+            }
+        }
+
+        foreach (var file in Directory.EnumerateFiles(savedDir))
+        {
+            if (osSpecific.IsSymbolicLink(file))
+            {
+                osSpecific.RemoveSymbolicLink(file);
+                continue;
+            }
+
+            var name = Path.GetFileName(file);
+            if (string.Equals(name, Constants.FileProfileConfig, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            var dest = Path.Combine(profileFolder, name);
+            try
+            {
+                if (!File.Exists(dest) || File.GetLastWriteTimeUtc(file) >= File.GetLastWriteTimeUtc(dest))
+                {
+                    File.Copy(file, dest, overwrite: true);
+                    logger?.LogInformation("Merged Saved root file into profile: {name}", name);
+                }
+            }
+            catch (Exception ex)
+            {
+                logger?.LogWarning(ex, "Could not merge Saved root file {file} into profile", file);
+            }
+        }
+
+        foreach (var entry in Directory.EnumerateFileSystemEntries(savedDir))
+        {
+            if (osSpecific.IsSymbolicLink(entry))
+                osSpecific.RemoveSymbolicLink(entry);
+        }
+
+        Directory.Delete(savedDir, true);
+        Directory.CreateDirectory(Path.GetDirectoryName(savedDir)!);
+        osSpecific.MakeSymbolicLink(savedDir, primary);
+        logger?.LogInformation("Client Saved converted to whole-Saved junction at {savedDir} -> {primary}", savedDir, primary);
+    }
+
+    private static void MergeDirectorySkippingReparsePoints(string sourceDir, string destDir)
+    {
+        Directory.CreateDirectory(destDir);
+        foreach (var dir in Directory.EnumerateDirectories(sourceDir))
+        {
+            if (File.GetAttributes(dir).HasFlag(FileAttributes.ReparsePoint))
+                continue;
+            MergeDirectorySkippingReparsePoints(dir, Path.Combine(destDir, Path.GetFileName(dir)));
+        }
+
+        foreach (var file in Directory.EnumerateFiles(sourceDir))
+        {
+            if (File.GetAttributes(file).HasFlag(FileAttributes.ReparsePoint))
+                continue;
+            var dest = Path.Combine(destDir, Path.GetFileName(file));
+            if (!File.Exists(dest) || File.GetLastWriteTimeUtc(file) >= File.GetLastWriteTimeUtc(dest))
+                File.Copy(file, dest, overwrite: true);
+        }
     }
 
     public static void DeleteIfExists(string file)

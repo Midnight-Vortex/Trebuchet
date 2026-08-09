@@ -437,10 +437,19 @@ public class Operations : IDisposable
             var saveName = await OnBoardingChooseClientSaveName();
             _logger.LogInformation(@"Copying game save into trebuchet {saveName}", saveName);
             var profileDir = _appFiles.Client.GetDirectory(_appFiles.Client.Ref(saveName));
-            await Tools.DeepCopyAsync(savedDir, profileDir, CancellationToken.None);
-            Directory.CreateDirectory(Path.Combine(profileDir, Constants.FolderExtractedMods));
-            await OnBoardingSafeIO(() => Directory.Delete(savedDir, true), savedDir);
-            _osSpecific.MakeSymbolicLink(savedDir, _setup.GetPrimaryJunction());
+            var primary = Path.GetFullPath(_setup.GetPrimaryJunction());
+            if (Tools.HasChildReparsePoints(savedDir))
+            {
+                _logger.LogInformation(@"Hybrid Saved leftover detected; using safe migration instead of deep copy");
+                Tools.ConvertRealSavedToWholeSavedJunction(savedDir, primary, profileDir, _osSpecific, _logger);
+            }
+            else
+            {
+                await Tools.DeepCopyAsync(savedDir, profileDir, CancellationToken.None);
+                Directory.CreateDirectory(Path.Combine(profileDir, Constants.FolderExtractedMods));
+                await OnBoardingSafeIO(() => Directory.Delete(savedDir, true), savedDir);
+                _osSpecific.MakeSymbolicLink(savedDir, primary);
+            }
             return true;
         }
 

@@ -1200,16 +1200,6 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         return _osSpecific.GetSymbolicLinkTarget(path);
     }
 
-    private static readonly string[] SavedContentSubdirectories =
-    [
-        Constants.FolderConfig,
-        Constants.FolderCrashes,
-        Constants.FolderExilesExtreme,
-        Constants.FolderGameSaveLog,
-        Constants.FolderSaveGames,
-        Constants.FolderExtractedMods
-    ];
-
     private void EnsureClientSavedPointsAtPrimaryJunction(string profileFolder)
     {
         if (!_setup.Config.ManageClient) return;
@@ -1232,121 +1222,13 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
 
         if (Directory.Exists(savedDir))
         {
-            ConvertRealSavedToWholeSavedJunction(savedDir, primary, profileFolder);
+            Tools.ConvertRealSavedToWholeSavedJunction(savedDir, primary, profileFolder, _osSpecific, _logger);
             return;
         }
 
         _logger.LogInformation("Client Saved missing; creating junction -> {primary}", primary);
         Directory.CreateDirectory(Path.GetDirectoryName(savedDir)!);
         _osSpecific.MakeSymbolicLink(savedDir, primary);
-    }
-
-    /// <summary>
-    /// One-time migration from a real Saved directory (including leftover Hybrid child junctions)
-    /// to upstream whole Saved→GameSaved→profile.
-    /// </summary>
-    private void ConvertRealSavedToWholeSavedJunction(string savedDir, string primary, string profileFolder)
-    {
-        _logger.LogInformation(
-            "Converting real client Saved at {savedDir} to whole-Saved junction -> {primary} (profile {profileFolder})",
-            savedDir,
-            primary,
-            profileFolder);
-
-        Directory.CreateDirectory(profileFolder);
-
-        foreach (var childName in SavedContentSubdirectories)
-        {
-            var childPath = Path.Combine(savedDir, childName);
-            if (!Directory.Exists(childPath) && !File.Exists(childPath))
-                continue;
-
-            var profileChild = Path.Combine(profileFolder, childName);
-
-            if (_osSpecific.IsSymbolicLink(childPath))
-            {
-                var linkTarget = _osSpecific.GetSymbolicLinkTarget(childPath);
-                if (!string.IsNullOrEmpty(linkTarget)
-                    && !string.Equals(
-                        Path.GetFullPath(linkTarget),
-                        Path.GetFullPath(profileChild),
-                        StringComparison.OrdinalIgnoreCase)
-                    && Directory.Exists(linkTarget))
-                {
-                    _logger.LogInformation(
-                        "Merging Saved child junction {childPath} target into profile before conversion",
-                        childPath);
-                    MergeDirectory(linkTarget, profileChild);
-                }
-
-                _osSpecific.RemoveSymbolicLink(childPath);
-                continue;
-            }
-
-            if (Directory.Exists(childPath))
-            {
-                _logger.LogInformation("Merging real Saved subdirectory {childPath} into profile", childPath);
-                MergeDirectory(childPath, profileChild);
-            }
-        }
-
-        foreach (var file in Directory.EnumerateFiles(savedDir))
-        {
-            if (_osSpecific.IsSymbolicLink(file))
-            {
-                _osSpecific.RemoveSymbolicLink(file);
-                continue;
-            }
-
-            var name = Path.GetFileName(file);
-            if (string.Equals(name, Constants.FileProfileConfig, StringComparison.OrdinalIgnoreCase))
-                continue;
-
-            var dest = Path.Combine(profileFolder, name);
-            try
-            {
-                if (!File.Exists(dest) || File.GetLastWriteTimeUtc(file) >= File.GetLastWriteTimeUtc(dest))
-                {
-                    File.Copy(file, dest, overwrite: true);
-                    _logger.LogInformation("Merged Saved root file into profile: {name}", name);
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Could not merge Saved root file {file} into profile", file);
-            }
-        }
-
-        foreach (var entry in Directory.EnumerateFileSystemEntries(savedDir))
-        {
-            if (_osSpecific.IsSymbolicLink(entry))
-                _osSpecific.RemoveSymbolicLink(entry);
-        }
-
-        Directory.Delete(savedDir, true);
-        Directory.CreateDirectory(Path.GetDirectoryName(savedDir)!);
-        _osSpecific.MakeSymbolicLink(savedDir, primary);
-        _logger.LogInformation("Client Saved converted to whole-Saved junction at {savedDir} -> {primary}", savedDir, primary);
-    }
-
-    private static void MergeDirectory(string sourceDir, string destDir)
-    {
-        Directory.CreateDirectory(destDir);
-        foreach (var dir in Directory.EnumerateDirectories(sourceDir))
-        {
-            if (File.GetAttributes(dir).HasFlag(FileAttributes.ReparsePoint))
-                continue;
-            MergeDirectory(dir, Path.Combine(destDir, Path.GetFileName(dir)));
-        }
-
-        foreach (var file in Directory.EnumerateFiles(sourceDir))
-        {
-            if (File.GetAttributes(file).HasFlag(FileAttributes.ReparsePoint))
-                continue;
-            var dest = Path.Combine(destDir, Path.GetFileName(file));
-            if (!File.Exists(dest) || File.GetLastWriteTimeUtc(file) >= File.GetLastWriteTimeUtc(dest))
-                File.Copy(file, dest, overwrite: true);
-        }
     }
 
     private static void EnsureExtractedModsDirectory(string profileFolder)
