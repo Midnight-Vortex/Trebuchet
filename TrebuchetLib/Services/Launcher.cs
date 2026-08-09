@@ -1214,8 +1214,11 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     }
 
     /// <summary>
-    /// Enhanced Hybrid Saved: real Saved on the game drive; Config/Logs/SaveGames/ExtractedMods
-    /// junction into the profile (Conan-normal ExtractedMods location). Root files (Game_*.db) copied.
+    /// Enhanced Hybrid Saved (needed when game install and Documents profiles are on different
+    /// volumes). Upstream Totchinuko uses whole Saved→GameSaved→profile; UE5 then fails to open
+    /// copy destinations under ExtractedMods across volumes. Keep real Saved + real ExtractedMods
+    /// on the game drive; junction Config/Logs/SaveGames into the profile; copy Game_*.db;
+    /// mirror ExtractedMods into the profile for Explorer (read-only mirror, not the write path).
     /// </summary>
     private void EnsureHybridSavedLayout(string profileFolder)
     {
@@ -1224,8 +1227,9 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
 
         var savedDir = Path.Combine(_setup.GetClientFolder(), Constants.FolderGameSave);
         var extractedMods = Path.Combine(savedDir, Constants.FolderExtractedMods);
+        var profileExtracted = Path.Combine(profileFolder, Constants.FolderExtractedMods);
         Directory.CreateDirectory(profileFolder);
-        Directory.CreateDirectory(Path.Combine(profileFolder, Constants.FolderExtractedMods));
+        Directory.CreateDirectory(profileExtracted);
 
         if (_osSpecific.IsSymbolicLink(savedDir))
         {
@@ -1234,7 +1238,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         }
 
         Directory.CreateDirectory(savedDir);
-
+        EnsureRealExtractedModsDirectory(extractedMods, profileExtracted);
         SyncSavedRootFilesIntoProfile(savedDir, profileFolder);
 
         var linkedRoots = 0;
@@ -1250,6 +1254,9 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             EnsureSavedRootFileCopy(linkPath, file);
             linkedRoots++;
         }
+
+        // Keep a mirror under the profile so Blacki still shows ExtractedMods like stock Conan.
+        SyncDirectoryMirror(extractedMods, profileExtracted);
 
         var configLink = Path.Combine(savedDir, Constants.FolderConfig);
         var configTarget = _osSpecific.IsSymbolicLink(configLink)
@@ -1269,6 +1276,69 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             _osSpecific.IsSymbolicLink(extractedMods),
             _osSpecific.IsSymbolicLink(configLink),
             Directory.Exists(extractedMods));
+    }
+
+    private void EnsureRealExtractedModsDirectory(string extractedMods, string profileExtracted)
+    {
+        if (_osSpecific.IsSymbolicLink(extractedMods))
+        {
+            _logger.LogWarning("ExtractedMods was a reparse point; replacing with a real directory on the game drive");
+            _osSpecific.RemoveSymbolicLink(extractedMods);
+        }
+
+        Directory.CreateDirectory(extractedMods);
+
+        // One-time: pull any extracts that only lived in the profile into the real write path.
+        if (Directory.Exists(profileExtracted) && !_osSpecific.IsSymbolicLink(profileExtracted))
+        {
+            foreach (var entry in Directory.EnumerateFileSystemEntries(profileExtracted))
+            {
+                var name = Path.GetFileName(entry);
+                var dest = Path.Combine(extractedMods, name);
+                try
+                {
+                    if (Directory.Exists(entry) && !Directory.Exists(dest))
+                        Directory.CreateDirectory(dest);
+                    if (File.Exists(entry) && !File.Exists(dest))
+                        File.Copy(entry, dest, overwrite: false);
+                    else if (Directory.Exists(entry))
+                        MergeDirectory(entry, dest);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Could not seed ExtractedMods entry {name} onto game drive", name);
+                }
+            }
+        }
+    }
+
+    private static void SyncDirectoryMirror(string sourceDir, string destDir)
+    {
+        if (!Directory.Exists(sourceDir)) return;
+        Directory.CreateDirectory(destDir);
+        foreach (var dir in Directory.EnumerateDirectories(sourceDir))
+        {
+            if (File.GetAttributes(dir).HasFlag(FileAttributes.ReparsePoint))
+                continue;
+            SyncDirectoryMirror(dir, Path.Combine(destDir, Path.GetFileName(dir)));
+        }
+
+        foreach (var file in Directory.EnumerateFiles(sourceDir))
+        {
+            if (File.GetAttributes(file).HasFlag(FileAttributes.ReparsePoint))
+                continue;
+            var dest = Path.Combine(destDir, Path.GetFileName(file));
+            try
+            {
+                if (!File.Exists(dest) || File.GetLastWriteTimeUtc(file) != File.GetLastWriteTimeUtc(dest)
+                    || new FileInfo(file).Length != new FileInfo(dest).Length)
+                    File.Copy(file, dest, overwrite: true);
+            }
+            catch
+            {
+                // Mirror is best-effort; game write path is sourceDir.
+            }
+        }
     }
 
     private void EnsureSavedChildJunction(string savedDir, string profileFolder, string childName)
