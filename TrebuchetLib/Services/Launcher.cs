@@ -128,7 +128,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         // drive (UE5 RedirectionGuard rejects ExtractedMods behind any whole-Saved junction).
         // Legacy: e61b381 whole Saved→GameSaved→profile.
         SetupJunction(_setup.GetPrimaryJunction(), profile.ProfileFolder);
-        if (_setup.IsEnhanced && _setup.Config.ManageClient)
+        if (_setup.ShouldUseClientHybridSaved())
             EnsureHybridSavedLayout(profile.ProfileFolder);
         else
         {

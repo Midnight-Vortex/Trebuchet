@@ -186,9 +186,9 @@ public class AppSetup
     }
 
     /// <summary>
-    /// Client data root (ClientProfiles + GameSaved). Enhanced: when the game install is on a
-    /// different volume than Documents, co-locate next to the game so whole Saved→GameSaved→profile
-    /// stays same-volume (UE5 can create ExtractedMods through the junction).
+    /// Client data root (ClientProfiles + GameSaved hub). Enhanced may co-locate next to the game
+    /// when Documents is cross-volume. Game <c>Saved</c> itself uses Hybrid layout when
+    /// <see cref="ShouldUseClientHybridSaved"/> (real Saved + real ExtractedMods; child junctions).
     /// </summary>
     public string GetClientDataRoot()
     {
@@ -214,6 +214,11 @@ public class AppSetup
 
         return documentsRoot;
     }
+
+    /// <summary>
+    /// Enhanced + ManageClient: use Hybrid Saved (real game Saved/ExtractedMods), not whole Saved→GameSaved.
+    /// </summary>
+    public bool ShouldUseClientHybridSaved() => IsEnhanced && Config.ManageClient;
 
     /// <summary>
     /// ServerProfiles root. Enhanced: co-locate with server instances on the DataDirectory volume
