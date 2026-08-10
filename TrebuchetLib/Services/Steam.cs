@@ -589,10 +589,9 @@ public class Steam : IDebugListener, IDisposable
         ContentDownloader.Config.CellID = 0; //TODO: Offer regional download selection
         ContentDownloader.Config.MaxDownloads = _appSetup.Config.MaxDownloads;
         ContentDownloader.Config.DepotConfigDirectory = Path.Combine(_appSetup.GetWorkshopFolder(), ContentDownloader.CONFIG_DIR);
-        var accountConfigPath = _appSetup.IsEnhanced
-            ? Path.Combine(_appSetup.GetWorkshopFolder(), "account.config")
-            : Path.Combine(_appSetup.GetWorkshopFolder(), _appSetup.VersionFolder, "account.config");
-        AccountSettingsStore.LoadFromFile(accountConfigPath);
+        // Per-edition Steam account store — same pattern as TestLive: Workshop/{VersionFolder}/account.config
+        AccountSettingsStore.LoadFromFile(
+            Path.Combine(_appSetup.GetWorkshopFolder(), _appSetup.VersionFolder, "account.config"));
     }
     
     /// <summary>

@@ -114,8 +114,9 @@ public static class Constants
 
     public static string GetVersionFolder(GameEdition edition) => edition switch
     {
-        // Match Totchinuko e61b381: Enhanced shares Live profile/modlist trees with Legacy.
-        GameEdition.Enhanced => FolderLive,
+        // Same isolation pattern Totchinuko uses for TestLive: own Documents/CommonAppData tree.
+        // GameSaved + Workshop content stay flat/shared (GetPrimaryJunction / GetWorkshopFolder).
+        GameEdition.Enhanced => FolderEnhanced,
         GameEdition.TestLive => FolderTestLive,
         _ => FolderLive
     };
