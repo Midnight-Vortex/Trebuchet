@@ -41,6 +41,7 @@ public static class Constants
     public const string FolderInstancePattern = "Instance_{0}";
     public const string FolderLive = "Live";
     public const string FolderEnhanced = "Enhanced";
+    public const string FolderExtractedMods = "ExtractedMods";
     public const string FolderModlistProfiles = "Modlists";
     public const string FolderSyncProfiles = "Sync";
     public const string FolderServerInstances = "ServerInstances";
@@ -113,10 +114,8 @@ public static class Constants
 
     public static string GetVersionFolder(GameEdition edition) => edition switch
     {
-        // Fork: isolate Enhanced Documents/CommonAppData trees from Legacy.
-        // Upstream e61b381 shares Live for Enhanced; we keep separate profiles/modlists/instances.
-        // Flat GameSaved/Workshop under CommonAppData (e61b381 Saved model) is unchanged in AppSetup.
-        GameEdition.Enhanced => FolderEnhanced,
+        // Match Totchinuko e61b381: Enhanced shares Live profile/modlist trees with Legacy.
+        GameEdition.Enhanced => FolderLive,
         GameEdition.TestLive => FolderTestLive,
         _ => FolderLive
     };

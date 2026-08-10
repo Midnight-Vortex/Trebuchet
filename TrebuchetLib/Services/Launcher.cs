@@ -232,7 +232,8 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         if (!await PerformCatapultUpdates())
             throw new Exception("Pre-launch update failed");
         
-        await EnsureServerSavedJunction(instance, profile.ProfileFolder);
+        var savedPath = Path.Combine(_setup.GetInstancePath(instance), Constants.FolderGameSave);
+        SetupJunction(savedPath, profile.ProfileFolder);
 
         await _setup.WriteIni(profile, instance);
         var process = await CreateServerProcess(instance, profile, list);
@@ -1197,83 +1198,11 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         return string.Empty;
     }
 
-    private async Task EnsureServerSavedJunction(int instance, string profileFolder)
-    {
-        var savedPath = Path.Combine(_setup.GetInstancePath(instance), Constants.FolderGameSave);
-        var profileFolderFull = Path.GetFullPath(profileFolder);
-
-        if (_osSpecific.IsSymbolicLink(savedPath))
-        {
-            var currentTarget = Path.GetFullPath(_osSpecific.GetSymbolicLinkTarget(savedPath));
-            if (!string.Equals(currentTarget, profileFolderFull, StringComparison.OrdinalIgnoreCase))
-            {
-                _logger.LogInformation(
-                    "Removing server Saved junction at {savedPath} pointing to {target}",
-                    savedPath,
-                    currentTarget);
-                _osSpecific.RemoveSymbolicLink(savedPath);
-            }
-        }
-        else if (Directory.Exists(savedPath))
-        {
-            _logger.LogInformation(
-                "Migrating real Saved directory at {savedPath} into profile {profileFolder}",
-                savedPath,
-                profileFolder);
-            var savedInfo = new DirectoryInfo(savedPath);
-            var childJunctions = savedInfo.GetDirectories()
-                .Where(d => d.Attributes.HasFlag(FileAttributes.ReparsePoint))
-                .ToList();
-
-            Directory.CreateDirectory(profileFolder);
-
-            foreach (var file in savedInfo.GetFiles())
-                file.CopyTo(Path.Combine(profileFolder, file.Name), true);
-
-            foreach (var child in savedInfo.GetDirectories())
-            {
-                if (child.Attributes.HasFlag(FileAttributes.ReparsePoint))
-                    continue;
-                await Tools.DeepCopyAsync(child.FullName, Path.Combine(profileFolder, child.Name), CancellationToken.None);
-            }
-
-            foreach (var junction in childJunctions)
-            {
-                var target = Path.GetFullPath(_osSpecific.GetSymbolicLinkTarget(junction.FullName));
-                var destDir = Path.Combine(profileFolder, junction.Name);
-                if (!IsPathUnderDirectory(target, profileFolderFull))
-                {
-                    _logger.LogInformation(
-                        "Copying junction target {target} into profile {destDir}",
-                        target,
-                        destDir);
-                    await Tools.DeepCopyAsync(target, destDir, CancellationToken.None);
-                }
-
-                _osSpecific.RemoveSymbolicLink(junction.FullName);
-            }
-
-            Directory.Delete(savedPath, true);
-        }
-
-        SetupJunction(savedPath, profileFolder);
-    }
-
-    private static bool IsPathUnderDirectory(string path, string parentDirectory)
-    {
-        var fullPath = Path.GetFullPath(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-        var fullParent = Path.GetFullPath(parentDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-        if (string.Equals(fullPath, fullParent, StringComparison.OrdinalIgnoreCase))
-            return true;
-
-        var prefix = fullParent + Path.DirectorySeparatorChar;
-        return fullPath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
-    }
-
     private void SetupJunction(string junction, string targetPath)
     {
         _logger.LogInformation("Setup new junction {junction} > {target}", junction, targetPath);
         Directory.CreateDirectory(targetPath);
+        Directory.CreateDirectory(Path.Combine(targetPath, Constants.FolderExtractedMods));
         _osSpecific.MakeSymbolicLink(junction, targetPath);
     }
 
