@@ -34,31 +34,28 @@ public static class Tools
 
     public static void DeepCopy(string directory, string destinationDir)
     {
-        foreach (string dir in Directory.GetDirectories(directory, "*", SearchOption.AllDirectories))
+        foreach (string dir in EnumerateDirectoriesSafe(directory))
         {
             string dirToCreate = dir.Replace(directory, destinationDir);
             Directory.CreateDirectory(dirToCreate);
         }
 
-        var files = Directory.GetFiles(directory, "*.*", SearchOption.AllDirectories);
-        foreach (string newPath in files)
+        foreach (string newPath in EnumerateFilesSafe(directory))
         {
             File.Copy(newPath, newPath.Replace(directory, destinationDir), true);
-            
         }
     }
 
     public static async Task DeepCopyAsync(string directory, string destinationDir, CancellationToken token, IProgress<double>? progress = null)
     {
         Directory.CreateDirectory(destinationDir);
-        foreach (string dir in Directory.GetDirectories(directory, "*", SearchOption.AllDirectories))
+        foreach (string dir in EnumerateDirectoriesSafe(directory))
         {
             string dirToCreate = dir.Replace(directory, destinationDir);
             Directory.CreateDirectory(dirToCreate);
         }
-        var dirInfo = new DirectoryInfo(directory);
 
-        var files = dirInfo.GetFiles("*.*", SearchOption.AllDirectories);
+        var files = EnumerateFilesSafe(directory).Select(path => new FileInfo(path)).ToArray();
         if (files.Length == 0) return;
         
         long total = files.Sum(f => f.Length);
@@ -76,6 +73,34 @@ public static class Tools
             progress?.Report((double)copied / total);
             return ValueTask.CompletedTask;
         });
+    }
+
+    private static IEnumerable<string> EnumerateDirectoriesSafe(string directory)
+    {
+        foreach (var subDir in Directory.EnumerateDirectories(directory))
+        {
+            if (File.GetAttributes(subDir).HasFlag(FileAttributes.ReparsePoint))
+                continue;
+
+            yield return subDir;
+            foreach (var nested in EnumerateDirectoriesSafe(subDir))
+                yield return nested;
+        }
+    }
+
+    private static IEnumerable<string> EnumerateFilesSafe(string directory)
+    {
+        foreach (var file in Directory.EnumerateFiles(directory))
+            yield return file;
+
+        foreach (var subDir in Directory.EnumerateDirectories(directory))
+        {
+            if (File.GetAttributes(subDir).HasFlag(FileAttributes.ReparsePoint))
+                continue;
+
+            foreach (var file in EnumerateFilesSafe(subDir))
+                yield return file;
+        }
     }
 
     public static void RemoveAllJunctions(string directory)
