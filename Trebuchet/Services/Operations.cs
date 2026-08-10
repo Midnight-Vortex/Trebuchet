@@ -430,46 +430,6 @@ public class Operations : IDisposable
         {
             _logger.LogWarning(@"Directory found, but manage game");
             if (!await OnBoardingElevationRequest(clientDirectory, Resources.OnBoardingManageConanUac)) return false;
-
-            var savedInfo = new DirectoryInfo(savedDir);
-            var childJunctions = savedInfo.GetDirectories()
-                .Where(d => d.Attributes.HasFlag(FileAttributes.ReparsePoint))
-                .ToList();
-
-            if (childJunctions.Count > 0)
-            {
-                _logger.LogInformation(@"Hybrid Saved leftover detected, migrating child junctions");
-                var profileDir = await ResolveHybridSavedProfileDir(savedDir, childJunctions);
-                Directory.CreateDirectory(profileDir);
-                var profileDirFull = Path.GetFullPath(profileDir);
-
-                foreach (var file in savedInfo.GetFiles())
-                    file.CopyTo(Path.Combine(profileDir, file.Name), true);
-
-                foreach (var child in savedInfo.GetDirectories())
-                {
-                    if (child.Attributes.HasFlag(FileAttributes.ReparsePoint))
-                        continue;
-                    await Tools.DeepCopyAsync(child.FullName, Path.Combine(profileDir, child.Name), CancellationToken.None);
-                }
-
-                foreach (var junction in childJunctions)
-                {
-                    var target = Path.GetFullPath(_osSpecific.GetSymbolicLinkTarget(junction.FullName));
-                    var destDir = Path.Combine(profileDir, junction.Name);
-                    if (!IsPathUnderDirectory(target, profileDirFull))
-                    {
-                        _logger.LogInformation(@"Copying junction target {target} into profile {destDir}", target, destDir);
-                        await Tools.DeepCopyAsync(target, destDir, CancellationToken.None);
-                    }
-                    _osSpecific.RemoveSymbolicLink(junction.FullName);
-                }
-
-                await OnBoardingSafeIO(() => Directory.Delete(savedDir, true), savedDir);
-                _osSpecific.MakeSymbolicLink(savedDir, _setup.GetPrimaryJunction());
-                return true;
-            }
-
             var saveName = await OnBoardingChooseClientSaveName();
             _logger.LogInformation(@"Copying game save into trebuchet {saveName}", saveName);
             await Tools.DeepCopyAsync(savedDir, _appFiles.Client.GetDirectory(_appFiles.Client.Ref(saveName)), CancellationToken.None);
@@ -490,37 +450,6 @@ public class Operations : IDisposable
         }
 
         return true;
-    }
-
-    private async Task<string> ResolveHybridSavedProfileDir(string savedDir, IReadOnlyList<DirectoryInfo> childJunctions)
-    {
-        var configJunction = childJunctions.FirstOrDefault(d =>
-            string.Equals(d.Name, "Config", StringComparison.OrdinalIgnoreCase));
-        if (configJunction != null)
-        {
-            var configTarget = _osSpecific.GetSymbolicLinkTarget(configJunction.FullName);
-            var candidateProfile = Path.GetDirectoryName(configTarget);
-            if (!string.IsNullOrEmpty(candidateProfile) && Directory.Exists(candidateProfile))
-            {
-                var profileDir = Path.GetFullPath(candidateProfile);
-                _logger.LogInformation(@"Resolved profile from Config junction: {profileDir}", profileDir);
-                return profileDir;
-            }
-        }
-
-        var saveName = await OnBoardingChooseClientSaveName();
-        return _appFiles.Client.GetDirectory(_appFiles.Client.Ref(saveName));
-    }
-
-    private static bool IsPathUnderDirectory(string path, string parentDirectory)
-    {
-        var fullPath = Path.GetFullPath(path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-        var fullParent = Path.GetFullPath(parentDirectory.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-        if (string.Equals(fullPath, fullParent, StringComparison.OrdinalIgnoreCase))
-            return true;
-
-        var prefix = fullParent + Path.DirectorySeparatorChar;
-        return fullPath.StartsWith(prefix, StringComparison.OrdinalIgnoreCase);
     }
 
     public async Task<string> OnBoardingChooseClientSave()
