@@ -1193,16 +1193,12 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     private string GetCurrentServerJunction(int instance)
     {
         var path = Path.Combine(_setup.GetInstancePath(instance), Constants.FolderGameSave);
-        if (_osSpecific.IsSymbolicLink(path))
-            return _osSpecific.GetSymbolicLinkTarget(path);
-        return string.Empty;
+        return _osSpecific.GetSymbolicLinkTarget(path);
     }
 
     private void SetupJunction(string junction, string targetPath)
     {
         _logger.LogInformation("Setup new junction {junction} > {target}", junction, targetPath);
-        Directory.CreateDirectory(targetPath);
-        Directory.CreateDirectory(Path.Combine(targetPath, Constants.FolderExtractedMods));
         _osSpecific.MakeSymbolicLink(junction, targetPath);
     }
 
