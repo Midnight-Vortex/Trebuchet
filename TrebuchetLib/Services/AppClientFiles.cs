@@ -16,6 +16,9 @@ public class AppClientFiles(AppSetup appSetup) : IAppClientFiles
     
     public string GetBaseFolder()
     {
-        return Path.Combine(appSetup.GetClientDataRoot(), Constants.FolderClientProfiles);
+        return Path.Combine(
+            appSetup.GetDataDirectory().FullName,
+            appSetup.VersionFolder,
+            Constants.FolderClientProfiles);
     }
 }

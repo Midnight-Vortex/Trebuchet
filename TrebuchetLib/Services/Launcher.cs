@@ -125,11 +125,6 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             throw new Exception($"Profile {profileRef} folder is currently locked by another process.");
 
         SetupJunction(_setup.GetPrimaryJunction(), profile.ProfileFolder);
-        if (_setup.Config.ManageClient)
-        {
-            MigrateFromHybridSavedLayout(profile.ProfileFolder);
-            EnsureClientSavedPointsAtPrimaryJunction();
-        }
 
         await _setup.WriteIni(profile);
         
@@ -1192,29 +1187,8 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
 
     private string GetCurrentClientJunction()
     {
-        var savedDir = Path.Combine(_setup.GetClientFolder(), Constants.FolderGameSave);
-
-        if (!_osSpecific.IsSymbolicLink(savedDir))
-        {
-            var primary = _setup.GetPrimaryJunction();
-            return _osSpecific.IsSymbolicLink(primary)
-                ? _osSpecific.GetSymbolicLinkTarget(primary)
-                : string.Empty;
-        }
-
-        var target = _osSpecific.GetSymbolicLinkTarget(savedDir);
-        if (string.IsNullOrEmpty(target)) return target;
-
-        var primaryPath = Path.GetFullPath(_setup.GetPrimaryJunction());
-        if (string.Equals(Path.GetFullPath(target), primaryPath, StringComparison.OrdinalIgnoreCase)
-            && _osSpecific.IsSymbolicLink(target))
-        {
-            var profileTarget = _osSpecific.GetSymbolicLinkTarget(target);
-            if (!string.IsNullOrEmpty(profileTarget))
-                return profileTarget;
-        }
-
-        return target;
+        var path = Path.Combine(_setup.GetClientFolder(), Constants.FolderGameSave);
+        return _osSpecific.GetSymbolicLinkTarget(path);
     }
 
     private string GetCurrentServerJunction(int instance)
@@ -1223,138 +1197,6 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         if (_osSpecific.IsSymbolicLink(path))
             return _osSpecific.GetSymbolicLinkTarget(path);
         return string.Empty;
-    }
-
-    private void EnsureClientSavedPointsAtPrimaryJunction()
-    {
-        if (!_setup.Config.ManageClient) return;
-        if (string.IsNullOrEmpty(_setup.Config.ClientPath)) return;
-
-        var savedDir = Path.Combine(_setup.GetClientFolder(), Constants.FolderGameSave);
-        var primary = Path.GetFullPath(_setup.GetPrimaryJunction());
-
-        if (_osSpecific.IsSymbolicLink(savedDir))
-        {
-            var current = _osSpecific.GetSymbolicLinkTarget(savedDir);
-            if (!string.IsNullOrEmpty(current)
-                && string.Equals(Path.GetFullPath(current), primary, StringComparison.OrdinalIgnoreCase))
-                return;
-
-            _logger.LogWarning("Client Saved junction points elsewhere ({current}); repairing -> {primary}", current, primary);
-            _osSpecific.MakeSymbolicLink(savedDir, primary);
-            return;
-        }
-
-        if (Directory.Exists(savedDir))
-        {
-            _logger.LogWarning(
-                "Client Saved is a real directory while ManageClient is on; cannot repair at launch. Re-run client install in Settings.");
-            return;
-        }
-
-        _logger.LogInformation("Client Saved missing; creating junction -> {primary}", primary);
-        Directory.CreateDirectory(Path.GetDirectoryName(savedDir)!);
-        _osSpecific.MakeSymbolicLink(savedDir, primary);
-    }
-
-    /// <summary>
-    /// One-time migration from fork Hybrid Saved (real Saved + child junctions) to whole Saved→GameSaved.
-    /// </summary>
-    private void MigrateFromHybridSavedLayout(string profileFolder)
-    {
-        if (string.IsNullOrEmpty(_setup.Config.ClientPath))
-            return;
-
-        var savedDir = Path.Combine(_setup.GetClientFolder(), Constants.FolderGameSave);
-        if (_osSpecific.IsSymbolicLink(savedDir) || !Directory.Exists(savedDir))
-            return;
-
-        var isHybrid = Constants.HybridSavedLinkedDirectories.Any(child =>
-            _osSpecific.IsSymbolicLink(Path.Combine(savedDir, child)));
-        if (!isHybrid)
-            return;
-
-        _logger.LogInformation("Migrating Hybrid Saved to whole-Saved junction at {savedDir}", savedDir);
-        Directory.CreateDirectory(profileFolder);
-
-        var extractedMods = Path.Combine(savedDir, Constants.FolderExtractedMods);
-        var profileExtracted = Path.Combine(profileFolder, Constants.FolderExtractedMods);
-        Directory.CreateDirectory(profileExtracted);
-        if (Directory.Exists(extractedMods) && !_osSpecific.IsSymbolicLink(extractedMods))
-            MergeDirectory(extractedMods, profileExtracted);
-
-        foreach (var child in Constants.HybridSavedLinkedDirectories)
-        {
-            var linkPath = Path.Combine(savedDir, child);
-            var targetPath = Path.Combine(profileFolder, child);
-            if (_osSpecific.IsSymbolicLink(linkPath))
-            {
-                var current = _osSpecific.GetSymbolicLinkTarget(linkPath);
-                if (!string.IsNullOrEmpty(current) && Directory.Exists(current))
-                {
-                    Directory.CreateDirectory(targetPath);
-                    MergeDirectory(current, targetPath);
-                }
-                _osSpecific.RemoveSymbolicLink(linkPath);
-            }
-            else if (Directory.Exists(linkPath))
-            {
-                Directory.CreateDirectory(targetPath);
-                MergeDirectory(linkPath, targetPath);
-            }
-        }
-
-        foreach (var file in Directory.EnumerateFiles(savedDir))
-        {
-            if (_osSpecific.IsSymbolicLink(file))
-                continue;
-            var name = Path.GetFileName(file);
-            var dest = Path.Combine(profileFolder, name);
-            try
-            {
-                if (!File.Exists(dest) || File.GetLastWriteTimeUtc(file) >= File.GetLastWriteTimeUtc(dest))
-                    File.Copy(file, dest, overwrite: true);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Could not sync Saved root file {file} into profile during migration", file);
-            }
-        }
-
-        try
-        {
-            Directory.Delete(savedDir, true);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Could not delete Hybrid Saved directory during migration");
-            return;
-        }
-
-        var primary = Path.GetFullPath(_setup.GetPrimaryJunction());
-        Directory.CreateDirectory(Path.GetDirectoryName(savedDir)!);
-        _osSpecific.MakeSymbolicLink(savedDir, primary);
-        _logger.LogInformation("Hybrid Saved migration complete: {savedDir} -> {primary}", savedDir, primary);
-    }
-
-    private static void MergeDirectory(string sourceDir, string destDir)
-    {
-        Directory.CreateDirectory(destDir);
-        foreach (var dir in Directory.EnumerateDirectories(sourceDir))
-        {
-            if (File.GetAttributes(dir).HasFlag(FileAttributes.ReparsePoint))
-                continue;
-            MergeDirectory(dir, Path.Combine(destDir, Path.GetFileName(dir)));
-        }
-
-        foreach (var file in Directory.EnumerateFiles(sourceDir))
-        {
-            if (File.GetAttributes(file).HasFlag(FileAttributes.ReparsePoint))
-                continue;
-            var dest = Path.Combine(destDir, Path.GetFileName(file));
-            if (!File.Exists(dest) || File.GetLastWriteTimeUtc(file) >= File.GetLastWriteTimeUtc(dest))
-                File.Copy(file, dest, overwrite: true);
-        }
     }
 
     private void SetupJunction(string junction, string targetPath)

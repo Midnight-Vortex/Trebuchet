@@ -77,15 +77,6 @@ public class AppSetup
     
     public string GetWorkshopFolder()
     {
-        if (IsEnhanced)
-        {
-            return Path.Combine(
-                GetCommonAppDataDirectory().FullName,
-                VersionFolder,
-                Constants.FolderWorkshop
-            );
-        }
-
         return Path.Combine(
             GetCommonAppDataDirectory().FullName,
             Constants.FolderWorkshop
@@ -177,67 +168,8 @@ public class AppSetup
         return Config.ClientPath;
     }
 
-    /// <summary>
-    /// Documents edition root (default profile location).
-    /// </summary>
-    public string GetDocumentsDataRoot()
-    {
-        return Path.Combine(GetDataDirectory().FullName, VersionFolder);
-    }
-
-    /// <summary>
-    /// Client data root (ClientProfiles + GameSaved hub). Enhanced may co-locate next to the game
-    /// when Documents is cross-volume. Game <c>Saved</c> is a whole junction to GameSaved→profile.
-    /// </summary>
-    public string GetClientDataRoot()
-    {
-        var documentsRoot = GetDocumentsDataRoot();
-        if (!IsEnhanced || string.IsNullOrWhiteSpace(Config.ClientPath))
-            return documentsRoot;
-
-        try
-        {
-            var clientFull = Path.GetFullPath(Config.ClientPath);
-            if (Tools.IsCrossVolumePath(clientFull, documentsRoot))
-            {
-                var gameCommon = Path.GetDirectoryName(
-                    clientFull.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-                if (!string.IsNullOrEmpty(gameCommon))
-                    return Path.Combine(gameCommon, Constants.FolderTrebuchetClientData, VersionFolder);
-            }
-        }
-        catch
-        {
-            // Fall back to Documents.
-        }
-
-        return documentsRoot;
-    }
-
-    /// <summary>
-    /// ServerProfiles root. Enhanced: co-locate with server instances on the DataDirectory volume
-    /// when Documents would cross volumes.
-    /// </summary>
-    public string GetServerProfilesBaseFolder()
-    {
-        var documentsProfiles = Path.Combine(GetDocumentsDataRoot(), Constants.FolderServerProfiles);
-        if (!IsEnhanced)
-            return documentsProfiles;
-
-        if (!Tools.IsCrossVolumePath(GetServerInstancePath(), documentsProfiles))
-            return documentsProfiles;
-
-        return Path.Combine(GetCommonAppDataDirectory().FullName, VersionFolder, Constants.FolderServerProfiles);
-    }
-
     public string GetPrimaryJunction()
     {
-        if (IsEnhanced)
-        {
-            // Keep GameSaved on the same volume as client profiles (and the game when co-located).
-            return Path.Combine(GetClientDataRoot(), Constants.GamePrimaryJunction);
-        }
-
         return Path.Combine(
             GetCommonAppDataDirectory().FullName,
             Constants.GamePrimaryJunction
@@ -246,11 +178,6 @@ public class AppSetup
 
     public string GetEmptyJunction()
     {
-        if (IsEnhanced)
-        {
-            return Path.Combine(GetClientDataRoot(), Constants.GameEmptyJunction);
-        }
-
         return Path.Combine(
             GetCommonAppDataDirectory().FullName,
             Constants.GameEmptyJunction

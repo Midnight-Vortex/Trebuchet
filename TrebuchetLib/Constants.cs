@@ -37,30 +37,10 @@ public static class Constants
     public const string FolderGameBinaries = "ConanSandbox\\Binaries\\Win64";
     public const string FolderGameSave = "ConanSandbox\\Saved";
     public const string FolderGameSaveLog = "Logs";
-    /// <summary>UE5 Enhanced extracts workshop content under Saved/ExtractedMods.</summary>
-    public const string FolderExtractedMods = "ExtractedMods";
-    public const string FolderConfig = "Config";
-    public const string FolderCrashes = "Crashes";
-    public const string FolderSaveGames = "SaveGames";
-    public const string FolderExilesExtreme = "ExilesExtreme";
-
-    /// <summary>
-    /// Former Hybrid Saved child junctions — used only for one-time migration to whole Saved→GameSaved.
-    /// </summary>
-    public static readonly string[] HybridSavedLinkedDirectories =
-    [
-        FolderConfig,
-        FolderCrashes,
-        FolderExilesExtreme,
-        FolderGameSaveLog,
-        FolderSaveGames
-    ];
 
     public const string FolderInstancePattern = "Instance_{0}";
     public const string FolderLive = "Live";
     public const string FolderEnhanced = "Enhanced";
-    /// <summary>Client profiles/GameSaved sibling folder next to the game install when volumes differ.</summary>
-    public const string FolderTrebuchetClientData = "TrebuchetClientData";
     public const string FolderModlistProfiles = "Modlists";
     public const string FolderSyncProfiles = "Sync";
     public const string FolderServerInstances = "ServerInstances";
@@ -133,8 +113,8 @@ public static class Constants
 
     public static string GetVersionFolder(GameEdition edition) => edition switch
     {
-        // Separate data trees so Enhanced does not show Legacy profiles/modlists/saves.
-        GameEdition.Enhanced => FolderEnhanced,
+        // e61b381: Enhanced shares Live data folder (profiles/instances), not a separate Enhanced tree.
+        GameEdition.Enhanced => FolderLive,
         GameEdition.TestLive => FolderTestLive,
         _ => FolderLive
     };
