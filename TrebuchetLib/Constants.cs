@@ -45,9 +45,7 @@ public static class Constants
     public const string FolderExilesExtreme = "ExilesExtreme";
 
     /// <summary>
-    /// Hybrid Saved (Enhanced): these stay as junctions into the profile.
-    /// ExtractedMods stays a real directory on the game/instance drive — UE5 RedirectionGuard
-    /// rejects ensuring ExtractedMods behind any whole-Saved junction.
+    /// Former Hybrid Saved child junctions — used only for one-time migration to whole Saved→GameSaved.
     /// </summary>
     public static readonly string[] HybridSavedLinkedDirectories =
     [

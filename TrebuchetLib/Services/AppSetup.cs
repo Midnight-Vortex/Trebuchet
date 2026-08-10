@@ -187,8 +187,7 @@ public class AppSetup
 
     /// <summary>
     /// Client data root (ClientProfiles + GameSaved hub). Enhanced may co-locate next to the game
-    /// when Documents is cross-volume. Game <c>Saved</c> itself uses Hybrid layout when
-    /// <see cref="ShouldUseClientHybridSaved"/> (real Saved + real ExtractedMods; child junctions).
+    /// when Documents is cross-volume. Game <c>Saved</c> is a whole junction to GameSaved→profile.
     /// </summary>
     public string GetClientDataRoot()
     {
@@ -216,13 +215,8 @@ public class AppSetup
     }
 
     /// <summary>
-    /// Enhanced + ManageClient: use Hybrid Saved (real game Saved/ExtractedMods), not whole Saved→GameSaved.
-    /// </summary>
-    public bool ShouldUseClientHybridSaved() => IsEnhanced && Config.ManageClient;
-
-    /// <summary>
     /// ServerProfiles root. Enhanced: co-locate with server instances on the DataDirectory volume
-    /// when Documents would cross volumes (ExtractedMods through Saved junction).
+    /// when Documents would cross volumes.
     /// </summary>
     public string GetServerProfilesBaseFolder()
     {

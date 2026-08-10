@@ -124,16 +124,11 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         if (IsClientProfileLocked(profileRef))
             throw new Exception($"Profile {profileRef} folder is currently locked by another process.");
 
-        // Enhanced + ManageClient: Hybrid Saved — real Saved + real ExtractedMods on the game
-        // drive (UE5 RedirectionGuard rejects ExtractedMods behind any whole-Saved junction).
-        // Legacy: e61b381 whole Saved→GameSaved→profile.
         SetupJunction(_setup.GetPrimaryJunction(), profile.ProfileFolder);
-        if (_setup.ShouldUseClientHybridSaved())
-            EnsureHybridSavedLayout(profile.ProfileFolder);
-        else
+        if (_setup.Config.ManageClient)
         {
+            MigrateFromHybridSavedLayout(profile.ProfileFolder);
             EnsureClientSavedPointsAtPrimaryJunction();
-            EnsureExtractedModsDirectory(profile.ProfileFolder);
         }
 
         await _setup.WriteIni(profile);
@@ -242,7 +237,9 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         if (!await PerformCatapultUpdates())
             throw new Exception("Pre-launch update failed");
         
-        EnsureServerSavedLayout(instance, profile.ProfileFolder);
+        SetupJunction(
+            Path.Combine(_setup.GetInstancePath(instance), Constants.FolderGameSave),
+            profile.ProfileFolder);
 
         await _setup.WriteIni(profile, instance);
         var process = await CreateServerProcess(instance, profile, list);
@@ -1197,19 +1194,6 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     {
         var savedDir = Path.Combine(_setup.GetClientFolder(), Constants.FolderGameSave);
 
-        // Hybrid Saved: Config junction -> profile\Config
-        var configLink = Path.Combine(savedDir, Constants.FolderConfig);
-        if (!_osSpecific.IsSymbolicLink(savedDir) && _osSpecific.IsSymbolicLink(configLink))
-        {
-            var configTarget = _osSpecific.GetSymbolicLinkTarget(configLink);
-            if (!string.IsNullOrEmpty(configTarget))
-            {
-                var profile = Path.GetDirectoryName(Path.GetFullPath(configTarget));
-                if (!string.IsNullOrEmpty(profile))
-                    return profile;
-            }
-        }
-
         if (!_osSpecific.IsSymbolicLink(savedDir))
         {
             var primary = _setup.GetPrimaryJunction();
@@ -1238,19 +1222,6 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         var path = Path.Combine(_setup.GetInstancePath(instance), Constants.FolderGameSave);
         if (_osSpecific.IsSymbolicLink(path))
             return _osSpecific.GetSymbolicLinkTarget(path);
-
-        var configLink = Path.Combine(path, Constants.FolderConfig);
-        if (_osSpecific.IsSymbolicLink(configLink))
-        {
-            var configTarget = _osSpecific.GetSymbolicLinkTarget(configLink);
-            if (!string.IsNullOrEmpty(configTarget))
-            {
-                var profile = Path.GetDirectoryName(Path.GetFullPath(configTarget));
-                if (!string.IsNullOrEmpty(profile))
-                    return profile;
-            }
-        }
-
         return string.Empty;
     }
 
@@ -1287,155 +1258,56 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     }
 
     /// <summary>
-    /// Enhanced Hybrid Saved: real Saved + real ExtractedMods on the game drive.
-    /// UE5 RedirectionGuard rejects ensuring ExtractedMods behind any whole-Saved junction.
+    /// One-time migration from fork Hybrid Saved (real Saved + child junctions) to whole Saved→GameSaved.
     /// </summary>
-    private void EnsureHybridSavedLayout(string profileFolder)
+    private void MigrateFromHybridSavedLayout(string profileFolder)
     {
         if (string.IsNullOrEmpty(_setup.Config.ClientPath))
-            throw new Exception("ClientPath is not configured.");
+            return;
 
         var savedDir = Path.Combine(_setup.GetClientFolder(), Constants.FolderGameSave);
+        if (_osSpecific.IsSymbolicLink(savedDir) || !Directory.Exists(savedDir))
+            return;
+
+        var isHybrid = Constants.HybridSavedLinkedDirectories.Any(child =>
+            _osSpecific.IsSymbolicLink(Path.Combine(savedDir, child)));
+        if (!isHybrid)
+            return;
+
+        _logger.LogInformation("Migrating Hybrid Saved to whole-Saved junction at {savedDir}", savedDir);
+        Directory.CreateDirectory(profileFolder);
+
         var extractedMods = Path.Combine(savedDir, Constants.FolderExtractedMods);
         var profileExtracted = Path.Combine(profileFolder, Constants.FolderExtractedMods);
-        Directory.CreateDirectory(profileFolder);
         Directory.CreateDirectory(profileExtracted);
+        if (Directory.Exists(extractedMods) && !_osSpecific.IsSymbolicLink(extractedMods))
+            MergeDirectory(extractedMods, profileExtracted);
 
-        if (_osSpecific.IsSymbolicLink(savedDir))
-        {
-            _logger.LogInformation("Converting whole-Saved junction to Hybrid Saved at {savedDir}", savedDir);
-            _osSpecific.RemoveSymbolicLink(savedDir);
-        }
-
-        Directory.CreateDirectory(savedDir);
-        EnsureRealExtractedModsDirectory(extractedMods, profileExtracted);
-        SyncSavedRootFilesIntoProfile(savedDir, profileFolder);
-
-        var linkedRoots = 0;
         foreach (var child in Constants.HybridSavedLinkedDirectories)
-            EnsureSavedChildJunction(savedDir, profileFolder, child);
-
-        foreach (var file in Directory.EnumerateFiles(profileFolder))
         {
-            var name = Path.GetFileName(file);
-            if (string.Equals(name, Constants.FileProfileConfig, StringComparison.OrdinalIgnoreCase))
-                continue;
-            var linkPath = Path.Combine(savedDir, name);
-            EnsureSavedRootFileCopy(linkPath, file);
-            linkedRoots++;
-        }
-
-        SyncDirectoryMirror(extractedMods, profileExtracted);
-
-        _logger.LogInformation(
-            "Hybrid Saved ready: savedDir={savedDir}, extractedMods={extractedMods}, linkedRootFiles={linkedRoots}, savedIsJunction={savedIsJunction}, extractedIsJunction={extractedIsJunction}",
-            savedDir,
-            extractedMods,
-            linkedRoots,
-            _osSpecific.IsSymbolicLink(savedDir),
-            _osSpecific.IsSymbolicLink(extractedMods));
-    }
-
-    private void EnsureRealExtractedModsDirectory(string extractedMods, string profileExtracted)
-    {
-        if (_osSpecific.IsSymbolicLink(extractedMods))
-        {
-            _logger.LogWarning("ExtractedMods was a reparse point; replacing with a real directory on the game drive");
-            _osSpecific.RemoveSymbolicLink(extractedMods);
-        }
-
-        Directory.CreateDirectory(extractedMods);
-
-        if (Directory.Exists(profileExtracted) && !_osSpecific.IsSymbolicLink(profileExtracted))
-        {
-            foreach (var entry in Directory.EnumerateFileSystemEntries(profileExtracted))
+            var linkPath = Path.Combine(savedDir, child);
+            var targetPath = Path.Combine(profileFolder, child);
+            if (_osSpecific.IsSymbolicLink(linkPath))
             {
-                var name = Path.GetFileName(entry);
-                var dest = Path.Combine(extractedMods, name);
-                try
+                var current = _osSpecific.GetSymbolicLinkTarget(linkPath);
+                if (!string.IsNullOrEmpty(current) && Directory.Exists(current))
                 {
-                    if (Directory.Exists(entry) && !Directory.Exists(dest))
-                        Directory.CreateDirectory(dest);
-                    if (File.Exists(entry) && !File.Exists(dest))
-                        File.Copy(entry, dest, overwrite: false);
-                    else if (Directory.Exists(entry))
-                        MergeDirectory(entry, dest);
+                    Directory.CreateDirectory(targetPath);
+                    MergeDirectory(current, targetPath);
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Could not seed ExtractedMods entry {name} onto game drive", name);
-                }
+                _osSpecific.RemoveSymbolicLink(linkPath);
             }
-        }
-    }
-
-    private static void SyncDirectoryMirror(string sourceDir, string destDir)
-    {
-        if (!Directory.Exists(sourceDir)) return;
-        Directory.CreateDirectory(destDir);
-        foreach (var dir in Directory.EnumerateDirectories(sourceDir))
-        {
-            if (File.GetAttributes(dir).HasFlag(FileAttributes.ReparsePoint))
-                continue;
-            SyncDirectoryMirror(dir, Path.Combine(destDir, Path.GetFileName(dir)));
-        }
-
-        foreach (var file in Directory.EnumerateFiles(sourceDir))
-        {
-            if (File.GetAttributes(file).HasFlag(FileAttributes.ReparsePoint))
-                continue;
-            var dest = Path.Combine(destDir, Path.GetFileName(file));
-            try
+            else if (Directory.Exists(linkPath))
             {
-                if (!File.Exists(dest) || File.GetLastWriteTimeUtc(file) != File.GetLastWriteTimeUtc(dest)
-                    || new FileInfo(file).Length != new FileInfo(dest).Length)
-                    File.Copy(file, dest, overwrite: true);
-            }
-            catch
-            {
-                // Mirror is best-effort; game write path is sourceDir.
+                Directory.CreateDirectory(targetPath);
+                MergeDirectory(linkPath, targetPath);
             }
         }
-    }
-
-    private void EnsureSavedChildJunction(string savedDir, string profileFolder, string childName)
-    {
-        var linkPath = Path.Combine(savedDir, childName);
-        var targetPath = Path.Combine(profileFolder, childName);
-        Directory.CreateDirectory(targetPath);
-
-        if (_osSpecific.IsSymbolicLink(linkPath))
-        {
-            var current = _osSpecific.GetSymbolicLinkTarget(linkPath);
-            if (!string.IsNullOrEmpty(current)
-                && string.Equals(Path.GetFullPath(current), Path.GetFullPath(targetPath), StringComparison.OrdinalIgnoreCase))
-                return;
-        }
-        else if (Directory.Exists(linkPath))
-        {
-            _logger.LogInformation("Merging real Saved subdirectory {linkPath} into profile before linking", linkPath);
-            MergeDirectory(linkPath, targetPath);
-            Directory.Delete(linkPath, true);
-        }
-        else if (File.Exists(linkPath))
-        {
-            File.Delete(linkPath);
-        }
-
-        _osSpecific.MakeSymbolicLink(linkPath, targetPath);
-        _logger.LogInformation("Saved child junction: {linkPath} -> {targetPath}", linkPath, targetPath);
-    }
-
-    private void SyncSavedRootFilesIntoProfile(string savedDir, string profileFolder)
-    {
-        if (!Directory.Exists(savedDir) || _osSpecific.IsSymbolicLink(savedDir))
-            return;
 
         foreach (var file in Directory.EnumerateFiles(savedDir))
         {
             if (_osSpecific.IsSymbolicLink(file))
                 continue;
-
             var name = Path.GetFileName(file);
             var dest = Path.Combine(profileFolder, name);
             try
@@ -1445,26 +1317,24 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Could not sync Saved root file {file} into profile", file);
+                _logger.LogWarning(ex, "Could not sync Saved root file {file} into profile during migration", file);
             }
         }
-    }
-
-    private void EnsureSavedRootFileCopy(string linkPath, string targetFile)
-    {
-        if (_osSpecific.IsSymbolicLink(linkPath))
-            _osSpecific.RemoveSymbolicLink(linkPath);
-        else if (Directory.Exists(linkPath))
-            return;
 
         try
         {
-            File.Copy(targetFile, linkPath, overwrite: true);
+            Directory.Delete(savedDir, true);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Could not expose profile file at {linkPath}", linkPath);
+            _logger.LogWarning(ex, "Could not delete Hybrid Saved directory during migration");
+            return;
         }
+
+        var primary = Path.GetFullPath(_setup.GetPrimaryJunction());
+        Directory.CreateDirectory(Path.GetDirectoryName(savedDir)!);
+        _osSpecific.MakeSymbolicLink(savedDir, primary);
+        _logger.LogInformation("Hybrid Saved migration complete: {savedDir} -> {primary}", savedDir, primary);
     }
 
     private static void MergeDirectory(string sourceDir, string destDir)
@@ -1485,57 +1355,6 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             if (!File.Exists(dest) || File.GetLastWriteTimeUtc(file) >= File.GetLastWriteTimeUtc(dest))
                 File.Copy(file, dest, overwrite: true);
         }
-    }
-
-    private void EnsureServerSavedLayout(int instance, string profileFolder)
-    {
-        var savedDir = Path.Combine(_setup.GetInstancePath(instance), Constants.FolderGameSave);
-        Directory.CreateDirectory(profileFolder);
-        EnsureExtractedModsDirectory(profileFolder);
-
-        if (!_setup.IsEnhanced)
-        {
-            SetupJunction(savedDir, profileFolder);
-            return;
-        }
-
-        // Enhanced server: always Hybrid — same RedirectionGuard issue as the client.
-        EnsureServerHybridSavedLayout(savedDir, profileFolder);
-    }
-
-    private void EnsureServerHybridSavedLayout(string savedDir, string profileFolder)
-    {
-        var extractedMods = Path.Combine(savedDir, Constants.FolderExtractedMods);
-        var profileExtracted = Path.Combine(profileFolder, Constants.FolderExtractedMods);
-
-        if (_osSpecific.IsSymbolicLink(savedDir))
-        {
-            _logger.LogInformation("Converting server whole-Saved junction to Hybrid at {savedDir}", savedDir);
-            _osSpecific.RemoveSymbolicLink(savedDir);
-        }
-
-        Directory.CreateDirectory(savedDir);
-        EnsureRealExtractedModsDirectory(extractedMods, profileExtracted);
-
-        foreach (var childName in Constants.HybridSavedLinkedDirectories)
-            EnsureSavedChildJunction(savedDir, profileFolder, childName);
-
-        foreach (var file in Directory.EnumerateFiles(profileFolder))
-        {
-            var name = Path.GetFileName(file);
-            if (string.Equals(name, Constants.FileProfileConfig, StringComparison.OrdinalIgnoreCase))
-                continue;
-            EnsureSavedRootFileCopy(Path.Combine(savedDir, name), file);
-        }
-
-        SyncDirectoryMirror(extractedMods, profileExtracted);
-        _logger.LogInformation("Server Hybrid Saved ready: {savedDir} extractedMods={extractedMods}", savedDir, extractedMods);
-    }
-
-    private static void EnsureExtractedModsDirectory(string profileFolder)
-    {
-        Directory.CreateDirectory(profileFolder);
-        Directory.CreateDirectory(Path.Combine(profileFolder, Constants.FolderExtractedMods));
     }
 
     private void SetupJunction(string junction, string targetPath)
