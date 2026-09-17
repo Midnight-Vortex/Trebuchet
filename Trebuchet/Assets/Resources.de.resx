@@ -990,4 +990,10 @@ WARNUNG: Dies kann dazu führen, dass die Erkennung von Zombie-Prozessen nicht m
     <data name="ModViewNoMatches" xml:space="preserve">
         <value>Keine passenden Mods.</value>
     </data>
+    <data name="EnhancedTest" xml:space="preserve">
+        <value>Enhanced PTC</value>
+    </data>
+    <data name="LegacyTest" xml:space="preserve">
+        <value>Legacy PTC</value>
+    </data>
 </root>

@@ -85,11 +85,10 @@ namespace TrebuchetLib
         [JsonIgnore]
         public string ProfileName => Path.GetFileName(Path.GetDirectoryName(FilePath)) ?? throw new Exception($"Invalid directory for {FilePath}.");
         
-        public string GetClientArgs(string modlistPath, bool autoConnect)
+        public string GetClientArgs(string modlistPath, bool autoConnect, GameEdition edition = GameEdition.Legacy)
         {
-            string profileFolder = Path.GetDirectoryName(FilePath) ?? throw new Exception("Invalid folder directory.");
-
             List<string> args = new List<string>();
+            if (edition == GameEdition.EnhancedTestLive) args.Add(Constants.GameArgsExt);
             if (Log) args.Add(Constants.GameArgsLog);
             if (UseAllCores) args.Add(Constants.GameArgsUseAllCore);
             args.Add(string.Format(Constants.GameArgsModList, modlistPath));

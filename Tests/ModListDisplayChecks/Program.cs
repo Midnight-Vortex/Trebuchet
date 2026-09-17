@@ -4,6 +4,12 @@ using System.Text.Json;
 using DynamicData.Binding;
 using ReactiveUI.Builder;
 using Trebuchet.ViewModels;
+using Trebuchet.Services;
+using TrebuchetLib;
+using TrebuchetLib.Services;
+using Microsoft.Extensions.Logging.Abstractions;
+using System.Reflection;
+using System.Runtime.CompilerServices;
 
 RxAppBuilder.CreateReactiveUIBuilder().WithCoreServices().BuildApp();
 
@@ -97,7 +103,32 @@ Check(view.HasSearchError && !view.Items.Any() && source.Count == 1, "Expensive 
 view.ResetView.Execute().Subscribe();
 Check(!view.HasSearchError && view.Items.Count() == 1, "Reset recovers from regex timeout");
 
-Console.WriteLine($"Passed {checks} mod list display checks.");
+// Operations is only an event publisher here: avoid starting its filesystem watcher.
+var operations = (Operations)RuntimeHelpers.GetUninitializedObject(typeof(Operations));
+var setup = new AppSetup(new Config(), GameEdition.Enhanced, false, false);
+var model = new ModListViewModel(operations, NullLogger<ModListViewModel>.Instance,
+    new ModFileFactory(setup, null!), null!, setup, new TestProgress(), null!);
+var localPaths = new[] { Path.GetFullPath("first-test.pak"), Path.GetFullPath("second-test.pak") };
+model.AddRange(localPaths);
+var oldRemoveAction = model.List[0].Actions.Single(x => x.Icon == "mdi-delete").Action;
+var setReadOnly = typeof(ModListViewModel).GetMethod("SetReadOnly", BindingFlags.Instance | BindingFlags.NonPublic)!;
+await (Task)setReadOnly.Invoke(model, null)!;
+Check(model.List.Select(x => x.Export()).SequenceEqual(localPaths), "Read-only transition preserves all entries and order");
+Check(model.IsReadOnly && !model.Display.CanReorder, "Read-only transition disables reordering");
+Check(model.List.All(x => !x.Actions.Single(a => a.Icon == "mdi-delete").Action.CanExecute(null)), "Read-only rows disable delete");
+await model.RemoveModFile(model.List[0]);
+Check(model.List.Count == 2, "Direct removal must respect read-only mode");
+oldRemoveAction.Execute(null);
+Check(model.List.Count == 2, "Previously captured delete action cannot remove from read-only list");
+
+Console.WriteLine($"Passed {checks} mod list checks.");
+
+sealed class TestProgress : IProgressCallback<DepotDownloader.Progress>
+{
+    public event EventHandler<DepotDownloader.Progress>? ProgressChanged;
+    public void Report(DepotDownloader.Progress value) => ProgressChanged?.Invoke(this, value);
+    public Task<DepotDownloader.Progress> GetProgressAsync() => Task.FromResult(default(DepotDownloader.Progress)!);
+}
 
 sealed class TestMod(string title, string id, long size, DateTime? updated, string path = "") : IModFile
 {

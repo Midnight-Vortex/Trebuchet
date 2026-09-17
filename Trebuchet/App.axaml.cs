@@ -172,23 +172,10 @@ public partial class App : Application, IApplication
             
             Utils.Utils.ApplyPlateformTheme((PlateformTheme)_uiConfig!.PlateformTheme);
             
-            if (desktop.Args?.Length > 0)
+            if (Constants.ParseEditionArgs(desktop.Args ?? []) is { } edition)
             {
-                if (desktop.Args.Contains(Constants.argTestLive))
-                {
-                    OpenApp(GameEdition.TestLive);
-                    return;
-                }
-                if (desktop.Args.Contains(Constants.argEnhanced))
-                {
-                    OpenApp(GameEdition.Enhanced);
-                    return;
-                }
-                if (desktop.Args.Contains(Constants.argLive))
-                {
-                    OpenApp(GameEdition.Legacy);
-                    return;
-                }
+                OpenApp(edition);
+                return;
             }
             
             GameBuildViewModel modal = new (this);

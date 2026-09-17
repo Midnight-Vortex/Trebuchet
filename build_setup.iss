@@ -63,8 +63,14 @@ Source: "{#BoulderDir}\{#PublishDir}\*"; DestDir: "{app}"; Flags: ignoreversion 
 Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"
 Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: desktopicon
 
-[Run]
-Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(AppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+[Messages]
+FinishedLabel=Setup has finished installing [name] on your computer.%n%nStart Trebuchet from the Start menu, a desktop shortcut, or the installation folder.
+FinishedLabelNoIcons=Setup has finished installing [name] on your computer.%n%nStart Trebuchet.exe from the installation folder.
+
+; Do not launch Trebuchet as a child of Setup. On affected Windows versions,
+; Setup's RedirectionGuard reaches the launched application and Conan, blocking
+; the user-created Saved junctions with ERROR_UNTRUSTED_MOUNT_POINT (448).
+; Keep the installer's protection enabled and launch from Explorer instead.
 
 [Code]
  procedure CurUninstallStepChanged (CurUninstallStep: TUninstallStep);
@@ -80,4 +86,3 @@ Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(
        end;
    end;
 end;
-

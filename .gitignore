@@ -17,6 +17,8 @@
 mono_crash.*
 
 # Build results
+.tools/InnoSetup7/
+.tools/innosetup-*.exe
 [Dd]ebug/
 [Dd]ebugPublic/
 [Rr]elease/

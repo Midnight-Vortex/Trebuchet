@@ -25,12 +25,7 @@ class Program
         rootCommand.Add(KillCommand.Command);
         
         var result = rootCommand.Parse(args);
-        if (result.UnmatchedTokens.Contains(Constants.argTestLive))
-            _edition = GameEdition.TestLive;
-        else if (result.UnmatchedTokens.Contains(Constants.argEnhanced))
-            _edition = GameEdition.Enhanced;
-        else if (result.UnmatchedTokens.Contains(Constants.argLive))
-            _edition = GameEdition.Legacy;
+        _edition = Constants.ParseEditionArgs(result.UnmatchedTokens) ?? GameEdition.Legacy;
         _experiment = result.UnmatchedTokens.Contains(Constants.argExperiment);
         return await result.InvokeAsync();
     }

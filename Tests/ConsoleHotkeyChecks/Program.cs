@@ -12,6 +12,26 @@ void Check(bool condition, string description)
     checks++;
 }
 
+foreach (var edition in Enum.GetValues<GameEdition>())
+{
+    Check(Constants.ParseEditionArgs(Constants.GetCliArg(edition).Split(' ')) == edition,
+        "Edition survives restart/autostart command line round trip");
+    var setup = new AppSetup(new Config(), edition, false, false);
+    Check(setup.IsEnhanced == (edition is GameEdition.Enhanced or GameEdition.EnhancedTestLive), "Enhanced engine selection");
+    Check(setup.IsTestLive == (edition is GameEdition.TestLive or GameEdition.EnhancedTestLive), "PTC channel selection");
+    var launchArgs = new ClientProfile().GetClientArgs("mods with spaces.txt", true, edition);
+    Check(launchArgs.Contains(Constants.GameArgsExt) == (edition == GameEdition.EnhancedTestLive), "Only Enhanced PTC uses external service argument");
+    Check(launchArgs.Contains("-modlist=\"mods with spaces.txt\"") && launchArgs.Contains(Constants.GameArgsContinueSession), "Keep mod list quoting and auto-connect");
+}
+Check(Constants.ParseEditionArgs(["--enhanced", "--testlive"]) == GameEdition.EnhancedTestLive, "Old testlive alias works with Enhanced");
+Check(Constants.ParseEditionArgs(["--ptc", "--live"]) == GameEdition.TestLive, "Legacy PTC alias");
+Check(Constants.ParseEditionArgs([]) is null, "No edition arguments retains selector");
+Check(Enum.GetValues<GameEdition>().Select(Constants.GetVersionFolder).Distinct().Count() == 4, "All editions have isolated profile folders");
+Check(Constants.GetFileIniUser(GameEdition.EnhancedTestLive) == Constants.FileIniUserEnhanced, "Enhanced PTC uses UE5 INI directory");
+Check(Constants.GetClientBin(GameEdition.EnhancedTestLive) == Constants.FileClientEnhancedBin, "Enhanced PTC uses UE5 executable");
+Check(!Constants.IsWorkshopModCompatible(GameEdition.EnhancedTestLive, ["legacy"], Constants.AppIDLiveClient), "Enhanced PTC rejects legacy mods");
+Check(Constants.IsWorkshopModCompatible(GameEdition.EnhancedTestLive, ["Enhanced"], Constants.AppIDLiveClient), "Enhanced PTC accepts Enhanced workshop mods");
+
 foreach (var binding in new[] { "ConsoleKeys=Insert", "+ConsoleKeys=Insert", ".ConsoleKeys=Insert", " +consolekeys = \"insert\" " })
 {
     var original = section + "\r\n" + binding + "\r\n[/Script/Engine.Console]\r\nHistoryBuffer=test\r\n";
@@ -61,7 +81,7 @@ try
         Check(File.GetLastWriteTimeUtc(path).Year == 2020, "Do not rewrite a file with existing binding");
     }
 
-    foreach (var edition in new[] { GameEdition.Enhanced, GameEdition.Legacy, GameEdition.TestLive })
+    foreach (var edition in Enum.GetValues<GameEdition>())
     {
         var clientPath = Path.Combine(testRoot, edition.ToString());
         var setup = new AppSetup(new Config { ClientPath = clientPath }, edition, false, false);

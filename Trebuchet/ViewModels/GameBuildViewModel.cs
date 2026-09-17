@@ -16,12 +16,14 @@ public class GameBuildViewModel : ReactiveObject
         _app = app;
         LiveCommand = ReactiveCommand.CreateFromTask(OnLiveClicked);
         EnhancedCommand = ReactiveCommand.CreateFromTask(OnEnhancedClicked);
+        EnhancedTestCommand = ReactiveCommand.CreateFromTask(() => OpenEditionAsync(GameEdition.EnhancedTestLive));
         TestLiveCommand = ReactiveCommand.CreateFromTask(OnTestLiveClicked);
     }
 
     /// <summary>Legacy build (former Live).</summary>
     public ReactiveCommand<Unit, Unit> LiveCommand { get; }
     public ReactiveCommand<Unit, Unit> EnhancedCommand { get; }
+    public ReactiveCommand<Unit, Unit> EnhancedTestCommand { get; }
     public ReactiveCommand<Unit, Unit> TestLiveCommand { get; }
 
     public bool IsOpening

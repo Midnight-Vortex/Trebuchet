@@ -59,6 +59,10 @@ namespace Trebuchet.Assets {
             }
         }
         
+        public static string EnhancedTest => ResourceManager.GetString("EnhancedTest", resourceCulture);
+
+        public static string LegacyTest => ResourceManager.GetString("LegacyTest", resourceCulture);
+
         public static string ModViewLoadOrder => ResourceManager.GetString("ModViewLoadOrder", resourceCulture);
 
         public static string ModViewUpdated => ResourceManager.GetString("ModViewUpdated", resourceCulture);

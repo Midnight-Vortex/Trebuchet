@@ -23,9 +23,9 @@ public class AppSetup
 
     public GameEdition Edition { get; }
 
-    public bool IsTestLive => Edition == GameEdition.TestLive;
+    public bool IsTestLive => Edition is GameEdition.TestLive or GameEdition.EnhancedTestLive;
 
-    public bool IsEnhanced => Edition == GameEdition.Enhanced;
+    public bool IsEnhanced => Edition is GameEdition.Enhanced or GameEdition.EnhancedTestLive;
 
     public bool IsLegacy => Edition == GameEdition.Legacy;
     

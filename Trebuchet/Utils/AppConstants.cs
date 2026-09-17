@@ -14,16 +14,19 @@ public static class AppConstants
 {
     public const string ConfigFileName = "settings.ui.json";
     public const string ConfigFileNameEnhanced = "settings.ui.enhanced.json";
+    public const string ConfigFileNameEnhancedTestLive = "settings.ui.enhanced.ptc.json";
     public const string ConfigFileNameTestLive = "settings.ui.testlive.json";
     public const string GithubOwnerUpdate = "Totchinuko";
     public const string GithubRepoUpdate = "Trebuchet";
     public const string AutoStartLive = "TotTrebuchetLive";
     public const string AutoStartEnhanced = "TotTrebuchetEnhanced";
+    public const string AutoStartEnhancedTestLive = "TotTrebuchetEnhancedPTC";
     public const string AutoStartTestLive = "TotTrebuchetTestLive";
 
     public static string GetAutoStartName(GameEdition edition) => edition switch
     {
         GameEdition.Enhanced => AutoStartEnhanced,
+        GameEdition.EnhancedTestLive => AutoStartEnhancedTestLive,
         GameEdition.TestLive => AutoStartTestLive,
         _ => AutoStartLive
     };
@@ -45,6 +48,7 @@ public static class AppConstants
         var file = edition switch
         {
             GameEdition.Enhanced => ConfigFileNameEnhanced,
+            GameEdition.EnhancedTestLive => ConfigFileNameEnhancedTestLive,
             GameEdition.TestLive => ConfigFileNameTestLive,
             _ => ConfigFileName
         };

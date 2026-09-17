@@ -18,6 +18,7 @@ public static class Constants
     public const string FileClientBinShipping = FileClientEnhancedBin;
     public const string FileLiveConfig = "settings.live.json";
     public const string FileEnhancedConfig = "settings.enhanced.json";
+    public const string FileEnhancedTestLiveConfig = "settings.enhanced.ptc.json";
     public const string FileTestLiveConfig = "settings.testlive.json";
     public const string FileGeneratedModlist = "modlist.txt";
     public const string FileIniBase = "Engine\\Config\\Base{0}.ini";
@@ -41,6 +42,7 @@ public static class Constants
     public const string FolderInstancePattern = "Instance_{0}";
     public const string FolderLive = "Live";
     public const string FolderEnhanced = "Enhanced";
+    public const string FolderEnhancedTestLive = "EnhancedPTC";
     public const string FolderExtractedMods = "ExtractedMods";
     public const string FolderModlistProfiles = "Modlists";
     public const string FolderSyncProfiles = "Sync";
@@ -50,6 +52,7 @@ public static class Constants
     public const string FolderWorkshop = "Workshop";
     public const string FolderBackup = "Backups";
     public const string GameArgsLog = "-log";
+    public const string GameArgsExt = "-xls=ext";
     public const string GameArgsModList = "-modlist=\"{0}\"";
     public const string GameArgsContinueSession = "--continuesession";
     public const string GameArgsUseAllCore = "-useallavailablecores";
@@ -69,6 +72,7 @@ public static class Constants
     public const string argLive = "--live";
     public const string argEnhanced = "--enhanced";
     public const string argTestLive = "--testlive";
+    public const string argPtc = "--ptc";
     public const string argCatapult = "--catapult";
     public const string argExperiment = "--experiment";
     public const string argBoulderSave = "--save";
@@ -99,6 +103,7 @@ public static class Constants
         var file = edition switch
         {
             GameEdition.Enhanced => FileEnhancedConfig,
+            GameEdition.EnhancedTestLive => FileEnhancedTestLiveConfig,
             GameEdition.TestLive => FileTestLiveConfig,
             _ => FileLiveConfig
         };
@@ -108,24 +113,36 @@ public static class Constants
     public static string GetCliArg(GameEdition edition) => edition switch
     {
         GameEdition.Enhanced => argEnhanced,
+        GameEdition.EnhancedTestLive => $"{argEnhanced} {argPtc}",
         GameEdition.TestLive => argTestLive,
         _ => argLive
     };
+
+    public static GameEdition? ParseEditionArgs(IEnumerable<string> args)
+    {
+        var tokens = args.ToHashSet(StringComparer.Ordinal);
+        var ptc = tokens.Contains(argPtc) || tokens.Contains(argTestLive);
+        if (tokens.Contains(argEnhanced))
+            return ptc ? GameEdition.EnhancedTestLive : GameEdition.Enhanced;
+        if (ptc) return GameEdition.TestLive;
+        return tokens.Contains(argLive) ? GameEdition.Legacy : null;
+    }
 
     public static string GetVersionFolder(GameEdition edition) => edition switch
     {
         // Same isolation pattern Totchinuko uses for TestLive: own Documents/CommonAppData tree.
         // GameSaved + Workshop content stay flat/shared (GetPrimaryJunction / GetWorkshopFolder).
         GameEdition.Enhanced => FolderEnhanced,
+        GameEdition.EnhancedTestLive => FolderEnhancedTestLive,
         GameEdition.TestLive => FolderTestLive,
         _ => FolderLive
     };
 
     public static string GetFileIniUser(GameEdition edition) =>
-        edition == GameEdition.Enhanced ? FileIniUserEnhanced : FileIniUser;
+        edition is GameEdition.Enhanced or GameEdition.EnhancedTestLive ? FileIniUserEnhanced : FileIniUser;
 
     public static string GetClientBin(GameEdition edition) =>
-        edition == GameEdition.Enhanced ? FileClientEnhancedBin : FileClientBin;
+        edition is GameEdition.Enhanced or GameEdition.EnhancedTestLive ? FileClientEnhancedBin : FileClientBin;
 
     /// <summary>Steam Workshop tag set by the Enhanced modkit uploader.</summary>
     public const string WorkshopTagEnhanced = "Enhanced";
@@ -146,13 +163,14 @@ public static class Constants
         edition switch
         {
             GameEdition.Legacy => WorkshopTagEnhanced,
-            GameEdition.Enhanced => WorkshopTagLegacy,
+            GameEdition.Enhanced or GameEdition.EnhancedTestLive => WorkshopTagLegacy,
             _ => null
         };
 
     public static string GetEditionDisplayName(GameEdition edition) => edition switch
     {
         GameEdition.Enhanced => "Enhanced",
+        GameEdition.EnhancedTestLive => "Enhanced PTC",
         GameEdition.TestLive => "Test Live",
         _ => "Legacy"
     };
@@ -185,7 +203,7 @@ public static class Constants
 
         return edition switch
         {
-            GameEdition.Enhanced => !hasLegacy,
+            GameEdition.Enhanced or GameEdition.EnhancedTestLive => !hasLegacy,
             GameEdition.Legacy => !hasEnhanced,
             _ => true
         };

@@ -8,5 +8,6 @@ public enum GameEdition
 {
     Legacy,
     Enhanced,
-    TestLive
+    TestLive,
+    EnhancedTestLive
 }

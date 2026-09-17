@@ -108,11 +108,13 @@ public class ModListViewModel : ReactiveObject
     
     internal async Task SetList(IEnumerable<string> modList, bool force)
     {
+        // The enumerable can refer to List itself (e.g. when switching to read-only).
+        var entries = modList.ToArray();
         using (List.SuspendNotifications())
         {
             List.Clear();
             if(!IsReadOnly)
-                List.AddRange(modList
+                List.AddRange(entries
                     .Select(x => _modFileFactory
                         .Create(x)
                         .SetActions(RemoveModFile, UpdateModFile)
@@ -120,7 +122,7 @@ public class ModListViewModel : ReactiveObject
                     )
                 );
             else
-                List.AddRange(modList
+                List.AddRange(entries
                     .Select(x => _modFileFactory
                         .Create(x)
                         .SetActions(UpdateModFile)
@@ -197,6 +199,7 @@ public class ModListViewModel : ReactiveObject
 
     public Task RemoveModFile(IModFile mod)
     {
+        if (IsReadOnly) return Task.CompletedTask;
         _logger.LogInformation(@"Remove mod {mod}", mod.Export());
         List.Remove(mod);
         Size = CalculateModListSize().Bytes().Humanize();
@@ -268,27 +271,31 @@ public class ModListViewModel : ReactiveObject
     public async Task QueryFromWorkshop(IList<IModFile> files, bool force)
     {
         var published = files.OfType<IPublishedModFile>().Select(x => x.PublishedId).ToList();
+        if (published.Count == 0) return;
         IsLoading = true;
-        if(force)
-            _steam.ClearModDetailsCache();
-        var details = await _steam.RequestModDetails(published);
-        for (var i = 0; i < files.Count; i++)
+        try
         {
-            var current = files[i];
-            if (current is not IPublishedModFile pub) continue;
-            var workshop = details.FirstOrDefault(d => d.PublishedFileId == pub.PublishedId);
-            if (workshop is null) continue;
-            if (workshop.CreatorAppId != 0)
-                files[i] = _modFileFactory.Create(workshop, workshop.Status)
-                    .SetActions(RemoveModFile, UpdateModFile)
-                    .Build();
-            else
-                files[i] = _modFileFactory.CreateUnknown(pub.FilePath, pub.PublishedId)
-                    .SetActions(RemoveModFile, UpdateModFile)
-                    .Build();
+            if(force)
+                _steam.ClearModDetailsCache();
+            var details = await _steam.RequestModDetails(published);
+            for (var i = 0; i < files.Count; i++)
+            {
+                var current = files[i];
+                if (current is not IPublishedModFile pub) continue;
+                var workshop = details.FirstOrDefault(d => d.PublishedFileId == pub.PublishedId);
+                if (workshop is null) continue;
+                var builder = workshop.CreatorAppId != 0
+                    ? _modFileFactory.Create(workshop, workshop.Status)
+                    : _modFileFactory.CreateUnknown(pub.FilePath, pub.PublishedId);
+                files[i] = (IsReadOnly
+                    ? builder.SetActions(UpdateModFile)
+                    : builder.SetActions(RemoveModFile, UpdateModFile)).Build();
+            }
         }
-
-        IsLoading = false;
+        finally
+        {
+            IsLoading = false;
+        }
     }
 
     private async Task OnModListChanged()

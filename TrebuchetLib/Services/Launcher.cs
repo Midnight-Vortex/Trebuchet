@@ -893,7 +893,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
 
         var modlistFile = Path.GetTempFileName();
         await File.WriteAllLinesAsync(modlistFile, _setup.GetModsPath(modList));
-        var args = profile.GetClientArgs(modlistFile, autoConnect);
+        var args = profile.GetClientArgs(modlistFile, autoConnect, _setup.Edition);
 
         var dir = Path.GetDirectoryName(filename);
         if (dir == null)

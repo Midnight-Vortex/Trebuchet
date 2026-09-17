@@ -174,7 +174,7 @@ public static class YuuIniClientFiles
     /// </summary>
     private static string ResolveClientIniPath(AppSetup setup, string attributePath)
     {
-        if (setup.Edition != GameEdition.Enhanced)
+        if (!setup.IsEnhanced)
             return attributePath;
 
         const string legacyFolder = "WindowsNoEditor";
