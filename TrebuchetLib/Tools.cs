@@ -98,7 +98,7 @@ public static class Tools
         foreach (var entry in folder.EnumerateFileSystemInfos())
         {
             // Imported profiles can contain links. Never recurse into a Saved/profile cycle.
-            if ((entry.Attributes & FileAttributes.ReparsePoint) != 0) continue;
+            if (entry is DirectoryInfo && (entry.Attributes & FileAttributes.ReparsePoint) != 0) continue;
             size += entry is FileInfo file ? file.Length : DirectorySize((DirectoryInfo)entry);
         }
         return size;
