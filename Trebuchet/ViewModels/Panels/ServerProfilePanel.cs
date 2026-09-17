@@ -80,8 +80,9 @@ namespace Trebuchet.ViewModels.Panels
             EnsureFields();
             _logger.LogDebug(@"Refresh panel");
             CanBeOpened = Tools.IsServerInstallValid(_setup.Config);
-            _profile = _appFiles.Server.Get(FileMenu.Selected);
-            await RefreshProfileSize(FileMenu.Selected);
+            if (FileMenu.Selected is not { } selected) return;
+            _profile = _appFiles.Server.Get(selected);
+            await RefreshProfileSize(selected);
             foreach (var f in Fields.OfType<IRefreshableField>())
                 f.Update.Execute().Subscribe();
         }
@@ -90,7 +91,7 @@ namespace Trebuchet.ViewModels.Panels
         {
             EnsureFields();
             _logger.LogDebug(@"Display panel");
-            await RefreshProfileSize(FileMenu.Selected);
+            if (FileMenu.Selected is { } selected) await RefreshProfileSize(selected);
         }
 
         private void EditSequence(Sequence sequence)
@@ -125,8 +126,9 @@ namespace Trebuchet.ViewModels.Panels
                 f.Update.Execute().Subscribe();
         }
 
-        private Task OnFileSelected(object? sender, ServerProfileRef profile)
+        private Task OnFileSelected(object? sender, ServerProfileRef? profile)
         {
+            if (profile is null) return Task.CompletedTask;
             foreach (var win in _sequenceWindows.Values)
                 win.Close();
             _uiConfig.CurrentServerProfile = profile.Uri.OriginalString;

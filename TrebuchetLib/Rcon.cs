@@ -66,11 +66,16 @@ namespace TrebuchetLib
             };
 
             await _semaphore.WaitAsync(token);
-            await Connect(token);
-            var response = await RConSend(_client, packet, token);
-            _semaphore.Release();
-            AutoDisconnect();
-            return response;
+            try
+            {
+                await Connect(token);
+                var response = await RConSend(_client, packet, token);
+                if (response.Exception is not null) CloseConnection();
+                else AutoDisconnect();
+                return response;
+            }
+            catch { CloseConnection(); throw; }
+            finally { _semaphore.Release(); }
         }
 
         public int QueueData(string data)
@@ -93,16 +98,22 @@ namespace TrebuchetLib
             if (_rconQueue.Count == 0) return [];
             
             await _semaphore.WaitAsync(token);
-            await Connect(token);
-            List<RConResponse> responses = [];
-            while (_rconQueue.Count > 0)
+            try
             {
-                var packet = _rconQueue.Dequeue();
-                responses.Add(await RConSend(_client, packet, token));
+                await Connect(token);
+                List<RConResponse> responses = [];
+                while (_rconQueue.Count > 0)
+                {
+                    var packet = _rconQueue.Dequeue();
+                    var response = await RConSend(_client, packet, token);
+                    responses.Add(response);
+                    if (response.Exception is not null) { CloseConnection(); break; }
+                }
+                AutoDisconnect();
+                return responses;
             }
-            _semaphore.Release();
-            AutoDisconnect();
-            return responses;
+            catch { CloseConnection(); throw; }
+            finally { _semaphore.Release(); }
         }
 
         public async Task<List<RConResponse>> Send(IEnumerable<string> data, CancellationToken ct)
@@ -119,8 +130,7 @@ namespace TrebuchetLib
         public async Task Connect(CancellationToken token)
         {
             if (_client is not null && _client.Connected) return;
-            if (_client is not null)
-                await Disconnect();
+            CloseConnection();
             _client = new();
             _client.ReceiveTimeout = Timeout * 1000;
             _client.SendTimeout = Timeout * 1000;
@@ -131,10 +141,14 @@ namespace TrebuchetLib
         public async Task Disconnect()
         {
             await _semaphore.WaitAsync();
-            _client?.Close(); 
+            try { CloseConnection(); }
+            finally { _semaphore.Release(); }
+        }
+
+        private void CloseConnection()
+        {
             _client?.Dispose();
             _client = null;
-            _semaphore.Release();
         }
 
         private void AutoDisconnect()
@@ -211,7 +225,8 @@ namespace TrebuchetLib
             var result = await auth.WriteBinary(bw);
             LogResponse(result);
             ct.ThrowIfCancellationRequested();
-            await RConReceive(stream, ct);
+            var response = await RConReceive(stream, ct);
+            if (response.Exception is not null) throw response.Exception;
         }
 
         private async Task<RConResponse> RConReceive(NetworkStream stream, CancellationToken ct)

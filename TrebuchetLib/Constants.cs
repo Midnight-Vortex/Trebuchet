@@ -7,8 +7,8 @@ public static class Constants
 {
     public const uint AppIDLiveClient = 440900;
     public const uint AppIDLiveServer = 443030;
-    public const uint AppIDTestLiveClient = 931180;
-    public const uint AppIDTestLiveServer = 931580;
+    public const uint AppIDPtcClient = 931180;
+    public const uint AppIDPtcServer = 931580;
     public const string FileBuildID = "buildid";
     public const string FileClientBEBin = "ConanSandbox_BE.exe";
     public const string FileClientBin = "ConanSandbox.exe";
@@ -18,8 +18,7 @@ public static class Constants
     public const string FileClientBinShipping = FileClientEnhancedBin;
     public const string FileLiveConfig = "settings.live.json";
     public const string FileEnhancedConfig = "settings.enhanced.json";
-    public const string FileEnhancedTestLiveConfig = "settings.enhanced.ptc.json";
-    public const string FileTestLiveConfig = "settings.testlive.json";
+    public const string FileEnhancedPtcConfig = "settings.enhanced.ptc.json";
     public const string FileGeneratedModlist = "modlist.txt";
     public const string FileIniBase = "Engine\\Config\\Base{0}.ini";
     public const string FileIniDefault = "ConanSandbox\\Config\\Default{0}.ini";
@@ -42,13 +41,12 @@ public static class Constants
     public const string FolderInstancePattern = "Instance_{0}";
     public const string FolderLive = "Live";
     public const string FolderEnhanced = "Enhanced";
-    public const string FolderEnhancedTestLive = "EnhancedPTC";
+    public const string FolderEnhancedPtc = "EnhancedPTC";
     public const string FolderExtractedMods = "ExtractedMods";
     public const string FolderModlistProfiles = "Modlists";
     public const string FolderSyncProfiles = "Sync";
     public const string FolderServerInstances = "ServerInstances";
     public const string FolderServerProfiles = "ServerProfiles";
-    public const string FolderTestLive = "TestLive";
     public const string FolderWorkshop = "Workshop";
     public const string FolderBackup = "Backups";
     public const string GameArgsLog = "-log";
@@ -71,7 +69,6 @@ public static class Constants
     
     public const string argLive = "--live";
     public const string argEnhanced = "--enhanced";
-    public const string argTestLive = "--testlive";
     public const string argPtc = "--ptc";
     public const string argCatapult = "--catapult";
     public const string argExperiment = "--experiment";
@@ -92,9 +89,6 @@ public static class Constants
     public const string UriClientHost = "clients";
     public const string UriServerHost = "servers";
     
-    public static string GetConfigPath(bool testlive)
-        => GetConfigPath(testlive ? GameEdition.TestLive : GameEdition.Legacy);
-
     public static string GetConfigPath(GameEdition edition)
     {
         var folder = AppSetup.GetAppConfigDirectory();
@@ -103,8 +97,7 @@ public static class Constants
         var file = edition switch
         {
             GameEdition.Enhanced => FileEnhancedConfig,
-            GameEdition.EnhancedTestLive => FileEnhancedTestLiveConfig,
-            GameEdition.TestLive => FileTestLiveConfig,
+            GameEdition.EnhancedPtc => FileEnhancedPtcConfig,
             _ => FileLiveConfig
         };
         return Path.Combine(folder.FullName, file);
@@ -113,36 +106,35 @@ public static class Constants
     public static string GetCliArg(GameEdition edition) => edition switch
     {
         GameEdition.Enhanced => argEnhanced,
-        GameEdition.EnhancedTestLive => $"{argEnhanced} {argPtc}",
-        GameEdition.TestLive => argTestLive,
+        GameEdition.EnhancedPtc => $"{argEnhanced} {argPtc}",
         _ => argLive
     };
 
     public static GameEdition? ParseEditionArgs(IEnumerable<string> args)
     {
         var tokens = args.ToHashSet(StringComparer.Ordinal);
-        var ptc = tokens.Contains(argPtc) || tokens.Contains(argTestLive);
+        var ptc = tokens.Contains(argPtc);
+        if (tokens.Contains(argLive) && (ptc || tokens.Contains(argEnhanced))) return null;
         if (tokens.Contains(argEnhanced))
-            return ptc ? GameEdition.EnhancedTestLive : GameEdition.Enhanced;
-        if (ptc) return GameEdition.TestLive;
+            return ptc ? GameEdition.EnhancedPtc : GameEdition.Enhanced;
+        if (ptc) return GameEdition.EnhancedPtc;
         return tokens.Contains(argLive) ? GameEdition.Legacy : null;
     }
 
     public static string GetVersionFolder(GameEdition edition) => edition switch
     {
-        // Same isolation pattern Totchinuko uses for TestLive: own Documents/CommonAppData tree.
+        // Each edition has its own Documents/CommonAppData tree.
         // GameSaved + Workshop content stay flat/shared (GetPrimaryJunction / GetWorkshopFolder).
         GameEdition.Enhanced => FolderEnhanced,
-        GameEdition.EnhancedTestLive => FolderEnhancedTestLive,
-        GameEdition.TestLive => FolderTestLive,
+        GameEdition.EnhancedPtc => FolderEnhancedPtc,
         _ => FolderLive
     };
 
     public static string GetFileIniUser(GameEdition edition) =>
-        edition is GameEdition.Enhanced or GameEdition.EnhancedTestLive ? FileIniUserEnhanced : FileIniUser;
+        edition is GameEdition.Enhanced or GameEdition.EnhancedPtc ? FileIniUserEnhanced : FileIniUser;
 
     public static string GetClientBin(GameEdition edition) =>
-        edition is GameEdition.Enhanced or GameEdition.EnhancedTestLive ? FileClientEnhancedBin : FileClientBin;
+        edition is GameEdition.Enhanced or GameEdition.EnhancedPtc ? FileClientEnhancedBin : FileClientBin;
 
     /// <summary>Steam Workshop tag set by the Enhanced modkit uploader.</summary>
     public const string WorkshopTagEnhanced = "Enhanced";
@@ -163,15 +155,14 @@ public static class Constants
         edition switch
         {
             GameEdition.Legacy => WorkshopTagEnhanced,
-            GameEdition.Enhanced or GameEdition.EnhancedTestLive => WorkshopTagLegacy,
+            GameEdition.Enhanced or GameEdition.EnhancedPtc => WorkshopTagLegacy,
             _ => null
         };
 
     public static string GetEditionDisplayName(GameEdition edition) => edition switch
     {
         GameEdition.Enhanced => "Enhanced",
-        GameEdition.EnhancedTestLive => "Enhanced PTC",
-        GameEdition.TestLive => "Test Live",
+        GameEdition.EnhancedPtc => "Enhanced PTC",
         _ => "Legacy"
     };
 
@@ -187,12 +178,9 @@ public static class Constants
         uint consumerAppId,
         string? title = null)
     {
-        if (edition == GameEdition.TestLive)
-            return consumerAppId == 0 || consumerAppId == AppIDTestLiveClient;
-
         if (consumerAppId != 0 &&
             consumerAppId != AppIDLiveClient &&
-            consumerAppId != AppIDTestLiveClient)
+            consumerAppId != AppIDPtcClient)
             return false;
 
         var tagList = tags ?? [];
@@ -203,7 +191,7 @@ public static class Constants
 
         return edition switch
         {
-            GameEdition.Enhanced or GameEdition.EnhancedTestLive => !hasLegacy,
+            GameEdition.Enhanced or GameEdition.EnhancedPtc => !hasLegacy,
             GameEdition.Legacy => !hasEnhanced,
             _ => true
         };

@@ -19,7 +19,7 @@ public sealed class WorkshopSearchViewModel : ReactiveObject
         SearchFirstPage = ReactiveCommand.CreateFromTask(() =>
         {
             Page = 1;
-            return Search(_searchTerm, _testLiveWorkshop, 1);
+            return Search(_searchTerm, 1);
         });
 
         NextPage = ReactiveCommand.Create<Unit>((_) =>
@@ -32,14 +32,10 @@ public sealed class WorkshopSearchViewModel : ReactiveObject
             Page--;
         }, this.WhenAnyValue(x => x.Page, (p) => p > 1));
 
-        this.WhenValueChanged(x => x.TestLiveWorkshop, false, () => false)
-            .Select(_ => Unit.Default)
-            .InvokeCommand(SearchFirstPage);
         this.WhenValueChanged<WorkshopSearchViewModel, uint>(x => x.Page, false, () => 1)
             .InvokeCommand(ReactiveCommand.CreateFromTask<uint>(Search));
     }
 
-    private bool _testLiveWorkshop;
     private string _searchTerm = string.Empty;
     private readonly Steam _steam;
     private readonly AppSetup _setup;
@@ -54,12 +50,6 @@ public sealed class WorkshopSearchViewModel : ReactiveObject
     public ReactiveCommand<Unit,Unit> SearchFirstPage { get; }
     public ReactiveCommand<Unit,Unit> NextPage { get; }
     public ReactiveCommand<Unit,Unit> PreviousPage { get; }
-
-    public bool TestLiveWorkshop
-    {
-        get => _testLiveWorkshop;
-        set => this.RaiseAndSetIfChanged(ref _testLiveWorkshop, value);
-    }
 
     public bool IsLoading
     {
@@ -85,21 +75,15 @@ public sealed class WorkshopSearchViewModel : ReactiveObject
         set => this.RaiseAndSetIfChanged(ref _searchTerm, value);
     }
 
-    private Task Search(uint page) => Search(SearchTerm, TestLiveWorkshop, page);
+    private Task Search(uint page) => Search(SearchTerm, page);
 
-    private async Task Search(string searchTerm, bool testLive, uint page)
+    private async Task Search(string searchTerm, uint page)
     {
         IsLoading = true;
 
-        var appId = testLive ? Constants.AppIDTestLiveClient : Constants.AppIDLiveClient;
-        // TestLive workshop toggle uses its own AppID; otherwise filter by current edition tags.
-        string? requiredTag = null;
-        string? excludedTag = null;
-        if (!testLive)
-        {
-            requiredTag = Constants.GetWorkshopRequiredTag(_setup.Edition);
-            excludedTag = Constants.GetWorkshopExcludedTag(_setup.Edition);
-        }
+        var appId = Constants.AppIDLiveClient;
+        var requiredTag = Constants.GetWorkshopRequiredTag(_setup.Edition);
+        var excludedTag = Constants.GetWorkshopExcludedTag(_setup.Edition);
         var response = await _steam.QueryWorkshopSearch(appId, searchTerm, 20, page, requiredTag, excludedTag);
         if (response is null)
         {

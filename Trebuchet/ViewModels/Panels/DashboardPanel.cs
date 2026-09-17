@@ -337,7 +337,7 @@ namespace Trebuchet.ViewModels.Panels
         private void RefreshClientSelection(ClientProfileRef? profile, IPRefWithModList? modlist)
         {
             profile = profile is null ? _appFiles.Client.GetDefault() : _appFiles.Client.Resolve(profile);
-            modlist = modlist is null ? _appFiles.Mods.GetDefault() : modlist.Resolve();
+            modlist = _appFiles.ResolveModListSelection(modlist);
             
             Client.Modlists = [];
             Client.Modlists.AddRange(_appFiles.Mods.GetList().Select(x => new ModListRefViewModel(x)));
@@ -356,9 +356,7 @@ namespace Trebuchet.ViewModels.Panels
 
         private void RefreshServerSelection(ServerInstanceDashboard dashboard)
         {
-            dashboard.SelectedModlist = new ModListRefViewModel(dashboard.SelectedModlist?.ModList is null 
-                ? _appFiles.Mods.GetDefault() 
-                : dashboard.SelectedModlist.ModList.Resolve());
+            dashboard.SelectedModlist = new ModListRefViewModel(_appFiles.ResolveModListSelection(dashboard.SelectedModlist?.ModList));
             dashboard.SelectedProfile = dashboard.SelectedProfile is null
                 ? _appFiles.Server.GetDefault()
                 : _appFiles.Server.Resolve(dashboard.SelectedProfile);

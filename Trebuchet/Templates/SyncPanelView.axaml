@@ -45,7 +45,10 @@
                 </DockPanel>
             </Border>
 
-            <TabControl>
+            <Grid>
+            <TextBlock IsVisible="{Binding !HasProfile}" Text="{x:Static a:Resources.NoSyncProfile}"
+                       Margin="20" TextWrapping="Wrap" VerticalAlignment="Center" HorizontalAlignment="Center" />
+            <TabControl IsVisible="{Binding HasProfile}">
                 <TabItem Header="{x:Static a:Resources.PanelMods}">
                     <ContentControl Margin="6" Content="{Binding ModList}" />
                 </TabItem>
@@ -53,6 +56,7 @@
                     <ContentControl Margin="6" Content="{Binding ClientConnectionList}" />
                 </TabItem>
             </TabControl>
+            </Grid>
         </DockPanel>
     </DataTemplate>
 </ResourceDictionary>

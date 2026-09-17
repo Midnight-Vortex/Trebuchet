@@ -43,11 +43,6 @@ public class MixedConsoleViewModel : ReactiveObject, IScrollController, ITextSou
         _textWriter = new ConsoleWriter(500, MAX_CHAR);
         _textWriter.TextFlushed += OnTextFlushed;
         
-        this.WhenAnyValue(x => x.Process)
-            .Buffer(2, 1)
-            .Select(b => (b[0], b[1]))
-            .InvokeCommand(ReactiveCommand.Create<(IConanServerProcess?, IConanServerProcess?)>(OnProcessChanged));
-
         var canSendCommand = this.WhenAnyValue(x => x.CanSend, x => x.CommandField,
             (c, f) => c && !string.IsNullOrEmpty(f));
             
@@ -104,7 +99,13 @@ public class MixedConsoleViewModel : ReactiveObject, IScrollController, ITextSou
     public IConanServerProcess? Process
     {
         get => _process;
-        set => this.RaiseAndSetIfChanged(ref _process, value);
+        set
+        {
+            if (ReferenceEquals(_process, value)) return;
+            var previous = _process;
+            this.RaiseAndSetIfChanged(ref _process, value);
+            OnProcessChanged((previous, value));
+        }
     }
 
     public string Text => _textWriter.Text;
@@ -154,16 +155,20 @@ public class MixedConsoleViewModel : ReactiveObject, IScrollController, ITextSou
     {
         try
         {
-            if (Process?.RCon is not null)
+            if (CanSend && Process?.RCon is { } rcon)
             {
                 _logger.LogInformation(@"Send {command}", input);
                 await _textWriter.WriteLineAsync(@"> " + input);
-                await Process.RCon.Send(input, CancellationToken.None);
+                _textWriter.Flush();
+                var response = await rcon.Send(input, CancellationToken.None);
+                if (response.Exception is not null) throw response.Exception;
             }
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, @"Could not Send command");
+            await _textWriter.WriteLineAsync($"RCON: {ex.Message}");
+            _textWriter.Flush();
         }
     }
 
@@ -205,22 +210,27 @@ public class MixedConsoleViewModel : ReactiveObject, IScrollController, ITextSou
     
     private void OnStateChanged(object? sender, ProcessState e)
     {
-        RefreshLabel();
+        if (Dispatcher.UIThread.CheckAccess()) RefreshLabel();
+        else Dispatcher.UIThread.Post(RefreshLabel);
     }
 
-    private void RefreshLabel()
+    public void RefreshLabel()
     {
-        if (Process?.RCon is null)
+        if (Process is not { } process)
         {
             CanSend = false;
-            ServerLabel = $@"{Resources.Unavailable} - {Resources.Instance} {_instance}";
+            ServerLabel = $@"{Resources.ConsoleNoLocalServer} - {Resources.Instance} {_instance}";
         }
         else
         {
-            CanSend = Process is { Infos.RConPort: > 0, State: ProcessState.ONLINE };
-            ServerLabel = CanSend
-                ? $@"{Resources.CatRCon} - {Process.Infos.Title} ({Process.Infos.Instance}) - {IPAddress.Loopback}:{Process.Infos.RConPort}"
-                : $@"{Resources.Unavailable} - {Resources.Instance} {_instance}";
+            CanSend = process.RCon is not null && process.Infos.RConPort > 0
+                && process.State is ProcessState.RUNNING or ProcessState.ONLINE;
+            var title = string.IsNullOrWhiteSpace(process.Infos.Title) ? Resources.PanelServerConsoles : process.Infos.Title;
+            var state = process.State == ProcessState.ONLINE ? Resources.ConsoleOnline
+                : process.State == ProcessState.RUNNING ? Resources.ConsoleRunning : process.State.ToString();
+            ServerLabel = $@"{title} - {Resources.Instance} {_instance} - {state}";
+            if (CanSend) ServerLabel += $" - RCON {IPAddress.Loopback}:{process.Infos.RConPort}";
+            else if (process.RCon is null) ServerLabel += $" - {Resources.ConsoleRconDisabled}";
         }
     }
 

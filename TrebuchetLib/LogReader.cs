@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using System.Text;
 using Microsoft.Extensions.Logging;
 
 namespace TrebuchetLib;
@@ -12,7 +13,9 @@ public partial class LogReader(ILogger<LogReader> logger, string logPath) : IDis
     };
     private long _offset = -1;
     private CancellationTokenSource? _cts;
-    private DateTime _start = DateTime.MinValue;
+    private readonly Decoder _decoder = Encoding.UTF8.GetDecoder();
+    private string _pendingLine = string.Empty;
+    private bool _skipPartialLine;
 
     public string LogPath { get; init; } = logPath;
 
@@ -32,17 +35,17 @@ public partial class LogReader(ILogger<LogReader> logger, string logPath) : IDis
     {
         if (_cts is not null) return;
         _cts = new();
-        _start = DateTime.UtcNow;
-        Task.Run(() => BackgroundThread(_cts.Token), _cts.Token);
+        var token = _cts.Token;
+        Task.Run(() => BackgroundThread(token), token);
     }
 
     public void StartAtBeginning()
     {
         if (_cts is not null) return;
         _cts = new();
-        _start = DateTime.UtcNow;
         _offset = 0;
-        Task.Run(() => BackgroundThread(_cts.Token), _cts.Token);
+        var token = _cts.Token;
+        Task.Run(() => BackgroundThread(token), token);
     }
 
     public void Cancel()
@@ -63,6 +66,7 @@ public partial class LogReader(ILogger<LogReader> logger, string logPath) : IDis
                 if (!string.IsNullOrEmpty(output))
                     ParseAndSend(output);
             }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { return; }
             catch(IOException){}
             catch (Exception ex)
             {
@@ -70,23 +74,51 @@ public partial class LogReader(ILogger<LogReader> logger, string logPath) : IDis
                     logger.LogError(ex, "Could not read logs");
                 return;
             }
-            await Task.Delay(500, ct);
+            try { await Task.Delay(500, ct); }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { return; }
         }
     }
 
     private async Task<string> Read(CancellationToken ct)
     {
         if (!File.Exists(LogPath)) throw new IOException("File not found" + LogPath);
-        var lastWrite = File.GetLastWriteTimeUtc(LogPath);
-        if (lastWrite < _start) return string.Empty;
-        
-        await using var fs = new FileStream(LogPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-        if (_offset < 0) _offset = fs.Length < 2000 ? 0 : fs.Length - 1;
+        await using var fs = new FileStream(LogPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        if (_offset < 0)
+        {
+            _offset = Math.Max(0, fs.Length - 65536);
+            _skipPartialLine = _offset > 0;
+        }
+        if (fs.Length < _offset)
+        {
+            _offset = 0;
+            _pendingLine = string.Empty;
+            _skipPartialLine = false;
+            _decoder.Reset();
+        }
         fs.Seek(_offset, SeekOrigin.Begin);
-        using var sr = new StreamReader(fs);
-        var text = await sr.ReadToEndAsync(ct);
-        _offset += text.Length;
-        return text;
+        var bytes = new byte[(int)Math.Min(65536, fs.Length - _offset)];
+        if (bytes.Length == 0) return string.Empty;
+        var count = await fs.ReadAsync(bytes, ct);
+        _offset += count; // File offsets count bytes, not decoded UTF-16 characters.
+        var chars = new char[Encoding.UTF8.GetMaxCharCount(count)];
+        var length = _decoder.GetChars(bytes, 0, count, chars, 0, flush: false);
+        var text = _pendingLine + new string(chars, 0, length);
+        if (_skipPartialLine)
+        {
+            var firstNewline = text.IndexOf('\n');
+            if (firstNewline < 0) return string.Empty;
+            text = text[(firstNewline + 1)..];
+            _skipPartialLine = false;
+        }
+        var lastNewline = text.LastIndexOf('\n');
+        if (lastNewline < 0 && text.Length < 65536)
+        {
+            _pendingLine = text;
+            return string.Empty;
+        }
+        if (lastNewline < 0) lastNewline = text.Length - 1;
+        _pendingLine = text[(lastNewline + 1)..];
+        return text[..(lastNewline + 1)].TrimStart('\uFEFF');
     }
 
     private void ParseAndSend(string output)

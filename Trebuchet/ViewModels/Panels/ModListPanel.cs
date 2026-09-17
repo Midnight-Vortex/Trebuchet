@@ -126,8 +126,9 @@ namespace Trebuchet.ViewModels.Panels
             return Task.CompletedTask;
         }
         
-        private async Task OnFileSelected(object? sender, ModListProfileRef profile)
+        private async Task OnFileSelected(object? sender, ModListProfileRef? profile)
         {
+            if (profile is null) return;
             _logger.LogDebug(@"Swap to mod list {modList}", profile);
             _uiConfig.CurrentModlistProfile = profile.Uri.OriginalString;
             _uiConfig.SaveFile();

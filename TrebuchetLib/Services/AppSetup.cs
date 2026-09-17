@@ -13,19 +13,13 @@ public class AppSetup
         Experiment = experiment;
     }
 
-    /// <summary>Compatibility ctor for Legacy / TestLive only.</summary>
-    public AppSetup(Config config, bool isTestLive, bool catapult, bool experiment)
-        : this(config, isTestLive ? GameEdition.TestLive : GameEdition.Legacy, catapult, experiment)
-    {
-    }
-
     public Config Config { get; }
 
     public GameEdition Edition { get; }
 
-    public bool IsTestLive => Edition is GameEdition.TestLive or GameEdition.EnhancedTestLive;
+    public bool IsPtc => Edition == GameEdition.EnhancedPtc;
 
-    public bool IsEnhanced => Edition is GameEdition.Enhanced or GameEdition.EnhancedTestLive;
+    public bool IsEnhanced => Edition is GameEdition.Enhanced or GameEdition.EnhancedPtc;
 
     public bool IsLegacy => Edition == GameEdition.Legacy;
     
@@ -33,7 +27,7 @@ public class AppSetup
     
     public bool Experiment { get; }
 
-    public uint ServerAppId => IsTestLive ? Constants.AppIDTestLiveServer : Constants.AppIDLiveServer;
+    public uint ServerAppId => IsPtc ? Constants.AppIDPtcServer : Constants.AppIDLiveServer;
     
     public string VersionFolder => Constants.GetVersionFolder(Edition);
     
@@ -111,9 +105,6 @@ public class AppSetup
             Constants.FolderServerInstances);
     }
 
-    public string GetBaseInstancePath(bool testlive)
-        => GetBaseInstancePath(testlive ? GameEdition.TestLive : GameEdition.Legacy);
-
     public string GetBaseInstancePath(GameEdition edition)
     {
         return Path.Combine(
@@ -154,7 +145,8 @@ public class AppSetup
         for (int i = 0; i < Config.ServerInstanceCount; i++)
         {
             var instancePath = Path.GetFullPath(GetInstanceInternalBinary(i));
-            if (string.Equals(instancePath, path, StringComparison.Ordinal))
+            if (string.Equals(instancePath, Path.GetFullPath(path),
+                    OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
             {
                 instance = i;
                 return true;

@@ -831,12 +831,6 @@ WARNUNG: Dies kann dazu führen, dass die Erkennung von Zombie-Prozessen nicht m
     <data name="Sync" xml:space="preserve">
         <value>Synchronisieren</value>
     </data>
-    <data name="TestLive" xml:space="preserve">
-        <value>Test-Live</value>
-    </data>
-    <data name="TestLiveMod" xml:space="preserve">
-        <value>Steam Workshop (Test-Live)</value>
-    </data>
     <data name="TranslationAuthors" xml:space="preserve">
         <value>Übersetzungs-Autoren</value>
     </data>
@@ -990,10 +984,12 @@ WARNUNG: Dies kann dazu führen, dass die Erkennung von Zombie-Prozessen nicht m
     <data name="ModViewNoMatches" xml:space="preserve">
         <value>Keine passenden Mods.</value>
     </data>
-    <data name="EnhancedTest" xml:space="preserve">
+    <data name="EnhancedPtc" xml:space="preserve">
         <value>Enhanced PTC</value>
     </data>
-    <data name="LegacyTest" xml:space="preserve">
-        <value>Legacy PTC</value>
-    </data>
+<data name="NoSyncProfile" xml:space="preserve"><value>Kein Synchronisationsprofil. Mit + ein Profil erstellen oder ein Profil importieren.</value></data>
+<data name="ConsoleNoLocalServer" xml:space="preserve"><value>Kein lokaler Server gestartet</value></data>
+<data name="ConsoleRunning" xml:space="preserve"><value>Läuft</value></data>
+<data name="ConsoleOnline" xml:space="preserve"><value>Online</value></data>
+<data name="ConsoleRconDisabled" xml:space="preserve"><value>RCON deaktiviert</value></data>
 </root>

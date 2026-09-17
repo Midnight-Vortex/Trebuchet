@@ -12,25 +12,39 @@ void Check(bool condition, string description)
     checks++;
 }
 
+var command = Boulder.Commands.RootCommandFactory.Create();
 foreach (var edition in Enum.GetValues<GameEdition>())
 {
+    var editionArgs = Constants.GetCliArg(edition).Split(' ');
+    Check(command.Parse(["lamb", "client", ..editionArgs]).Errors.Count == 0,
+        "Boulder accepts edition flags after nested command");
+    Check(command.Parse([..editionArgs, "lamb", "client"]).Errors.Count == 0,
+        "Boulder accepts edition flags before command");
     Check(Constants.ParseEditionArgs(Constants.GetCliArg(edition).Split(' ')) == edition,
         "Edition survives restart/autostart command line round trip");
     var setup = new AppSetup(new Config(), edition, false, false);
-    Check(setup.IsEnhanced == (edition is GameEdition.Enhanced or GameEdition.EnhancedTestLive), "Enhanced engine selection");
-    Check(setup.IsTestLive == (edition is GameEdition.TestLive or GameEdition.EnhancedTestLive), "PTC channel selection");
+    Check(setup.IsEnhanced == (edition is GameEdition.Enhanced or GameEdition.EnhancedPtc), "Enhanced engine selection");
+    Check(setup.IsPtc == (edition == GameEdition.EnhancedPtc), "Only Enhanced has a PTC channel");
     var launchArgs = new ClientProfile().GetClientArgs("mods with spaces.txt", true, edition);
-    Check(launchArgs.Contains(Constants.GameArgsExt) == (edition == GameEdition.EnhancedTestLive), "Only Enhanced PTC uses external service argument");
+    Check(launchArgs.Contains(Constants.GameArgsExt) == (edition == GameEdition.EnhancedPtc), "Only Enhanced PTC uses external service argument");
     Check(launchArgs.Contains("-modlist=\"mods with spaces.txt\"") && launchArgs.Contains(Constants.GameArgsContinueSession), "Keep mod list quoting and auto-connect");
 }
-Check(Constants.ParseEditionArgs(["--enhanced", "--testlive"]) == GameEdition.EnhancedTestLive, "Old testlive alias works with Enhanced");
-Check(Constants.ParseEditionArgs(["--ptc", "--live"]) == GameEdition.TestLive, "Legacy PTC alias");
+Check(Constants.ParseEditionArgs(["--ptc"]) == GameEdition.EnhancedPtc, "PTC alone selects Enhanced PTC");
+Check(Constants.ParseEditionArgs(["--ptc", "--live"]) is null, "Conflicting edition arguments do not select a build");
+Check(command.Parse(["lamb", "client", "--testlive"]).Errors.Count > 0, "Removed CLI alias is rejected");
+Check(!Enum.IsDefined(typeof(GameEdition), 2) && (int)GameEdition.EnhancedPtc == 3, "Removed enum value is not reused");
 Check(Constants.ParseEditionArgs([]) is null, "No edition arguments retains selector");
-Check(Enum.GetValues<GameEdition>().Select(Constants.GetVersionFolder).Distinct().Count() == 4, "All editions have isolated profile folders");
-Check(Constants.GetFileIniUser(GameEdition.EnhancedTestLive) == Constants.FileIniUserEnhanced, "Enhanced PTC uses UE5 INI directory");
-Check(Constants.GetClientBin(GameEdition.EnhancedTestLive) == Constants.FileClientEnhancedBin, "Enhanced PTC uses UE5 executable");
-Check(!Constants.IsWorkshopModCompatible(GameEdition.EnhancedTestLive, ["legacy"], Constants.AppIDLiveClient), "Enhanced PTC rejects legacy mods");
-Check(Constants.IsWorkshopModCompatible(GameEdition.EnhancedTestLive, ["Enhanced"], Constants.AppIDLiveClient), "Enhanced PTC accepts Enhanced workshop mods");
+Check(command.Parse(["lamb", "client", "--live", "--ptc"]).Errors.Count > 0,
+    "Boulder rejects incompatible channel options");
+Check(command.Parse(["lamb", "client", "--enhanced", "--ptc", "--experiment"]).Errors.Count == 0,
+    "Boulder accepts Enhanced PTC and experiment options");
+Check(command.Parse(["lamb", "client", "--enhanced", "--ptc", "--unknown-option"]).Errors.Count == 1,
+    "Boulder still rejects unknown options without rejecting valid edition flags");
+Check(Enum.GetValues<GameEdition>().Select(Constants.GetVersionFolder).Distinct().Count() == 3, "Exactly three editions have isolated profile folders");
+Check(Constants.GetFileIniUser(GameEdition.EnhancedPtc) == Constants.FileIniUserEnhanced, "Enhanced PTC uses UE5 INI directory");
+Check(Constants.GetClientBin(GameEdition.EnhancedPtc) == Constants.FileClientEnhancedBin, "Enhanced PTC uses UE5 executable");
+Check(!Constants.IsWorkshopModCompatible(GameEdition.EnhancedPtc, ["legacy"], Constants.AppIDLiveClient), "Enhanced PTC rejects legacy mods");
+Check(Constants.IsWorkshopModCompatible(GameEdition.EnhancedPtc, ["Enhanced"], Constants.AppIDLiveClient), "Enhanced PTC accepts Enhanced workshop mods");
 
 foreach (var binding in new[] { "ConsoleKeys=Insert", "+ConsoleKeys=Insert", ".ConsoleKeys=Insert", " +consolekeys = \"insert\" " })
 {

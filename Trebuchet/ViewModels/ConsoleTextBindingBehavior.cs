@@ -8,6 +8,7 @@ namespace Trebuchet.ViewModels;
 public class ConsoleTextBindingBehavior : Behavior<TextEditor>
 {
     private TextEditor? _textEditor;
+    private ITextSource? _subscribedSource;
 
     public static readonly StyledProperty<ITextSource?> TextSourceProperty =
         AvaloniaProperty.Register<ConsoleTextBindingBehavior, ITextSource?>(nameof(TextSource));
@@ -25,57 +26,60 @@ public class ConsoleTextBindingBehavior : Behavior<TextEditor>
         if (AssociatedObject is not { } textEditor) return;
         _textEditor = textEditor;
         _textEditor.Options.AllowScrollBelowDocument = false;
+        BindSource(TextSource);
     }
 
     protected override void OnDetaching()
     {
         base.OnDetaching();
-        if (AssociatedObject is not { } textEditor) return;
-        if(TextSource is not null)
-            TextSource.TextAppended -= OnTextAppended;
+        BindSource(null);
+        _textEditor = null;
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
-        if (_textEditor is not { Document: not null }) return;
-
         if (change.Property == TextSourceProperty)
+            BindSource(change.NewValue as ITextSource);
+    }
+
+    private void BindSource(ITextSource? source)
+    {
+        if (_subscribedSource is { } previous)
         {
-            if (change.OldValue is ITextSource previous)
-            {
-                previous.TextAppended -= OnTextAppended;
-                previous.TextCleared -= OnTextCleared;
-            }
-            
-            if (change.NewValue is not ITextSource current) return;
-            current.TextAppended += OnTextAppended;
-            current.TextCleared += OnTextCleared;
-            _textEditor.Clear();
-            _textEditor.AppendText(current.Text);
-            if(current.AutoScroll)
-                _textEditor.ScrollToEnd();
+            previous.TextAppended -= OnTextAppended;
+            previous.TextCleared -= OnTextCleared;
         }
+        _subscribedSource = null;
+        if (_textEditor is not { Document: not null }) return;
+        _textEditor.Clear();
+        if (source is null) return;
+        _subscribedSource = source;
+        source.TextAppended += OnTextAppended;
+        source.TextCleared += OnTextCleared;
+        _textEditor.AppendText(source.Text);
+        if (source.AutoScroll) _textEditor.ScrollToEnd();
     }
 
     private void OnTextCleared(object? sender, EventArgs e)
     {
-        if (_textEditor is not { Document: not null } || TextSource is null) return;
+        if (_textEditor is not { Document: not null } || !ReferenceEquals(sender, _subscribedSource)) return;
         _textEditor.Clear();
     }
 
     private void OnTextAppended(object? sender, string text)
     {
-        if (_textEditor is not { Document: not null } || TextSource is null) return;
+        if (_textEditor is not { Document: not null } || _subscribedSource is null
+            || !ReferenceEquals(sender, _subscribedSource)) return;
             
         var caretOffset = _textEditor.CaretOffset;
         _textEditor.BeginChange();
-        while(_textEditor.Document.TextLength > TextSource.MaxChar)
-            _textEditor.Document.Remove(_textEditor.Document.GetLineByNumber(0));
         _textEditor.AppendText(text);
+        var excess = Math.Max(0, _textEditor.Document.TextLength - _subscribedSource.MaxChar);
+        if (excess > 0) _textEditor.Document.Remove(0, excess);
         _textEditor.EndChange();
-        _textEditor.CaretOffset = caretOffset;
-        if(TextSource.AutoScroll)
+        _textEditor.CaretOffset = Math.Clamp(caretOffset - excess, 0, _textEditor.Document.TextLength);
+        if(_subscribedSource.AutoScroll)
             _textEditor.ScrollToEnd();
     }
 }

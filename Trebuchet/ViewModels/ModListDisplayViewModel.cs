@@ -21,6 +21,8 @@ public sealed class ModListDisplayViewModel : ReactiveObject
     private bool _isReadOnly;
     private string _searchError = string.Empty;
     private int _visibleCount;
+    private string? _regexPattern;
+    private Regex? _regex;
 
     public ModListDisplayViewModel(ObservableCollectionExtended<IModFile> source)
     {
@@ -106,8 +108,13 @@ public sealed class ModListDisplayViewModel : ReactiveObject
             IEnumerable<IModFile> results = _source;
             if (SearchPattern.Length > 0)
             {
-                var regex = new Regex(SearchPattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
-                    TimeSpan.FromMilliseconds(100));
+                if (_regex is null || _regexPattern != SearchPattern)
+                {
+                    _regex = new Regex(SearchPattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
+                        TimeSpan.FromMilliseconds(100));
+                    _regexPattern = SearchPattern;
+                }
+                var regex = _regex;
                 var watch = Stopwatch.StartNew();
                 var matches = new List<IModFile>();
                 foreach (var mod in _source)

@@ -1,4 +1,5 @@
 using System.Collections;
+using Avalonia;
 using System.Collections.ObjectModel;
 using System.Text.Json;
 using DynamicData.Binding;
@@ -12,6 +13,15 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 
 RxAppBuilder.CreateReactiveUIBuilder().WithCoreServices().BuildApp();
+if (args.Contains("--console-checks"))
+{
+    AppBuilder.Configure<Application>().UsePlatformDetect().SetupWithoutStarting();
+    var consoleChecks = ConsoleChecks.RunUi();
+    SynchronizationContext.SetSynchronizationContext(null);
+    consoleChecks += await ConsoleChecks.RunIo();
+    Console.WriteLine($"Passed {consoleChecks} server console checks.");
+    return;
+}
 
 var checks = 0;
 void Check(bool condition, string description)
@@ -121,7 +131,8 @@ Check(model.List.Count == 2, "Direct removal must respect read-only mode");
 oldRemoveAction.Execute(null);
 Check(model.List.Count == 2, "Previously captured delete action cannot remove from read-only list");
 
-Console.WriteLine($"Passed {checks} mod list checks.");
+checks += await ProfileMenuChecks.Run();
+Console.WriteLine($"Passed {checks} mod list and profile menu checks.");
 
 sealed class TestProgress : IProgressCallback<DepotDownloader.Progress>
 {

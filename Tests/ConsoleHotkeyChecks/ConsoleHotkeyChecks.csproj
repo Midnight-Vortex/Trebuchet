@@ -4,8 +4,10 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <ValidateExecutableReferencesMatchSelfContained>false</ValidateExecutableReferencesMatchSelfContained>
   </PropertyGroup>
   <ItemGroup>
+    <ProjectReference Include="../../Boulder/Boulder.csproj" AdditionalProperties="SelfContained=false;PublishSingleFile=false" />
     <ProjectReference Include="../../TrebuchetLib/TrebuchetLib.csproj" />
   </ItemGroup>
 </Project>

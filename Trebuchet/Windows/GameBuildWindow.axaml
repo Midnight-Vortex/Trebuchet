@@ -6,11 +6,11 @@
         xmlns:a="clr-namespace:Trebuchet.Assets"
         xmlns:c="clr-namespace:tot_gui_lib.Controls;assembly=tot-gui-lib"
         xmlns:vm="clr-namespace:Trebuchet.ViewModels"
-        mc:Ignorable="d" d:DesignWidth="420" d:DesignHeight="420"
+        mc:Ignorable="d" d:DesignWidth="560" d:DesignHeight="320"
         x:Class="Trebuchet.Windows.GameBuildWindow"
         x:DataType="vm:GameBuildViewModel"
-        Height="420"
-        Width="420"
+        Height="320"
+        Width="560"
         CanResize="False"
         WindowStartupLocation="CenterScreen"
         ExtendClientAreaToDecorationsHint="True"
@@ -31,8 +31,10 @@
                          Margin="20,0,20,12"
                          IsIndeterminate="True"
                          IsVisible="{Binding IsOpening}" />
-            <Grid VerticalAlignment="Center" HorizontalAlignment="Center" RowDefinitions="Auto,20,Auto">
+            <Grid VerticalAlignment="Center" HorizontalAlignment="Center">
                 <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="20" />
                     <ColumnDefinition Width="Auto" />
                     <ColumnDefinition Width="20" />
                     <ColumnDefinition Width="Auto" />
@@ -55,7 +57,7 @@
                     </Grid>
                 </Button>
 
-                <Button Grid.Column="0" Grid.Row="2"
+                <Button Grid.Column="2"
                         Classes="Base Blue"
                         Height="128"
                         Width="128"
@@ -73,34 +75,16 @@
                     </Grid>
                 </Button>
 
-                <Button Grid.Column="2"
+                <Button Grid.Column="4"
                         Classes="Base Blue"
                         Height="128"
                         Width="128"
                         IsEnabled="{Binding !IsOpening}"
-                        Command="{Binding TestLiveCommand}">
-                    <Grid VerticalAlignment="Center" HorizontalAlignment="Center">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="auto" />
-                            <RowDefinition Height="12" />
-                            <RowDefinition Height="auto" />
-                        </Grid.RowDefinitions>
-                        <i:Icon Value="mdi-test-tube" HorizontalAlignment="Center" FontSize="40" />
-                        <TextBlock FontWeight="Bold" FontSize="16" HorizontalAlignment="Center" Grid.Row="2"
-                                   Text="{x:Static a:Resources.LegacyTest}" />
-                    </Grid>
-                </Button>
-
-                <Button Grid.Column="2" Grid.Row="2"
-                        Classes="Base Blue"
-                        Height="128"
-                        Width="128"
-                        IsEnabled="{Binding !IsOpening}"
-                        Command="{Binding EnhancedTestCommand}">
+                        Command="{Binding EnhancedPtcCommand}">
                     <Grid VerticalAlignment="Center" HorizontalAlignment="Center" RowDefinitions="Auto,12,Auto">
                         <i:Icon Value="mdi-test-tube" HorizontalAlignment="Center" FontSize="40" />
                         <TextBlock FontWeight="Bold" FontSize="16" HorizontalAlignment="Center" Grid.Row="2"
-                                   Text="{x:Static a:Resources.EnhancedTest}" />
+                                   Text="{x:Static a:Resources.EnhancedPtc}" />
                     </Grid>
                 </Button>
             </Grid>

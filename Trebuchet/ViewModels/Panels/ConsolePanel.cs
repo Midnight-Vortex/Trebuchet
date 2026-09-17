@@ -35,7 +35,7 @@ public class ConsolePanel : ReactiveObject, IRefreshablePanel, ITickingPanel
                 CreatePopupWindow(i);
 
         _selectedConsole = ConsoleList[0];
-        _console = _uiConfig.GetInstancePopup(0) ? _windows.First(x => x.Instance == 0) : ConsoleList[0];
+        _console = _uiConfig.GetInstancePopup(0) ? _windows.First(x => x.Instance == 0).PopupOut : ConsoleList[0];
 
         CanBeOpened = _setup.Config is { ServerInstanceCount: > 0 };
         PopOut = ReactiveCommand.Create(() =>
@@ -55,7 +55,9 @@ public class ConsolePanel : ReactiveObject, IRefreshablePanel, ITickingPanel
         
         Select = ReactiveCommand.Create<MixedConsoleViewModel>((target) =>
         {
+            _userSelectedConsole = true;
             SelectedConsole = target;
+            PopupOpen = false;
         });
 
         this.WhenAnyValue(x => x.SelectedConsole)
@@ -77,6 +79,7 @@ public class ConsolePanel : ReactiveObject, IRefreshablePanel, ITickingPanel
     private bool _canBeOpened;
     private bool _popupOpen;
     private MixedConsoleViewModel _selectedConsole;
+    private bool _userSelectedConsole;
 
     public string Icon => @"mdi-console-line";
     public string Label => Resources.PanelServerConsoles;
@@ -115,10 +118,18 @@ public class ConsolePanel : ReactiveObject, IRefreshablePanel, ITickingPanel
 
     public Task TickPanel()
     {
-        var servers = _launcher.GetServerProcesses().ToList();
-        AdjustConsoleListIfNeeded();
-        foreach (var s in servers)
-            ConsoleList[s.Infos.Instance].Process = s;
+        var servers = _launcher.GetServerProcesses().ToDictionary(s => s.Infos.Instance);
+        AdjustConsoleListIfNeeded(servers.Count == 0 ? 0 : servers.Keys.Max() + 1);
+        foreach (var console in ConsoleList)
+        {
+            console.Process = servers.GetValueOrDefault(console.Instance);
+            console.RefreshLabel();
+        }
+        if (!_userSelectedConsole && SelectedConsole.Process is null)
+        {
+            var running = ConsoleList.FirstOrDefault(c => c.Process is not null);
+            if (running is not null) SelectedConsole = running;
+        }
 
         return Task.CompletedTask;
     }
@@ -130,9 +141,9 @@ public class ConsolePanel : ReactiveObject, IRefreshablePanel, ITickingPanel
         return Task.CompletedTask;
     }
 
-    private void AdjustConsoleListIfNeeded()
+    private void AdjustConsoleListIfNeeded(int discoveredCount = 0)
     {
-        int count = Math.Max(1, _setup.Config.ServerInstanceCount);
+        int count = Math.Max(Math.Max(1, _setup.Config.ServerInstanceCount), discoveredCount);
         if (ConsoleList.Count >= count) return;
         for (var i = ConsoleList.Count; i < count; i++)
             ConsoleList.Add(new MixedConsoleViewModel(_uiConfig, i, _logSink, _logger));

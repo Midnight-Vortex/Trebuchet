@@ -45,7 +45,7 @@ public class FileViewModel<T, TRef> : ReactiveObject, IFileViewModel
             IsPopupOpen = !IsPopupOpen;
         });
 
-        _displayButton = this.WhenAnyValue(x => x.IsPopupOpen, x => x.IsOver, (p, o) => p || o)
+        _displayButton = this.WhenAnyValue(x => x.IsPopupOpen, x => x.IsOver, x => x.Selected, (p, o, s) => p || o || s)
             .ToProperty(this, x => x.DisplayButton);
     }
     private bool _isPopupOpen;

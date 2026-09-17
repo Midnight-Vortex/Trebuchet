@@ -64,9 +64,6 @@ public partial class App : Application, IApplication
 #endif
     }
 
-    public void OpenApp(bool testlive)
-        => OpenApp(testlive ? GameEdition.TestLive : GameEdition.Legacy);
-
     public void OpenApp(GameEdition edition)
         => OpenAppAsync(edition).GetAwaiter().GetResult();
 
@@ -75,7 +72,7 @@ public partial class App : Application, IApplication
         if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
             throw new Exception(@"Not supported");
 
-        // Per-edition UI config so Legacy/Enhanced/TestLive profile selections do not clash.
+        // Per-edition UI config keeps profile selections isolated.
         LoadEditionUiConfig(edition);
         
         bool catapult = false;
@@ -136,7 +133,7 @@ public partial class App : Application, IApplication
             return;
         }
 
-        // First Enhanced/TestLive open: seed shared prefs from Legacy UI, clear edition-specific selections.
+        // First Enhanced/PTC open: seed shared prefs from Legacy UI, clear edition-specific selections.
         var seed = _uiConfig ?? UIConfig.LoadConfig(AppConstants.GetUIConfigPath(GameEdition.Legacy));
         var created = UIConfig.CreateConfig(path);
         created.UICulture = seed.UICulture;
@@ -198,10 +195,12 @@ public partial class App : Application, IApplication
         var tOsSpecific = provider.GetRequiredService<ITrebuchetOsSpecific>();
         
         var data = tOsSpecific.GetProcess(Environment.ProcessId);
-        var version = Constants.GetCliArg(setup.Edition);
         List<string> arguments = data.args.Split(' ').ToList();
-        if (!arguments.Contains(version))
-            arguments.Add(version);
+        foreach (var versionArg in Constants.GetCliArg(setup.Edition).Split(' '))
+        {
+            if (!arguments.Contains(versionArg))
+                arguments.Add(versionArg);
+        }
         if(!arguments.Contains(AppConstants.RestartArg))
             arguments.Add(AppConstants.RestartArg);
             

@@ -64,7 +64,7 @@ public class AppSyncFiles(AppSetup setup) : IAppSyncFiles
         {
             if (ResolveMod(Constants.AppIDLiveClient, ref mod))
                 return true;
-            if (ResolveMod(Constants.AppIDTestLiveClient, ref mod))
+            if (ResolveMod(Constants.AppIDPtcClient, ref mod))
                 return true;
             return false;
         }

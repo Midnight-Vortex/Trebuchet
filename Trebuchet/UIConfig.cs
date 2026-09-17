@@ -33,8 +33,7 @@ namespace Trebuchet
 
         public void SetInstanceFilter(int instance, ConsoleLogSource source, bool active)
         {
-            if (_consoleFilters.Length <= instance)
-                Array.Resize(ref _consoleFilters, instance + 1);
+            EnsureConsoleSettings(instance);
             ConsoleFilters[instance] = active 
                 ? ConsoleFilters[instance] | (1 << (int)source) 
                 : ConsoleFilters[instance] & ~(1 << (int)source);
@@ -42,15 +41,14 @@ namespace Trebuchet
 
         public bool GetInstanceFilter(int instance, ConsoleLogSource source)
         {
-            if (_consoleFilters.Length <= instance) return false;
+            if (_consoleFilters.Length <= instance) return source is ConsoleLogSource.ServerLog or ConsoleLogSource.Trebuchet;
 
             return (ConsoleFilters[instance] & (1 << (int)source)) != 0;
         }
 
         public void SetInstancePopup(int instance, bool popupedOut)
         {
-            if (_consoleFilters.Length <= instance)
-                Array.Resize(ref _consoleFilters, instance + 1);
+            EnsureConsoleSettings(instance);
             ConsoleFilters[instance] = popupedOut 
                 ? ConsoleFilters[instance] | (1 << 31) 
                 : ConsoleFilters[instance] & ~(1 << 31);
@@ -61,6 +59,15 @@ namespace Trebuchet
             if (_consoleFilters.Length <= instance) return false;
 
             return (ConsoleFilters[instance] & (1 << 31)) != 0;
+        }
+
+        private void EnsureConsoleSettings(int instance)
+        {
+            if (_consoleFilters.Length > instance) return;
+            var first = _consoleFilters.Length;
+            Array.Resize(ref _consoleFilters, instance + 1);
+            Array.Fill(_consoleFilters, (1 << (int)ConsoleLogSource.ServerLog) | (1 << (int)ConsoleLogSource.Trebuchet),
+                first, _consoleFilters.Length - first);
         }
     }
 }

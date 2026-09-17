@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using System.Reactive;
+using System.Reactive.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Web;
@@ -38,23 +39,25 @@ public class SyncPanel : ReactiveObject, IRefreshablePanel, IDisplablePanel, IRe
         ClientConnectionList = clientConnectionList;
         ClientConnectionList.SetReadOnly();
 
-        var startingFile = files.Sync.Resolve(uiConfig.CurrentSyncProfile);
-        FileMenu = new FileMenuViewModel<SyncProfile, SyncProfileRef>(Resources.PanelSync, files.Sync, dialogueBox, logger);
+        ModList.IsReadOnly = true;
+        FileMenu = new FileMenuViewModel<SyncProfile, SyncProfileRef>(Resources.PanelSync, files.Sync, dialogueBox, logger, allowEmpty: true);
+        if (files.Sync.TryResolve(uiConfig.CurrentSyncProfile, out var startingFile))
+            FileMenu.Selected = startingFile;
+        _profile = FileMenu.Selected is { } selected ? files.Sync.Get(selected) : null;
         FileMenu.FileSelected += OnFileSelected;
-        FileMenu.Selected = startingFile;
-        
-        _profile = files.Sync.Get(startingFile);
-        
-        Sync = ReactiveCommand.CreateFromTask(OnSync);
-        SyncEdit = ReactiveCommand.CreateFromTask(OnSyncEdit);
-        RefreshList = ReactiveCommand.CreateFromTask(() => ModList.SetList(_profile.Modlist, true));
+        _needRefresh = true;
+        var canUseProfile = FileMenu.WhenAnyValue(x => x.Selected, x => x.IsLoading,
+            (profile, loading) => profile is not null && !loading);
+        Sync = ReactiveCommand.CreateFromTask(OnSync, canUseProfile);
+        SyncEdit = ReactiveCommand.CreateFromTask(OnSyncEdit, canUseProfile);
+        RefreshList = ReactiveCommand.CreateFromTask(() => ModList.SetList(_profile?.Modlist ?? [], true), canUseProfile);
 
         var canDownloadMods = blocker.WhenAnyValue(x => x.CanDownloadMods);
         Update = ReactiveCommand.CreateFromTask(async () =>
         {
             await ModList.UpdateMods();
             await OnRequestRefresh();
-        }, canDownloadMods);
+        }, canDownloadMods.CombineLatest(canUseProfile, (download, profile) => download && profile));
 
     }
     
@@ -62,7 +65,7 @@ public class SyncPanel : ReactiveObject, IRefreshablePanel, IDisplablePanel, IRe
     private readonly DialogueBox _dialogueBox;
     private readonly AppFiles _files;
     private readonly UIConfig _uiConfig;
-    private SyncProfile _profile;
+    private SyncProfile? _profile;
     private bool _needRefresh;
 
     public string Icon => @"mdi-web-sync";
@@ -79,6 +82,7 @@ public class SyncPanel : ReactiveObject, IRefreshablePanel, IDisplablePanel, IRe
     
     public ModListViewModel ModList { get; }
     public ClientConnectionListViewModel ClientConnectionList { get; }
+    public bool HasProfile => _profile is not null;
     
     
     public Task RefreshPanel()
@@ -93,31 +97,32 @@ public class SyncPanel : ReactiveObject, IRefreshablePanel, IDisplablePanel, IRe
         _logger.LogDebug(@"Display panel");
         if (!_needRefresh) return;
         _needRefresh = false;
-        await ModList.SetList(_profile.Modlist, false);
-        ClientConnectionList.SetList(_profile.ClientConnections);
+        ClientConnectionList.SetList(_profile?.ClientConnections ?? []);
+        await ModList.SetList(_profile?.Modlist ?? [], false);
     }
 
     private Task OnFileChanged() => OnFileSelected(this, FileMenu.Selected);
-    private async Task OnFileSelected(object? sender, SyncProfileRef profile)
+    private async Task OnFileSelected(object? sender, SyncProfileRef? profile)
     {
         _logger.LogDebug(@"Swap to sync {sync}", profile);
-        _uiConfig.CurrentSyncProfile = profile.Uri.OriginalString;
+        _uiConfig.CurrentSyncProfile = profile?.Uri.OriginalString ?? string.Empty;
         _uiConfig.SaveFile();
-        _profile = _files.Sync.Get(profile);
-        await ModList.SetReadOnly();
-        await ModList.SetList(_profile.Modlist, false);
+        _profile = profile is null ? null : _files.Sync.Get(profile);
+        this.RaisePropertyChanged(nameof(HasProfile));
+        ClientConnectionList.SetList(_profile?.ClientConnections ?? []);
+        await ModList.SetList(_profile?.Modlist ?? [], false);
     }
     
     private async Task OnSync()
     {
         _logger.LogInformation(@"Sync modList");
 
-        if (string.IsNullOrEmpty(_profile.SyncURL))
-            await OnSyncEdit();
-
+        if (_profile is not { } profile || FileMenu.Selected is not { } reference) return;
+        FileMenu.IsLoading = true;
         try
         {
-            await _files.Sync.Sync(FileMenu.Selected);
+            if (string.IsNullOrWhiteSpace(profile.SyncURL) && !await EditSyncUrl(profile)) return;
+            await _files.Sync.Sync(reference);
             await OnFileChanged();
         }
         catch (Exception ex)
@@ -125,17 +130,27 @@ public class SyncPanel : ReactiveObject, IRefreshablePanel, IDisplablePanel, IRe
             _logger.LogWarning(ex, @"Failed");
             await _dialogueBox.OpenErrorAsync(Resources.InvalidURL);
         }
+        finally { FileMenu.IsLoading = false; }
     }
 
     private async Task OnSyncEdit()
     {
+        if (_profile is not { } profile) return;
+        FileMenu.IsLoading = true;
+        try { await EditSyncUrl(profile); }
+        finally { FileMenu.IsLoading = false; }
+    }
+
+    private async Task<bool> EditSyncUrl(SyncProfile profile)
+    {
         var editor = new OnBoardingNameSelection(Resources.Sync, Resources.SyncText);
-        editor.Value = _profile.SyncURL;
+        editor.Value = profile.SyncURL;
         editor.PlaceholderText = @"https://";
         await _dialogueBox.OpenAsync(editor);
-        if (editor.Value is null) return;
-        _profile.SyncURL = editor.Value;
-        _profile.SaveFile();
+        if (string.IsNullOrWhiteSpace(editor.Value)) return false;
+        profile.SyncURL = editor.Value;
+        profile.SaveFile();
+        return true;
     }
     
     private async Task OnRequestRefresh()

@@ -79,10 +79,11 @@ namespace Trebuchet.ViewModels.Panels
             EnsureFields();
             _logger.LogDebug(@"Refresh panel");
             CanBeOpened = Tools.IsClientInstallValid(_setup.Config, _setup.Edition) && _setup.Config.ManageClient;
-            _profile = _appFiles.Client.Get(FileMenu.Selected);
+            if (FileMenu.Selected is not { } selected) return;
+            _profile = _appFiles.Client.Get(selected);
             foreach (var f in Fields.OfType<IValueField>())
                 f.Update.Execute().Subscribe();
-            await RefreshProfileSize(FileMenu.Selected);
+            await RefreshProfileSize(selected);
             ClientConnectionList.SetList(_profile.ClientConnections);
         }
         
@@ -93,8 +94,9 @@ namespace Trebuchet.ViewModels.Panels
             return Task.CompletedTask;
         }
         
-        private Task OnFileSelected(object? sender, ClientProfileRef profile)
+        private Task OnFileSelected(object? sender, ClientProfileRef? profile)
         {
+            if (profile is null) return Task.CompletedTask;
             _uiConfig.CurrentClientProfile = profile.Uri.OriginalString;
             _uiConfig.SaveFile();
             return RefreshPanel();

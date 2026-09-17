@@ -270,7 +270,7 @@ public class ModListViewModel : ReactiveObject
     
     public async Task QueryFromWorkshop(IList<IModFile> files, bool force)
     {
-        var published = files.OfType<IPublishedModFile>().Select(x => x.PublishedId).ToList();
+        var published = files.OfType<IPublishedModFile>().Select(x => x.PublishedId).Distinct().ToList();
         if (published.Count == 0) return;
         IsLoading = true;
         try
@@ -278,12 +278,12 @@ public class ModListViewModel : ReactiveObject
             if(force)
                 _steam.ClearModDetailsCache();
             var details = await _steam.RequestModDetails(published);
+            var detailsById = details.DistinctBy(d => d.PublishedFileId).ToDictionary(d => d.PublishedFileId);
             for (var i = 0; i < files.Count; i++)
             {
                 var current = files[i];
                 if (current is not IPublishedModFile pub) continue;
-                var workshop = details.FirstOrDefault(d => d.PublishedFileId == pub.PublishedId);
-                if (workshop is null) continue;
+                if (!detailsById.TryGetValue(pub.PublishedId, out var workshop)) continue;
                 var builder = workshop.CreatorAppId != 0
                     ? _modFileFactory.Create(workshop, workshop.Status)
                     : _modFileFactory.CreateUnknown(pub.FilePath, pub.PublishedId);

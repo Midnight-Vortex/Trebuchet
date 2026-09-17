@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using DepotDownloader;
 using Microsoft.Extensions.Logging;
 using SteamKit2;
@@ -423,7 +423,7 @@ public class Steam : IDebugListener, IDisposable
         {
             try
             {
-                await ContentDownloader.DownloadUGCAsync([Constants.AppIDLiveClient, Constants.AppIDTestLiveClient],
+                await ContentDownloader.DownloadUGCAsync([Constants.AppIDLiveClient, Constants.AppIDPtcClient],
                     enumerable, ContentDownloader.DEFAULT_BRANCH, cts);
             }
             catch(Exception ex)
@@ -589,7 +589,7 @@ public class Steam : IDebugListener, IDisposable
         ContentDownloader.Config.CellID = 0; //TODO: Offer regional download selection
         ContentDownloader.Config.MaxDownloads = _appSetup.Config.MaxDownloads;
         ContentDownloader.Config.DepotConfigDirectory = Path.Combine(_appSetup.GetWorkshopFolder(), ContentDownloader.CONFIG_DIR);
-        // Per-edition Steam account store — same pattern as TestLive: Workshop/{VersionFolder}/account.config
+        // Per-edition Steam account store: Workshop/{VersionFolder}/account.config
         AccountSettingsStore.LoadFromFile(
             Path.Combine(_appSetup.GetWorkshopFolder(), _appSetup.VersionFolder, "account.config"));
     }
@@ -614,7 +614,7 @@ public class Steam : IDebugListener, IDisposable
 
         try
         {
-            foreach (var appId in new[] { Constants.AppIDLiveClient, Constants.AppIDTestLiveClient })
+            foreach (var appId in new[] { Constants.AppIDLiveClient, Constants.AppIDPtcClient })
             {
                 var stillNeeding = idsNeedingTags
                     .Where(id => _publishedFiles.TryGetValue(id, out var f) && (f.Tags is null || f.Tags.Length == 0))

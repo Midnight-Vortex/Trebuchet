@@ -32,8 +32,16 @@ public static class AppFilesEx
     public static IPRefWithModList ResolveModList(this AppFiles files, string name)
     {
         if (files.TryParseModListRef(name, out var reference))
-            return reference;
+            return files.ResolveModListSelection(reference);
         return files.Mods.Resolve(name);
+    }
+
+    public static IPRefWithModList ResolveModListSelection(this AppFiles files, IPRefWithModList? reference)
+    {
+        // Deleted sync profiles must not be recreated by a stale dashboard selection.
+        if (reference is SyncProfileRef sync && !files.Sync.Exists(sync))
+            return (IPRefWithModList?)files.Sync.GetList().FirstOrDefault() ?? files.Mods.GetDefault();
+        return reference?.Resolve() ?? files.Mods.GetDefault();
     }
 
     public static bool TryParseModListRef(this AppFiles files, Uri uri, [NotNullWhen(true)] out IPRefWithModList? reference)
@@ -322,10 +330,10 @@ public static class AppFilesEx
         where TRef : class,IPRef<T, TRef>
     {
         var profile = Get(name);
-        handler.Cache.Remove(name);
         if(handler.UseSubFolders)
             profile.DeleteFolder();
         else profile.DeleteFile();
+        handler.Cache.Remove(name);
     }
 
     public static async Task<T> Duplicate<T, TRef>(this IAppFileHandler<T, TRef> handler, TRef name, TRef destination)
@@ -504,7 +512,7 @@ public static class AppFilesEx
                 path = mod;
                 return true;
             }
-            if (setup.ResolveMod(Constants.AppIDTestLiveClient, ref mod))
+            if (setup.ResolveMod(Constants.AppIDPtcClient, ref mod))
             {
                 path = mod;
                 return true;

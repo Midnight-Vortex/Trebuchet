@@ -37,10 +37,6 @@ internal static class Utils
     }
 
     [Localizable(false)]
-    public static string? GetAutoStartValue(bool testLive)
-        => GetAutoStartValue(testLive ? GameEdition.TestLive : GameEdition.Legacy);
-
-    [Localizable(false)]
     public static string? GetAutoStartValue(GameEdition edition)
     {
         var process = Process.GetCurrentProcess().MainModule?.FileName;

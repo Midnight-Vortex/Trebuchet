@@ -90,13 +90,6 @@ public class WorkshopModFile : ReactiveObject, IPublishedModFile
 
     private void ApplyEditionIcon(uint appId, IReadOnlyList<string> tags)
     {
-        if (appId == Constants.AppIDTestLiveClient)
-        {
-            IconClasses.Add(@"TestLive");
-            IconToolTip = AppResources.TestLiveMod;
-            return;
-        }
-
         if (tags.Any(t => string.Equals(t, Constants.WorkshopTagEnhanced, StringComparison.OrdinalIgnoreCase)))
         {
             IconClasses.Add(@"Enhanced");

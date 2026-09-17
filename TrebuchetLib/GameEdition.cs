@@ -6,8 +6,7 @@ namespace TrebuchetLib;
 /// </summary>
 public enum GameEdition
 {
-    Legacy,
-    Enhanced,
-    TestLive,
-    EnhancedTestLive
+    Legacy = 0,
+    Enhanced = 1,
+    EnhancedPtc = 3
 }

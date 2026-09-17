@@ -41,7 +41,6 @@
                                 <Button Classes="Base" Command="{Binding NextPage}">
                                     <i:Icon Value="mdi-chevron-right" Classes="Normal" />
                                 </Button>
-                                <CheckBox IsChecked="{Binding TestLiveWorkshop, Mode=OneWayToSource, UpdateSourceTrigger=PropertyChanged}" Content="{x:Static a:Resources.TestLive}" VerticalAlignment="Center" />    
                             </StackPanel>
                         </Grid>
                     </Border>

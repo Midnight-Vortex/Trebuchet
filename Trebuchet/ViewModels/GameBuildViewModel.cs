@@ -1,4 +1,4 @@
-﻿using System.Reactive;
+using System.Reactive;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using ReactiveUI;
@@ -16,15 +16,13 @@ public class GameBuildViewModel : ReactiveObject
         _app = app;
         LiveCommand = ReactiveCommand.CreateFromTask(OnLiveClicked);
         EnhancedCommand = ReactiveCommand.CreateFromTask(OnEnhancedClicked);
-        EnhancedTestCommand = ReactiveCommand.CreateFromTask(() => OpenEditionAsync(GameEdition.EnhancedTestLive));
-        TestLiveCommand = ReactiveCommand.CreateFromTask(OnTestLiveClicked);
+        EnhancedPtcCommand = ReactiveCommand.CreateFromTask(() => OpenEditionAsync(GameEdition.EnhancedPtc));
     }
 
     /// <summary>Legacy build (former Live).</summary>
     public ReactiveCommand<Unit, Unit> LiveCommand { get; }
     public ReactiveCommand<Unit, Unit> EnhancedCommand { get; }
-    public ReactiveCommand<Unit, Unit> EnhancedTestCommand { get; }
-    public ReactiveCommand<Unit, Unit> TestLiveCommand { get; }
+    public ReactiveCommand<Unit, Unit> EnhancedPtcCommand { get; }
 
     public bool IsOpening
     {
@@ -40,11 +38,6 @@ public class GameBuildViewModel : ReactiveObject
     private async Task OnEnhancedClicked()
     {
         await OpenEditionAsync(GameEdition.Enhanced);
-    }
-
-    private async Task OnTestLiveClicked()
-    {
-        await OpenEditionAsync(GameEdition.TestLive);
     }
 
     private async Task OpenEditionAsync(GameEdition edition)

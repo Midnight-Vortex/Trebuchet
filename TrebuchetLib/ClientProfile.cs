@@ -1,4 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 using System.Text.Json.Serialization;
 using Yuu.Ini;
@@ -88,7 +88,7 @@ namespace TrebuchetLib
         public string GetClientArgs(string modlistPath, bool autoConnect, GameEdition edition = GameEdition.Legacy)
         {
             List<string> args = new List<string>();
-            if (edition == GameEdition.EnhancedTestLive) args.Add(Constants.GameArgsExt);
+            if (edition == GameEdition.EnhancedPtc) args.Add(Constants.GameArgsExt);
             if (Log) args.Add(Constants.GameArgsLog);
             if (UseAllCores) args.Add(Constants.GameArgsUseAllCore);
             args.Add(string.Format(Constants.GameArgsModList, modlistPath));

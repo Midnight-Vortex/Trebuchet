@@ -20,13 +20,11 @@ class Program
     
     static async Task<int> Main(string[] args)
     {
-        var rootCommand = new RootCommand("Boulder - Trebuchet's CLI");
-        rootCommand.Add(LambCommand.Command);
-        rootCommand.Add(KillCommand.Command);
+        var rootCommand = RootCommandFactory.Create();
         
         var result = rootCommand.Parse(args);
-        _edition = Constants.ParseEditionArgs(result.UnmatchedTokens) ?? GameEdition.Legacy;
-        _experiment = result.UnmatchedTokens.Contains(Constants.argExperiment);
+        _edition = Constants.ParseEditionArgs(args) ?? GameEdition.Legacy;
+        _experiment = args.Contains(Constants.argExperiment);
         return await result.InvokeAsync();
     }
 

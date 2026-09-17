@@ -206,7 +206,7 @@ public static class Tools
     }
 
     /// <summary>
-    /// Edition-aware check: Enhanced expects the shipping client; Legacy/TestLive expect ConanSandbox.exe.
+    /// Enhanced editions expect the shipping client; Legacy expects ConanSandbox.exe.
     /// </summary>
     public static bool IsClientInstallValid(string directory, GameEdition edition)
     {

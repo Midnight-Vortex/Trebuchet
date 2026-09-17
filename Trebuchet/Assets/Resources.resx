@@ -75,9 +75,6 @@
     <data name="Install" xml:space="preserve">
     <value>Install</value>
     </data>
-    <data name="TestLiveMod" xml:space="preserve">
-    <value>Steam Workshop (TestLive)</value>
-    </data>
     <data name="LiveMod" xml:space="preserve">
     <value>Steam Workshop (Legacy)</value>
     </data>
@@ -736,9 +733,6 @@ Do you wish to proceed ?</value>
     <data name="OpenSaveFolder" xml:space="preserve">
         <value>Open save folder</value>
     </data>
-    <data name="TestLive" xml:space="preserve">
-        <value>Test Live</value>
-    </data>
     <data name="Live" xml:space="preserve">
         <value>Live</value>
     </data>
@@ -1215,7 +1209,7 @@ The stopping sequence will be used in place of simply stopping the server. This 
         <value>Reason: Server Update</value>
     </data>
     <data name="SettingRunOnLogonText" xml:space="preserve">
-        <value>Configure the app to start on the current user session login, for this specific build of the game. Both Live and TestLive are separated in this manner. Game build selection will therefore be skipped.</value>
+        <value>Configure the app to start on the current user session login, for this specific build of the game. Legacy, Enhanced and Enhanced PTC each have their own setting. Game build selection will therefore be skipped.</value>
     </data>
     <data name="SettingServerAutoRestartText" xml:space="preserve">
         <value>Programe daily restarts at various moment of the day.</value>
@@ -1317,10 +1311,12 @@ When using sequences, this only include when the server is online, and when a se
     <data name="ModViewNoMatches" xml:space="preserve">
         <value>No matching mods.</value>
     </data>
-    <data name="EnhancedTest" xml:space="preserve">
+    <data name="EnhancedPtc" xml:space="preserve">
         <value>Enhanced PTC</value>
     </data>
-    <data name="LegacyTest" xml:space="preserve">
-        <value>Legacy PTC</value>
-    </data>
+<data name="NoSyncProfile" xml:space="preserve"><value>No synchronization profile. Create one with + or import a profile.</value></data>
+<data name="ConsoleNoLocalServer" xml:space="preserve"><value>No local server running</value></data>
+<data name="ConsoleRunning" xml:space="preserve"><value>Running</value></data>
+<data name="ConsoleOnline" xml:space="preserve"><value>Online</value></data>
+<data name="ConsoleRconDisabled" xml:space="preserve"><value>RCON disabled</value></data>
 </root>

@@ -5,7 +5,7 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <DataTemplate x:Key="FileMenuView" x:DataType="vm:IFileMenuViewModel">
         <Border Background="{DynamicResource TPanel}" Padding="0 0 0 0">
-            <DockPanel LastChildFill="True">
+            <DockPanel LastChildFill="True" IsEnabled="{Binding !IsLoading}">
                 <StackPanel DockPanel.Dock="Bottom" Classes.Grouped="{Binding Exportable}" Margin="6 6" VerticalAlignment="Center" Orientation="Horizontal" HorizontalAlignment="Center">
                     <Button Command="{Binding Create}" 
                             ToolTip.Tip="{x:Static a:Resources.Create}"
@@ -17,6 +17,10 @@
                             ToolTip.Tip="{x:Static a:Resources.Import}"
                             IsVisible="{Binding Exportable}">
                         <i:Icon Value="mdi-file-import" Classes="Normal" />
+                    </Button>
+                    <Button Command="{Binding DeleteSelected}" Classes="Base Flat Red"
+                            ToolTip.Tip="{x:Static a:Resources.Delete}">
+                        <i:Icon Value="mdi-delete" Classes="Normal" />
                     </Button>
                 </StackPanel>
                 <Border Height="50" DockPanel.Dock="Top" BorderThickness="0 0 0 1" Margin="0 0 0 0" BorderBrush="{DynamicResource TPanelAccent}">

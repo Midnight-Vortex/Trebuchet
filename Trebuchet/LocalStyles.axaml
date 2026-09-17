@@ -24,11 +24,6 @@
                 <Setter Property="Value" Value="mdi-rocket-launch" />
             </Style>
         </Style>
-        <Style Selector="^.TestLive">
-            <Style Selector="^ i|Icon">
-                <Setter Property="Value" Value="mdi-test-tube" />
-            </Style>
-        </Style>
         <Style Selector="^.Unknown">
             <Style Selector="^ i|Icon">
                 <Setter Property="Value" Value="mdi-help" />

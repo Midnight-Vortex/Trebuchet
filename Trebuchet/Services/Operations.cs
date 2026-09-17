@@ -560,13 +560,11 @@ public class Operations : IDisposable
     {
         // Check old versions of trebuchet for upgrade path
         string configLive = @"Live.Config.json";
-        string configTestlive = @"TestLive.Config.json";
         var trebuchetDir = Path.GetFullPath(AppDomain.CurrentDomain.BaseDirectory);
         configLive = Path.Combine(trebuchetDir, configLive);
-        configTestlive = Path.Combine(trebuchetDir, configTestlive);
         _logger.LogInformation(@"Upgrading old trebuchet");
         
-        if (File.Exists(configLive) || File.Exists(configTestlive))
+        if (File.Exists(configLive))
         {
             var upgrade = new OnBoardingBranch(Resources.Upgrade, Resources.OnBoardingUpgrade)
                 .AddChoice(Resources.Upgrade, Resources.OnBoardingUpgradeSub);
@@ -585,29 +583,13 @@ public class Operations : IDisposable
                 var configuration = JsonSerializer.Deserialize<Config>(configJson);
                 if (configuration is not null)
                 {
-                    if (!await OnBoardingUpgradeTrebuchet(configuration.InstallPath, false, progress)) return false;
+                    if (!await OnBoardingUpgradeTrebuchet(configuration.InstallPath, progress)) return false;
                     configuration.InstallPath = string.Empty;
                     configuration.ManageClient = true;
                     configJson = JsonSerializer.Serialize(configuration);
-                    await File.WriteAllTextAsync(Constants.GetConfigPath(false), configJson);
+                    await File.WriteAllTextAsync(Constants.GetConfigPath(GameEdition.Legacy), configJson);
                 }
                 File.Delete(configLive);
-            }
-
-            if (File.Exists(configTestlive))
-            {
-                _logger.LogInformation(@"Upgrading testlive");
-                var configJson = await File.ReadAllTextAsync(configTestlive);
-                var configuration = JsonSerializer.Deserialize<Config>(configJson);
-                if (configuration is not null)
-                {
-                    if(!await OnBoardingUpgradeTrebuchet(configuration.InstallPath, true, progress)) return false;
-                    configuration.InstallPath = string.Empty;
-                    configuration.ManageClient = true;
-                    configJson = JsonSerializer.Serialize(configuration);
-                    await File.WriteAllTextAsync(Constants.GetConfigPath(true), configJson);
-                }
-                File.Delete(configTestlive);
             }
 
             App.RestartProcess();
@@ -618,7 +600,7 @@ public class Operations : IDisposable
     }
 #pragma warning restore CS0612 // Type or member is obsolete
 
-    public async Task<bool> OnBoardingUpgradeTrebuchet(string installDir, bool testlive, IProgress<double> progress)
+    public async Task<bool> OnBoardingUpgradeTrebuchet(string installDir, IProgress<double> progress)
     {
         bool isElevated = _osSpecific.IsProcessElevated();
         string appDir = Path.GetDirectoryName(AppDomain.CurrentDomain.BaseDirectory) ?? throw new Exception(@"App is installed in an invalid directory");
@@ -628,7 +610,7 @@ public class Operations : IDisposable
         if (!await OnBoardingElevationRequest(installDir, Resources.OnBoardingUpgradeUac)) return false;
         
         progress.Report(0.0);
-        var versionDir = testlive ? Constants.FolderTestLive : Constants.FolderLive;
+        var versionDir = Constants.FolderLive;
         var workshopDir = Path.Combine(installDir, Constants.FolderWorkshop);
         if (Directory.Exists(workshopDir))
         {
@@ -645,9 +627,9 @@ public class Operations : IDisposable
         {
             _logger.LogInformation(@"Copying instance directory {directory}", instanceDir);
             Tools.RemoveAllJunctions(instanceDir); 
-            await Tools.DeepCopyAsync(instanceDir, _setup.GetBaseInstancePath(testlive), CancellationToken.None, progress);
+            await Tools.DeepCopyAsync(instanceDir, _setup.GetBaseInstancePath(GameEdition.Legacy), CancellationToken.None, progress);
             if(isElevated)
-                _tOsSpecific.SetEveryoneAccess(new DirectoryInfo(_setup.GetBaseInstancePath(testlive)));
+                _tOsSpecific.SetEveryoneAccess(new DirectoryInfo(_setup.GetBaseInstancePath(GameEdition.Legacy)));
             await OnBoardingSafeIO(() => Directory.Delete(instanceDir, true), instanceDir);
         }
         progress.Report(0.0);
