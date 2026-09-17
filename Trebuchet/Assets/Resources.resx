@@ -1260,4 +1260,61 @@ When using sequences, this only include when the server is online, and when a se
     <data name="SequenceMainActionText" xml:space="preserve">
         <value>Execute the main action of this sequence. On a stopping sequence, it order the server to stop. On a starting sequence, it order the server to start.</value>
     </data>
+    <data name="SettingEnableConsoleOnHotkey" xml:space="preserve">
+        <value>Enable Console on Hotkey</value>
+    </data>
+    <data name="SettingEnableConsoleOnHotkeyText" xml:space="preserve">
+        <value>Before each game launch, check Input.ini and add the selected console key if missing. Existing bindings are preserved. Disabling stops the check; it does not remove bindings.</value>
+    </data>
+    <data name="SettingConsoleHotkey" xml:space="preserve">
+        <value>Console hotkey</value>
+    </data>
+    <data name="SettingConsoleHotkeyText" xml:space="preserve">
+        <value>Default: Insert. Changing the key adds the new binding on the next game launch; previous bindings remain.</value>
+    </data>
+    <data name="ModViewLoadOrder" xml:space="preserve">
+        <value>Load order</value>
+    </data>
+    <data name="ModViewUpdated" xml:space="preserve">
+        <value>Last updated</value>
+    </data>
+    <data name="ModViewName" xml:space="preserve">
+        <value>Name</value>
+    </data>
+    <data name="ModViewSize" xml:space="preserve">
+        <value>Size</value>
+    </data>
+    <data name="ModViewAscending" xml:space="preserve">
+        <value>Ascending</value>
+    </data>
+    <data name="ModViewDescending" xml:space="preserve">
+        <value>Descending</value>
+    </data>
+    <data name="ModViewCount" xml:space="preserve">
+        <value>{0} / {1} mods</value>
+    </data>
+    <data name="ModViewInvalidRegex" xml:space="preserve">
+        <value>Invalid regular expression. Please check the search pattern.</value>
+    </data>
+    <data name="ModViewRegexTimeout" xml:space="preserve">
+        <value>Search took too long. Please simplify the regular expression.</value>
+    </data>
+    <data name="ModViewSearch" xml:space="preserve">
+        <value>Find mods (Regex)…</value>
+    </data>
+    <data name="ModViewSearchTip" xml:space="preserve">
+        <value>Search names, Workshop IDs and file paths. Case-insensitive Regex, e.g. building|decor or ^Tot.</value>
+    </data>
+    <data name="ModViewSort" xml:space="preserve">
+        <value>Sort display</value>
+    </data>
+    <data name="ModViewReset" xml:space="preserve">
+        <value>Reset view</value>
+    </data>
+    <data name="ModViewVisualOnly" xml:space="preserve">
+        <value>Display only: saved load order stays unchanged. Clear the search and select Load order to reorder mods.</value>
+    </data>
+    <data name="ModViewNoMatches" xml:space="preserve">
+        <value>No matching mods.</value>
+    </data>
 </root>

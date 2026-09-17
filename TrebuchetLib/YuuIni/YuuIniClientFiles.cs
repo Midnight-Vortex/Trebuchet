@@ -9,6 +9,13 @@ public static class YuuIniClientFiles
 {
     public static async Task WriteIni(this AppSetup setup, ClientProfile profile)
     {
+        if (profile.EnableConsoleOnHotkey)
+        {
+            var inputPath = ResolveClientAbsolutePath(setup,
+                string.Format(Constants.GetFileIniUser(setup.Edition), "Input"));
+            await ConsoleHotkeySettings.EnsureFile(inputPath, profile.ConsoleHotkey);
+        }
+
         Dictionary<string, IniDocument> documents = new Dictionary<string, IniDocument>();
         // Modify the default SectionName parse because funcom sometime does an oupsi and generate sections with an empty name
         var iniParserConfiguration = new IniParserConfiguration();

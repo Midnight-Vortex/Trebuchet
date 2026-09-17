@@ -1,3 +1,4 @@
+using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using ReactiveUI;
@@ -18,6 +19,7 @@ public class PublishedModFile : ReactiveObject, IPublishedModFile
         IconClasses.Add(@"Live");
         IconToolTip = Resources.LiveMod;
         FileSize = 0;
+        UpdatedAtUtc = File.Exists(path) ? File.GetLastWriteTimeUtc(path!) : null;
         StatusClasses.Add(!string.IsNullOrEmpty(path) && File.Exists(path) ? @"Loading" : @"Missing");
     }
     
@@ -29,6 +31,7 @@ public class PublishedModFile : ReactiveObject, IPublishedModFile
     public string LastUpdate { get; }
     public string FilePath { get; }
     public long FileSize { get; }
+    public DateTime? UpdatedAtUtc { get; }
     public ObservableCollection<ModFileAction> Actions { get; } = [];
 
     public ModProgressViewModel Progress { get; } = new();

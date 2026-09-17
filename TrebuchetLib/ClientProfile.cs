@@ -9,6 +9,8 @@ namespace TrebuchetLib
     {
         public int AddedTexturePool { get; set; } = AddedTexturePoolDefault;
         public bool BackgroundSound { get; set; } = BackgroundSoundDefault;
+        public bool EnableConsoleOnHotkey { get; set; } = EnableConsoleOnHotkeyDefault;
+        public string ConsoleHotkey { get; set; } = ConsoleHotkeyDefault;
         public int ConfiguredInternetSpeed { get; set; } = ConfiguredInternetSpeedDefault;
         public long CPUThreadAffinity { get; set; } = CPUThreadAffinityDefault;
         public bool EnableAsyncScene { get; set; } = EnableAsyncSceneDefault;
@@ -24,6 +26,8 @@ namespace TrebuchetLib
         public static readonly long CPUThreadAffinityDefault = 0xffffffffffff;
         public static readonly int ConfiguredInternetSpeedDefault = 25000; 
         public static readonly bool BackgroundSoundDefault = false;
+        public static readonly bool EnableConsoleOnHotkeyDefault = false;
+        public const string ConsoleHotkeyDefault = "Insert";
         public static readonly int AddedTexturePoolDefault = 0;
         public static readonly bool EnableAsyncSceneDefault = false;
         public static readonly bool LogDefault = false;

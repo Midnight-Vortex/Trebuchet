@@ -933,4 +933,61 @@ WARNUNG: Dies kann dazu führen, dass die Erkennung von Zombie-Prozessen nicht m
     <data name="SettingDebugModeText" xml:space="preserve">
         <value>Schreibt ein detailliertes Debug-Log, vorzugsweise neben Trebuchet (logs\debug-*.log). Fallback auf AppData-Logs, wenn der Installationsordner nicht beschreibbar ist. Neustart erforderlich.</value>
     </data>
+    <data name="SettingEnableConsoleOnHotkey" xml:space="preserve">
+        <value>Konsole per Hotkey aktivieren</value>
+    </data>
+    <data name="SettingEnableConsoleOnHotkeyText" xml:space="preserve">
+        <value>Prüft vor jedem Spielstart die Input.ini und ergänzt die gewählte Konsolentaste, falls sie fehlt. Vorhandene Belegungen bleiben erhalten. Ausschalten beendet die Prüfung und entfernt keine Belegungen.</value>
+    </data>
+    <data name="SettingConsoleHotkey" xml:space="preserve">
+        <value>Konsolen-Hotkey</value>
+    </data>
+    <data name="SettingConsoleHotkeyText" xml:space="preserve">
+        <value>Standard: Insert (Einfg). Eine andere Taste wird beim nächsten Spielstart ergänzt; bisherige Belegungen bleiben erhalten.</value>
+    </data>
+    <data name="ModViewLoadOrder" xml:space="preserve">
+        <value>Lade-Reihenfolge</value>
+    </data>
+    <data name="ModViewUpdated" xml:space="preserve">
+        <value>Letzte Aktualisierung</value>
+    </data>
+    <data name="ModViewName" xml:space="preserve">
+        <value>Name</value>
+    </data>
+    <data name="ModViewSize" xml:space="preserve">
+        <value>Größe</value>
+    </data>
+    <data name="ModViewAscending" xml:space="preserve">
+        <value>Aufsteigend</value>
+    </data>
+    <data name="ModViewDescending" xml:space="preserve">
+        <value>Absteigend</value>
+    </data>
+    <data name="ModViewCount" xml:space="preserve">
+        <value>{0} / {1} Mods</value>
+    </data>
+    <data name="ModViewInvalidRegex" xml:space="preserve">
+        <value>Ungültiger regulärer Ausdruck. Bitte den Suchausdruck prüfen.</value>
+    </data>
+    <data name="ModViewRegexTimeout" xml:space="preserve">
+        <value>Die Suche dauert zu lange. Bitte den regulären Ausdruck vereinfachen.</value>
+    </data>
+    <data name="ModViewSearch" xml:space="preserve">
+        <value>Mods suchen (Regex)…</value>
+    </data>
+    <data name="ModViewSearchTip" xml:space="preserve">
+        <value>Durchsucht Namen, Workshop-IDs und Dateipfade. Regex ohne Groß-/Kleinschreibung, z. B. building|decor oder ^Tot.</value>
+    </data>
+    <data name="ModViewSort" xml:space="preserve">
+        <value>Ansicht sortieren</value>
+    </data>
+    <data name="ModViewReset" xml:space="preserve">
+        <value>Ansicht zurücksetzen</value>
+    </data>
+    <data name="ModViewVisualOnly" xml:space="preserve">
+        <value>Nur Anzeige: Die gespeicherte Lade-Reihenfolge bleibt unverändert. Zum Verschieben die Suche leeren und „Lade-Reihenfolge“ auswählen.</value>
+    </data>
+    <data name="ModViewNoMatches" xml:space="preserve">
+        <value>Keine passenden Mods.</value>
+    </data>
 </root>

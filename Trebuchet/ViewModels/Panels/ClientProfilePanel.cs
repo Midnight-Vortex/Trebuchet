@@ -119,6 +119,25 @@ namespace Trebuchet.ViewModels.Panels
             Fields.Add(new TitleField().SetTitle(AppResources.CatGeneral));
             Fields.Add(new ToggleField()
                 .WhenFieldChanged(SaveProfile)
+                .SetTitle(AppResources.SettingEnableConsoleOnHotkey)
+                .SetDescription(AppResources.SettingEnableConsoleOnHotkeyText)
+                .SetGetter(() => _profile.EnableConsoleOnHotkey)
+                .SetSetter(v => _profile.EnableConsoleOnHotkey = v)
+                .SetDefault(() => ClientProfile.EnableConsoleOnHotkeyDefault)
+            );
+            var consoleKeys = ConsoleHotkeySettings.SupportedKeys.ToList();
+            var consoleHotkeyField = new ComboBoxField();
+            foreach (var key in consoleKeys) consoleHotkeyField.AddOption(key);
+            Fields.Add(consoleHotkeyField
+                .WhenFieldChanged(SaveProfile)
+                .SetTitle(AppResources.SettingConsoleHotkey)
+                .SetDescription(AppResources.SettingConsoleHotkeyText)
+                .SetGetter(() => consoleKeys.FindIndex(key => string.Equals(key, _profile.ConsoleHotkey, StringComparison.OrdinalIgnoreCase)))
+                .SetSetter(v => { if (v >= 0 && v < consoleKeys.Count) _profile.ConsoleHotkey = consoleKeys[v]; })
+                .SetDefault(() => consoleKeys.IndexOf(ClientProfile.ConsoleHotkeyDefault))
+            );
+            Fields.Add(new ToggleField()
+                .WhenFieldChanged(SaveProfile)
                 .SetTitle(AppResources.SettingBackgroundSound)
                 .SetDescription(AppResources.SettingBackgroundSoundText)
                 .SetSetter((v) => _profile.BackgroundSound = v)

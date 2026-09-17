@@ -76,6 +76,7 @@ public class WorkshopModFile : ReactiveObject, IPublishedModFile
     public string FilePath { get; }
     public long FileSize { get; }
     public DateTime LastDateUpdate { get; }
+    public DateTime? UpdatedAtUtc => LastDateUpdate.ToUniversalTime();
     public ObservableCollection<string> StatusClasses { get; } = [];
     public ObservableCollection<string> IconClasses { get; } = [];
     public string IconToolTip { get; private set; } = string.Empty;

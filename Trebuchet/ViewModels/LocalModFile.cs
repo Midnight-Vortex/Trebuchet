@@ -1,3 +1,4 @@
+using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using Humanizer;
@@ -22,6 +23,7 @@ public class LocalModFile : ReactiveObject, IModFile
         {
             StatusClasses.Add(@"Found");
             FileSize = fileInfo.Length;
+            UpdatedAtUtc = fileInfo.LastWriteTimeUtc;
             LastUpdate = @$"{AppResources.Found} - {AppResources.LastModified}: {fileInfo.LastWriteTime.Humanize()} ({FileSize.Bytes().Humanize()})";
         }
         else
@@ -39,6 +41,7 @@ public class LocalModFile : ReactiveObject, IModFile
     public string LastUpdate { get; }
     public string FilePath { get; }
     public long FileSize { get; }
+    public DateTime? UpdatedAtUtc { get; }
     public ObservableCollection<ModFileAction> Actions { get; } = [];
     public ModProgressViewModel Progress { get; } = new();
     public string Export()

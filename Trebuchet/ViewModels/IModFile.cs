@@ -1,3 +1,4 @@
+using System;
 using System.Collections.ObjectModel;
 using System.Reactive;
 using System.Threading.Tasks;
@@ -17,6 +18,7 @@ public interface IModFile
     string LastUpdate { get; }
     string FilePath { get; }
     long FileSize { get; }
+    DateTime? UpdatedAtUtc { get; }
     ObservableCollection<ModFileAction> Actions { get; }
     string Export();
     

@@ -1,15 +1,32 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
                     xmlns:vm="clr-namespace:Trebuchet.ViewModels"
+                    xmlns:a="clr-namespace:Trebuchet.Assets"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <DataTemplate x:Key="ModListView" x:DataType="vm:ModListViewModel">
         <DockPanel LastChildFill="True">
+            <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="0 0 0 8">
+                <TextBox Text="{Binding Display.SearchPattern, Mode=TwoWay}"
+                         PlaceholderText="{x:Static a:Resources.ModViewSearch}"
+                         ToolTip.Tip="{x:Static a:Resources.ModViewSearchTip}" />
+                <WrapPanel Orientation="Horizontal">
+                    <ComboBox ItemsSource="{Binding Display.SortOptions}" SelectedIndex="{Binding Display.SortIndex, Mode=TwoWay}"
+                              MinWidth="180" Margin="0 0 6 6" ToolTip.Tip="{x:Static a:Resources.ModViewSort}" />
+                    <ComboBox ItemsSource="{Binding Display.DirectionOptions}" SelectedIndex="{Binding Display.DirectionIndex, Mode=TwoWay}"
+                              IsEnabled="{Binding Display.CanChooseDirection}" MinWidth="130" Margin="0 0 6 6" />
+                    <Button Command="{Binding Display.ResetView}" Content="{x:Static a:Resources.ModViewReset}" Classes="Base" Margin="0 0 6 6" />
+                    <TextBlock Text="{Binding Display.ResultCount}" VerticalAlignment="Center" Margin="0 0 0 6" Classes="SubText" />
+                </WrapPanel>
+                <TextBlock IsVisible="{Binding Display.IsViewActive}" Text="{x:Static a:Resources.ModViewVisualOnly}" Classes="SubText" TextWrapping="Wrap" />
+                <TextBlock IsVisible="{Binding Display.HasSearchError}" Text="{Binding Display.SearchError}" Foreground="{DynamicResource TRedDim}" TextWrapping="Wrap" />
+                <TextBlock IsVisible="{Binding Display.HasNoMatches}" Text="{x:Static a:Resources.ModViewNoMatches}" Classes="SubText" />
+            </StackPanel>
             <ProgressBar DockPanel.Dock="Top" IsIndeterminate="True" IsVisible="{Binding IsLoading}" Margin="0 0 0 12" />
             <!-- StackPanel: reliable hold-drag reorder; VirtualizingStackPanel breaks ListBoxItem parent/drag. -->
             <ListBox DockPanel.Dock="Top"
                      Classes.NoSelection="{Binding IsReadOnly}"
-                     Classes.draggableVirtualizing="{Binding !IsReadOnly}"
+                     Classes.draggableVirtualizing="{Binding Display.CanReorder}"
                      SelectionMode="Multiple"
-                     ItemsSource="{Binding List}">
+                     ItemsSource="{Binding Display.Items}">
                 <ListBox.ItemsPanel>
                     <ItemsPanelTemplate>
                         <StackPanel Orientation="Vertical" />

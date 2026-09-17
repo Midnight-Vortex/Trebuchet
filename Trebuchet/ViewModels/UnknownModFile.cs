@@ -1,3 +1,4 @@
+using System;
 using System.Collections.ObjectModel;
 using System.IO;
 using Humanizer;
@@ -20,6 +21,7 @@ public class UnknownModFile : ReactiveObject, IPublishedModFile
         if (!string.IsNullOrEmpty(path) && File.Exists(path))
         {
             var fileInfo = new FileInfo(path);
+            UpdatedAtUtc = fileInfo.LastWriteTimeUtc;
             StatusClasses.Add(@"Found");
             LastUpdate = @$"{AppResources.Found} - {AppResources.LastModified}: {fileInfo.LastWriteTime.Humanize()} ({FileSize.Bytes().Humanize()})";
             FileSize = fileInfo.Length;
@@ -40,6 +42,7 @@ public class UnknownModFile : ReactiveObject, IPublishedModFile
     public string LastUpdate { get; }
     public string FilePath { get; }
     public long FileSize { get; }
+    public DateTime? UpdatedAtUtc { get; }
     public ObservableCollection<ModFileAction> Actions { get; } = [];
     public ModProgressViewModel Progress { get; } = new();
     public string Export()

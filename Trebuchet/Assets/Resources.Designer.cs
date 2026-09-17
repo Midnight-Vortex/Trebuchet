@@ -59,6 +59,44 @@ namespace Trebuchet.Assets {
             }
         }
         
+        public static string ModViewLoadOrder => ResourceManager.GetString("ModViewLoadOrder", resourceCulture);
+
+        public static string ModViewUpdated => ResourceManager.GetString("ModViewUpdated", resourceCulture);
+
+        public static string ModViewName => ResourceManager.GetString("ModViewName", resourceCulture);
+
+        public static string ModViewSize => ResourceManager.GetString("ModViewSize", resourceCulture);
+
+        public static string ModViewAscending => ResourceManager.GetString("ModViewAscending", resourceCulture);
+
+        public static string ModViewDescending => ResourceManager.GetString("ModViewDescending", resourceCulture);
+
+        public static string ModViewCount => ResourceManager.GetString("ModViewCount", resourceCulture);
+
+        public static string ModViewInvalidRegex => ResourceManager.GetString("ModViewInvalidRegex", resourceCulture);
+
+        public static string ModViewRegexTimeout => ResourceManager.GetString("ModViewRegexTimeout", resourceCulture);
+
+        public static string ModViewSearch => ResourceManager.GetString("ModViewSearch", resourceCulture);
+
+        public static string ModViewSearchTip => ResourceManager.GetString("ModViewSearchTip", resourceCulture);
+
+        public static string ModViewSort => ResourceManager.GetString("ModViewSort", resourceCulture);
+
+        public static string ModViewReset => ResourceManager.GetString("ModViewReset", resourceCulture);
+
+        public static string ModViewVisualOnly => ResourceManager.GetString("ModViewVisualOnly", resourceCulture);
+
+        public static string ModViewNoMatches => ResourceManager.GetString("ModViewNoMatches", resourceCulture);
+
+        public static string SettingEnableConsoleOnHotkey => ResourceManager.GetString("SettingEnableConsoleOnHotkey", resourceCulture);
+
+        public static string SettingEnableConsoleOnHotkeyText => ResourceManager.GetString("SettingEnableConsoleOnHotkeyText", resourceCulture);
+
+        public static string SettingConsoleHotkey => ResourceManager.GetString("SettingConsoleHotkey", resourceCulture);
+
+        public static string SettingConsoleHotkeyText => ResourceManager.GetString("SettingConsoleHotkeyText", resourceCulture);
+
         /// <summary>
         ///   Looks up a localized string similar to Add.
         /// </summary>

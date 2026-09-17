@@ -34,6 +34,7 @@ public class ModListViewModel : ReactiveObject
         _steam = steam;
         _setup = setup;
         _dialogueBox = dialogueBox;
+        Display = new ModListDisplayViewModel(List);
 
         List.CollectionChanged += OnListChanged;
         progress.ProgressChanged += OnProgressChanged;
@@ -52,6 +53,7 @@ public class ModListViewModel : ReactiveObject
     public event AsyncEventHandler? ModListChanged;
     
     public ObservableCollectionExtended<IModFile> List { get; } = [];
+    public ModListDisplayViewModel Display { get; }
 
     public string Size
     {
@@ -62,7 +64,11 @@ public class ModListViewModel : ReactiveObject
     public bool IsReadOnly
     {
         get => _isReadOnly;
-        set => this.RaiseAndSetIfChanged(ref _isReadOnly, value);
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _isReadOnly, value);
+            Display.IsReadOnly = value;
+        }
     }
 
     public bool IsLoading
