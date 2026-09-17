@@ -2,6 +2,13 @@
 
 After installing, launch Trebuchet from the Start menu or desktop shortcut. The installer deliberately does not launch it: on affected Windows versions, a process started by Setup can inherit RedirectionGuard and fail to traverse Trebuchet's Saved/profile junctions. Conan then reports that it cannot ensure `Saved/ExtractedMods` exists, even when the directory is present. If this happens after an older setup, fully close Trebuchet and relaunch it from the Start menu; reinstalling mods is not required for this directory-access error.
 
+## 0.9.6 game management responsiveness
+
+- Save/profile copies now enumerate and transfer files entirely in the background. A single copy queue replaces up to eight concurrent file copies; data is streamed through one 128 KiB buffer with a 32 MiB/s transfer budget. Metadata is streamed instead of building an array containing every file. Large-file transfers support cancellation and report progress at most ten times per second.
+- Enabling game file management displays cancellable progress. Incomplete imports stay outside the profile list; cancellation preserves the original Saved folder and restores the previous management setting. File replacement uses temporary files so an interrupted copy does not corrupt an existing destination file.
+- After import, the original Saved directory is retained until its junction has been created successfully. Junction failure restores the original directory. Cleanup and lock retries run off the UI thread. Size calculations stream entries and do not follow junction cycles.
+- Regression coverage includes 32 MiB files, 2,000 small files, checksums, timestamps, empty folders, progress, cancellation during a large file, queued cancellation and overlapping-path rejection. This does not replace testing on the affected user's hardware.
+
 ## 0.9.5 console hotkey correction
 
 The enabled console-hotkey setting writes `ConsoleKeys=Insert` (or the selected key) without a leading plus. Matching bindings from earlier versions are converted on the next game launch; other settings, encoding and console history are preserved.

@@ -19,6 +19,15 @@ static class ConsoleChecks
     {
         var count = 0;
         void Check(bool condition, string message) { if (!condition) throw new Exception(message); count++; }
+        using (var cancellation = new CancellationTokenSource())
+        {
+            var progress = new Trebuchet.ViewModels.InnerContainer.OnBoardingProgress<double>("Copy", "", 0, 1, cancellation);
+            Check(progress.CanCancel, "Save-copy progress exposes cancellation");
+            progress.CancelCommand.Execute(null);
+            Check(cancellation.IsCancellationRequested && !progress.CanCancel, "Cancel signals the copy token and prevents repeat requests");
+        }
+        var ordinaryProgress = new Trebuchet.ViewModels.InnerContainer.OnBoardingProgress<double>("Other", "", 0, 1);
+        Check(!ordinaryProgress.CanCancel, "Non-cancellable existing operations do not offer a misleading Cancel button");
         var config = new UIConfig();
         Check(config.GetInstanceFilter(0, ConsoleLogSource.ServerLog), "Fresh consoles show server logs");
         config.SetInstancePopup(2, true);

@@ -379,8 +379,24 @@ public class Operations : IDisposable
         if(choice.Result < 0) throw new OperationCanceledException(@"OnBoarding was cancelled");
         using(_logger.BeginScope((@"ManageClient", choice.Result)))
             _logger.LogInformation(@"Change client management");
+        var previous = _setup.Config.ManageClient;
         _setup.Config.ManageClient = choice.Result == 1;
-        return await OnBoardingApplyConanManagement();
+        try
+        {
+            return await OnBoardingApplyConanManagement();
+        }
+        catch (OperationCanceledException)
+        {
+            _setup.Config.ManageClient = previous;
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _setup.Config.ManageClient = previous;
+            _logger.LogError(ex, "Could not change game file management");
+            await _dialogueBox.OpenErrorAsync(ex.Message);
+            return false;
+        }
     }
 
     public async Task<bool> OnBoardingApplyConanManagement()
@@ -432,9 +448,8 @@ public class Operations : IDisposable
             if (!await OnBoardingElevationRequest(clientDirectory, Resources.OnBoardingManageConanUac)) return false;
             var saveName = await OnBoardingChooseClientSaveName();
             _logger.LogInformation(@"Copying game save into trebuchet {saveName}", saveName);
-            await Tools.DeepCopyAsync(savedDir, _appFiles.Client.GetDirectory(_appFiles.Client.Ref(saveName)), CancellationToken.None);
-            await OnBoardingSafeIO(() => Directory.Delete(savedDir, true),savedDir);
-            _osSpecific.MakeSymbolicLink(savedDir, _setup.GetPrimaryJunction());
+            await CopyGameSave(savedDir, _appFiles.Client.GetDirectory(_appFiles.Client.Ref(saveName)),
+                () => CommitManagedSave(savedDir));
             return true;
         }
 
@@ -451,6 +466,56 @@ public class Operations : IDisposable
 
         return true;
     }
+
+    private async Task CopyGameSave(string source, string destination, Func<Task> finish)
+    {
+        destination = Path.GetFullPath(destination);
+        var profiles = Path.TrimEndingDirectorySeparator(Path.GetFullPath(_appFiles.Client.GetBaseFolder()));
+        if (!destination.StartsWith(profiles + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+            || Directory.Exists(destination) || File.Exists(destination))
+            throw new IOException("A new client profile directory is required for importing saves.");
+        // Keep incomplete copies outside the profile list. Cancellation never deletes the original Saved folder.
+        var staging = Path.Combine(Path.GetDirectoryName(profiles)!, ".trebuchet-copy-" + Guid.NewGuid().ToString("N"));
+        using var cancellation = new CancellationTokenSource();
+        var progress = new OnBoardingProgress<double>(Resources.OnBoardingManageConan,
+            Resources.OnBoardingUpgradeCopy, 0, 1, cancellation);
+        _dialogueBox.Show(progress);
+        try
+        {
+            await Tools.DeepCopyAsync(source, staging, cancellation.Token, progress);
+            cancellation.Token.ThrowIfCancellationRequested();
+            progress.CanCancel = false;
+            await Task.Run(() =>
+            {
+                Directory.CreateDirectory(profiles);
+                Directory.Move(staging, destination);
+            });
+            await finish();
+        }
+        finally
+        {
+            // Staging is a unique, owned sibling of the profile directory, never a game/profile path.
+            try
+            {
+                if (Directory.Exists(staging)) await Task.Run(() => Directory.Delete(staging, true));
+            }
+            finally
+            {
+                if (ReferenceEquals(_dialogueBox.Popup, progress)) _dialogueBox.Close();
+            }
+        }
+    }
+
+    private Task CommitManagedSave(string savedDirectory) => Task.Run(() =>
+    {
+        var source = Path.GetFullPath(savedDirectory);
+        var expected = Path.GetFullPath(Path.Combine(_setup.Config.ClientPath, Constants.FolderGameSave));
+        if (!source.Equals(expected, StringComparison.OrdinalIgnoreCase) || _osSpecific.IsSymbolicLink(source))
+            throw new IOException("Unexpected Saved directory during management setup.");
+        var retainedBackup = SavedDirectorySwitch.ReplaceWithLink(source, _setup.GetPrimaryJunction(), _osSpecific);
+        if (retainedBackup is not null)
+            _logger.LogWarning("Management enabled; original save backup retained at {path}", retainedBackup);
+    });
 
     public async Task<string> OnBoardingChooseClientSave()
     {
@@ -524,7 +589,7 @@ public class Operations : IDisposable
         {
             try
             {
-                ioAction.Invoke();
+                await Task.Run(ioAction);
                 break;
             }
             catch (IOException ex)

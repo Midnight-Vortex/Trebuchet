@@ -6,4 +6,6 @@ public interface IOnBoardingProgress : IOnBoarding
     string Description { get; }
     double CurrentProgress { get; }
     bool IsIndeterminate { get; }
+    bool CanCancel { get; }
+    System.Windows.Input.ICommand CancelCommand { get; }
 }

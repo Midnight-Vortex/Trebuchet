@@ -128,4 +128,5 @@ finally
         throw new InvalidOperationException("Unexpected test cleanup path.");
     Directory.Delete(resolvedRoot, recursive: true);
 }
-Console.WriteLine($"Passed {checks} console hotkey checks.");
+checks += await DirectoryCopyChecks.Run();
+Console.WriteLine($"Passed {checks} console hotkey and background copy checks.");

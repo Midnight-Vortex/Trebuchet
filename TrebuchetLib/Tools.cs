@@ -46,34 +46,8 @@ public static class Tools
         }
     }
 
-    public static async Task DeepCopyAsync(string directory, string destinationDir, CancellationToken token, IProgress<double>? progress = null)
-    {
-        Directory.CreateDirectory(destinationDir);
-        foreach (string dir in EnumerateDirectoriesSafe(directory))
-        {
-            string dirToCreate = dir.Replace(directory, destinationDir);
-            Directory.CreateDirectory(dirToCreate);
-        }
-
-        var files = EnumerateFilesSafe(directory).Select(path => new FileInfo(path)).ToArray();
-        if (files.Length == 0) return;
-        
-        long total = files.Sum(f => f.Length);
-        long count = 0;
-        var maxParallel = Math.Clamp(Environment.ProcessorCount, 2, 8);
-        await Parallel.ForEachAsync(files, new ParallelOptions
-        {
-            MaxDegreeOfParallelism = maxParallel,
-            CancellationToken = token
-        }, (file, ct) =>
-        {
-            ct.ThrowIfCancellationRequested();
-            File.Copy(file.FullName, file.FullName.Replace(directory, destinationDir), true);
-            var copied = Interlocked.Add(ref count, file.Length);
-            progress?.Report((double)copied / total);
-            return ValueTask.CompletedTask;
-        });
-    }
+    public static Task DeepCopyAsync(string directory, string destinationDir, CancellationToken token, IProgress<double>? progress = null)
+        => DirectoryCopy.CopyAsync(directory, destinationDir, token, progress);
 
     private static IEnumerable<string> EnumerateDirectoriesSafe(string directory)
     {
@@ -118,19 +92,14 @@ public static class Tools
 
     public static long DirectorySize(string folder) => DirectorySize(new DirectoryInfo(folder));
 
-    public static long DirectorySize(DirectoryInfo folder)    {
+    public static long DirectorySize(DirectoryInfo folder)
+    {
         long size = 0;
-        // Add file sizes.
-        FileInfo[] fis = folder.GetFiles();
-        foreach (FileInfo fi in fis)
+        foreach (var entry in folder.EnumerateFileSystemInfos())
         {
-            size += fi.Length;
-        }
-        // Add subdirectory sizes.
-        DirectoryInfo[] dis = folder.GetDirectories();
-        foreach (DirectoryInfo di in dis)
-        {
-            size += DirectorySize(di);
+            // Imported profiles can contain links. Never recurse into a Saved/profile cycle.
+            if ((entry.Attributes & FileAttributes.ReparsePoint) != 0) continue;
+            size += entry is FileInfo file ? file.Length : DirectorySize((DirectoryInfo)entry);
         }
         return size;
     }
