@@ -49,24 +49,28 @@ Check(Constants.IsWorkshopModCompatible(GameEdition.EnhancedPtc, ["Enhanced"], C
 foreach (var binding in new[] { "ConsoleKeys=Insert", "+ConsoleKeys=Insert", ".ConsoleKeys=Insert", " +consolekeys = \"insert\" " })
 {
     var original = section + "\r\n" + binding + "\r\n[/Script/Engine.Console]\r\nHistoryBuffer=test\r\n";
-    Check(ConsoleHotkeySettings.EnsureBinding(original, "Insert") == original, "Existing binding must remain byte-for-byte unchanged");
+    Check(ConsoleHotkeySettings.EnsureBinding(original, "Insert") == original.Replace("+consolekeys", "consolekeys").Replace("+ConsoleKeys", "ConsoleKeys").Replace(".ConsoleKeys", "ConsoleKeys"), "Normalize existing binding without changing surrounding content");
+    var normalized = ConsoleHotkeySettings.EnsureBinding(original, "Insert");
+    Check(ConsoleHotkeySettings.EnsureBinding(normalized, "Insert") == normalized, "Converted bindings stay unchanged on subsequent launches");
 }
+var otherKeys = section + "\n+ConsoleKeys=F1\n+ConsoleKeys=Insert\n[Other]\n+ConsoleKeys=Insert\n";
+Check(ConsoleHotkeySettings.EnsureBinding(otherKeys, "Insert") == section + "\n+ConsoleKeys=F1\nConsoleKeys=Insert\n[Other]\n+ConsoleKeys=Insert\n", "Only normalize the selected hotkey in InputSettings");
 
 var mappings = ";METADATA=(Diff=true, UseCommands=true)\r\n" + section + "\r\nActionMappings=(Key=E)\r\nConsoleKeys=Tilde\r\n";
 var history = "[/Script/Engine.Console]\r\nHistoryBuffer=test\r\n";
 var updated = ConsoleHotkeySettings.EnsureBinding(mappings + history, "Insert");
-Check(updated == mappings + "+ConsoleKeys=Insert\r\n" + history, "Preserve mappings, other keys, metadata and history");
+Check(updated == mappings + "ConsoleKeys=Insert\r\n" + history, "Preserve mappings, other keys, metadata and history");
 Check(ConsoleHotkeySettings.EnsureBinding(updated, "Insert") == updated, "Repeated launches must not duplicate keys");
-Check(ConsoleHotkeySettings.EnsureBinding("", "Insert") == section + "\n+ConsoleKeys=Insert\n", "Create missing section");
-Check(ConsoleHotkeySettings.EnsureBinding("[Other]\nConsoleKeys=Insert", "Insert") == "[Other]\nConsoleKeys=Insert\n" + section + "\n+ConsoleKeys=Insert\n", "Ignore matching keys in other sections");
-Check(ConsoleHotkeySettings.EnsureBinding(section + "\n;ConsoleKeys=Insert", "Insert").EndsWith("\n+ConsoleKeys=Insert\n"), "Ignore commented binding and handle missing final newline");
+Check(ConsoleHotkeySettings.EnsureBinding("", "Insert") == section + "\nConsoleKeys=Insert\n", "Create missing section");
+Check(ConsoleHotkeySettings.EnsureBinding("[Other]\nConsoleKeys=Insert", "Insert") == "[Other]\nConsoleKeys=Insert\n" + section + "\nConsoleKeys=Insert\n", "Ignore matching keys in other sections");
+Check(ConsoleHotkeySettings.EnsureBinding(section + "\n;ConsoleKeys=Insert", "Insert").EndsWith("\nConsoleKeys=Insert\n"), "Ignore commented binding and handle missing final newline");
 foreach (var removal in new[] { "-ConsoleKeys=Insert", "!ConsoleKeys=ClearArray", "ConsoleKeys=F1" })
 {
     var original = section + "\n+ConsoleKeys=Insert\n" + removal + "\n";
-    Check(ConsoleHotkeySettings.EnsureBinding(original, "Insert") == original + "+ConsoleKeys=Insert\n", "Respect later removal/reset");
+    Check(ConsoleHotkeySettings.EnsureBinding(original, "Insert") == original.Replace("+ConsoleKeys", "ConsoleKeys") + "ConsoleKeys=Insert\n", "Respect later removal/reset");
 }
 var repeated = section + "\n+ConsoleKeys=Insert\n[Other]\nx=1\n" + section + "\n!ConsoleKeys=ClearArray\n";
-Check(ConsoleHotkeySettings.EnsureBinding(repeated, "Insert") == repeated + "+ConsoleKeys=Insert\n", "Repair after last repeated section");
+Check(ConsoleHotkeySettings.EnsureBinding(repeated, "Insert") == repeated.Replace("+ConsoleKeys", "ConsoleKeys") + "ConsoleKeys=Insert\n", "Repair after last repeated section");
 try
 {
     ConsoleHotkeySettings.EnsureBinding("", "Insert\nInjected=1");
@@ -103,7 +107,7 @@ try
         await setup.WriteIni(new ClientProfile());
         Check(!File.Exists(inputPath), "Disabled option must not create Input.ini");
         await setup.WriteIni(profile);
-        Check((await File.ReadAllTextAsync(inputPath)).Contains("+ConsoleKeys=F10"), "Use edition-specific Input.ini path");
+        Check((await File.ReadAllTextAsync(inputPath)).Split('\n').Any(line => line.Trim() == "ConsoleKeys=F10"), "Use edition-specific Input.ini path");
         var before = await File.ReadAllBytesAsync(inputPath);
         await setup.WriteIni(new ClientProfile());
         Check((await File.ReadAllBytesAsync(inputPath)).SequenceEqual(before), "Disabling must preserve existing bindings");
@@ -112,7 +116,7 @@ try
     if (args.Length > 0)
     {
         var sample = await File.ReadAllTextAsync(args[0]);
-        Check(ConsoleHotkeySettings.EnsureBinding(sample, "Insert") == sample, "Supplied Input.ini must remain unchanged");
+        Check(ConsoleHotkeySettings.EnsureBinding(sample, "Insert") == sample.Replace("+ConsoleKeys=Insert", "ConsoleKeys=Insert"), "Supplied Input.ini changes only the old console operator");
     }
 }
 finally

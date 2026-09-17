@@ -45,6 +45,7 @@ public static class ConsoleHotkeySettings
         var inSection = false;
         var foundSection = false;
         var hasKey = false;
+        var operatorsToRemove = new List<int>();
         var insertionIndex = content.Length;
         var newline = content.Contains("\r\n", StringComparison.Ordinal) ? "\r\n" : "\n";
 
@@ -73,12 +74,24 @@ public static class ConsoleHotkeySettings
             else if (name.Equals("-ConsoleKeys", StringComparison.OrdinalIgnoreCase) && matchesKey) hasKey = false;
             else if (name.Equals("ConsoleKeys", StringComparison.OrdinalIgnoreCase)) hasKey = matchesKey;
             else if ((name.Equals("+ConsoleKeys", StringComparison.OrdinalIgnoreCase)
-                      || name.Equals(".ConsoleKeys", StringComparison.OrdinalIgnoreCase)) && matchesKey) hasKey = true;
+                      || name.Equals(".ConsoleKeys", StringComparison.OrdinalIgnoreCase)) && matchesKey)
+            {
+                hasKey = true;
+                operatorsToRemove.Add(line.Index + line.Value.IndexOf(name[0]));
+            }
         }
 
-        if (hasKey) return content;
-        var prefix = insertionIndex > 0 && content[insertionIndex - 1] != '\n' ? newline : string.Empty;
-        var addition = prefix + (foundSection ? string.Empty : section + newline) + "+ConsoleKeys=" + key + newline;
-        return content.Insert(insertionIndex, addition);
+        if (hasKey && operatorsToRemove.Count == 0) return content;
+        var updated = new StringBuilder(content);
+        if (!hasKey)
+        {
+            var prefix = insertionIndex > 0 && content[insertionIndex - 1] != '\n' ? newline : string.Empty;
+            var addition = prefix + (foundSection ? string.Empty : section + newline) + "ConsoleKeys=" + key + newline;
+            updated.Insert(insertionIndex, addition);
+        }
+        // Repair bindings written by earlier versions as well as creating plain assignments.
+        for (var i = operatorsToRemove.Count - 1; i >= 0; i--)
+            updated.Remove(operatorsToRemove[i], 1);
+        return updated.ToString();
     }
 }

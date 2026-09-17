@@ -2,6 +2,10 @@
 
 After installing, launch Trebuchet from the Start menu or desktop shortcut. The installer deliberately does not launch it: on affected Windows versions, a process started by Setup can inherit RedirectionGuard and fail to traverse Trebuchet's Saved/profile junctions. Conan then reports that it cannot ensure `Saved/ExtractedMods` exists, even when the directory is present. If this happens after an older setup, fully close Trebuchet and relaunch it from the Start menu; reinstalling mods is not required for this directory-access error.
 
+## 0.9.5 console hotkey correction
+
+The enabled console-hotkey setting writes `ConsoleKeys=Insert` (or the selected key) without a leading plus. Matching bindings from earlier versions are converted on the next game launch; other settings, encoding and console history are preserved.
+
 ## 0.9.4 server console fixes
 
 - Local server selectors show the server name, instance and running/online state independently of RCON. The first running instance is selected automatically until the user chooses one; stopped instances clear stale process references. With no local server, the selector explicitly says so. This console manages local Trebuchet servers, not the remote server a game client has joined.
