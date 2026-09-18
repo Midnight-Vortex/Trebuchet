@@ -2,6 +2,12 @@
 
 After installing, launch Trebuchet from the Start menu or desktop shortcut. The installer deliberately does not launch it: on affected Windows versions, a process started by Setup can inherit RedirectionGuard and fail to traverse Trebuchet's Saved/profile junctions. Conan then reports that it cannot ensure `Saved/ExtractedMods` exists, even when the directory is present. If this happens after an older setup, fully close Trebuchet and relaunch it from the Start menu; reinstalling mods is not required for this directory-access error.
 
+## 0.9.7 parallel save copying
+
+- Files now copy with four to eight concurrent workers, starting at four. Every second, Windows CPU/memory measurements and actual read/write latency guide the limit: two quiet samples allow one extra worker; high CPU/memory load, low available RAM or slow I/O remove two slots, down to four. In-flight files finish before excess workers pause. Missing metrics fall back to four. All workers share a 300 MB/s transfer budget (300,000,000 bytes/s) with a small bounded burst; idle periods do not accumulate unlimited burst credit.
+- Each worker reuses a 256 KiB buffer (at most 2 MiB total). A bounded file queue prevents unbounded tasks/metadata; separate copy jobs still queue instead of multiplying disk load. Enumeration, progress and cancellation remain off the UI thread as before.
+- Cancellation or a failed file stops the other workers and waits for their temporary-file cleanup. Progress remains monotonic and limited to ten updates per second. Regression checks cover concurrent transfers, the aggregate rate limit, checksums, cancellation and worker failure.
+
 ## 0.9.6 game management responsiveness
 
 - Save/profile copies now enumerate and transfer files entirely in the background. A single copy queue replaces up to eight concurrent file copies; data is streamed through one 128 KiB buffer with a 32 MiB/s transfer budget. Metadata is streamed instead of building an array containing every file. Large-file transfers support cancellation and report progress at most ten times per second.
