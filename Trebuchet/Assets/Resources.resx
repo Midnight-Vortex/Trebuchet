@@ -1846,13 +1846,13 @@ of Server Saves and apply to every profile.
         <value>Stop server</value>
     </data>
     <data name="ServerStopDelayText" xml:space="preserve">
-        <value>When should instance {0} stop? With a delay, the players are warned with the message method of the save: when the countdown starts, at the warning times of the save and at 60, 30, 15, 10, 5, 3 and 1 minutes, as far as they fit into the delay. The countdown always runs to the end, even when nobody is online.</value>
+        <value>When should instance {0} stop? With a delay, the players are warned with the message method of the save: when the countdown starts and at the warning times of the save that fit into the delay. If nobody is online (and "Restart immediately when nobody is online" is on), it stops right away.</value>
     </data>
     <data name="ServerRestartDelayTitle" xml:space="preserve">
         <value>Restart server</value>
     </data>
     <data name="ServerRestartDelayText" xml:space="preserve">
-        <value>When should instance {0} restart? With a delay, the players are warned with the message method of the save: when the countdown starts, with the restart warnings of the save and at 60, 30, 15, 10, 5, 3 and 1 minutes, as far as they fit into the delay. The countdown always runs to the end. "Now" restarts without warnings.</value>
+        <value>When should instance {0} restart? With a delay, the players are warned with the message method of the save: when the countdown starts and with the restart warnings of the save that fit into the delay. "Now" restarts without warnings.</value>
     </data>
     <data name="DelayNow" xml:space="preserve">
         <value>Now</value>

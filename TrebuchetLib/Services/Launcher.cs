@@ -552,13 +552,9 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         await watcher.StopAsync();
     }
 
-    /// <summary>Reminder times of a countdown chosen in the dashboard, besides the warning times of the save.</summary>
-    private static readonly int[] TimedCountdownReminderMinutes = [60, 30, 15, 10, 5, 3, 1];
-
     /// <summary>
-    /// Countdown for a stop or restart in <paramref name="delay"/>: a message when it starts, then reminders at the
-    /// warning times of the save and at <see cref="TimedCountdownReminderMinutes"/> that fit into the delay. Restarts
-    /// use the warning text of the save where it has one for that time.
+    /// Countdown for a stop or restart in <paramref name="delay"/>: a first message when it starts, then the warning
+    /// times of the save that fit into the delay (restarts use the warning texts of the save, stops their own text).
     /// </summary>
     private Sequence BuildTimedCountdown(ServerProfile profile, TimeSpan delay, bool restart)
     {
@@ -566,19 +562,15 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         string MessageAt(TimeSpan before) => template.Replace("{minutes}",
             Math.Max(1, (int)Math.Ceiling(before.TotalMinutes)).ToString(System.Globalization.CultureInfo.InvariantCulture));
 
-        var saveWarnings = profile.RestartWarnings.Where(x => x.Before > TimeSpan.Zero && x.Before <= delay).ToList();
-        var times = saveWarnings.Select(x => x.Before)
-            .Concat(TimedCountdownReminderMinutes.Select(x => TimeSpan.FromMinutes(x)).Where(x => x < delay))
-            .Append(delay)
-            .Distinct();
-        var warnings = times.Select(before => restart && saveWarnings.FirstOrDefault(x => x.Before == before) is { } own
-                ? own
-                : new RestartWarning(before, MessageAt(before)))
-            .ToList();
+        var times = profile.RestartWarnings.Where(x => x.Before > TimeSpan.Zero && x.Before <= delay).ToList();
+        var warnings = restart
+            ? times.ToList()
+            : times.Select(x => new RestartWarning(x.Before, MessageAt(x.Before))).ToList();
+        if (!warnings.Any(x => x.Before == delay))
+            warnings.Add(new RestartWarning(delay, MessageAt(delay)));
 
         var sequence = new Sequence();
-        // The user chose the time: the countdown runs to the end even when nobody is online.
-        sequence.Actions.Add(new SequenceActionRestartCountdown(warnings, earlyWhenEmpty: false));
+        sequence.Actions.Add(new SequenceActionRestartCountdown(warnings, profile.RestartEarlyWhenEmpty));
         if (restart)
             sequence.Actions.Add(string.IsNullOrWhiteSpace(profile.MessageRestarted)
                 ? new SequenceActionBroadcast { Message = _setup.GetServerShutdownNotification("{reason}"), SendRCon = false }

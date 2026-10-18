@@ -1838,13 +1838,13 @@ unten in den Server-Speicherständen und gelten für jedes Profil.
         <value>Server stoppen</value>
     </data>
     <data name="ServerStopDelayText" xml:space="preserve">
-        <value>Wann soll Instanz {0} stoppen? Bei einer Wartezeit werden die Spieler über die Nachrichten-Methode des Speicherstands gewarnt: beim Start des Countdowns, zu den Warnzeiten des Speicherstands und bei 60, 30, 15, 10, 5, 3 und 1 Minute, soweit sie in die Wartezeit passen. Der Countdown läuft immer bis zum Ende, auch wenn niemand online ist.</value>
+        <value>Wann soll Instanz {0} stoppen? Bei einer Wartezeit werden die Spieler über die Nachrichten-Methode des Speicherstands gewarnt: beim Start des Countdowns und zu den Warnzeiten des Speicherstands, die in die Wartezeit passen. Ist niemand online (und „Sofort neu starten, wenn niemand online ist“ an), wird sofort gestoppt.</value>
     </data>
     <data name="ServerRestartDelayTitle" xml:space="preserve">
         <value>Server neu starten</value>
     </data>
     <data name="ServerRestartDelayText" xml:space="preserve">
-        <value>Wann soll Instanz {0} neu starten? Bei einer Wartezeit werden die Spieler über die Nachrichten-Methode des Speicherstands gewarnt: beim Start des Countdowns, mit den Neustart-Warnungen des Speicherstands und bei 60, 30, 15, 10, 5, 3 und 1 Minute, soweit sie in die Wartezeit passen. Der Countdown läuft immer bis zum Ende. „Sofort“ startet ohne Warnungen neu.</value>
+        <value>Wann soll Instanz {0} neu starten? Bei einer Wartezeit werden die Spieler über die Nachrichten-Methode des Speicherstands gewarnt: beim Start des Countdowns und mit den Neustart-Warnungen des Speicherstands, die in die Wartezeit passen. „Sofort“ startet ohne Warnungen neu.</value>
     </data>
     <data name="DelayNow" xml:space="preserve">
         <value>Sofort</value>
