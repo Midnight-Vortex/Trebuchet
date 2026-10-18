@@ -58,6 +58,8 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     private string _lastRestartReason = string.Empty;
     private DateTime _lastExternalIpCheck = DateTime.MinValue;
     private readonly HashSet<int> _countdownInstances = [];
+    // Automatic restarts (schedule, updates, RequiresRestart.txt) paused per instance, e.g. during an RP event.
+    private readonly Dictionary<int, DateTime> _automaticRestartsPausedUntil = [];
     public const int CrashRestartLimit = 3;
     public static readonly TimeSpan CrashRestartWindow = TimeSpan.FromMinutes(15);
     private readonly CrashRestartGuard _crashGuard = new(CrashRestartLimit, CrashRestartWindow);
@@ -531,6 +533,52 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         }
         _lastRestartReason = string.Empty;
         await watcher.RestartAsync();
+    }
+
+    /// <summary>A stop or restart countdown with warnings to the players runs for the instance.</summary>
+    public bool IsCountdownRunning(int instance) => _countdownInstances.Contains(instance);
+
+    /// <returns>When the automatic restarts of the instance resume, null when they are not paused.</returns>
+    public DateTime? GetAutomaticRestartsPause(int instance)
+    {
+        return _automaticRestartsPausedUntil.TryGetValue(instance, out var until) && until > DateTime.UtcNow
+            ? until
+            : null;
+    }
+
+    /// <summary>
+    /// Cancels a running stop or restart countdown (the players are told) and pauses the automatic restarts of the
+    /// instance (schedule, server and mod updates, RequiresRestart.txt) for <paramref name="pause"/>, e.g. during an RP
+    /// event. Manual stops and restarts still work, outdated mods are updated with the first restart after the pause.
+    /// </summary>
+    public async Task PauseAutomaticRestarts(int instance, TimeSpan pause)
+    {
+        if (pause > TimeSpan.Zero)
+        {
+            _automaticRestartsPausedUntil[instance] = DateTime.UtcNow + pause;
+            _logger.LogInformation("Automatic restarts of instance {Instance} paused until {Until}", instance,
+                DateTime.Now + pause);
+        }
+
+        if (!_countdownInstances.Contains(instance)) return;
+        await CancelServerSequence(instance);
+        _logger.LogInformation("Countdown of instance {Instance} cancelled", instance);
+        await BroadcastMessage(instance, _setup.Config.NotificationCountdownCancelled);
+    }
+
+    public void ResumeAutomaticRestarts(int instance)
+    {
+        if (_automaticRestartsPausedUntil.Remove(instance))
+            _logger.LogInformation("Automatic restarts of instance {Instance} resumed", instance);
+    }
+
+    private bool AreAutomaticRestartsPaused(int instance)
+    {
+        if (!_automaticRestartsPausedUntil.TryGetValue(instance, out var until)) return false;
+        if (until > DateTime.UtcNow) return true;
+        _automaticRestartsPausedUntil.Remove(instance);
+        _logger.LogInformation("Pause of the automatic restarts of instance {Instance} is over", instance);
+        return false;
     }
 
     private ServerProfile? GetInstanceProfile(int instance)
@@ -1182,7 +1230,8 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         {
             if(!instance.State.IsRunning() || instance.State.IsStopping()) continue;
             if(_serverSequences.ContainsKey(instance.Infos.Instance)) continue;
-            
+            if(AreAutomaticRestartsPaused(instance.Infos.Instance)) continue;
+
             var profileUri = _setup.Config.GetInstanceProfile(instance.Infos.Instance);
             var serverPRef = _appFiles.Server.Resolve(profileUri);
             var serverProfile = serverPRef.Get();
@@ -1300,6 +1349,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         {
             if(!process.State.IsRunning() || process.State.IsStopping()) continue;
             if(_serverSequences.ContainsKey(process.Infos.Instance)) continue;
+            if(AreAutomaticRestartsPaused(process.Infos.Instance)) continue;
 
             if (_serverNeedUpdate)
             {
@@ -1582,6 +1632,8 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             var instance = process.Infos.Instance;
             if (!process.State.IsRunning() || process.State.IsStopping()) continue;
             if (_serverSequences.ContainsKey(instance)) continue;
+            // The file stays until the pause is over and restarts the server then.
+            if (AreAutomaticRestartsPaused(instance)) continue;
             if (!_appFiles.Server.TryResolve(_setup.Config.GetInstanceProfile(instance), out var reference)) continue;
             var profile = reference.Get();
             if (!profile.RequiresRestartFileCheck) continue;

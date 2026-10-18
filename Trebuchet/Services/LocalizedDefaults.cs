@@ -55,6 +55,7 @@ public static class LocalizedDefaults
         (nameof(Resources.DefaultNotificationModUpdateDetected), Config.NotificationModUpdateDetectedDefault, c => c.NotificationModUpdateDetected, (c, v) => c.NotificationModUpdateDetected = v),
         (nameof(Resources.DefaultNotificationTimedRestart), Config.NotificationTimedRestartDefault, c => c.NotificationTimedRestart, (c, v) => c.NotificationTimedRestart = v),
         (nameof(Resources.DefaultNotificationTimedStop), Config.NotificationTimedStopDefault, c => c.NotificationTimedStop, (c, v) => c.NotificationTimedStop = v),
+        (nameof(Resources.DefaultNotificationCountdownCancelled), Config.NotificationCountdownCancelledDefault, c => c.NotificationCountdownCancelled, (c, v) => c.NotificationCountdownCancelled = v),
     ];
 
     /// <returns>true when a template was switched to the current language (the config needs saving).</returns>

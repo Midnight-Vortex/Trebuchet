@@ -239,6 +239,47 @@ namespace Trebuchet.ViewModels.Panels
             }
         }
         
+        /// <summary>
+        /// Cancels a running stop or restart countdown and/or pauses the automatic restarts, e.g. during an RP event.
+        /// </summary>
+        public async Task PauseAutomaticRestarts(int instance)
+        {
+            var dashboard = GetServerInstance(instance);
+            if (!dashboard.ProcessRunning) return;
+
+            var countdown = _launcher.IsCountdownRunning(instance);
+            int[] presets = [30, 60, 120, 180, 240, 360];
+            var dialogue = countdown
+                ? new ServerActionDelayDialogue(Resources.CancelCountdownTitle,
+                    string.Format(Resources.CancelCountdownText, instance), presets,
+                    nowLabel: Resources.PauseNone, confirmLabel: Resources.PauseStart)
+                : new ServerActionDelayDialogue(Resources.PauseRestartsTitle,
+                    string.Format(Resources.PauseRestartsText, instance), presets,
+                    includeNow: false, confirmLabel: Resources.PauseStart);
+            dialogue.CustomMinutes = 90;
+            await _box.OpenAsync(dialogue);
+            if (dialogue.Result is not { } pause) return;
+
+            _logger.LogInformation(@"Pausing automatic restarts of server {instance} for {pause}", instance, pause);
+            try
+            {
+                await _launcher.PauseAutomaticRestarts(instance, pause);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, @"Failed");
+                await _box.OpenErrorAsync(ex.Message);
+            }
+            dashboard.SetAutomaticRestarts(_launcher.IsCountdownRunning(instance), _launcher.GetAutomaticRestartsPause(instance));
+        }
+
+        public Task ResumeAutomaticRestarts(int instance)
+        {
+            _launcher.ResumeAutomaticRestarts(instance);
+            GetServerInstance(instance).SetAutomaticRestarts(_launcher.IsCountdownRunning(instance), null);
+            return Task.CompletedTask;
+        }
+
         public async Task CopyConnectionInfo(int instance)
         {
             try
@@ -337,6 +378,7 @@ namespace Trebuchet.ViewModels.Panels
             {
                 var instance = i;
                 refreshes.Add(Instances[i].ProcessRefresh(processes.FirstOrDefault(x => x.Infos.Instance == instance), _uiConfig.DisplayProcessPerformance));
+                Instances[i].SetAutomaticRestarts(_launcher.IsCountdownRunning(instance), _launcher.GetAutomaticRestartsPause(instance));
             }
             await Task.WhenAll(refreshes);
         }
@@ -468,6 +510,8 @@ namespace Trebuchet.ViewModels.Panels
             instance.LaunchClicked += (_, arg) => LaunchServer(arg);
             instance.CloseClicked += (_, arg) => CloseServer(arg);
             instance.RestartClicked += (_, arg) => RestartServer(arg);
+            instance.PauseRestartsClicked += (_, arg) => PauseAutomaticRestarts(arg);
+            instance.ResumeRestartsClicked += (_, arg) => ResumeAutomaticRestarts(arg);
             instance.CopyConnectionClicked += (_, arg) => CopyConnectionInfo(arg);
             instance.UpdateClicked += (_, _) => UpdateMods();
         }

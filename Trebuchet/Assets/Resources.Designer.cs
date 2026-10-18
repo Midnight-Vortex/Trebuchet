@@ -5375,5 +5375,113 @@ namespace Trebuchet.Assets {
                 return ResourceManager.GetString("DefaultNotificationTimedStop", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Countdown cancelled (to players).
+        /// </summary>
+        public static string SettingNotificationCountdownCancelled {
+            get {
+                return ResourceManager.GetString("SettingNotificationCountdownCancelled", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The announced restart or shutdown of {servername} is cancelled..
+        /// </summary>
+        public static string DefaultNotificationCountdownCancelled {
+            get {
+                return ResourceManager.GetString("DefaultNotificationCountdownCancelled", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Pause restarts.
+        /// </summary>
+        public static string PauseRestarts {
+            get {
+                return ResourceManager.GetString("PauseRestarts", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Cancel countdown.
+        /// </summary>
+        public static string CancelCountdown {
+            get {
+                return ResourceManager.GetString("CancelCountdown", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Cancels a running restart or stop countdown and pauses the automatic restarts (s.
+        /// </summary>
+        public static string PauseRestartsTip {
+            get {
+                return ResourceManager.GetString("PauseRestartsTip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Pause automatic restarts.
+        /// </summary>
+        public static string PauseRestartsTitle {
+            get {
+                return ResourceManager.GetString("PauseRestartsTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to How long should the automatic restarts of instance {0} pause (schedule, server a.
+        /// </summary>
+        public static string PauseRestartsText {
+            get {
+                return ResourceManager.GetString("PauseRestartsText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Cancel countdown.
+        /// </summary>
+        public static string CancelCountdownTitle {
+            get {
+                return ResourceManager.GetString("CancelCountdownTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The countdown of instance {0} is cancelled and the players are told. How long sh.
+        /// </summary>
+        public static string CancelCountdownText {
+            get {
+                return ResourceManager.GetString("CancelCountdownText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Only cancel.
+        /// </summary>
+        public static string PauseNone {
+            get {
+                return ResourceManager.GetString("PauseNone", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Pause.
+        /// </summary>
+        public static string PauseStart {
+            get {
+                return ResourceManager.GetString("PauseStart", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Resume restarts (paused until {0}).
+        /// </summary>
+        public static string ResumeRestarts {
+            get {
+                return ResourceManager.GetString("ResumeRestarts", resourceCulture);
+            }
+        }
     }
 }

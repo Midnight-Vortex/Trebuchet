@@ -1876,4 +1876,40 @@ unten in den Server-Speicherständen und gelten für jedes Profil.
     <data name="DefaultNotificationTimedStop" xml:space="preserve">
         <value>{servername} wird in {minutes} Min. heruntergefahren. Grund: {reason}</value>
     </data>
+    <data name="SettingNotificationCountdownCancelled" xml:space="preserve">
+        <value>Countdown abgebrochen (an Spieler)</value>
+    </data>
+    <data name="DefaultNotificationCountdownCancelled" xml:space="preserve">
+        <value>Der angekündigte Neustart bzw. Stopp von {servername} fällt aus.</value>
+    </data>
+    <data name="PauseRestarts" xml:space="preserve">
+        <value>Neustarts pausieren</value>
+    </data>
+    <data name="CancelCountdown" xml:space="preserve">
+        <value>Countdown abbrechen</value>
+    </data>
+    <data name="PauseRestartsTip" xml:space="preserve">
+        <value>Bricht einen laufenden Neustart- oder Stopp-Countdown ab und pausiert die automatischen Neustarts (Zeitplan, Server- und Mod-Updates, RequiresRestart.txt), z. B. während eines RP-Events.</value>
+    </data>
+    <data name="PauseRestartsTitle" xml:space="preserve">
+        <value>Automatische Neustarts pausieren</value>
+    </data>
+    <data name="PauseRestartsText" xml:space="preserve">
+        <value>Wie lange sollen die automatischen Neustarts von Instanz {0} pausieren (Zeitplan, Server- und Mod-Updates, RequiresRestart.txt)? Manuelle Stopps und Neustarts gehen weiter, veraltete Mods werden beim ersten Neustart nach der Pause aktualisiert.</value>
+    </data>
+    <data name="CancelCountdownTitle" xml:space="preserve">
+        <value>Countdown abbrechen</value>
+    </data>
+    <data name="CancelCountdownText" xml:space="preserve">
+        <value>Der Countdown von Instanz {0} wird abgebrochen und die Spieler bekommen eine Meldung. Wie lange sollen die automatischen Neustarts danach pausieren (Zeitplan, Server- und Mod-Updates, RequiresRestart.txt)? „Nur abbrechen“ pausiert nichts: ein fälliges Update oder ein geplanter Neustart startet seinen Countdown gleich wieder. Veraltete Mods werden beim ersten Neustart nach der Pause aktualisiert.</value>
+    </data>
+    <data name="PauseNone" xml:space="preserve">
+        <value>Nur abbrechen</value>
+    </data>
+    <data name="PauseStart" xml:space="preserve">
+        <value>Pausieren</value>
+    </data>
+    <data name="ResumeRestarts" xml:space="preserve">
+        <value>Neustarts fortsetzen (pausiert bis {0})</value>
+    </data>
 </root>

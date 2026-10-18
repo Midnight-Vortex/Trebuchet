@@ -9,16 +9,20 @@ namespace Trebuchet.ViewModels.InnerContainer;
 
 /// <summary>
 /// Asks when a server should stop or restart: now, after one of the preset delays or after a delay in minutes.
+/// Also asks how long the automatic restarts pause (other labels, "now" is "no pause").
 /// </summary>
 public class ServerActionDelayDialogue : DialogueContent
 {
     private decimal? _customMinutes = 20;
 
-    public ServerActionDelayDialogue(string title, string description, IEnumerable<int> presetMinutes)
+    public ServerActionDelayDialogue(string title, string description, IEnumerable<int> presetMinutes,
+        bool includeNow = true, string? nowLabel = null, string? confirmLabel = null)
     {
         Title = title;
         Description = description;
-        Presets.Add(new DelayPreset(Resources.DelayNow, TimeSpan.Zero, Choose));
+        ConfirmLabel = confirmLabel ?? Resources.DelayStart;
+        if (includeNow)
+            Presets.Add(new DelayPreset(nowLabel ?? Resources.DelayNow, TimeSpan.Zero, Choose));
         foreach (var minutes in presetMinutes)
             Presets.Add(new DelayPreset(FormatMinutes(minutes), TimeSpan.FromMinutes(minutes), Choose));
         ConfirmCustom = ReactiveCommand.Create(() => Choose(TimeSpan.FromMinutes((double)(CustomMinutes ?? 0))),
@@ -30,6 +34,7 @@ public class ServerActionDelayDialogue : DialogueContent
 
     public string Title { get; }
     public string Description { get; }
+    public string ConfirmLabel { get; }
     public ObservableCollection<DelayPreset> Presets { get; } = [];
     public ReactiveCommand<Unit, Unit> ConfirmCustom { get; }
     public ReactiveCommand<Unit, Unit> CancelCommand { get; }

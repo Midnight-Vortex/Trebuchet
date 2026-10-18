@@ -175,6 +175,8 @@ checks += await ProfileMenuChecks.Run();
         Check(config.NotificationTimedRestart.Contains("{minutes} Min. neu", StringComparison.Ordinal)
               && config.NotificationTimedStop.Contains("{minutes} Min. heruntergefahren", StringComparison.Ordinal),
             "Countdown messages of a delayed stop/restart are localized");
+        Check(config.NotificationCountdownCancelled.Contains("fällt aus", StringComparison.Ordinal),
+            "Message about a cancelled countdown is localized");
         Check(config.NotificationServerOnline == "Mein eigener Text" && config.NotificationServerStop == string.Empty, "Custom and empty templates are kept");
         Trebuchet.Assets.Resources.Culture = System.Globalization.CultureInfo.GetCultureInfo("en");
         Check(Trebuchet.Services.LocalizedDefaults.LocalizeConfig(config) && config.NotificationServerCrash == Config.NotificationServerCrashDefault,
@@ -232,6 +234,14 @@ checks += await ProfileMenuChecks.Run();
     var cancelled = new Trebuchet.ViewModels.InnerContainer.ServerActionDelayDialogue("Restart", "When?", [5]);
     cancelled.CancelCommand.Execute().Subscribe();
     Check(cancelled.Result is null, "Cancel chooses nothing");
+    var pause = new Trebuchet.ViewModels.InnerContainer.ServerActionDelayDialogue("Pause", "How long?", [30, 60],
+        includeNow: false, confirmLabel: "Pause");
+    Check(pause.Presets.Count == 2 && !pause.Presets[0].IsNow && pause.ConfirmLabel == "Pause",
+        "Pause dialogue has no 'now' and its own confirm label");
+    var cancelCountdown = new Trebuchet.ViewModels.InnerContainer.ServerActionDelayDialogue("Cancel", "How long?", [30],
+        nowLabel: "Only cancel");
+    Check(cancelCountdown.Presets[0].IsNow && cancelCountdown.Presets[0].Label == "Only cancel",
+        "Cancelling a countdown offers 'only cancel' without a pause");
 }
 
 // Unreal log lines: only real verbosities are taken as level, "Join succeeded:" & co. stay in the message.

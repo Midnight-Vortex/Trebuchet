@@ -28,7 +28,7 @@
                 <Button Classes="Base Green" HotKey="Enter" Command="{Binding ConfirmCustom}">
                     <StackPanel Orientation="Horizontal" Spacing="3">
                         <i:Icon Value="mdi-timer-outline" Classes="Normal" />
-                        <TextBlock Text="{x:Static a:Resources.DelayStart}" />
+                        <TextBlock Text="{Binding ConfirmLabel}" />
                     </StackPanel>
                 </Button>
             </StackPanel>

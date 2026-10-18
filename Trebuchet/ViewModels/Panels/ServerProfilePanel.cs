@@ -819,6 +819,7 @@ namespace Trebuchet.ViewModels.Panels
                 [nameof(AppResources.DefaultNotificationModUpdateDetected)] = AppResources.SettingNotificationModUpdateDetected,
                 [nameof(AppResources.DefaultNotificationTimedRestart)] = AppResources.SettingNotificationTimedRestart,
                 [nameof(AppResources.DefaultNotificationTimedStop)] = AppResources.SettingNotificationTimedStop,
+                [nameof(AppResources.DefaultNotificationCountdownCancelled)] = AppResources.SettingNotificationCountdownCancelled,
             };
             foreach (var (key, libraryDefault, get, set) in LocalizedDefaults.ConfigTemplates)
             {

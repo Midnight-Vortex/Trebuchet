@@ -42,6 +42,9 @@ namespace Trebuchet.ViewModels
         private bool _sequenceRunning;
         private bool _sequenceIndeterminate;
         private double _sequenceProgress;
+        private bool _countdownRunning;
+        private bool _automaticRestartsPaused;
+        private string _resumeRestartsText = string.Empty;
 
         public ServerInstanceDashboard(int instance, IProcessStats stats, TaskBlocker blocker, DialogueBox box)
         {
@@ -56,6 +59,8 @@ namespace Trebuchet.ViewModels
             CanClose = false;
 
             RestartCommand = ReactiveCommand.CreateFromTask(OnRestartClicked, this.WhenAnyValue(x => x.CanClose));
+            PauseRestartsCommand = ReactiveCommand.CreateFromTask(OnPauseRestartsClicked, this.WhenAnyValue(x => x.CanClose));
+            ResumeRestartsCommand = ReactiveCommand.CreateFromTask(OnResumeRestartsClicked);
             CopyConnectionCommand = ReactiveCommand.CreateFromTask(OnCopyConnectionClicked);
 
             var canBlockLaunch = blocker.WhenAnyValue(x => x.CanLaunch);
@@ -74,6 +79,8 @@ namespace Trebuchet.ViewModels
         public event AsyncEventHandler<int>? KillClicked;
         public event AsyncEventHandler<int>? CloseClicked;
         public event AsyncEventHandler<int>? RestartClicked;
+        public event AsyncEventHandler<int>? PauseRestartsClicked;
+        public event AsyncEventHandler<int>? ResumeRestartsClicked;
         public event AsyncEventHandler<int>? CopyConnectionClicked;
         public event AsyncEventHandler<ServerInstanceModListEventArgs>? ModlistSelected;
         public event AsyncEventHandler<ServerInstanceProfileEventArgs>? ProfileSelected;
@@ -133,6 +140,25 @@ namespace Trebuchet.ViewModels
             set => this.RaiseAndSetIfChanged(ref _sequenceProgress, value);
         }
 
+        /// <summary>A stop or restart countdown runs: the pause button cancels it.</summary>
+        public bool CountdownRunning
+        {
+            get => _countdownRunning;
+            set => this.RaiseAndSetIfChanged(ref _countdownRunning, value);
+        }
+
+        public bool AutomaticRestartsPaused
+        {
+            get => _automaticRestartsPaused;
+            set => this.RaiseAndSetIfChanged(ref _automaticRestartsPaused, value);
+        }
+
+        public string ResumeRestartsText
+        {
+            get => _resumeRestartsText;
+            set => this.RaiseAndSetIfChanged(ref _resumeRestartsText, value);
+        }
+
         public List<ServerProfileRef> Profiles
         {
             get => _profiles;
@@ -162,6 +188,8 @@ namespace Trebuchet.ViewModels
         public int Instance { get; }
         public ReactiveCommand<Unit,Unit> CloseCommand { get; }
         public ReactiveCommand<Unit,Unit> RestartCommand { get; }
+        public ReactiveCommand<Unit,Unit> PauseRestartsCommand { get; }
+        public ReactiveCommand<Unit,Unit> ResumeRestartsCommand { get; }
         public ReactiveCommand<Unit,Unit> CopyConnectionCommand { get; }
         public ReactiveCommand<Unit,Unit> KillCommand { get; }
         public ReactiveCommand<Unit,Unit> LaunchCommand { get; }
@@ -190,7 +218,29 @@ namespace Trebuchet.ViewModels
                 SequenceProgress = (double)progress.Current / progress.Total;
             SequenceIndeterminate = progress.Current == 0;
         }
-        
+
+        public void SetAutomaticRestarts(bool countdownRunning, DateTime? pausedUntilUtc)
+        {
+            CountdownRunning = countdownRunning;
+            AutomaticRestartsPaused = pausedUntilUtc is not null;
+            if (pausedUntilUtc is not { } until) return;
+            var local = until.ToLocalTime();
+            ResumeRestartsText = string.Format(Resources.ResumeRestarts,
+                local.ToString(local.Date == DateTime.Today ? "t" : "g"));
+        }
+
+        private async Task OnPauseRestartsClicked()
+        {
+            if (PauseRestartsClicked is not null)
+                await PauseRestartsClicked.Invoke(this, Instance);
+        }
+
+        private async Task OnResumeRestartsClicked()
+        {
+            if (ResumeRestartsClicked is not null)
+                await ResumeRestartsClicked.Invoke(this, Instance);
+        }
+
         private async Task OnKillClicked()
         {
             if (KillClicked is not null)

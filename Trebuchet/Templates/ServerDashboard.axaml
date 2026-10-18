@@ -59,6 +59,21 @@
                                     <TextBlock Text="{x:Static a:Resources.Restart}" />
                                 </StackPanel>
                             </Button>
+                            <Button Command="{Binding PauseRestartsCommand}" Classes="Base Yellow" Classes.Colored="{Binding CountdownRunning}"
+                                    Margin="0,0,6,0" VerticalAlignment="Center" ToolTip.Tip="{x:Static a:Resources.PauseRestartsTip}">
+                                <StackPanel Orientation="Horizontal">
+                                    <i:Icon Value="mdi-pause-circle-outline" Classes="Normal" Margin="0,0,6,0"/>
+                                    <TextBlock Text="{x:Static a:Resources.CancelCountdown}" IsVisible="{Binding CountdownRunning}" />
+                                    <TextBlock Text="{x:Static a:Resources.PauseRestarts}" IsVisible="{Binding !CountdownRunning}" />
+                                </StackPanel>
+                            </Button>
+                            <Button Command="{Binding ResumeRestartsCommand}" Classes="Base Green" Margin="0,0,6,0" VerticalAlignment="Center"
+                                    IsVisible="{Binding AutomaticRestartsPaused}">
+                                <StackPanel Orientation="Horizontal">
+                                    <i:Icon Value="mdi-play-circle-outline" Classes="Normal" Margin="0,0,6,0"/>
+                                    <TextBlock Text="{Binding ResumeRestartsText}" />
+                                </StackPanel>
+                            </Button>
                             <Button Command="{Binding KillCommand}" Classes="Base Red" Margin="0,0,6,0" VerticalAlignment="Center">
                                 <StackPanel Orientation="Horizontal">
                                     <i:Icon Value="mdi-skull" Classes="Normal" Margin="0,0,6,0"/>
