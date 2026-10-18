@@ -42,7 +42,6 @@ internal static class Utils
         if (!string.IsNullOrEmpty(context.Profile?.ServerPassword))
             lines.Add($@"Password: {context.Profile.ServerPassword}");
         lines.Add(ServerMacros.Expand(@"Version: {server_revision} ({engine_version}, {branch_name})", context));
-        lines.Add(ServerMacros.Expand(@"{steamconnect}", context));
         return string.Join(Environment.NewLine, lines);
     }
 

@@ -1224,7 +1224,7 @@ The stopping sequence will be used in place of simply stopping the server. This 
         <value>Prevent the automated restart of a server, if the server uptime is less than the duration specified here. This does not affect restarts for mod or server updates.</value>
     </data>
     <data name="SettingServerDiscordNotificationsWebhookText" xml:space="preserve">
-        <value>Discord webhook URLs (one per line) receiving the automated notifications: server online, crash, restarts with their reason and manual shutdown. Messages may contain macros: {servername}, {steamconnect}, {steamconnect_nopassword}, {reason}, {ip}, {game_port}, {steam_port}, {rcon_port}, {server_password}, {admin_password}, {rcon_password}, {server_revision}, {branch_name}, {engine_version}, {map_name}, {server_pid}, {players}, {max_players}, {date_now_iso}, {date_now_human}, {trebuchet_version}</value>
+        <value>Discord webhook URLs (one per line) receiving the automated notifications: server online, crash, restarts with their reason and manual shutdown. Messages may contain macros: {servername}, {reason}, {ip}, {game_port}, {steam_port}, {rcon_port}, {server_password}, {admin_password}, {rcon_password}, {server_revision}, {branch_name}, {engine_version}, {map_name}, {server_pid}, {players}, {max_players}, {date_now_iso}, {date_now_human}, {trebuchet_version}</value>
     </data>
     <data name="SequenceActionBackupServerDataText" xml:space="preserve">
         <value>Compress in a zip and store this save into a separate backup folder with a unique name. Backup files older than the duration specified will automatically be deleted when new backups are made. This will always fail when done after server start or before server shutdown. </value>
@@ -1328,7 +1328,7 @@ The stopping sequence will be used in place of simply stopping the server. This 
         <value>Copy connection info</value>
     </data>
     <data name="CopyConnectionInfoTip" xml:space="preserve">
-        <value>Copy name, IP, ports, password and a steam://connect link to share with your players.</value>
+        <value>Copy name, IP, ports and password to share with your players.</value>
     </data>
     <data name="Restart" xml:space="preserve">
         <value>Restart</value>
@@ -1511,7 +1511,7 @@ The stopping sequence will be used in place of simply stopping the server. This 
         <value>Warnings before restart</value>
     </data>
     <data name="SettingServerRestartWarningsText" xml:space="preserve">
-        <value>Each message is sent this long before the restart. Macros: {servername}, {reason}, {steamconnect}, {ip}, {game_port}, {players}, {map_name}, {date_now_human}</value>
+        <value>Each message is sent this long before the restart. Macros: {servername}, {reason}, {ip}, {game_port}, {players}, {map_name}, {date_now_human}</value>
     </data>
     <data name="RestartWarningBeforeTip" xml:space="preserve">
         <value>Time before the restart</value>
@@ -1541,7 +1541,7 @@ The stopping sequence will be used in place of simply stopping the server. This 
         <value>Ready message</value>
     </data>
     <data name="SettingServerMessageReadyText" xml:space="preserve">
-        <value>Sent to Discord when the server is online (DSL "Ready"), e.g. "The gates to {servername} are now open, join on {steamconnect}". Empty: the online notification of all servers.</value>
+        <value>Sent to Discord when the server is online (DSL "Ready"), e.g. "The gates to {servername} are now open". Empty: the online notification of all servers.</value>
     </data>
     <data name="SettingServerMessageShutdown" xml:space="preserve">
         <value>Shutdown message</value>
@@ -1643,7 +1643,7 @@ The stopping sequence will be used in place of simply stopping the server. This 
         <value>Message</value>
     </data>
     <data name="MacroHint" xml:space="preserve">
-        <value>Macros: {servername}, {reason}, {steamconnect}, {ip}, {game_port}, {players}, {map_name}, {date_now_human}</value>
+        <value>Macros: {servername}, {reason}, {ip}, {game_port}, {players}, {map_name}, {date_now_human}</value>
     </data>
     <data name="ConsoleCommandPlaceholder" xml:space="preserve">
         <value>Command or message (arrow keys: history)</value>
@@ -1754,7 +1754,7 @@ The stopping sequence will be used in place of simply stopping the server. This 
         <value>{servername} restarts in 15 minutes. Reason: {reason}</value>
     </data>
     <data name="ExampleMessageReady" xml:space="preserve">
-        <value>The gates of {servername} are open! Join: {steamconnect}</value>
+        <value>The gates of {servername} are open!</value>
     </data>
     <data name="ExampleMessageShutdown" xml:space="preserve">
         <value>{servername} is shutting down. Reason: {reason}</value>
@@ -1766,7 +1766,6 @@ The stopping sequence will be used in place of simply stopping the server. This 
         <value>**{servername}** is online!
 Players: {players}/{max_players}
 Map: {map_name}
-Join directly: {steamconnect_nopassword}
 Started: {date_now_human}</value>
     </data>
     <data name="ExampleScriptFileName" xml:space="preserve">
@@ -1798,9 +1797,9 @@ HOW IT WORKS TOGETHER
   IMPORTANT: RCon must be on, otherwise no player gets the warnings. A custom stopping sequence
   would replace the warnings, so it is empty here.
 - Starting sequence: start the server (main action), wait until online, then 'Message to players'
-  (RCon only, greeting in game) and 'Discord webhook' (formatted announcement, e.g. for a public channel;
-  that is why it uses {steamconnect_nopassword} instead of {steamconnect}). Replace the webhook URL of
-  the action. The profile webhooks (Discord) get the ready, crash and restart messages separately.
+  (RCon only, greeting in game) and 'Discord webhook' (formatted announcement, e.g. for a public channel).
+  Replace the webhook URL of the action. The profile webhooks (Discord) get the ready, crash and
+  restart messages separately.
 - Ready and shutdown messages go to Discord.
 - Message method broadcast also works with Tot ! Enhanced Chat (popup). 'totchat' is prepared as a
   custom command, but only makes sense once a mod offers this RCon command.

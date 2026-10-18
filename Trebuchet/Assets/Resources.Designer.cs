@@ -3826,7 +3826,7 @@ namespace Trebuchet.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Copy name, IP, ports, password and a steam://connect link to share with your pla.
+        ///   Looks up a localized string similar to Copy name, IP, ports and password to share with your players.
         /// </summary>
         public static string CopyConnectionInfoTip {
             get {
@@ -4771,7 +4771,7 @@ namespace Trebuchet.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Macros: {servername}, {reason}, {steamconnect}, {ip}, {game_port}, {players}, {m.
+        ///   Looks up a localized string similar to Macros: {servername}, {reason}, {ip}, {game_port}, {players}, {m.
         /// </summary>
         public static string MacroHint {
             get {
@@ -5104,7 +5104,7 @@ namespace Trebuchet.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to The gates of {servername} are open! Join: {steamconnect}.
+        ///   Looks up a localized string similar to The gates of {servername} are open!.
         /// </summary>
         public static string ExampleMessageReady {
             get {

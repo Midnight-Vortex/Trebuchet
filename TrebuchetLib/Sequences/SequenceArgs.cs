@@ -13,7 +13,7 @@ public class SequenceArgs
     public required ILogger Logger { get; set; }
     public int Instance { get; set; }
 
-    /// <summary>Expands DSL style macros ({servername}, {steamconnect}, ...) for this instance.</summary>
+    /// <summary>Expands DSL style macros ({servername}, {reason}, ...) for this instance.</summary>
     public Func<string, string>? MacroExpander { get; set; }
 
     public string Expand(string text)

@@ -1002,7 +1002,7 @@ WARNUNG: Dies kann dazu führen, dass die Erkennung von Zombie-Prozessen nicht m
         <value>Verbindungsinfo kopieren</value>
     </data>
     <data name="CopyConnectionInfoTip" xml:space="preserve">
-        <value>Kopiert Name, IP, Ports, Passwort und einen steam://connect-Link zum Teilen mit Spielern.</value>
+        <value>Kopiert Name, IP, Ports und Passwort zum Teilen mit Spielern.</value>
     </data>
     <data name="Restart" xml:space="preserve">
         <value>Neustart</value>
@@ -1149,7 +1149,7 @@ WARNUNG: Dies kann dazu führen, dass die Erkennung von Zombie-Prozessen nicht m
         <value>Discord-Webhooks</value>
     </data>
     <data name="SettingServerDiscordNotificationsWebhookText" xml:space="preserve">
-        <value>Discord-Webhook-URLs (eine pro Zeile) für automatische Benachrichtigungen: Server online, Absturz, Neustarts mit Grund und manuelles Herunterfahren. Nachrichten können Makros enthalten: {servername}, {steamconnect}, {steamconnect_nopassword}, {reason}, {ip}, {game_port}, {steam_port}, {rcon_port}, {server_password}, {admin_password}, {rcon_password}, {server_revision}, {branch_name}, {engine_version}, {map_name}, {server_pid}, {players}, {max_players}, {date_now_iso}, {date_now_human}, {trebuchet_version}</value>
+        <value>Discord-Webhook-URLs (eine pro Zeile) für automatische Benachrichtigungen: Server online, Absturz, Neustarts mit Grund und manuelles Herunterfahren. Nachrichten können Makros enthalten: {servername}, {reason}, {ip}, {game_port}, {steam_port}, {rcon_port}, {server_password}, {admin_password}, {rcon_password}, {server_revision}, {branch_name}, {engine_version}, {map_name}, {server_pid}, {players}, {max_players}, {date_now_iso}, {date_now_human}, {trebuchet_version}</value>
     </data>
     <data name="SettingServerDiscordBotName" xml:space="preserve">
         <value>Bot-Name</value>
@@ -1191,7 +1191,7 @@ WARNUNG: Dies kann dazu führen, dass die Erkennung von Zombie-Prozessen nicht m
         <value>Warnungen vor dem Neustart</value>
     </data>
     <data name="SettingServerRestartWarningsText" xml:space="preserve">
-        <value>Jede Nachricht wird so lange vor dem Neustart gesendet. Makros: {servername}, {reason}, {steamconnect}, {ip}, {game_port}, {players}, {map_name}, {date_now_human}</value>
+        <value>Jede Nachricht wird so lange vor dem Neustart gesendet. Makros: {servername}, {reason}, {ip}, {game_port}, {players}, {map_name}, {date_now_human}</value>
     </data>
     <data name="RestartWarningBeforeTip" xml:space="preserve">
         <value>Zeit vor dem Neustart</value>
@@ -1221,7 +1221,7 @@ WARNUNG: Dies kann dazu führen, dass die Erkennung von Zombie-Prozessen nicht m
         <value>Bereit-Meldung</value>
     </data>
     <data name="SettingServerMessageReadyText" xml:space="preserve">
-        <value>Wird an Discord gesendet, sobald der Server online ist (DSL „Ready“), z. B. „Die Tore von {servername} sind offen, beitreten über {steamconnect}“. Leer: die Online-Benachrichtigung aller Server.</value>
+        <value>Wird an Discord gesendet, sobald der Server online ist (DSL „Ready“), z. B. „Die Tore von {servername} sind offen“. Leer: die Online-Benachrichtigung aller Server.</value>
     </data>
     <data name="SettingServerMessageShutdown" xml:space="preserve">
         <value>Herunterfahren-Meldung</value>
@@ -1323,7 +1323,7 @@ WARNUNG: Dies kann dazu führen, dass die Erkennung von Zombie-Prozessen nicht m
         <value>Nachricht</value>
     </data>
     <data name="MacroHint" xml:space="preserve">
-        <value>Makros: {servername}, {reason}, {steamconnect}, {ip}, {game_port}, {players}, {map_name}, {date_now_human}</value>
+        <value>Makros: {servername}, {reason}, {ip}, {game_port}, {players}, {map_name}, {date_now_human}</value>
     </data>
     <data name="ConsoleCommandPlaceholder" xml:space="preserve">
         <value>Befehl oder Nachricht (Pfeiltasten: Verlauf)</value>
@@ -1746,7 +1746,7 @@ Die Stopp-Sequenz ersetzt das einfache Stoppen des Servers. So kannst du Aktione
         <value>{servername} startet in 15 Minuten neu. Grund: {reason}</value>
     </data>
     <data name="ExampleMessageReady" xml:space="preserve">
-        <value>Die Tore von {servername} sind offen! Beitreten: {steamconnect}</value>
+        <value>Die Tore von {servername} sind offen!</value>
     </data>
     <data name="ExampleMessageShutdown" xml:space="preserve">
         <value>{servername} wird heruntergefahren. Grund: {reason}</value>
@@ -1758,7 +1758,6 @@ Die Stopp-Sequenz ersetzt das einfache Stoppen des Servers. So kannst du Aktione
         <value>**{servername}** ist online!
 Spieler: {players}/{max_players}
 Karte: {map_name}
-Direkt verbinden: {steamconnect_nopassword}
 Gestartet: {date_now_human}</value>
     </data>
     <data name="ExampleScriptFileName" xml:space="preserve">
@@ -1790,8 +1789,8 @@ WAS WIE ZUSAMMENSPIELT
   WICHTIG: RCon muss an sein, sonst erreichen die Warnungen keinen Spieler. Eine eigene Stopp-Sequenz
   würde die Warnmeldungen ersetzen, deshalb ist sie hier leer.
 - Start-Sequenz: Server starten (Hauptaktion), warten bis online, dann 'Nachricht an Spieler' (nur RCon,
-  Begrüßung im Spiel) und 'Discord-Webhook' (formatierte Ankündigung, z. B. für einen öffentlichen Kanal;
-  deshalb {steamconnect_nopassword} statt {steamconnect}). Die Webhook-URL der Aktion ersetzen.
+  Begrüßung im Spiel) und 'Discord-Webhook' (formatierte Ankündigung, z. B. für einen öffentlichen Kanal).
+  Die Webhook-URL der Aktion ersetzen.
   Die Profil-Webhooks (Discord) bekommen davon getrennt die Bereit-, Absturz- und Neustart-Meldungen.
 - Bereit-/Herunterfahren-Meldung gehen an Discord.
 - Nachrichten-Methode broadcast funktioniert auch mit Tot ! Enhanced Chat (Popup). 'totchat' steht als

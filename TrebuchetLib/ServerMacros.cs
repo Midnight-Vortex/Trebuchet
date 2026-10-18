@@ -23,14 +23,14 @@ public sealed class MacroContext
 }
 
 /// <summary>
-/// Expands the "magic tokens" known from the Funcom Dedicated Server Launcher, e.g. {servername}, {steamconnect},
-/// {reason}, {ip}, {game_port}. Tokens are case-insensitive; unknown tokens are left untouched.
+/// Expands the "magic tokens" known from the Funcom Dedicated Server Launcher, e.g. {servername}, {reason}, {ip},
+/// {game_port}. Tokens are case-insensitive; unknown tokens are left untouched.
 /// </summary>
 public static partial class ServerMacros
 {
     public static readonly IReadOnlyList<string> Tokens =
     [
-        "{servername}", "{steamconnect}", "{steamconnect_nopassword}", "{reason}", "{ip}", "{game_port}",
+        "{servername}", "{reason}", "{ip}", "{game_port}",
         "{steam_port}", "{rcon_port}", "{server_password}", "{admin_password}", "{rcon_password}",
         "{trebuchet_version}", "{dsl_version}", "{server_revision}", "{branch_name}", "{server_pid}", "{map_name}",
         "{date_now_iso}", "{date_now_human}", "{engine_version}", "{players}", "{max_players}", "{instance}"
@@ -42,17 +42,6 @@ public static partial class ServerMacros
         var values = BuildValues(context);
         return TokenRegex().Replace(template, match =>
             values.TryGetValue(match.Groups[1].Value, out var value) ? value : match.Value);
-    }
-
-    public static string GetSteamConnect(MacroContext context, bool withPassword)
-    {
-        var profile = context.Profile;
-        var ip = GetConnectAddress(context);
-        var port = profile?.SourceQueryPort ?? context.Process?.Infos.QueryPort ?? ServerProfile.SourceQueryPortDefault;
-        var connect = $"steam://connect/{ip}:{port}";
-        if (withPassword && !string.IsNullOrEmpty(profile?.ServerPassword))
-            connect += "/" + profile.ServerPassword;
-        return connect;
     }
 
     private static string GetConnectAddress(MacroContext context)
@@ -71,15 +60,18 @@ public static partial class ServerMacros
         var version = Assembly.GetEntryAssembly()?.GetName().Version?.ToString(3) ?? string.Empty;
         var now = DateTime.Now;
 
+        var gamePort = (profile?.GameClientPort ?? process?.Infos.Port ?? ServerProfile.GameClientPortDefault)
+            .ToString(CultureInfo.InvariantCulture);
         var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
             ["servername"] = serverName,
-            ["steamconnect"] = GetSteamConnect(context, true),
-            ["steamconnect_nopassword"] = GetSteamConnect(context, false),
+            // steam://connect links were removed. Texts saved with the old tokens get the plain address instead of
+            // showing the raw token.
+            ["steamconnect"] = GetConnectAddress(context) + ":" + gamePort,
+            ["steamconnect_nopassword"] = GetConnectAddress(context) + ":" + gamePort,
             ["reason"] = context.Reason,
             ["ip"] = GetConnectAddress(context),
-            ["game_port"] = (profile?.GameClientPort ?? process?.Infos.Port ?? ServerProfile.GameClientPortDefault)
-                .ToString(CultureInfo.InvariantCulture),
+            ["game_port"] = gamePort,
             ["steam_port"] = (profile?.SourceQueryPort ?? process?.Infos.QueryPort ?? ServerProfile.SourceQueryPortDefault)
                 .ToString(CultureInfo.InvariantCulture),
             ["rcon_port"] = (profile?.RConPort ?? process?.Infos.RConPort ?? ServerProfile.RConPortDefault)

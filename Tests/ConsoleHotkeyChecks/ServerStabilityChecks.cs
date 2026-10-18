@@ -69,8 +69,9 @@ static class ServerStabilityChecks
         profile.SourceQueryPort = 27015;
         var context = new MacroContext { Profile = profile, Reason = "Mod update", ExternalIp = "1.2.3.4", EngineVersion = "UE5" };
         Check(ServerMacros.Expand("{servername} {SERVERNAME}", context) == "My Server My Server", "Macros are case-insensitive");
-        Check(ServerMacros.Expand("{steamconnect}", context) == "steam://connect/1.2.3.4:27015/pw", "Steam connect contains password");
-        Check(ServerMacros.Expand("{steamconnect_nopassword}", context) == "steam://connect/1.2.3.4:27015", "Steam connect without password");
+        Check(ServerMacros.Expand("{steamconnect} {steamconnect_nopassword}", context) == "1.2.3.4:7777 1.2.3.4:7777"
+              && !ServerMacros.Tokens.Any(x => x.Contains("steam", StringComparison.Ordinal) && x.Contains("connect", StringComparison.Ordinal)),
+            "Old steam connect tokens expand to the plain address, no steam:// link");
         Check(ServerMacros.Expand("{reason} {ip}:{game_port} {engine_version}", context) == "Mod update 1.2.3.4:7777 UE5", "Reason, ip, port, engine macros");
         Check(ServerMacros.Expand("{unknown} {map_name}", context) == "{unknown} ConanSandbox", "Unknown macros stay, map name is extracted");
 

@@ -4,7 +4,7 @@ namespace TrebuchetLib.Sequences;
 
 /// <summary>
 /// Message to the players (RCon broadcast / server / alert, as set in the profile) and/or Discord, like the DSL
-/// warning messages. Macros such as {servername}, {reason} or {steamconnect} are expanded.
+/// warning messages. Macros such as {servername}, {reason} or {players} are expanded.
 /// </summary>
 public class SequenceActionBroadcast : ISequenceAction
 {
