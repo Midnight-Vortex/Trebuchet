@@ -16,6 +16,7 @@ public partial class LogReader(ILogger<LogReader> logger, string logPath) : IDis
     private readonly Decoder _decoder = Encoding.UTF8.GetDecoder();
     private string _pendingLine = string.Empty;
     private bool _skipPartialLine;
+    private bool _startAtEnd;
 
     public string LogPath { get; init; } = logPath;
 
@@ -44,6 +45,18 @@ public partial class LogReader(ILogger<LogReader> logger, string logPath) : IDis
         if (_cts is not null) return;
         _cts = new();
         _offset = 0;
+        var token = _cts.Token;
+        Task.Run(() => BackgroundThread(token), token);
+    }
+
+    /// <summary>
+    /// Only follow what is written from now on (used when a server just stopped, its log was already displayed).
+    /// </summary>
+    public void StartAtEnd()
+    {
+        if (_cts is not null) return;
+        _startAtEnd = true;
+        _cts = new();
         var token = _cts.Token;
         Task.Run(() => BackgroundThread(token), token);
     }
@@ -83,6 +96,11 @@ public partial class LogReader(ILogger<LogReader> logger, string logPath) : IDis
     {
         if (!File.Exists(LogPath)) throw new IOException("File not found" + LogPath);
         await using var fs = new FileStream(LogPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+        if (_offset < 0 && _startAtEnd)
+        {
+            _offset = fs.Length;
+            return string.Empty;
+        }
         if (_offset < 0)
         {
             _offset = Math.Max(0, fs.Length - 65536);

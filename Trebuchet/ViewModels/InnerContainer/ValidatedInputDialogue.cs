@@ -22,7 +22,7 @@ public class ValidatedInputDialogue<T, TD> : TitledDialogue<TD> where TD : Valid
             Close();
         });
 
-        this.WhenAnyValue(x => x.Value)
+        this.WhenAnyValueUnsafe(x => x.Value)
             .Subscribe((v) =>
             {
                 var result = Validation.Invoke(v);

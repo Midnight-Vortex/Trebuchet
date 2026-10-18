@@ -33,6 +33,11 @@ public static class UserDefinedNotifications
         return setup.Config.NotificationServerManualStop;
     }
     
+    public static string GetReasonManualRestart(this AppSetup setup)
+    {
+        return setup.Config.NotificationServerManualRestart;
+    }
+
     public static string GetReasonAutomatedRestart(this AppSetup setup)
     {
         return setup.Config.NotificationServerAutomatedRestart;

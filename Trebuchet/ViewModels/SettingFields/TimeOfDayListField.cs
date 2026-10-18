@@ -13,7 +13,12 @@ public class TimeOfDayListField : Field<TimeOfDayListField, ObservableCollection
     public TimeOfDayListField(bool useSeconds) : base([])
     {
         UseSeconds = useSeconds;
-        
+
+        Modify = ReactiveCommand.Create<TimeSpan>((_) =>
+        {
+            ValueChanged.Execute(Value).Subscribe();
+        });
+
         Add = ReactiveCommand.Create(() =>
         {
             var vm = new TimeSpanViewModel(TimeSpan.Zero);
@@ -26,11 +31,6 @@ public class TimeOfDayListField : Field<TimeOfDayListField, ObservableCollection
         Remove = ReactiveCommand.Create<TimeSpanViewModel>((vm) =>
         {
             Value.Remove(vm);
-            ValueChanged.Execute(Value).Subscribe();
-        });
-
-        Modify = ReactiveCommand.Create<TimeSpan>((_) =>
-        {
             ValueChanged.Execute(Value).Subscribe();
         });
     }

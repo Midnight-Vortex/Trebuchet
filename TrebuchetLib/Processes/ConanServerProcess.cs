@@ -15,27 +15,30 @@ internal sealed class ConanServerProcess : IConanServerProcess
         _lastResponse = DateTime.UtcNow;
     }
 
+    // Process is not thread safe: the refresh runs on the thread pool while the UI reads stats.
+    private readonly object _processLock = new();
+    private volatile bool _disposed;
     private DateTime _lastResponse;
     private DateTime _shutdownCallTime;
     private int _maxPlayers;
     private bool _online;
     private int _players;
     private ProcessState _state;
-    private LogReader _logReader;
+    private readonly LogReader _logReader;
     private bool _hasTriedRConShutdown;
     private bool _hasTriedHandleShutdown;
     private bool _requestRestart;
 
-    public event EventHandler<ProcessState>? StateChanged; 
+    public event EventHandler<ProcessState>? StateChanged;
     public event PropertyChangedEventHandler? PropertyChanged;
 
     public long MemoryUsage
     {
         get
         {
-            if (Process.HasExited)
-                return 0;
-            return Process.WorkingSet64;
+            if (_disposed) return 0;
+            lock (_processLock)
+                return _disposed ? 0 : Process.WorkingSetSafe(PId);
         }
     }
 
@@ -43,12 +46,12 @@ internal sealed class ConanServerProcess : IConanServerProcess
     {
         get
         {
-            if(Process.HasExited)
-                return TimeSpan.Zero;
-            return Process.TotalProcessorTime;
+            if (_disposed) return TimeSpan.Zero;
+            lock (_processLock)
+                return _disposed ? TimeSpan.Zero : Process.TotalProcessorTimeSafe(PId);
         }
     }
-    
+
     public bool KillZombies { get; set; }
     public int ZombieCheckSeconds { get; set; }
     public int PId { get; }
@@ -99,47 +102,69 @@ internal sealed class ConanServerProcess : IConanServerProcess
     public string RConPassword => Infos.RConPassword;
     public int RConPort => Infos.RConPort;
     public string Title => Infos.Title;
+    public Exception? LastKillError { get; private set; }
 
     public void Dispose()
     {
-        Process.Dispose();
-        SourceQueryReader.Dispose();
-        _logReader.Dispose();
+        lock (_processLock)
+        {
+            if (_disposed) return;
+            _disposed = true;
+        }
+        try { Process.Dispose(); } catch { /* best effort */ }
+        try { SourceQueryReader.Dispose(); } catch { /* best effort */ }
+        try { _logReader.Dispose(); } catch { /* best effort */ }
     }
 
     public async Task RefreshAsync()
     {
-        var responding = await Task.Run(() =>
+        if (_disposed) return;
+        var (exited, responding) = await Task.Run(() =>
         {
-            Process.Refresh();
-            return Process.Responding;
+            bool hasExited;
+            lock (_processLock)
+            {
+                if (_disposed) return (true, false);
+                Process.TryRefresh();
+                hasExited = Process.HasExitedSafe(PId);
+            }
+            // Responding can block up to 5s (SendMessageTimeout): probe outside the lock on its own handle.
+            return (hasExited, !hasExited && ProcessSafety.ProbeResponding(PId));
         });
-        
+        if (_disposed) return;
+
         if (responding)
             _lastResponse = DateTime.UtcNow;
-        
-        SourceQueryReader.Refresh();
-        Online = SourceQueryReader.Online;
-        MaxPlayers = SourceQueryReader.MaxPlayers;
-        Players = SourceQueryReader.Players;
-        
+
+        try
+        {
+            SourceQueryReader.Refresh();
+            Online = SourceQueryReader.Online;
+            MaxPlayers = SourceQueryReader.MaxPlayers;
+            Players = SourceQueryReader.Players;
+        }
+        catch (ObjectDisposedException) { return; }
+
         switch (State)
         {
             case ProcessState.NEW:
-                if(!Process.HasExited)
+                if(!exited)
                     State = ProcessState.RUNNING;
                 break;
             case ProcessState.RUNNING:
-                if (Online) State = ProcessState.ONLINE;
-                if (Process.HasExited) State = ProcessState.CRASHED;
-                else if (!Process.Responding) ZombieCheck();
+                if (exited) State = ProcessState.CRASHED;
+                else
+                {
+                    if (Online) State = ProcessState.ONLINE;
+                    if (!responding) ZombieCheck();
+                }
                 break;
             case ProcessState.ONLINE:
-                if (Process.HasExited) State = ProcessState.CRASHED;
-                else if (!Process.Responding) ZombieCheck();
+                if (exited) State = ProcessState.CRASHED;
+                else if (!responding) ZombieCheck();
                 break;
             case ProcessState.STOPPING:
-                if (Process.HasExited) State = ProcessState.STOPPED;
+                if (exited) State = ProcessState.STOPPED;
                 else SendShutdown();
                 break;
             case ProcessState.FAILED:
@@ -154,20 +179,25 @@ internal sealed class ConanServerProcess : IConanServerProcess
         {
             State = ProcessState.CRASHED;
             if (KillZombies)
-                Process.Kill();
+                KillProcess();
         }
     }
 
-    public Task KillAsync()
+    public async Task KillAsync()
     {
+        if (_disposed) return;
+        if (State is ProcessState.STOPPED or ProcessState.CRASHED) return;
         State = ProcessState.STOPPING;
-        Process.Kill();
-        return Task.CompletedTask;
+        // Make sure the regular shutdown path cannot fire again after a kill.
+        _hasTriedRConShutdown = true;
+        _hasTriedHandleShutdown = true;
+        _shutdownCallTime = DateTime.UtcNow;
+        await Task.Run(KillProcess);
     }
 
     public Task StopAsync()
     {
-        if (State.IsStopping() || !State.IsRunning()) 
+        if (State.IsStopping() || !State.IsRunning())
             return Task.CompletedTask;
         State = ProcessState.STOPPING;
         SendShutdown();
@@ -176,7 +206,7 @@ internal sealed class ConanServerProcess : IConanServerProcess
 
     public Task RestartAsync()
     {
-        if (State.IsStopping() || !State.IsRunning()) 
+        if (State.IsStopping() || !State.IsRunning())
             return Task.CompletedTask;
         State = ProcessState.STOPPING;
         RequestRestart = true;
@@ -184,23 +214,78 @@ internal sealed class ConanServerProcess : IConanServerProcess
         return Task.CompletedTask;
     }
 
+    public bool EnsureProcessSettings(ProcessPriorityClass priority, long affinity)
+    {
+        if (_disposed) return false;
+        lock (_processLock)
+        {
+            if (_disposed || Process.HasExitedSafe(PId)) return false;
+            var changed = false;
+            try
+            {
+                if (Process.PriorityClass != priority)
+                {
+                    Process.PriorityClass = priority;
+                    changed = true;
+                }
+                if (OperatingSystem.IsWindows() || OperatingSystem.IsLinux())
+                {
+                    var mask = (IntPtr)affinity;
+                    if (affinity != 0 && Process.ProcessorAffinity != mask)
+                    {
+                        Process.ProcessorAffinity = mask;
+                        changed = true;
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // Access denied or process exiting: nothing to enforce.
+            }
+            return changed;
+        }
+    }
+
+    private void KillProcess()
+    {
+        lock (_processLock)
+        {
+            if (_disposed) return;
+            if (!Process.TryKill(PId, out var error))
+                LastKillError = error;
+        }
+    }
+
     private void SendShutdown()
     {
         if ((DateTime.UtcNow - _shutdownCallTime) < TimeSpan.FromMinutes(3)) return;
         _shutdownCallTime = DateTime.UtcNow;
-        
+
         if (RCon is not null && !_hasTriedRConShutdown)
         {
             _hasTriedRConShutdown = true;
-            RCon.Send(@"shutdown", CancellationToken.None);
+            _ = SendRConShutdown(RCon);
         }
         else if (!_hasTriedHandleShutdown)
         {
             _hasTriedHandleShutdown = true;
-            Process.CloseMainWindow();
+            lock (_processLock)
+                if (!_disposed) Process.TryCloseMainWindow();
         }
         else
-            Process.Kill();
+            KillProcess();
+    }
+
+    private static async Task SendRConShutdown(IRcon rcon)
+    {
+        try
+        {
+            await rcon.Send(@"shutdown", CancellationToken.None);
+        }
+        catch
+        {
+            // The kill fallback takes over after the shutdown delay.
+        }
     }
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)

@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
 using Avalonia.Threading;
+using Microsoft.Extensions.Logging;
 using ReactiveUI;
 using tot_lib;
 using Trebuchet.Services;
@@ -24,8 +25,10 @@ public sealed class TrebuchetApp : ReactiveObject, IDisposable
         SteamWidget steamWidget,
         DialogueBox dialogueBox,
         Operations operations,
-        IEnumerable<IPanel> panels)
+        IEnumerable<IPanel> panels,
+        ILogger<TrebuchetApp> logger)
     {
+        _logger = logger;
         _uiConfig = uiConfig;
         _operations = operations;
         _panels = panels.ToList();
@@ -57,8 +60,10 @@ public sealed class TrebuchetApp : ReactiveObject, IDisposable
         Start();
     }
     
+    private readonly ILogger<TrebuchetApp> _logger;
     private readonly UIConfig _uiConfig;
     private readonly Operations _operations;
+    private int _tickFailures;
     private readonly List<IPanel> _panels;
     private readonly DispatcherTimer _timer;
     private PanelTab _activePanel;
@@ -106,13 +111,21 @@ public sealed class TrebuchetApp : ReactiveObject, IDisposable
             var tasks = _panels.OfType<ITickingPanel>().Select(p => p.TickPanel()).ToArray();
             if (tasks.Length > 0)
                 await Task.WhenAll(tasks);
-            _timer.Start();
+            _tickFailures = 0;
         }
         catch (OperationCanceledException) {}
         catch (Exception ex)
         {
-            await App.HandleAppCrash(ex);
+            // One failed refresh (process exiting mid-tick, locked file, ...) must not close the application.
+            _tickFailures++;
+            _logger.LogError(ex, @"Panel tick failed ({Count} in a row)", _tickFailures);
+            if (_tickFailures >= 30)
+            {
+                await App.HandleAppCrash(ex);
+                return;
+            }
         }
+        _timer.Start();
     }
 
     private async void Start()

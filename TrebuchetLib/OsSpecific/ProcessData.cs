@@ -18,13 +18,26 @@ namespace TrebuchetLib.OsSpecific
         {
             pid = Convert.ToInt32(processData.GetPropertyValue("ProcessId"));
             processName = Convert.ToString(processData.GetPropertyValue("Name")) ?? string.Empty;
-            start = ManagementDateTimeConverter.ToDateTime(Convert.ToString(processData.GetPropertyValue("CreationDate")) ?? string.Empty).ToUniversalTime();
+            // Exiting processes come back with empty CreationDate/CommandLine; never throw for those.
+            var creationDate = Convert.ToString(processData.GetPropertyValue("CreationDate")) ?? string.Empty;
+            try
+            {
+                start = string.IsNullOrWhiteSpace(creationDate)
+                    ? DateTime.MinValue
+                    : ManagementDateTimeConverter.ToDateTime(creationDate).ToUniversalTime();
+            }
+            catch (Exception)
+            {
+                start = DateTime.MinValue;
+            }
             string commandLine = Convert.ToString(processData.GetPropertyValue("CommandLine")) ?? string.Empty;
 
             var arguments = Tools.SplitCommandLine(commandLine).ToArray();
 
             if (arguments.Length > 0)
-                filename = arguments[0].StartsWith("\"") ? arguments[0][1..^1] : arguments[0];
+                filename = arguments[0].Length >= 2 && arguments[0].StartsWith('"') && arguments[0].EndsWith('"')
+                    ? arguments[0][1..^1]
+                    : arguments[0].Trim('"');
             else
                 filename = string.Empty;
 

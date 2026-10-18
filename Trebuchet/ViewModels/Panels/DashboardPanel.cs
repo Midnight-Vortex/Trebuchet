@@ -201,9 +201,51 @@ namespace Trebuchet.ViewModels.Panels
             if (!dashboard.ProcessRunning) return;
 
             _logger.LogInformation(@"Closing server {instance}", instance);
-            await _launcher.CloseServer(instance);
+            try
+            {
+                await _launcher.CloseServer(instance);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, @"Failed");
+                await _box.OpenErrorAsync(ex.Message);
+            }
+        }
+
+        public async Task RestartServer(int instance)
+        {
+            var dashboard = GetServerInstance(instance);
+            if (!dashboard.ProcessRunning) return;
+
+            _logger.LogInformation(@"Restarting server {instance}", instance);
+            try
+            {
+                await _launcher.RestartServerManualAsync(instance);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, @"Failed");
+                await _box.OpenErrorAsync(ex.Message);
+            }
         }
         
+        public async Task CopyConnectionInfo(int instance)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(ExternalIpProvider.Cached))
+                    await ExternalIpProvider.GetAsync();
+                var text = Utils.Utils.BuildConnectionInfo(_launcher.CreateMacroContext(instance));
+                await Utils.Utils.SetClipboardText(text);
+                _logger.LogInformation(@"Connection information of instance {instance} copied", instance);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, @"Failed");
+                await _box.OpenErrorAsync(ex.Message);
+            }
+        }
+
         public async Task KillServer(int instance)
         {
             var dashboard = GetServerInstance(instance);
@@ -217,7 +259,15 @@ namespace Trebuchet.ViewModels.Panels
             }
 
             _logger.LogWarning(@"Killing server {instance}", instance);
-            await _launcher.KillServer(dashboard.Instance);
+            try
+            {
+                await _launcher.KillServer(dashboard.Instance);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, @"Failed");
+                await _box.OpenErrorAsync(ex.Message);
+            }
         }
         
         public async Task LaunchServer(int instance)
@@ -269,8 +319,11 @@ namespace Trebuchet.ViewModels.Panels
             ServerUpdateAvailable = _launcher.HasServerUpdate();
             
             var refreshes = new List<Task> { Client.ProcessRefresh(_launcher.GetClientProcess(), _uiConfig.DisplayProcessPerformance) };
-            foreach (var instance in _launcher.GetServerProcesses())
+            foreach (var instance in _launcher.GetServerProcesses().ToList())
+            {
+                if (instance.Infos.Instance < 0 || instance.Infos.Instance >= Instances.Count) continue;
                 refreshes.Add(Instances[instance.Infos.Instance].ProcessRefresh(instance, _uiConfig.DisplayProcessPerformance));
+            }
             await Task.WhenAll(refreshes);
         }
 
@@ -400,6 +453,8 @@ namespace Trebuchet.ViewModels.Panels
             instance.KillClicked += (_, arg) => KillServer(arg);
             instance.LaunchClicked += (_, arg) => LaunchServer(arg);
             instance.CloseClicked += (_, arg) => CloseServer(arg);
+            instance.RestartClicked += (_, arg) => RestartServer(arg);
+            instance.CopyConnectionClicked += (_, arg) => CopyConnectionInfo(arg);
             instance.UpdateClicked += (_, _) => UpdateMods();
         }
 

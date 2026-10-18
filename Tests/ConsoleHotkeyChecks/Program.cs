@@ -129,4 +129,5 @@ finally
     Directory.Delete(resolvedRoot, recursive: true);
 }
 checks += await DirectoryCopyChecks.Run();
+checks += await ServerStabilityChecks.Run();
 Console.WriteLine($"Passed {checks} console hotkey and background copy checks.");

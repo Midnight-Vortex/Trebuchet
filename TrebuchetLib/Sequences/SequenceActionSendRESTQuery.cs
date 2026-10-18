@@ -26,14 +26,14 @@ public class SequenceActionSendRESTQuery : ISequenceAction
         try
         {
             var request = new HttpRequestMessage();
-            request.Content = new StringContent(Body.Replace("{Reason}", args.Reason));
+            request.Content = new StringContent(args.Expand(Body));
             request.Method = GetMethod(HttpMethod);
             request.Headers.Add($"user-agent", $"TotTrebuchet/{ProcessUtil.GetAppVersion()}");
             foreach (var keyValuePair in ParseHeaders(Headers))
             {
                 if (request.Headers.Contains(keyValuePair.Key))
                     continue;
-                request.Headers.Add(keyValuePair.Key, keyValuePair.Value.Replace("{Reason}", args.Reason));
+                request.Headers.Add(keyValuePair.Key, args.Expand(keyValuePair.Value));
             }
 
             using var httpClient = new HttpClient();

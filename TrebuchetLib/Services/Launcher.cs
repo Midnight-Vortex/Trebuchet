@@ -53,6 +53,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     private readonly ConanProcessFactory _processFactory;
     private readonly ILogger<Launcher> _logger;
     private string _lastRestartReason = string.Empty;
+    private DateTime _lastExternalIpCheck = DateTime.MinValue;
 
     public event EventHandler? StateChanged;
     public event EventHandler<SequenceProgress>? SequenceProgressChanged; 
@@ -281,7 +282,8 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             {
                 if (reference is not null && !_serverSequences.ContainsKey(instance))
                 {
-                    await DiscordWebHooks.Notify(reference.Get(), _setup.GetServerShutdownNotification(_lastRestartReason));
+                    await NotifyDiscordSafe(instance, reference.Get(),
+                        _setup.GetServerShutdownNotification(_lastRestartReason), _lastRestartReason);
                     _lastRestartReason = string.Empty;
                 }
                 await watcher.StopAsync();
@@ -317,7 +319,8 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             {
                 if (reference is not null && !_serverSequences.ContainsKey(instance))
                 {
-                    await DiscordWebHooks.Notify(reference.Get(), _setup.GetServerShutdownNotification(_lastRestartReason));
+                    await NotifyDiscordSafe(instance, reference.Get(),
+                        _setup.GetServerShutdownNotification(_lastRestartReason), _lastRestartReason);
                     _lastRestartReason = string.Empty;
                 }
                 await watcher.RestartAsync();
@@ -326,6 +329,107 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
 
             await RestartServerWithSequence(instance, reference.Get());
         }
+    }
+
+    /// <summary>
+    /// Restart requested by the user (dashboard / web panel): runs the stopping sequence (warnings) like scheduled restarts.
+    /// </summary>
+    public async Task RestartServerManualAsync(int instance, string? reason = null)
+    {
+        if (!_serverProcesses.ContainsKey(instance)) return;
+        _lastRestartReason = string.IsNullOrWhiteSpace(reason) ? _setup.GetReasonManualRestart() : reason;
+        await RestartServerAsync(instance);
+    }
+
+    /// <summary>
+    /// Macro values for messages of an instance (Discord, RCon, sequences, web panel).
+    /// </summary>
+    public MacroContext CreateMacroContext(int instance, string reason = "")
+    {
+        ServerProfile? profile = null;
+        try
+        {
+            var uri = _setup.Config.GetInstanceProfile(instance);
+            if (_appFiles.Server.TryResolve(uri, out var reference))
+                profile = reference.Get();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "No profile for macro context of instance {Instance}", instance);
+        }
+
+        string revision;
+        try
+        {
+            revision = _steam.GetInstanceBuildId(instance).ToString();
+        }
+        catch (Exception)
+        {
+            revision = string.Empty;
+        }
+
+        return new MacroContext
+        {
+            Profile = profile,
+            Process = _serverProcesses.GetValueOrDefault(instance),
+            Instance = instance,
+            Reason = reason,
+            ExternalIp = ExternalIpProvider.Cached,
+            EngineVersion = _setup.IsLegacy ? "UE4" : "UE5",
+            BranchName = Constants.GetEditionDisplayName(_setup.Edition),
+            ServerRevision = revision
+        };
+    }
+
+    /// <summary>
+    /// Discord must never block a stop/restart: failures are only logged.
+    /// </summary>
+    public async Task NotifyDiscordSafe(int instance, ServerProfile profile, string message, string reason = "",
+        Action<MacroContext>? configure = null)
+    {
+        try
+        {
+            var context = CreateMacroContext(instance, reason);
+            configure?.Invoke(context);
+            await DiscordWebHooks.Notify(profile, message, context);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Discord notification failed for instance {Instance}", instance);
+        }
+    }
+
+    /// <summary>
+    /// Send a chat/broadcast message to the players of an instance through RCon and Discord (DSL "Send" box).
+    /// </summary>
+    public async Task<bool> BroadcastMessage(int instance, string message, string rconMethod = "broadcast")
+    {
+        if (string.IsNullOrWhiteSpace(message)) return false;
+        var context = CreateMacroContext(instance);
+        var text = ServerMacros.Expand(message, context);
+        var sent = false;
+        if (_serverProcesses.TryGetValue(instance, out var process) && process.RCon is { } rcon
+            && process.State is ProcessState.RUNNING or ProcessState.ONLINE)
+        {
+            try
+            {
+                var response = await rcon.Send($"{rconMethod} {text}", CancellationToken.None);
+                sent = response.Exception is null;
+                if (response.Exception is not null)
+                    _logger.LogWarning(response.Exception, "RCon broadcast failed on instance {Instance}", instance);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "RCon broadcast failed on instance {Instance}", instance);
+            }
+        }
+
+        if (context.Profile is { } profile && profile.GetDiscordWebHooks().Any())
+        {
+            await NotifyDiscordSafe(instance, profile, message);
+            sent = true;
+        }
+        return sent;
     }
 
     public IConanProcess? GetClientProcess()
@@ -379,7 +483,14 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         if (_serverProcesses.TryGetValue(instance, out var watcher))
         {
             _logger.LogInformation($"Kill server {instance}");
-            await CancelServerSequence(instance);
+            try
+            {
+                await CancelServerSequence(instance);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not cancel sequence of server {Instance}", instance);
+            }
             await watcher.KillAsync();
         }
     }
@@ -390,52 +501,92 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         {
             _hasCatapulted = true;
             for (int i = 0; i < _setup.Config.ServerInstanceCount; i++)
-                if(!_serverProcesses.ContainsKey(i))
-                    await CatapultServer(i);
+            {
+                var instance = i;
+                if(!_serverProcesses.ContainsKey(instance))
+                    await TickStage(() => CatapultServer(instance), nameof(CatapultServer));
+            }
         } else if (!_hasCatapulted)
         {
             _hasCatapulted = true;
             for (int i = 0; i < _setup.Config.ServerInstanceCount; i++)
             {
-                if(_serverProcesses.ContainsKey(i)) continue;
-                var profileUri = _setup.Config.GetInstanceProfile(i);
-                var serverPRef = _appFiles.Server.Resolve(profileUri);
-                var serverProfile = serverPRef.Get();
-                if(serverProfile.RestartWhenDown)
-                    await CatapultServer(i);
+                var instance = i;
+                if(_serverProcesses.ContainsKey(instance)) continue;
+                await TickStage(async () =>
+                {
+                    var profileUri = _setup.Config.GetInstanceProfile(instance);
+                    var serverPRef = _appFiles.Server.Resolve(profileUri);
+                    var serverProfile = serverPRef.Get();
+                    if(serverProfile.RestartWhenDown)
+                        await CatapultServer(instance);
+                }, nameof(CatapultServer));
             }
         }
 
-        await CleanStoppedProcesses();
+        // Each stage is isolated: a process dying mid-tick (kill, crash) must never take the launcher down.
+        await TickStage(CleanStoppedProcesses, nameof(CleanStoppedProcesses));
 
         // Process discovery is relatively expensive (WMI); refresh every tick when missing, else every other tick.
         _tickCounter++;
         var needClientScan = _conanClientProcess is null || (_tickCounter % 2) == 0;
         var needServerScan = _serverProcesses.Count < _setup.Config.ServerInstanceCount || (_tickCounter % 2) == 0;
         if (needClientScan)
-            await FindExistingClient();
+            await TickStage(FindExistingClient, nameof(FindExistingClient));
         if (needServerScan)
-            await FindExistingServers();
+            await TickStage(FindExistingServers, nameof(FindExistingServers));
 
-        await PerformPeriodicUpdateCheck();
-        await PerformAutomaticRestarts();
+        await TickStage(PerformPeriodicUpdateCheck, nameof(PerformPeriodicUpdateCheck));
+        await TickStage(PerformAutomaticRestarts, nameof(PerformAutomaticRestarts));
+        await TickStage(PerformRequiresRestartCheck, nameof(PerformRequiresRestartCheck));
+        _ = TickStage(PerformExternalIpCheck, nameof(PerformExternalIpCheck));
 
         var refreshTasks = new List<Task>();
-        if (_conanClientProcess is not null)
-            refreshTasks.Add(_conanClientProcess.RefreshAsync());
-        foreach (var process in _serverProcesses.Values)
+        if (_conanClientProcess is { } client)
+            refreshTasks.Add(TickStage(client.RefreshAsync, @"RefreshClient"));
+        foreach (var process in _serverProcesses.Values.ToList())
         {
-            var name = _appFiles.Server.Resolve(_setup.Config.GetInstanceProfile(process.Infos.Instance));
-            if (_appFiles.Server.Exists(name))
+            ServerProfile? profile = null;
+            try
             {
-                var profile = _appFiles.Server.Get(name);
-                process.KillZombies = profile.KillZombies;
-                process.ZombieCheckSeconds = profile.ZombieCheckSeconds;
+                var name = _appFiles.Server.Resolve(_setup.Config.GetInstanceProfile(process.Infos.Instance));
+                if (_appFiles.Server.Exists(name))
+                {
+                    profile = _appFiles.Server.Get(name);
+                    process.KillZombies = profile.KillZombies;
+                    process.ZombieCheckSeconds = profile.ZombieCheckSeconds;
+                }
             }
-            refreshTasks.Add(process.RefreshAsync());
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Could not resolve profile of instance {Instance}", process.Infos.Instance);
+            }
+
+            var p = process;
+            var pr = profile;
+            refreshTasks.Add(TickStage(async () =>
+            {
+                await p.RefreshAsync();
+                if (pr is not null) EnforceProcessSettings(p, pr);
+            }, @"RefreshServer"));
         }
         if (refreshTasks.Count > 0)
             await Task.WhenAll(refreshTasks);
+    }
+
+    private async Task TickStage(Func<Task> stage, string name)
+    {
+        try
+        {
+            await stage();
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Launcher tick stage {Stage} failed", name);
+        }
     }
 
     public async Task<ConanClientProcessInfos?> FindClientProcess()
@@ -651,14 +802,16 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         if (sequence.Actions.Count == 0) return;
         await CancelServerSequence(instance);
 
+        var reason = _lastRestartReason;
         var args = new SequenceArgs()
         {
             BackupManager = _backupManager,
             Instance = instance,
             Launcher = this,
             Logger = _logger,
-            Reason = _lastRestartReason,
-            MainAction = mainAction
+            Reason = reason,
+            MainAction = mainAction,
+            MacroExpander = text => ServerMacros.Expand(text, CreateMacroContext(instance, reason))
         };
         _lastRestartReason = string.Empty;
         var runner = new SequenceRunner(sequence, args, this);
@@ -667,12 +820,28 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         try
         {
             await runner.ExecuteSequence();
-            _serverSequences.Remove(instance);
+            // A sequence without the main action would never start/stop the server: run it at the end.
+            if (!sequence.Actions.Any(x => x is SequenceMainAction))
+            {
+                _logger.LogWarning("Sequence of instance {Instance} has no main action, running it after the sequence", instance);
+                await mainAction();
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            _logger.LogInformation("Sequence of instance {Instance} cancelled", instance);
+            Report(new SequenceProgress(instance, 0, 0));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to execute sequence");
             Report(new SequenceProgress(instance, 0, 0));
+        }
+        finally
+        {
+            // A failed sequence must not stay registered, or the instance is never cleaned up/restarted again.
+            if (_serverSequences.TryGetValue(instance, out var current) && ReferenceEquals(current, runner))
+                _serverSequences.Remove(instance);
         }
     }
 
@@ -958,9 +1127,120 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
 
     private void ConfigureProcess(int priority, long threadAffinity, Process process)
     {
-        process.PriorityClass = GetPriority(priority);
-        if (OperatingSystem.IsWindows() || OperatingSystem.IsLinux())
-            process.ProcessorAffinity = (IntPtr)Tools.Clamp2CPUThreads(threadAffinity);
+        if (priority == ServerProfile.ProcessPriorityUnchanged) return;
+        try
+        {
+            process.PriorityClass = GetPriority(priority);
+            if (OperatingSystem.IsWindows() || OperatingSystem.IsLinux())
+                process.ProcessorAffinity = (IntPtr)Tools.Clamp2CPUThreads(threadAffinity);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not apply priority/affinity to process {Pid}", SafePid(process));
+        }
+    }
+
+    private static int SafePid(Process process)
+    {
+        try { return process.Id; } catch { return 0; }
+    }
+
+    private string SafeBuildId(int instance)
+    {
+        try { return _steam.GetInstanceBuildId(instance).ToString(); } catch { return "n/a"; }
+    }
+
+    /// <summary>
+    /// DSL 1.9.4: when a performance mode is set, force priority/affinity back if the server changed them.
+    /// </summary>
+    private void EnforceProcessSettings(IConanServerProcess process, ServerProfile profile)
+    {
+        if (!profile.EnforceProcessSettings || profile.ProcessPriority == ServerProfile.ProcessPriorityUnchanged) return;
+        if (!process.State.IsRunning() || process.State.IsStopping()) return;
+        if (process.EnsureProcessSettings(GetPriority(profile.ProcessPriority), Tools.Clamp2CPUThreads(profile.CPUThreadAffinity)))
+            _logger.LogInformation("Re-applied priority/affinity on server instance {Instance}", process.Infos.Instance);
+    }
+
+    /// <summary>
+    /// DSL "RequiresRestart.txt": a file dropped in the instance or profile folder triggers a restart, its content is the reason.
+    /// Files older than the server process are stale and removed, which avoids endless restart loops.
+    /// </summary>
+    private Task PerformRequiresRestartCheck()
+    {
+        foreach (var process in _serverProcesses.Values.ToList())
+        {
+            var instance = process.Infos.Instance;
+            if (!process.State.IsRunning() || process.State.IsStopping()) continue;
+            if (_serverSequences.ContainsKey(instance)) continue;
+            if (!_appFiles.Server.TryResolve(_setup.Config.GetInstanceProfile(instance), out var reference)) continue;
+            var profile = reference.Get();
+            if (!profile.RequiresRestartFileCheck) continue;
+
+            foreach (var file in new[]
+                     {
+                         Path.Combine(_setup.GetInstancePath(instance), Constants.FileRequiresRestart),
+                         Path.Combine(profile.ProfileFolder, Constants.FileRequiresRestart)
+                     })
+            {
+                if (!File.Exists(file)) continue;
+                string reason;
+                DateTime written;
+                try
+                {
+                    written = File.GetLastWriteTimeUtc(file);
+                    reason = File.ReadAllText(file).Trim();
+                    File.Delete(file);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Could not process {File}", file);
+                    continue;
+                }
+
+                if (written < process.StartUtc)
+                {
+                    _logger.LogInformation("Ignored stale {File} (older than the server process)", file);
+                    continue;
+                }
+
+                if (reason.Length > 200) reason = reason[..200];
+                _logger.LogInformation("{File} found, restarting instance {Instance}: {Reason}", file, instance, reason);
+                _lastRestartReason = string.IsNullOrWhiteSpace(reason) ? Constants.FileRequiresRestart : reason;
+                RestartServer(instance);
+                break;
+            }
+        }
+        return Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// DSL 1.3.6: watch the external IP and report changes to Discord.
+    /// </summary>
+    private async Task PerformExternalIpCheck()
+    {
+        if (_serverProcesses.Count == 0) return;
+        if (DateTime.UtcNow - _lastExternalIpCheck < TimeSpan.FromMinutes(10)) return;
+        _lastExternalIpCheck = DateTime.UtcNow;
+
+        var previous = ExternalIpProvider.Cached;
+        var current = await ExternalIpProvider.GetAsync(force: true);
+        if (string.IsNullOrEmpty(current))
+        {
+            _logger.LogInformation("Could not fetch the external IP");
+            return;
+        }
+        if (string.IsNullOrEmpty(previous) || previous == current) return;
+
+        _logger.LogWarning("External IP changed from {Old} to {New}", previous, current);
+        foreach (var process in _serverProcesses.Values.ToList())
+        {
+            var instance = process.Infos.Instance;
+            if (!_appFiles.Server.TryResolve(_setup.Config.GetInstanceProfile(instance), out var reference)) continue;
+            var profile = reference.Get();
+            if (!profile.NotifyExternalIpChange) continue;
+            await NotifyDiscordSafe(instance, profile, _setup.Config.NotificationExternalIpChanged,
+                configure: ctx => ctx.Extra["old_ip"] = previous);
+        }
     }
 
     private ProcessPriorityClass GetPriority(int index)
@@ -1103,10 +1383,14 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             switch (e)
             {
                 case ProcessState.CRASHED:
-                    await DiscordWebHooks.Notify(reference.Get(), _setup.GetCrashNotification(process.Infos.Title));
+                    await NotifyDiscordSafe(process.Infos.Instance, reference.Get(),
+                        _setup.GetCrashNotification(process.Infos.Title));
                     return;
                 case ProcessState.ONLINE:
-                    await DiscordWebHooks.Notify(reference.Get(), _setup.GetOnlineNotification(process.Infos.Title));
+                    _logger.LogInformation("Server {Instance} online (PID {Pid}, build {Build})",
+                        process.Infos.Instance, process.PId, SafeBuildId(process.Infos.Instance));
+                    await NotifyDiscordSafe(process.Infos.Instance, reference.Get(),
+                        _setup.GetOnlineNotification(process.Infos.Title));
                     return;
             }
         }
@@ -1132,14 +1416,14 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             if(_serverSequences.ContainsKey(server.Value.Infos.Instance)) continue;
             
             var exitCodeText = "n/a";
-            if (server.Value.Process.HasExited)
+            if (server.Value.Process.HasExitedSafe(server.Value.PId))
             {
-                try { server.Value.Process.Refresh(); } catch { /* best effort */ }
+                server.Value.Process.TryRefresh();
                 try
                 {
                     exitCodeText = server.Value.Process.ExitCode.ToString();
                 }
-                catch (InvalidOperationException)
+                catch (Exception)
                 {
                     // Attached via GetProcessById — exit code unavailable
                 }
@@ -1151,14 +1435,25 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
                 server.Value.State,
                 exitCodeText);
             _serverProcesses.Remove(server.Key);
+            server.Value.StateChanged -= OnServerStateChanged;
             OnStateChanged();
-            var name = _appFiles.Server.Resolve(_setup.Config.GetInstanceProfile(server.Key));
-            if ((server.Value.State == ProcessState.CRASHED && _appFiles.Server.Get(name).RestartWhenDown) 
-                || server.Value.RequestRestart)
+            try
             {
-                await CatapultServer(server.Key);
+                var name = _appFiles.Server.Resolve(_setup.Config.GetInstanceProfile(server.Key));
+                if ((server.Value.State == ProcessState.CRASHED && _appFiles.Server.Get(name).RestartWhenDown)
+                    || server.Value.RequestRestart)
+                {
+                    await CatapultServer(server.Key);
+                }
             }
-            server.Value.Dispose();
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to restart server {Instance}", server.Key);
+            }
+            finally
+            {
+                server.Value.Dispose();
+            }
         }
     }
 

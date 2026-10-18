@@ -18,10 +18,10 @@
 <!--    </PropertyGroup>-->
 
     <ItemGroup>
-        <PackageReference Include="Discord.Net.Webhook" Version="3.20.1" />
-        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.12" />
-        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
-        <PackageReference Include="System.Management" Version="10.0.12" />
+        <PackageReference Include="Discord.Net.Webhook" Version="3.20.2" />
+        <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.13" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.13" />
+        <PackageReference Include="System.Management" Version="10.0.13" />
         <PackageReference Include="Yuu.Ini" Version="0.2.0" />
     </ItemGroup>
 

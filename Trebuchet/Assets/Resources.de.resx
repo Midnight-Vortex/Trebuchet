@@ -992,4 +992,184 @@ WARNUNG: Dies kann dazu führen, dass die Erkennung von Zombie-Prozessen nicht m
 <data name="ConsoleRunning" xml:space="preserve"><value>Läuft</value></data>
 <data name="ConsoleOnline" xml:space="preserve"><value>Online</value></data>
 <data name="ConsoleRconDisabled" xml:space="preserve"><value>RCON deaktiviert</value></data>
+    <data name="CatDiscord" xml:space="preserve">
+        <value>Discord</value>
+    </data>
+    <data name="ConnectionInfoCopied" xml:space="preserve">
+        <value>Verbindungsinformationen in die Zwischenablage kopiert.</value>
+    </data>
+    <data name="CopyConnectionInfo" xml:space="preserve">
+        <value>Verbindungsinfo kopieren</value>
+    </data>
+    <data name="CopyConnectionInfoTip" xml:space="preserve">
+        <value>Kopiert Name, IP, Ports, Passwort und einen steam://connect-Link zum Teilen mit Spielern.</value>
+    </data>
+    <data name="Restart" xml:space="preserve">
+        <value>Neustart</value>
+    </data>
+    <data name="RestartServerTip" xml:space="preserve">
+        <value>Startet den Server über die Stopp-Sequenz neu (Warnungen an Spieler), wie ein geplanter Neustart.</value>
+    </data>
+    <data name="SkipWaitIfNoPlayers" xml:space="preserve">
+        <value>Sofort weiter, wenn kein Spieler verbunden ist (früher Neustart)</value>
+    </data>
+    <data name="ConsoleTabConsole" xml:space="preserve">
+        <value>Konsole</value>
+    </data>
+    <data name="ConsoleTabConsoleTip" xml:space="preserve">
+        <value>Server-Log, RCon und (optional) Trebuchet-Logs dieser Instanz.</value>
+    </data>
+    <data name="ConsoleTabErrors" xml:space="preserve">
+        <value>Fehler</value>
+    </data>
+    <data name="ConsoleTabErrorsTip" xml:space="preserve">
+        <value>Nur Server-Log-Zeilen mit Fehlern.</value>
+    </data>
+    <data name="ConsoleTabPlayers" xml:space="preserve">
+        <value>Spieler</value>
+    </data>
+    <data name="ConsoleTabPlayersTip" xml:space="preserve">
+        <value>Beitritte, Logins und Verbindungsabbrüche der Spieler, mit Liste der verbundenen Spieler.</value>
+    </data>
+    <data name="ConsoleTabChat" xml:space="preserve">
+        <value>Chat</value>
+    </data>
+    <data name="ConsoleTabChatTip" xml:space="preserve">
+        <value>Chat-Nachrichten aus dem Server-Log.</value>
+    </data>
+    <data name="ConsoleTabMods" xml:space="preserve">
+        <value>Mods</value>
+    </data>
+    <data name="ConsoleTabModsTip" xml:space="preserve">
+        <value>Mod-bezogene Zeilen des Server-Logs (geladene Paks, Mod-Controller).</value>
+    </data>
+    <data name="ConsoleTabSteam" xml:space="preserve">
+        <value>Steam</value>
+    </data>
+    <data name="ConsoleTabSteamTip" xml:space="preserve">
+        <value>Steam- und Download-Ausgabe (Server-/Mod-Updates), wie das SteamCMD-Log des DSL.</value>
+    </data>
+    <data name="ConsoleTabTrebuchet" xml:space="preserve">
+        <value>Trebuchet</value>
+    </data>
+    <data name="ConsoleTabTrebuchetTip" xml:space="preserve">
+        <value>Komplettes Trebuchet-Launcher-Log.</value>
+    </data>
+    <data name="ConsoleIniTabTip" xml:space="preserve">
+        <value>Diese Server-INI des Instanz-Profils anzeigen und bearbeiten.</value>
+    </data>
+    <data name="ConsoleIniReload" xml:space="preserve">
+        <value>Neu laden</value>
+    </data>
+    <data name="ConsoleIniSaved" xml:space="preserve">
+        <value>Gespeichert um {0} (Sicherung: .bak)</value>
+    </data>
+    <data name="ConsoleIniNoProfile" xml:space="preserve">
+        <value>Dieser Instanz ist kein Server-Profil zugewiesen.</value>
+    </data>
+    <data name="ConsoleIniNotCreated" xml:space="preserve">
+        <value>Die Datei existiert noch nicht, sie wird beim ersten Serverstart angelegt.</value>
+    </data>
+    <data name="ConsoleIniManagedHint" xml:space="preserve">
+        <value>In den Servereinstellungen verwaltete Werte (Name, Passwörter, Ports, RCon, ...) werden bei jedem Serverstart neu geschrieben. Andere Änderungen wirken nach einem Neustart.</value>
+    </data>
+    <data name="ConsoleMethodCommand" xml:space="preserve">
+        <value>RCon-Befehl</value>
+    </data>
+    <data name="ConsoleMethodTip" xml:space="preserve">
+        <value>Text als RCon-Befehl senden oder als Nachricht an Spieler per broadcast, server (Pippi) oder /alert.</value>
+    </data>
+    <data name="ConsolePlayersOnline" xml:space="preserve">
+        <value>Verbundene Spieler</value>
+    </data>
+    <data name="NetworkAdapter" xml:space="preserve">
+        <value>Netzwerkadapter</value>
+    </data>
+    <data name="NetworkMacAddress" xml:space="preserve">
+        <value>MAC-Adresse</value>
+    </data>
+    <data name="NetworkExternalIp" xml:space="preserve">
+        <value>Externe IP</value>
+    </data>
+    <data name="NetworkExternalIpFailed" xml:space="preserve">
+        <value>Externe IP-Adresse konnte nicht ermittelt werden.</value>
+    </data>
+    <data name="NetworkUseAsMultiHome" xml:space="preserve">
+        <value>Für MULTIHOME verwenden</value>
+    </data>
+    <data name="NetworkUseAsMultiHomeTip" xml:space="preserve">
+        <value>MULTIHOME mit der IP des gewählten Adapters aktivieren.</value>
+    </data>
+    <data name="NetworkRefresh" xml:space="preserve">
+        <value>Informationen aktualisieren</value>
+    </data>
+    <data name="NetworkTestPorts" xml:space="preserve">
+        <value>Ports testen</value>
+    </data>
+    <data name="NetworkPortsFree" xml:space="preserve">
+        <value>Alle Ports sind auf diesem Rechner frei. Denke an die Portweiterleitung (UDP und TCP) im Router.</value>
+    </data>
+    <data name="NetworkPortsInUse" xml:space="preserve">
+        <value>Einige Ports sind bereits belegt (durch einen laufenden Server oder ein anderes Programm).</value>
+    </data>
+    <data name="SettingProcessPrioUnchanged" xml:space="preserve">
+        <value>Unverändert (Priorität und Affinität nicht anfassen)</value>
+    </data>
+    <data name="SettingServerAdditionalArgs" xml:space="preserve">
+        <value>Zusätzliche Kommandozeilenparameter</value>
+    </data>
+    <data name="SettingServerAdditionalArgsText" xml:space="preserve">
+        <value>Zusätzliche Parameter für den Server, direkt nach der Map eingefügt (z. B. für eigene Maps).</value>
+    </data>
+    <data name="SettingServerEnableMultiHomeHttp" xml:space="preserve">
+        <value>Auch MULTIHOMEHTTP übergeben</value>
+    </data>
+    <data name="SettingServerEnableMultiHomeHttpText" xml:space="preserve">
+        <value>Fügt -MULTIHOMEHTTP mit derselben Adresse hinzu; der UE5-(Enhanced-)Server bindet damit seine HTTP-Dienste an diese IP.</value>
+    </data>
+    <data name="SettingServerEnforceProcessSettings" xml:space="preserve">
+        <value>Priorität und Affinität erzwingen</value>
+    </data>
+    <data name="SettingServerEnforceProcessSettingsText" xml:space="preserve">
+        <value>Setzt die gewählte Priorität und CPU-Affinität bei jeder Aktualisierung erneut, falls der Server sie geändert hat.</value>
+    </data>
+    <data name="SettingServerNetworkTools" xml:space="preserve">
+        <value>Netzwerkkonfiguration</value>
+    </data>
+    <data name="SettingServerNetworkToolsText" xml:space="preserve">
+        <value>Lokale Adapter, MAC-Adresse (für eine feste IP im Router), externe IP und ein lokaler Port-Test. Der Test prüft, ob die Ports auf diesem Rechner frei sind; für die Erreichbarkeit aus dem Internet braucht es zusätzlich Portweiterleitung und Firewall-Regeln.</value>
+    </data>
+    <data name="SettingServerRequiresRestartFile" xml:space="preserve">
+        <value>Neustart bei RequiresRestart.txt</value>
+    </data>
+    <data name="SettingServerRequiresRestartFileText" xml:space="preserve">
+        <value>Erscheint eine RequiresRestart.txt im Instanz- oder Profilordner, wird der Server (mit Warnungen) neu gestartet; der Dateiinhalt ist der Grund. Dateien, die älter als der Serverprozess sind, werden ignoriert.</value>
+    </data>
+    <data name="SettingServerDiscordNotificationsWebhook" xml:space="preserve">
+        <value>Discord-Webhooks</value>
+    </data>
+    <data name="SettingServerDiscordNotificationsWebhookText" xml:space="preserve">
+        <value>Discord-Webhook-URLs (eine pro Zeile) für automatische Benachrichtigungen: Server online, Absturz, Neustarts mit Grund und manuelles Herunterfahren. Nachrichten können Makros enthalten: {servername}, {steamconnect}, {steamconnect_nopassword}, {reason}, {ip}, {game_port}, {steam_port}, {rcon_port}, {server_password}, {admin_password}, {rcon_password}, {server_revision}, {branch_name}, {engine_version}, {map_name}, {server_pid}, {players}, {max_players}, {date_now_iso}, {date_now_human}, {trebuchet_version}</value>
+    </data>
+    <data name="SettingServerDiscordBotName" xml:space="preserve">
+        <value>Bot-Name</value>
+    </data>
+    <data name="SettingServerDiscordBotNameText" xml:space="preserve">
+        <value>Überschreibt den in Discord angezeigten Namen des Webhooks. Makros erlaubt, z. B. {servername}: {map_name}.</value>
+    </data>
+    <data name="SettingServerDiscordTimestamp" xml:space="preserve">
+        <value>Zeitstempel</value>
+    </data>
+    <data name="SettingServerDiscordTimestampText" xml:space="preserve">
+        <value>Nachrichten als Embed mit Zeitstempel senden, damit jede Nachricht ihre Uhrzeit zeigt, auch wenn sie gruppiert wird.</value>
+    </data>
+    <data name="SettingServerNotifyIpChange" xml:space="preserve">
+        <value>Änderung der externen IP melden</value>
+    </data>
+    <data name="SettingServerNotifyIpChangeText" xml:space="preserve">
+        <value>Prüft die externe IP alle 10 Minuten während der Server läuft und sendet bei Änderung eine Discord-Nachricht.</value>
+    </data>
+    <data name="ConsoleOfflineLog" xml:space="preserve">
+        <value>Server aus, zeigt sein Log</value>
+    </data>
 </root>

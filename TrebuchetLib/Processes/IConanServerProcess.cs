@@ -18,6 +18,12 @@ public interface IConanServerProcess : IConanProcess
     
     public int ZombieCheckSeconds { get; set; }
 
+    /// <summary>
+    /// Re-apply priority/affinity when the server changed them (DSL "performance mode" enforcement).
+    /// Returns true when something had to be corrected.
+    /// </summary>
+    bool EnsureProcessSettings(System.Diagnostics.ProcessPriorityClass priority, long affinity);
+
     Task StopAsync();
 
     Task RestartAsync();

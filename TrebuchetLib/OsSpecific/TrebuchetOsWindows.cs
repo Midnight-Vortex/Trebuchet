@@ -49,10 +49,16 @@ public class TrebuchetOsWindows : ITrebuchetOsSpecific
         return await Task.Run(() =>
         {
             var query = $"Select * From Win32_Process Where Name='{processName}'";
-            ManagementObjectSearcher searcher = new ManagementObjectSearcher(query);
-            ManagementObjectCollection processList = searcher.Get();
-
-            return processList.EnumerateData().ToList();
+            try
+            {
+                using ManagementObjectSearcher searcher = new ManagementObjectSearcher(query);
+                using ManagementObjectCollection processList = searcher.Get();
+                return processList.EnumerateData().ToList();
+            }
+            catch (Exception ex) when (ex is ManagementException or System.Runtime.InteropServices.COMException)
+            {
+                return new List<ProcessData>();
+            }
         });
     }
 
@@ -113,7 +119,25 @@ internal static class TrebuchetOsWindowsEx
 {
     public static IEnumerable<ProcessData> EnumerateData(this ManagementObjectCollection collection)
     {
-        foreach (var process in collection)
-            yield return new ProcessData(process);
+        var result = new List<ProcessData>();
+        try
+        {
+            foreach (var process in collection)
+            {
+                try
+                {
+                    result.Add(new ProcessData(process));
+                }
+                catch (Exception)
+                {
+                    // Process vanished while being enumerated (killed/exited) — skip it.
+                }
+            }
+        }
+        catch (ManagementException)
+        {
+            // Enumeration aborted by WMI; return what we have.
+        }
+        return result;
     }
 }

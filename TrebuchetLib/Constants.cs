@@ -57,6 +57,8 @@ public static class Constants
     public const string RegexSavedFolder = @"ConanSandbox([\\/]+)Saved";
     public const string ServerArgsMaxPlayers = "-MaxPlayers={0}";
     public const string ServerArgsMultiHome = "-MULTIHOME={0}";
+    public const string ServerArgsMultiHomeHttp = "-MULTIHOMEHTTP={0}";
+    public const string FileRequiresRestart = "RequiresRestart.txt";
     public const string SteamWorkshopURL = "https://steamcommunity.com/sharedfiles/filedetails/?id={0}";
     public const string GamePrimaryJunction = "GameSaved";
     public const string GameEmptyJunction = "EmptyGame";

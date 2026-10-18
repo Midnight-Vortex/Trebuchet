@@ -10,9 +10,11 @@ public class SequenceActionWaitViewModel : SequenceActionViewModel<SequenceActio
     public SequenceActionWaitViewModel(SequenceActionWait action) : base(action)
     {
         _waitTime = action.WaitTime;
+        _skipIfNoPlayers = action.SkipIfNoPlayers;
     }
 
     private TimeSpan _waitTime;
+    private bool _skipIfNoPlayers;
 
     public TimeSpan WaitTime
     {
@@ -20,9 +22,16 @@ public class SequenceActionWaitViewModel : SequenceActionViewModel<SequenceActio
         set => this.RaiseAndSetIfChanged(ref _waitTime, value);
     }
 
+    public bool SkipIfNoPlayers
+    {
+        get => _skipIfNoPlayers;
+        set => this.RaiseAndSetIfChanged(ref _skipIfNoPlayers, value);
+    }
+
     protected override void OnActionChanged()
     {
         Action.WaitTime = WaitTime;
+        Action.SkipIfNoPlayers = SkipIfNoPlayers;
         
         base.OnActionChanged();
     }

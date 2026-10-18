@@ -61,14 +61,17 @@ internal sealed class ConanClientProcess : IConanProcess
     public event EventHandler<ProcessState>? StateChanged; 
     public event PropertyChangedEventHandler? PropertyChanged;
 
+    private readonly object _processLock = new();
+    private volatile bool _disposed;
+
     public Process Process { get; }
     public long MemoryUsage
     {
         get
         {
-            if (Process.HasExited)
-                return 0;
-            return Process.WorkingSet64;
+            if (_disposed) return 0;
+            lock (_processLock)
+                return _disposed ? 0 : Process.WorkingSetSafe(PId);
         }
     }
 
@@ -76,9 +79,9 @@ internal sealed class ConanClientProcess : IConanProcess
     {
         get
         {
-            if(Process.HasExited)
-                return TimeSpan.Zero;
-            return Process.TotalProcessorTime;
+            if (_disposed) return TimeSpan.Zero;
+            lock (_processLock)
+                return _disposed ? TimeSpan.Zero : Process.TotalProcessorTimeSafe(PId);
         }
     }
     
@@ -97,30 +100,49 @@ internal sealed class ConanClientProcess : IConanProcess
 
     public void Dispose()
     {
-        Process.Dispose();
+        lock (_processLock)
+        {
+            if (_disposed) return;
+            _disposed = true;
+        }
+        try { Process.Dispose(); } catch { /* best effort */ }
     }
 
     public async Task RefreshAsync()
     {
-        await Task.Run(() => Process.Refresh());
+        if (_disposed) return;
+        var exited = await Task.Run(() =>
+        {
+            lock (_processLock)
+            {
+                if (_disposed) return true;
+                Process.TryRefresh();
+                return Process.HasExitedSafe(PId);
+            }
+        });
+        if (_disposed) return;
         switch (State)
         {
             case ProcessState.RUNNING:
-                if (Process.HasExited)
+                if (exited)
                     State = ProcessState.CRASHED;
                 break;
             case ProcessState.STOPPING:
-                if (Process.HasExited)
+                if (exited)
                     State = ProcessState.STOPPED;
                 break;
         }
     }
 
-    public Task KillAsync()
+    public async Task KillAsync()
     {
+        if (_disposed || State is ProcessState.STOPPED or ProcessState.CRASHED) return;
         State = ProcessState.STOPPING;
-        Process.Kill();
-        return Task.CompletedTask;
+        await Task.Run(() =>
+        {
+            lock (_processLock)
+                if (!_disposed) Process.TryKill(PId, out _);
+        });
     }
     
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)

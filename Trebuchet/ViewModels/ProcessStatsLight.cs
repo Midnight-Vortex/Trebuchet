@@ -156,9 +156,12 @@ namespace Trebuchet.ViewModels
                 await TickAsync();
             }
             catch (OperationCanceledException){}
-            catch (Exception ex)
+            catch (Exception)
             {
-                await App.HandleAppCrash(ex);
+                // The watched process can exit or be disposed between two reads (kill, crash, restart).
+                // Statistics are cosmetic: never take the whole application down for them.
+                CpuUsage = string.Empty;
+                MemoryConsumption = string.Empty;
             }
         }
 

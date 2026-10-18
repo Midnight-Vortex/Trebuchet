@@ -44,14 +44,10 @@ public class FileViewModel<T, TRef> : ReactiveObject, IFileViewModel
         {
             IsPopupOpen = !IsPopupOpen;
         });
-
-        _displayButton = this.WhenAnyValue(x => x.IsPopupOpen, x => x.IsOver, x => x.Selected, (p, o, s) => p || o || s)
-            .ToProperty(this, x => x.DisplayButton);
     }
     private bool _isPopupOpen;
     private bool _isOver;
     private bool _selected;
-    private readonly ObservableAsPropertyHelper<bool> _displayButton;
 
     public ReactiveCommand<Unit, Unit> Select { get; }
     public ReactiveCommand<Unit, Unit> OpenFolder { get; }
@@ -68,23 +64,36 @@ public class FileViewModel<T, TRef> : ReactiveObject, IFileViewModel
     public bool Selected
     {
         get => _selected;
-        set => this.RaiseAndSetIfChanged(ref _selected, value);
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _selected, value);
+            this.RaisePropertyChanged(nameof(DisplayButton));
+        }
     }
     public bool Exportable { get; }
     
     public bool IsPopupOpen
     {
         get => _isPopupOpen;
-        set => this.RaiseAndSetIfChanged(ref _isPopupOpen, value);
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _isPopupOpen, value);
+            this.RaisePropertyChanged(nameof(DisplayButton));
+        }
     }
 
     public bool IsOver
     {
         get => _isOver;
-        set => this.RaiseAndSetIfChanged(ref _isOver, value);
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _isOver, value);
+            this.RaisePropertyChanged(nameof(DisplayButton));
+        }
     }
 
-    public bool DisplayButton => _displayButton.Value;
+    // Raised by the three setters: ReactiveUI 25+ cannot back properties of generic types by reflection.
+    public bool DisplayButton => IsPopupOpen || IsOver || Selected;
 
     public event AsyncEventHandler<FileViewModelEventArgs<T, TRef>>? Clicked;
 

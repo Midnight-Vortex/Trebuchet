@@ -72,6 +72,7 @@
                 <MergeResourceInclude Source="Templates\SequenceEditorField.axaml" />
                 <MergeResourceInclude Source="Templates\SequenceMainActionView.axaml" />
                 <MergeResourceInclude Source="Templates\SequenceView.axaml" />
+                <MergeResourceInclude Source="Templates\NetworkInfoField.axaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>
@@ -135,6 +136,7 @@
         <StaticResource ResourceKey="SequenceEditorField" />
         <StaticResource ResourceKey="SequenceMainActionView" />
         <StaticResource ResourceKey="SequenceView" />
+        <StaticResource ResourceKey="NetworkInfoField" />
     </Application.DataTemplates>
     <Application.Styles>
         <FluentTheme />

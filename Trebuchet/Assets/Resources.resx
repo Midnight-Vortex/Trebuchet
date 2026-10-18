@@ -1087,7 +1087,7 @@ DO NOT place it in your Steam Directory.</value>
         <value>Automatically start on login</value>
     </data>
     <data name="SettingServerDiscordNotificationsWebhook" xml:space="preserve">
-        <value>Discord Webhook Notifications</value>
+        <value>Discord webhooks</value>
     </data>
     <data name="CatNotification" xml:space="preserve">
         <value>Notifications</value>
@@ -1224,8 +1224,7 @@ The stopping sequence will be used in place of simply stopping the server. This 
         <value>Prevent the automated restart of a server, if the server uptime is less than the duration specified here. This does not affect restarts for mod or server updates.</value>
     </data>
     <data name="SettingServerDiscordNotificationsWebhookText" xml:space="preserve">
-        <value>Automated notification over the selected Discord webhook for specific server events.
-When using sequences, this only include when the server is online, and when a server crash is detected. When not using sequences, this will also include automated restarts reasons and manual shutdown.</value>
+        <value>Discord webhook URLs (one per line) receiving the automated notifications: server online, crash, restarts with their reason and manual shutdown. Messages may contain macros: {servername}, {steamconnect}, {steamconnect_nopassword}, {reason}, {ip}, {game_port}, {steam_port}, {rcon_port}, {server_password}, {admin_password}, {rcon_password}, {server_revision}, {branch_name}, {engine_version}, {map_name}, {server_pid}, {players}, {max_players}, {date_now_iso}, {date_now_human}, {trebuchet_version}</value>
     </data>
     <data name="SequenceActionBackupServerDataText" xml:space="preserve">
         <value>Compress in a zip and store this save into a separate backup folder with a unique name. Backup files older than the duration specified will automatically be deleted when new backups are made. This will always fail when done after server start or before server shutdown. </value>
@@ -1319,4 +1318,178 @@ When using sequences, this only include when the server is online, and when a se
 <data name="ConsoleRunning" xml:space="preserve"><value>Running</value></data>
 <data name="ConsoleOnline" xml:space="preserve"><value>Online</value></data>
 <data name="ConsoleRconDisabled" xml:space="preserve"><value>RCON disabled</value></data>
+    <data name="CatDiscord" xml:space="preserve">
+        <value>Discord</value>
+    </data>
+    <data name="ConnectionInfoCopied" xml:space="preserve">
+        <value>Connection information copied to the clipboard.</value>
+    </data>
+    <data name="CopyConnectionInfo" xml:space="preserve">
+        <value>Copy connection info</value>
+    </data>
+    <data name="CopyConnectionInfoTip" xml:space="preserve">
+        <value>Copy name, IP, ports, password and a steam://connect link to share with your players.</value>
+    </data>
+    <data name="Restart" xml:space="preserve">
+        <value>Restart</value>
+    </data>
+    <data name="RestartServerTip" xml:space="preserve">
+        <value>Restart the server using the stopping sequence (warnings to players), like a scheduled restart.</value>
+    </data>
+    <data name="SkipWaitIfNoPlayers" xml:space="preserve">
+        <value>Stop waiting as soon as no player is connected (early restart)</value>
+    </data>
+    <data name="ConsoleTabConsole" xml:space="preserve">
+        <value>Console</value>
+    </data>
+    <data name="ConsoleTabConsoleTip" xml:space="preserve">
+        <value>Server log, RCon and (optional) Trebuchet logs of this instance.</value>
+    </data>
+    <data name="ConsoleTabErrors" xml:space="preserve">
+        <value>Errors</value>
+    </data>
+    <data name="ConsoleTabErrorsTip" xml:space="preserve">
+        <value>Only the server log lines containing errors.</value>
+    </data>
+    <data name="ConsoleTabPlayers" xml:space="preserve">
+        <value>Players</value>
+    </data>
+    <data name="ConsoleTabPlayersTip" xml:space="preserve">
+        <value>Player joins, logins and disconnections, with the list of connected players.</value>
+    </data>
+    <data name="ConsoleTabChat" xml:space="preserve">
+        <value>Chat</value>
+    </data>
+    <data name="ConsoleTabChatTip" xml:space="preserve">
+        <value>Chat messages written in the server log.</value>
+    </data>
+    <data name="ConsoleTabMods" xml:space="preserve">
+        <value>Mods</value>
+    </data>
+    <data name="ConsoleTabModsTip" xml:space="preserve">
+        <value>Mod loading related lines of the server log (mounted paks, mod controller).</value>
+    </data>
+    <data name="ConsoleTabSteam" xml:space="preserve">
+        <value>Steam</value>
+    </data>
+    <data name="ConsoleTabSteamTip" xml:space="preserve">
+        <value>Steam and download (server/mod update) output, like the SteamCMD log of the DSL.</value>
+    </data>
+    <data name="ConsoleTabTrebuchet" xml:space="preserve">
+        <value>Trebuchet</value>
+    </data>
+    <data name="ConsoleTabTrebuchetTip" xml:space="preserve">
+        <value>Complete Trebuchet launcher log.</value>
+    </data>
+    <data name="ConsoleIniTabTip" xml:space="preserve">
+        <value>View and edit this server ini file of the instance profile.</value>
+    </data>
+    <data name="ConsoleIniReload" xml:space="preserve">
+        <value>Reload</value>
+    </data>
+    <data name="ConsoleIniSaved" xml:space="preserve">
+        <value>Saved at {0} (backup: .bak)</value>
+    </data>
+    <data name="ConsoleIniNoProfile" xml:space="preserve">
+        <value>No server profile is assigned to this instance.</value>
+    </data>
+    <data name="ConsoleIniNotCreated" xml:space="preserve">
+        <value>The file does not exist yet, it is created on the first server start.</value>
+    </data>
+    <data name="ConsoleIniManagedHint" xml:space="preserve">
+        <value>Values managed in the server settings (name, passwords, ports, RCon, ...) are rewritten on every server start. Other changes take effect after a restart.</value>
+    </data>
+    <data name="ConsoleMethodCommand" xml:space="preserve">
+        <value>RCon command</value>
+    </data>
+    <data name="ConsoleMethodTip" xml:space="preserve">
+        <value>Send the text as raw RCon command, or as message to players with broadcast, server (Pippi) or /alert.</value>
+    </data>
+    <data name="ConsolePlayersOnline" xml:space="preserve">
+        <value>Connected players</value>
+    </data>
+    <data name="NetworkAdapter" xml:space="preserve">
+        <value>Network adapter</value>
+    </data>
+    <data name="NetworkMacAddress" xml:space="preserve">
+        <value>MAC address</value>
+    </data>
+    <data name="NetworkExternalIp" xml:space="preserve">
+        <value>External IP</value>
+    </data>
+    <data name="NetworkExternalIpFailed" xml:space="preserve">
+        <value>Could not fetch the external IP address.</value>
+    </data>
+    <data name="NetworkUseAsMultiHome" xml:space="preserve">
+        <value>Use for MULTIHOME</value>
+    </data>
+    <data name="NetworkUseAsMultiHomeTip" xml:space="preserve">
+        <value>Enable MULTIHOME with the IP of the selected adapter.</value>
+    </data>
+    <data name="NetworkRefresh" xml:space="preserve">
+        <value>Refresh information</value>
+    </data>
+    <data name="NetworkTestPorts" xml:space="preserve">
+        <value>Test ports</value>
+    </data>
+    <data name="NetworkPortsFree" xml:space="preserve">
+        <value>All ports are free on this machine. Remember the port forwarding (UDP and TCP) on your router.</value>
+    </data>
+    <data name="NetworkPortsInUse" xml:space="preserve">
+        <value>Some ports are already in use (by a running server or another program).</value>
+    </data>
+    <data name="SettingProcessPrioUnchanged" xml:space="preserve">
+        <value>Unchanged (do not touch priority and affinity)</value>
+    </data>
+    <data name="SettingServerAdditionalArgs" xml:space="preserve">
+        <value>Additional command line parameters</value>
+    </data>
+    <data name="SettingServerAdditionalArgsText" xml:space="preserve">
+        <value>Extra parameters passed to the server, placed right after the map (e.g. custom map arguments).</value>
+    </data>
+    <data name="SettingServerEnableMultiHomeHttp" xml:space="preserve">
+        <value>Also pass MULTIHOMEHTTP</value>
+    </data>
+    <data name="SettingServerEnableMultiHomeHttpText" xml:space="preserve">
+        <value>Adds -MULTIHOMEHTTP with the same address, needed by the UE5 (Enhanced) dedicated server to bind its HTTP services to that IP.</value>
+    </data>
+    <data name="SettingServerEnforceProcessSettings" xml:space="preserve">
+        <value>Enforce priority and affinity</value>
+    </data>
+    <data name="SettingServerEnforceProcessSettingsText" xml:space="preserve">
+        <value>Re-apply the selected priority and CPU affinity on every refresh if the server changed them.</value>
+    </data>
+    <data name="SettingServerNetworkTools" xml:space="preserve">
+        <value>Network configuration</value>
+    </data>
+    <data name="SettingServerNetworkToolsText" xml:space="preserve">
+        <value>Local adapters, MAC address (for a static IP in your router), external IP and a local port test. The test checks that the ports are free on this machine; reachability from the internet also needs port forwarding and firewall rules.</value>
+    </data>
+    <data name="SettingServerRequiresRestartFile" xml:space="preserve">
+        <value>Restart on RequiresRestart.txt</value>
+    </data>
+    <data name="SettingServerRequiresRestartFileText" xml:space="preserve">
+        <value>When a RequiresRestart.txt file appears in the instance or profile folder, the server is restarted (with warnings) and the file content is used as reason. Files older than the server process are ignored.</value>
+    </data>
+    <data name="SettingServerDiscordBotName" xml:space="preserve">
+        <value>Bot name</value>
+    </data>
+    <data name="SettingServerDiscordBotNameText" xml:space="preserve">
+        <value>Overrides the name shown by Discord for the webhook. Macros allowed, e.g. {servername}: {map_name}.</value>
+    </data>
+    <data name="SettingServerDiscordTimestamp" xml:space="preserve">
+        <value>Timestamp</value>
+    </data>
+    <data name="SettingServerDiscordTimestampText" xml:space="preserve">
+        <value>Send messages as embed with a timestamp, so each message shows its time even when grouped.</value>
+    </data>
+    <data name="SettingServerNotifyIpChange" xml:space="preserve">
+        <value>Report external IP changes</value>
+    </data>
+    <data name="SettingServerNotifyIpChangeText" xml:space="preserve">
+        <value>Check the external IP every 10 minutes while the server runs and send a Discord message when it changes.</value>
+    </data>
+    <data name="ConsoleOfflineLog" xml:space="preserve">
+        <value>server off, showing its log</value>
+    </data>
 </root>

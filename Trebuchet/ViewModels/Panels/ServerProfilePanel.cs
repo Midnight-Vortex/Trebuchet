@@ -23,6 +23,7 @@ namespace Trebuchet.ViewModels.Panels
         private readonly AppSetup _setup;
         private readonly AppFiles _appFiles;
         private readonly UIConfig _uiConfig;
+        private readonly Launcher _launcher;
         private readonly ILogger<ServerProfilePanel> _logger;
         private ServerProfile _profile;
         private string _profileSize = string.Empty;
@@ -34,12 +35,14 @@ namespace Trebuchet.ViewModels.Panels
             AppSetup setup,
             AppFiles appFiles,
             UIConfig uiConfig,
+            Launcher launcher,
             ILogger<ServerProfilePanel> logger
             )
         {
             _setup = setup;
             _appFiles = appFiles;
             _uiConfig = uiConfig;
+            _launcher = launcher;
             _logger = logger;
             CanBeOpened = Tools.IsServerInstallValid(_setup.Config);
 
@@ -143,6 +146,37 @@ namespace Trebuchet.ViewModels.Panels
             ProfileSize = size.Bytes().Humanize();
         }
 
+        private MacroContext CreateMacroContext()
+        {
+            var selected = FileMenu.Selected;
+            for (var i = 0; i < _setup.Config.ServerInstanceCount; i++)
+            {
+                if (selected is not null
+                    && _appFiles.Server.TryResolve(_setup.Config.GetInstanceProfile(i), out var reference)
+                    && reference.Equals(selected))
+                    return _launcher.CreateMacroContext(i);
+            }
+
+            var fallback = _launcher.CreateMacroContext(0);
+            return new MacroContext
+            {
+                Profile = _profile,
+                ExternalIp = fallback.ExternalIp,
+                EngineVersion = fallback.EngineVersion,
+                BranchName = fallback.BranchName,
+                ServerRevision = fallback.ServerRevision
+            };
+        }
+
+        private void UseAsMultiHome(string address)
+        {
+            _profile.MultiHomeAddress = address;
+            _profile.EnableMultiHome = true;
+            _profile.SaveFile();
+            foreach (var f in Fields.OfType<IRefreshableField>())
+                f.Update.Execute().Subscribe();
+        }
+
         private void EnsureFields()
         {
             if (_fieldsBuilt) return;
@@ -207,6 +241,14 @@ namespace Trebuchet.ViewModels.Panels
                 .SetSetter((v) => _profile.Map = v)
                 .SetDefault(() => ServerProfile.MapDefault)
             );
+            Fields.Add(new TextField()
+                .WhenFieldChanged(SaveProfile)
+                .SetTitle(AppResources.SettingServerAdditionalArgs)
+                .SetDescription(AppResources.SettingServerAdditionalArgsText)
+                .SetGetter(() => _profile.AdditionalArguments)
+                .SetSetter((v) => _profile.AdditionalArguments = v)
+                .SetDefault(() => ServerProfile.AdditionalArgumentsDefault)
+            );
             Fields.Add(new MultiLineTextField()
                 .WhenFieldChanged(SaveProfile)
                 .SetTitle(AppResources.SettingSudoAdminList)
@@ -259,6 +301,14 @@ namespace Trebuchet.ViewModels.Panels
                 .SetGetter(() => _profile.RestartWhenDown)
                 .SetSetter((v) => _profile.RestartWhenDown = v)
                 .SetDefault(() => ServerProfile.RestartWhenDownDefault)
+            );
+            Fields.Add(new ToggleField()
+                .WhenFieldChanged(SaveProfile)
+                .SetTitle(AppResources.SettingServerRequiresRestartFile)
+                .SetDescription(AppResources.SettingServerRequiresRestartFileText)
+                .SetGetter(() => _profile.RequiresRestartFileCheck)
+                .SetSetter((v) => _profile.RequiresRestartFileCheck = v)
+                .SetDefault(() => ServerProfile.RequiresRestartFileCheckDefault)
             );
             var autoRestart = new ToggleField()
                 .WhenFieldChanged(SaveProfile)
@@ -325,9 +375,18 @@ namespace Trebuchet.ViewModels.Panels
                 .AddOption(AppResources.SettingProcessPrioAboveNormal)
                 .AddOption(AppResources.SettingProcessPrioHigh)
                 .AddOption(AppResources.SettingProcessPrioRealtime)
+                .AddOption(AppResources.SettingProcessPrioUnchanged)
                 .SetGetter(() => _profile.ProcessPriority)
                 .SetSetter((v) => _profile.ProcessPriority = v)
                 .SetDefault(() => ServerProfile.ProcessPriorityDefault)
+            );
+            Fields.Add(new ToggleField()
+                .WhenFieldChanged(SaveProfile)
+                .SetTitle(AppResources.SettingServerEnforceProcessSettings)
+                .SetDescription(AppResources.SettingServerEnforceProcessSettingsText)
+                .SetGetter(() => _profile.EnforceProcessSettings)
+                .SetSetter((v) => _profile.EnforceProcessSettings = v)
+                .SetDefault(() => ServerProfile.EnforceProcessSettingsDefault)
             );
             Fields.Add(new CpuAffinityField()
                 .WhenFieldChanged(SaveProfile)
@@ -379,7 +438,22 @@ namespace Trebuchet.ViewModels.Panels
                 .SetSetter((v) => _profile.MultiHomeAddress = v)
                 .SetDefault(() => ServerProfile.MultiHomeAddressDefault);
             Fields.Add(multiHomeAdress);
-            multiHome.WhenAnyValue(x => x.Value).Subscribe(x => multiHomeAdress.IsVisible = x);
+            var multiHomeHttp = new ToggleField()
+                .WhenFieldChanged(SaveProfile)
+                .SetTitle(AppResources.SettingServerEnableMultiHomeHttp)
+                .SetDescription(AppResources.SettingServerEnableMultiHomeHttpText)
+                .SetGetter(() => _profile.EnableMultiHomeHttp)
+                .SetSetter((v) => _profile.EnableMultiHomeHttp = v)
+                .SetDefault(() => ServerProfile.EnableMultiHomeHttpDefault);
+            Fields.Add(multiHomeHttp);
+            multiHome.WhenAnyValue(x => x.Value).Subscribe(x =>
+            {
+                multiHomeAdress.IsVisible = x;
+                multiHomeHttp.IsVisible = x;
+            });
+            Fields.Add(new NetworkInfoField(() => _profile, CreateMacroContext, UseAsMultiHome)
+                .SetTitle(AppResources.SettingServerNetworkTools)
+                .SetDescription(AppResources.SettingServerNetworkToolsText));
             
             Fields.Add(new TitleField().SetTitle(AppResources.CatRCon));
             var rcon = new ToggleField()
@@ -439,14 +513,40 @@ namespace Trebuchet.ViewModels.Panels
                 .SetSetter((v) => _profile.EnableBattleEye = v)
                 .SetDefault(() => ServerProfile.EnableBattleEyeDefault)
             );
-            Fields.Add(new TitleField().SetTitle(AppResources.CatMiscellaneous));
-            Fields.Add(new TextField()
+            Fields.Add(new TitleField().SetTitle(AppResources.CatDiscord));
+            Fields.Add(new MultiLineTextField()
+                .WhenFieldChanged(SaveProfile)
                 .SetTitle(AppResources.SettingServerDiscordNotificationsWebhook)
                 .SetDescription(AppResources.SettingServerDiscordNotificationsWebhookText)
                 .SetGetter(() => _profile.DiscordWebHookNotifications)
-                .SetSetter((v) => _profile.DiscordWebHookNotifications = v)
+                .SetSetter((v) => _profile.DiscordWebHookNotifications = v.Trim())
                 .SetDefault(() => ServerProfile.DiscordWebHookNotificationsDefault)
                 );
+            Fields.Add(new TextField()
+                .WhenFieldChanged(SaveProfile)
+                .SetTitle(AppResources.SettingServerDiscordBotName)
+                .SetDescription(AppResources.SettingServerDiscordBotNameText)
+                .SetGetter(() => _profile.DiscordBotName)
+                .SetSetter((v) => _profile.DiscordBotName = v)
+                .SetDefault(() => ServerProfile.DiscordBotNameDefault)
+            );
+            Fields.Add(new ToggleField()
+                .WhenFieldChanged(SaveProfile)
+                .SetTitle(AppResources.SettingServerDiscordTimestamp)
+                .SetDescription(AppResources.SettingServerDiscordTimestampText)
+                .SetGetter(() => _profile.DiscordTimestamp)
+                .SetSetter((v) => _profile.DiscordTimestamp = v)
+                .SetDefault(() => ServerProfile.DiscordTimestampDefault)
+            );
+            Fields.Add(new ToggleField()
+                .WhenFieldChanged(SaveProfile)
+                .SetTitle(AppResources.SettingServerNotifyIpChange)
+                .SetDescription(AppResources.SettingServerNotifyIpChangeText)
+                .SetGetter(() => _profile.NotifyExternalIpChange)
+                .SetSetter((v) => _profile.NotifyExternalIpChange = v)
+                .SetDefault(() => ServerProfile.NotifyExternalIpChangeDefault)
+            );
+            Fields.Add(new TitleField().SetTitle(AppResources.CatMiscellaneous));
             Fields.Add(new ToggleField()
                 .WhenFieldChanged(SaveProfile)
                 .SetTitle(AppResources.SettingServerLog)

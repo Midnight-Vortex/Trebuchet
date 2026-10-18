@@ -55,6 +55,9 @@ namespace Trebuchet.ViewModels
             CloseCommand = ReactiveCommand.Create(OnClose, this.WhenAnyValue(x => x.CanClose));
             CanClose = false;
 
+            RestartCommand = ReactiveCommand.CreateFromTask(OnRestartClicked, this.WhenAnyValue(x => x.CanClose));
+            CopyConnectionCommand = ReactiveCommand.CreateFromTask(OnCopyConnectionClicked);
+
             var canBlockLaunch = blocker.WhenAnyValue(x => x.CanLaunch);
             var canDownloadMods = blocker.WhenAnyValue(x => x.CanDownloadMods);
             var canLaunch = this.WhenAnyValue(x => x.CanLaunch).CombineLatest(canBlockLaunch, (f,s) => f && s);
@@ -70,6 +73,8 @@ namespace Trebuchet.ViewModels
         public event AsyncEventHandler<int>? LaunchClicked;
         public event AsyncEventHandler<int>? KillClicked;
         public event AsyncEventHandler<int>? CloseClicked;
+        public event AsyncEventHandler<int>? RestartClicked;
+        public event AsyncEventHandler<int>? CopyConnectionClicked;
         public event AsyncEventHandler<ServerInstanceModListEventArgs>? ModlistSelected;
         public event AsyncEventHandler<ServerInstanceProfileEventArgs>? ProfileSelected;
         public event AsyncEventHandler<int>? UpdateClicked;
@@ -156,6 +161,8 @@ namespace Trebuchet.ViewModels
 
         public int Instance { get; }
         public ReactiveCommand<Unit,Unit> CloseCommand { get; }
+        public ReactiveCommand<Unit,Unit> RestartCommand { get; }
+        public ReactiveCommand<Unit,Unit> CopyConnectionCommand { get; }
         public ReactiveCommand<Unit,Unit> KillCommand { get; }
         public ReactiveCommand<Unit,Unit> LaunchCommand { get; }
         public ReactiveCommand<Unit,Unit> UpdateModsCommand { get; private set; }
@@ -188,6 +195,18 @@ namespace Trebuchet.ViewModels
         {
             if (KillClicked is not null)
                 await KillClicked.Invoke(this, Instance);
+        }
+
+        private async Task OnRestartClicked()
+        {
+            if (RestartClicked is not null)
+                await RestartClicked.Invoke(this, Instance);
+        }
+
+        private async Task OnCopyConnectionClicked()
+        {
+            if (CopyConnectionClicked is not null)
+                await CopyConnectionClicked.Invoke(this, Instance);
         }
 
         private async Task OnLaunchClicked()

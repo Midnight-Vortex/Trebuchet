@@ -35,6 +35,14 @@ public static class YuuIniServerFiles
         }
     }
 
+    /// <summary>
+    /// Physical path of a server ini (Engine, Game, ServerSettings) of a profile.
+    /// </summary>
+    public static string GetServerIniPath(this AppSetup setup, ServerProfile profile, int instance, string iniName)
+    {
+        return ResolveServerAbsolutePath(setup, profile, instance, string.Format(Constants.FileIniServer, iniName));
+    }
+
     public static async Task<ConanServerInfos> GetInfosFromIni(this AppSetup setup, int instance)
     {
         var infos = new ConanServerInfos();
@@ -114,6 +122,9 @@ public static class YuuIniServerFiles
 
         section = document.GetSection("OnlineSubsystemSteam");
         section.SetParameter("GameServerQueryPort", profile.SourceQueryPort.ToString());
+        // DSL 1.9.1: a leftover build id override makes the server invisible to up-to-date clients.
+        section.GetParameters("bUseBuildIdOverride").ForEach(section.Remove);
+        section.GetParameters("BuildIdOverride").ForEach(section.Remove);
 
         section = document.GetSection("/Script/OnlineSubsystemUtils.IpNetDriver");
         section.SetParameter("NetServerMaxTickRate", profile.MaximumTickRate.ToString());

@@ -95,6 +95,7 @@ public partial class App : Application, IApplication
         var setup = _serviceProvider.GetRequiredService<AppSetup>();
         
         CodeHighlighting.RegisterHighlight(@"Trebuchet.Assets.LogHightlighting.xshd", @"Log", [@".log"]);
+        CodeHighlighting.RegisterHighlight(@"Trebuchet.Assets.IniHighlighting.xshd", @"Ini", [@".ini"]);
         
         if (_uiConfig!.DebugMode)
         {

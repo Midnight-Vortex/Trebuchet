@@ -52,10 +52,24 @@
                                     <TextBlock Text="{x:Static a:Resources.Stop}" />
                                 </StackPanel>
                             </Button>
+                            <Button Command="{Binding RestartCommand}" Classes="Base Blue" Margin="0,0,6,0" VerticalAlignment="Center"
+                                    ToolTip.Tip="{x:Static a:Resources.RestartServerTip}">
+                                <StackPanel Orientation="Horizontal">
+                                    <i:Icon Value="mdi-restart" Classes="Normal" Margin="0,0,6,0"/>
+                                    <TextBlock Text="{x:Static a:Resources.Restart}" />
+                                </StackPanel>
+                            </Button>
                             <Button Command="{Binding KillCommand}" Classes="Base Red" Margin="0,0,6,0" VerticalAlignment="Center">
                                 <StackPanel Orientation="Horizontal">
                                     <i:Icon Value="mdi-skull" Classes="Normal" Margin="0,0,6,0"/>
                                     <TextBlock Text="{x:Static a:Resources.Kill}" />
+                                </StackPanel>
+                            </Button>
+                            <Button Command="{Binding CopyConnectionCommand}" Classes="Base Flat" Margin="0,0,6,0" VerticalAlignment="Center"
+                                    ToolTip.Tip="{x:Static a:Resources.CopyConnectionInfoTip}">
+                                <StackPanel Orientation="Horizontal">
+                                    <i:Icon Value="mdi-clipboard-text-outline" Classes="Normal" Margin="0,0,6,0"/>
+                                    <TextBlock Text="{x:Static a:Resources.CopyConnectionInfo}" />
                                 </StackPanel>
                             </Button>
                             <Border Margin="0,0,6,0" VerticalAlignment="Center" IsVisible="{Binding UpdateNeeded}">

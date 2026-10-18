@@ -141,21 +141,18 @@ namespace Trebuchet.ViewModels.SettingFields
         private Action<T>? _setter;
         private Func<T>? _defaultBuilder;
         private T _value;
-        private ObservableAsPropertyHelper<bool> _isDefault;
+        private bool _isDefault = true;
 
         protected Field(T initialValue)
         {
             _value = initialValue;
             _defaultBuilder = () => initialValue;
+            // ReactiveUI 25+ cannot back properties of generic types by reflection (ToPropertyUnsafe):
+            // IsDefault is a plain property refreshed by the Value/DefaultBuilder setters.
+            UpdateIsDefault();
 
-            _isDefault = this.WhenAnyValue(x => x.Value, x => x.DefaultBuilder, (v, d) =>
-            {
-                if (d is null) return true;
-                return AreValuesEqual(v, d.Invoke());
-            }).ToProperty(this, x => x.IsDefault);
-            
             Reset = ReactiveCommand.Create(
-                canExecute: this.WhenAnyValue(x => x.IsDefault, x => !x),
+                canExecute: this.WhenAnyValueUnsafe(x => x.IsDefault, x => !x),
                 execute: () =>
                 {
                     if (DefaultBuilder is not null)
@@ -177,8 +174,8 @@ namespace Trebuchet.ViewModels.SettingFields
                 return true;
             });
 
-            this.WhenAnyValue(x => x.Value)
-                .InvokeCommand(ValueChanged);
+            this.WhenAnyValueUnsafe(x => x.Value)
+                .Subscribe(v => ValueChanged.Execute(v).Subscribe());
         }
 
         public Func<T>? Getter
@@ -196,18 +193,32 @@ namespace Trebuchet.ViewModels.SettingFields
         public Func<T>? DefaultBuilder
         {
             get => _defaultBuilder;
-            protected set => this.RaiseAndSetIfChanged(ref _defaultBuilder, value);
+            protected set
+            {
+                this.RaiseAndSetIfChanged(ref _defaultBuilder, value);
+                UpdateIsDefault();
+            }
         }
 
         public T Value
         {
             get => _value;
-            set => this.RaiseAndSetIfChanged(ref _value, value);
+            set
+            {
+                this.RaiseAndSetIfChanged(ref _value, value);
+                UpdateIsDefault();
+            }
         }
-        
+
         public bool IsDefault
         {
-            get => _isDefault.Value;
+            get => _isDefault;
+            private set => this.RaiseAndSetIfChanged(ref _isDefault, value);
+        }
+
+        private void UpdateIsDefault()
+        {
+            IsDefault = DefaultBuilder is null || AreValuesEqual(Value, DefaultBuilder.Invoke());
         }
 
         public override ReactiveCommand<Unit, Unit> Reset { get; }

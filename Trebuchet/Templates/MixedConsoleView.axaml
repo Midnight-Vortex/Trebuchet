@@ -7,22 +7,48 @@
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <DataTemplate x:Key="MixedConsoleView" DataType="vm:MixedConsoleViewModel">
         <DockPanel LastChildFill="True">
+            <!-- DSL style log tabs: Server log, Errors, Players, Chat, Mods, Steam, Trebuchet, Engine/ServerSettings/Game.ini -->
+            <ItemsControl DockPanel.Dock="Top" ItemsSource="{Binding Tabs}" Margin="12 0 12 0">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="vm:ConsoleTabBase">
+                        <Button Classes="Base Blue TabTop" Margin="0 0 6 6"
+                                Classes.Flat="{Binding !IsSelected}" Classes.Colored="{Binding IsSelected}"
+                                ToolTip.Tip="{Binding Tooltip}"
+                                Command="{Binding $parent[ItemsControl].((vm:MixedConsoleViewModel)DataContext).SelectTab}"
+                                CommandParameter="{Binding .}">
+                            <StackPanel Spacing="3" Orientation="Horizontal">
+                                <i:Icon Value="{Binding Icon}" Classes="Normal" />
+                                <TextBlock Text="{Binding Name}" />
+                            </StackPanel>
+                        </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
             <Border Classes="BottomToolbar" DockPanel.Dock="Bottom">
                 <DockPanel LastChildFill="True">
                     <Button Classes="Base Blue" HotKey="Enter" DockPanel.Dock="Right" Command="{Binding SendCommand}">
                         <i:Icon Value="mdi-send" Classes="Normal" />
                     </Button>
+                    <ComboBox DockPanel.Dock="Left" ItemsSource="{Binding RConMethods}" SelectedIndex="{Binding RConMethod}"
+                              IsEnabled="{Binding CanSend}" Margin="0 0 6 0" MinWidth="130" VerticalAlignment="Center"
+                              ToolTip.Tip="{x:Static a:Resources.ConsoleMethodTip}" />
                     <TextBox DockPanel.Dock="Left" IsEnabled="{Binding CanSend}" Text="{Binding CommandField, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" MaxLength="4000" PlaceholderText="Command" Margin="0 0 6 0" />
                 </DockPanel>
             </Border>
-            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Spacing="6" DockPanel.Dock="Bottom" Margin="12 0 12 0">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" Spacing="6" DockPanel.Dock="Bottom" Margin="12 0 12 0"
+                        IsVisible="{Binding SelectedLogTab, Converter={x:Static ObjectConverters.IsNotNull}}">
                 <Button Classes="Base Blue TabTop" Classes.Flat="{Binding !AutoScroll}" Classes.Colored="{Binding AutoScroll}" Command="{Binding ToggleAutoScroll}">
                     <StackPanel Spacing="3" Orientation="Horizontal">
                         <i:Icon Value="mdi-arrow-vertical-lock" Classes="Normal" />
                         <TextBlock Text="{x:Static a:Resources.AutoScroll}" />
                     </StackPanel>
                 </Button>
-                <ItemsControl ItemsSource="{Binding Filters}">
+                <ItemsControl ItemsSource="{Binding Filters}" IsVisible="{Binding IsConsoleTabSelected}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
                             <StackPanel Orientation="Horizontal" Spacing="6" />
@@ -46,23 +72,74 @@
                     </StackPanel>
                 </Button>
             </StackPanel>
-            <ThemeVariantScope RequestedThemeVariant="Dark">
-                <Border Background="{DynamicResource TBackground}" CornerRadius="3" Margin="12" DockPanel.Dock="Top">
-                    <e:TextEditor 
-                        IsReadOnly="True" 
-                        WordWrap="True" 
-                        HorizontalScrollBarVisibility="Disabled" 
-                        ScrollViewer.BringIntoViewOnFocusChange="False"
-                        ShowLineNumbers="False"
-                        FontSize="12" 
-                        SyntaxHighlighting="Log"
-                        FontFamily="{StaticResource Hack}">
-                        <Interaction.Behaviors>
-                            <vm:ConsoleTextBindingBehavior TextSource="{Binding .}" />
-                        </Interaction.Behaviors>
-                    </e:TextEditor>
-                </Border>
-            </ThemeVariantScope>
+            <Panel>
+                <!-- Log views -->
+                <DockPanel IsVisible="{Binding SelectedLogTab, Converter={x:Static ObjectConverters.IsNotNull}}">
+                    <Border DockPanel.Dock="Top" Classes="DarkPanel" CornerRadius="3" Margin="12 0 12 0" Padding="8 4"
+                            IsVisible="{Binding IsPlayersTabSelected}">
+                        <TextBlock TextWrapping="Wrap">
+                            <Run Text="{x:Static a:Resources.ConsolePlayersOnline}" FontWeight="Bold" />
+                            <Run Text=" " />
+                            <Run Text="{Binding OnlinePlayers}" />
+                        </TextBlock>
+                    </Border>
+                    <ThemeVariantScope RequestedThemeVariant="Dark">
+                        <Border Background="{DynamicResource TBackground}" CornerRadius="3" Margin="12">
+                            <e:TextEditor
+                                IsReadOnly="True"
+                                WordWrap="True"
+                                HorizontalScrollBarVisibility="Disabled"
+                                ScrollViewer.BringIntoViewOnFocusChange="False"
+                                ShowLineNumbers="False"
+                                FontSize="12"
+                                SyntaxHighlighting="Log"
+                                FontFamily="{StaticResource Hack}">
+                                <Interaction.Behaviors>
+                                    <vm:ConsoleTextBindingBehavior TextSource="{Binding SelectedLogTab}" />
+                                </Interaction.Behaviors>
+                            </e:TextEditor>
+                        </Border>
+                    </ThemeVariantScope>
+                </DockPanel>
+                <!-- Ini editors -->
+                <DockPanel IsVisible="{Binding SelectedIniTab, Converter={x:Static ObjectConverters.IsNotNull}}">
+                    <DockPanel DockPanel.Dock="Top" Margin="12 0 12 0" LastChildFill="True">
+                        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="6">
+                            <Button Classes="Base Flat" Command="{Binding SelectedIniTab.Reload, FallbackValue={x:Null}}">
+                                <StackPanel Spacing="3" Orientation="Horizontal">
+                                    <i:Icon Value="mdi-refresh" Classes="Normal" />
+                                    <TextBlock Text="{x:Static a:Resources.ConsoleIniReload}" />
+                                </StackPanel>
+                            </Button>
+                            <Button Classes="Base Green" HotKey="Ctrl+S" Command="{Binding SelectedIniTab.Save, FallbackValue={x:Null}}">
+                                <StackPanel Spacing="3" Orientation="Horizontal">
+                                    <i:Icon Value="mdi-content-save" Classes="Normal" />
+                                    <TextBlock Text="{x:Static a:Resources.Save}" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                        <StackPanel VerticalAlignment="Center">
+                            <SelectableTextBlock Text="{Binding SelectedIniTab.FilePath, FallbackValue=''}" Classes="SubText" TextWrapping="Wrap" />
+                            <TextBlock Text="{Binding SelectedIniTab.Status, FallbackValue=''}" Classes="SubText" TextWrapping="Wrap" />
+                            <TextBlock Text="{x:Static a:Resources.ConsoleIniManagedHint}" Classes="SubText" TextWrapping="Wrap" FontStyle="Italic" />
+                        </StackPanel>
+                    </DockPanel>
+                    <ThemeVariantScope RequestedThemeVariant="Dark">
+                        <Border Background="{DynamicResource TBackground}" CornerRadius="3" Margin="12">
+                            <e:TextEditor
+                                WordWrap="False"
+                                ShowLineNumbers="True"
+                                FontSize="12"
+                                SyntaxHighlighting="Ini"
+                                FontFamily="{StaticResource Hack}">
+                                <Interaction.Behaviors>
+                                    <vm:DocumentTextBindingBehavior AllowScrollBellowDocument="False" Text="{Binding SelectedIniTab.Text, FallbackValue=''}" />
+                                </Interaction.Behaviors>
+                            </e:TextEditor>
+                        </Border>
+                    </ThemeVariantScope>
+                </DockPanel>
+            </Panel>
         </DockPanel>
     </DataTemplate>
 </ResourceDictionary>

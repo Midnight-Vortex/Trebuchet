@@ -9,6 +9,7 @@
         <StackPanel Orientation="Vertical" Spacing="6">
             <TextBlock Text="{x:Static a:Resources.WaitTime}" />
             <c:Duration DurationValue="{Binding WaitTime}" HorizontalAlignment="Left" Width="320" />
+            <CheckBox IsChecked="{Binding SkipIfNoPlayers}" Content="{x:Static a:Resources.SkipWaitIfNoPlayers}" />
         </StackPanel>
     </DataTemplate>
 </ResourceDictionary>

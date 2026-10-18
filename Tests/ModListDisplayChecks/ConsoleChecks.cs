@@ -59,8 +59,36 @@ static class ConsoleChecks
         behavior.Detach();
 
         using var sink = new InternalLogSink();
-        var console = new MixedConsoleViewModel(new UIConfig(), 0, sink, NullLogger.Instance);
+        var console = new MixedConsoleViewModel(new UIConfig(), 0, sink, NullLogger.Instance, (_, _) => null);
+        Check(console.Tabs.Count == 10 && console.Tabs.OfType<IniFileTabViewModel>().Count() == 3, "Console has DSL log tabs and the three server ini tabs");
         var server = new TestServer();
+        console.Process = server;
+        LogTabViewModel Tab(ConsoleTabKind kind) => console.Tabs.OfType<LogTabViewModel>().First(x => x.Kind == kind);
+        console.WriteLogs([
+            ServerLine("LogNet", "Join succeeded: Conan"),
+            ServerLine("ChatWindow", "Character Conan said: hello"),
+            ServerLine("LogModManager", "Mounting mod pak file: C:/mods/a.pak"),
+            ServerLine("LogNet", "Error: Ping socket bind failed", Serilog.Events.LogEventLevel.Error),
+            ServerLine("LogNet", "Join succeeded: Valeria"),
+            ServerLine("LogNet", "Player disconnected: Conan"),
+            ServerLine("LogNet", "Join succeeded: Subotai", instance: 1),
+        ]);
+        Check(Tab(ConsoleTabKind.Players).Text.Contains("Join succeeded: Valeria") && !Tab(ConsoleTabKind.Players).Text.Contains("Subotai"), "Players tab only shows its own instance");
+        Check(console.OnlinePlayers == "1: Valeria", "Connected player list follows joins and disconnections");
+        Check(Tab(ConsoleTabKind.Chat).Text.Contains("hello") && !Tab(ConsoleTabKind.Chat).Text.Contains("Mounting"), "Chat tab only shows chat lines");
+        Check(Tab(ConsoleTabKind.Mods).Text.Contains("a.pak"), "Mods tab shows mod loading lines");
+        Check(Tab(ConsoleTabKind.Errors).Text.Contains("Ping socket") && !Tab(ConsoleTabKind.Errors).Text.Contains("Valeria"), "Errors tab only shows errors");
+        Check(Tab(ConsoleTabKind.Console).Text.Contains("Valeria"), "Console tab keeps the full server log");
+        console.SelectTab.Execute(Tab(ConsoleTabKind.Errors)).Subscribe();
+        console.ClearText.Execute().Subscribe();
+        Check(Tab(ConsoleTabKind.Errors).Text.Length == 0 && Tab(ConsoleTabKind.Console).Text.Length > 0, "Clear only empties the selected tab");
+        console.Process = null;
+        console.OfflineLogFile = "ConanSandbox.log";
+        console.RefreshLabel();
+        Check(console.ServerLabel.Contains(Trebuchet.Assets.Resources.ConsoleOfflineLog) && console.OnlinePlayers.Length == 0, "Stopped installed server shows its last log and nobody connected");
+        console.WriteLogs([ServerLine("LogNet", "Join succeeded: Ghost")]);
+        Check(console.OnlinePlayers.Length == 0 && Tab(ConsoleTabKind.Players).Text.Contains("Ghost"), "Offline log lines are shown without inventing connected players");
+        console.OfflineLogFile = string.Empty;
         console.Process = server;
         Check(console.ServerLabel.Contains("Test Enhanced Server") && !console.CanSend, "Running server is named even with RCON disabled");
         using var rcon = new Rcon(new IPEndPoint(IPAddress.Loopback, 25575), "test", NullLogger<Rcon>.Instance);
@@ -162,6 +190,19 @@ static class ConsoleChecks
         return count;
     }
 
+    private static Serilog.Events.LogEvent ServerLine(string source, string content,
+        Serilog.Events.LogEventLevel level = Serilog.Events.LogEventLevel.Information, int instance = 0)
+    {
+        return new Serilog.Events.LogEvent(DateTimeOffset.Now, level, null,
+            new Serilog.Parsing.MessageTemplateParser().Parse("{source}: {content}"),
+            [
+                new Serilog.Events.LogEventProperty("TrebSource", new Serilog.Events.ScalarValue(ConsoleLogSource.ServerLog)),
+                new Serilog.Events.LogEventProperty("instance", new Serilog.Events.ScalarValue(instance)),
+                new Serilog.Events.LogEventProperty("source", new Serilog.Events.ScalarValue(source)),
+                new Serilog.Events.LogEventProperty("content", new Serilog.Events.ScalarValue(content)),
+            ]);
+    }
+
     private static async Task Append(string path, byte[] bytes)
     {
         await using var stream = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
@@ -242,5 +283,6 @@ static class ConsoleChecks
         public Task KillAsync() => Task.CompletedTask;
         public Task StopAsync() => Task.CompletedTask;
         public Task RestartAsync() => Task.CompletedTask;
+        public bool EnsureProcessSettings(ProcessPriorityClass priority, long affinity) => false;
     }
 }

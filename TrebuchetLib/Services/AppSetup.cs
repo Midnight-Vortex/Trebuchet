@@ -142,10 +142,21 @@ public class AppSetup
     public bool TryGetInstanceIndexFromPath(string path, out int instance)
     {
         instance = -1;
+        // A process that is exiting (e.g. just killed) is reported by WMI without a command line.
+        if (string.IsNullOrWhiteSpace(path)) return false;
+        string fullPath;
+        try
+        {
+            fullPath = Path.GetFullPath(path);
+        }
+        catch (Exception)
+        {
+            return false;
+        }
         for (int i = 0; i < Config.ServerInstanceCount; i++)
         {
             var instancePath = Path.GetFullPath(GetInstanceInternalBinary(i));
-            if (string.Equals(instancePath, Path.GetFullPath(path),
+            if (string.Equals(instancePath, fullPath,
                     OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
             {
                 instance = i;

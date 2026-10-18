@@ -35,6 +35,8 @@ namespace TrebuchetLib
         public string NotificationServerModUpdate { get; set; } = NotificationServerModUpdateDefault;
         public string NotificationServerServerUpdate { get; set; } = NotificationServerServerUpdateDefault;
         public uint CellId { get; set; } = CellIdDefault;
+        public string NotificationServerManualRestart { get; set; } = NotificationServerManualRestartDefault;
+        public string NotificationExternalIpChanged { get; set; } = NotificationExternalIpChangedDefault;
         
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
         [Obsolete]
@@ -94,5 +96,7 @@ namespace TrebuchetLib
         public static readonly string NotificationServerModUpdateDefault = "Mod update detected: {modList}";
         public static readonly string NotificationServerServerUpdateDefault = "Game update detected";
         public static readonly uint CellIdDefault = 0;
+        public static readonly string NotificationServerManualRestartDefault = "Manual restart requested";
+        public static readonly string NotificationExternalIpChangedDefault = "The external IP address of {servername} changed from {old_ip} to {ip}";
     }
 }

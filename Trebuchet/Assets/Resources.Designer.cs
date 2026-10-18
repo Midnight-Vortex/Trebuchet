@@ -3797,5 +3797,527 @@ namespace Trebuchet.Assets {
                 return ResourceManager.GetString("Yes", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Discord.
+        /// </summary>
+        public static string CatDiscord {
+            get {
+                return ResourceManager.GetString("CatDiscord", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Connection information copied to the clipboard..
+        /// </summary>
+        public static string ConnectionInfoCopied {
+            get {
+                return ResourceManager.GetString("ConnectionInfoCopied", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Copy connection info.
+        /// </summary>
+        public static string CopyConnectionInfo {
+            get {
+                return ResourceManager.GetString("CopyConnectionInfo", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Copy name, IP, ports, password and a steam://connect link to share with your pla.
+        /// </summary>
+        public static string CopyConnectionInfoTip {
+            get {
+                return ResourceManager.GetString("CopyConnectionInfoTip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Restart.
+        /// </summary>
+        public static string Restart {
+            get {
+                return ResourceManager.GetString("Restart", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Restart the server using the stopping sequence (warnings to players), like a sch.
+        /// </summary>
+        public static string RestartServerTip {
+            get {
+                return ResourceManager.GetString("RestartServerTip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Stop waiting as soon as no player is connected (early restart).
+        /// </summary>
+        public static string SkipWaitIfNoPlayers {
+            get {
+                return ResourceManager.GetString("SkipWaitIfNoPlayers", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Console.
+        /// </summary>
+        public static string ConsoleTabConsole {
+            get {
+                return ResourceManager.GetString("ConsoleTabConsole", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Server log, RCon and (optional) Trebuchet logs of this instance..
+        /// </summary>
+        public static string ConsoleTabConsoleTip {
+            get {
+                return ResourceManager.GetString("ConsoleTabConsoleTip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Errors.
+        /// </summary>
+        public static string ConsoleTabErrors {
+            get {
+                return ResourceManager.GetString("ConsoleTabErrors", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Only the server log lines containing errors..
+        /// </summary>
+        public static string ConsoleTabErrorsTip {
+            get {
+                return ResourceManager.GetString("ConsoleTabErrorsTip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Players.
+        /// </summary>
+        public static string ConsoleTabPlayers {
+            get {
+                return ResourceManager.GetString("ConsoleTabPlayers", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Player joins, logins and disconnections, with the list of connected players..
+        /// </summary>
+        public static string ConsoleTabPlayersTip {
+            get {
+                return ResourceManager.GetString("ConsoleTabPlayersTip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Chat.
+        /// </summary>
+        public static string ConsoleTabChat {
+            get {
+                return ResourceManager.GetString("ConsoleTabChat", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Chat messages written in the server log..
+        /// </summary>
+        public static string ConsoleTabChatTip {
+            get {
+                return ResourceManager.GetString("ConsoleTabChatTip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Mods.
+        /// </summary>
+        public static string ConsoleTabMods {
+            get {
+                return ResourceManager.GetString("ConsoleTabMods", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Mod loading related lines of the server log (mounted paks, mod controller)..
+        /// </summary>
+        public static string ConsoleTabModsTip {
+            get {
+                return ResourceManager.GetString("ConsoleTabModsTip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Steam.
+        /// </summary>
+        public static string ConsoleTabSteam {
+            get {
+                return ResourceManager.GetString("ConsoleTabSteam", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Steam and download (server/mod update) output, like the SteamCMD log of the DSL..
+        /// </summary>
+        public static string ConsoleTabSteamTip {
+            get {
+                return ResourceManager.GetString("ConsoleTabSteamTip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Trebuchet.
+        /// </summary>
+        public static string ConsoleTabTrebuchet {
+            get {
+                return ResourceManager.GetString("ConsoleTabTrebuchet", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Complete Trebuchet launcher log..
+        /// </summary>
+        public static string ConsoleTabTrebuchetTip {
+            get {
+                return ResourceManager.GetString("ConsoleTabTrebuchetTip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to View and edit this server ini file of the instance profile..
+        /// </summary>
+        public static string ConsoleIniTabTip {
+            get {
+                return ResourceManager.GetString("ConsoleIniTabTip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Reload.
+        /// </summary>
+        public static string ConsoleIniReload {
+            get {
+                return ResourceManager.GetString("ConsoleIniReload", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Saved at {0} (backup: .bak).
+        /// </summary>
+        public static string ConsoleIniSaved {
+            get {
+                return ResourceManager.GetString("ConsoleIniSaved", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to No server profile is assigned to this instance..
+        /// </summary>
+        public static string ConsoleIniNoProfile {
+            get {
+                return ResourceManager.GetString("ConsoleIniNoProfile", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The file does not exist yet, it is created on the first server start..
+        /// </summary>
+        public static string ConsoleIniNotCreated {
+            get {
+                return ResourceManager.GetString("ConsoleIniNotCreated", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Values managed in the server settings (name, passwords, ports, RCon, ...) are re.
+        /// </summary>
+        public static string ConsoleIniManagedHint {
+            get {
+                return ResourceManager.GetString("ConsoleIniManagedHint", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to RCon command.
+        /// </summary>
+        public static string ConsoleMethodCommand {
+            get {
+                return ResourceManager.GetString("ConsoleMethodCommand", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Send the text as raw RCon command, or as message to players with broadcast, serv.
+        /// </summary>
+        public static string ConsoleMethodTip {
+            get {
+                return ResourceManager.GetString("ConsoleMethodTip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Connected players.
+        /// </summary>
+        public static string ConsolePlayersOnline {
+            get {
+                return ResourceManager.GetString("ConsolePlayersOnline", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Network adapter.
+        /// </summary>
+        public static string NetworkAdapter {
+            get {
+                return ResourceManager.GetString("NetworkAdapter", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to MAC address.
+        /// </summary>
+        public static string NetworkMacAddress {
+            get {
+                return ResourceManager.GetString("NetworkMacAddress", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to External IP.
+        /// </summary>
+        public static string NetworkExternalIp {
+            get {
+                return ResourceManager.GetString("NetworkExternalIp", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Could not fetch the external IP address..
+        /// </summary>
+        public static string NetworkExternalIpFailed {
+            get {
+                return ResourceManager.GetString("NetworkExternalIpFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Use for MULTIHOME.
+        /// </summary>
+        public static string NetworkUseAsMultiHome {
+            get {
+                return ResourceManager.GetString("NetworkUseAsMultiHome", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Enable MULTIHOME with the IP of the selected adapter..
+        /// </summary>
+        public static string NetworkUseAsMultiHomeTip {
+            get {
+                return ResourceManager.GetString("NetworkUseAsMultiHomeTip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Refresh information.
+        /// </summary>
+        public static string NetworkRefresh {
+            get {
+                return ResourceManager.GetString("NetworkRefresh", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Test ports.
+        /// </summary>
+        public static string NetworkTestPorts {
+            get {
+                return ResourceManager.GetString("NetworkTestPorts", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to All ports are free on this machine. Remember the port forwarding (UDP and TCP) o.
+        /// </summary>
+        public static string NetworkPortsFree {
+            get {
+                return ResourceManager.GetString("NetworkPortsFree", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Some ports are already in use (by a running server or another program)..
+        /// </summary>
+        public static string NetworkPortsInUse {
+            get {
+                return ResourceManager.GetString("NetworkPortsInUse", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Unchanged (do not touch priority and affinity).
+        /// </summary>
+        public static string SettingProcessPrioUnchanged {
+            get {
+                return ResourceManager.GetString("SettingProcessPrioUnchanged", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Additional command line parameters.
+        /// </summary>
+        public static string SettingServerAdditionalArgs {
+            get {
+                return ResourceManager.GetString("SettingServerAdditionalArgs", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Extra parameters passed to the server, placed right after the map (e.g. custom m.
+        /// </summary>
+        public static string SettingServerAdditionalArgsText {
+            get {
+                return ResourceManager.GetString("SettingServerAdditionalArgsText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Also pass MULTIHOMEHTTP.
+        /// </summary>
+        public static string SettingServerEnableMultiHomeHttp {
+            get {
+                return ResourceManager.GetString("SettingServerEnableMultiHomeHttp", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Adds -MULTIHOMEHTTP with the same address, needed by the UE5 (Enhanced) dedicate.
+        /// </summary>
+        public static string SettingServerEnableMultiHomeHttpText {
+            get {
+                return ResourceManager.GetString("SettingServerEnableMultiHomeHttpText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Enforce priority and affinity.
+        /// </summary>
+        public static string SettingServerEnforceProcessSettings {
+            get {
+                return ResourceManager.GetString("SettingServerEnforceProcessSettings", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Re-apply the selected priority and CPU affinity on every refresh if the server c.
+        /// </summary>
+        public static string SettingServerEnforceProcessSettingsText {
+            get {
+                return ResourceManager.GetString("SettingServerEnforceProcessSettingsText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Network configuration.
+        /// </summary>
+        public static string SettingServerNetworkTools {
+            get {
+                return ResourceManager.GetString("SettingServerNetworkTools", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Local adapters, MAC address (for a static IP in your router), external IP and a .
+        /// </summary>
+        public static string SettingServerNetworkToolsText {
+            get {
+                return ResourceManager.GetString("SettingServerNetworkToolsText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Restart on RequiresRestart.txt.
+        /// </summary>
+        public static string SettingServerRequiresRestartFile {
+            get {
+                return ResourceManager.GetString("SettingServerRequiresRestartFile", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to When a RequiresRestart.txt file appears in the instance or profile folder, the s.
+        /// </summary>
+        public static string SettingServerRequiresRestartFileText {
+            get {
+                return ResourceManager.GetString("SettingServerRequiresRestartFileText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Bot name.
+        /// </summary>
+        public static string SettingServerDiscordBotName {
+            get {
+                return ResourceManager.GetString("SettingServerDiscordBotName", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Overrides the name shown by Discord for the webhook. Macros allowed, e.g. {serve.
+        /// </summary>
+        public static string SettingServerDiscordBotNameText {
+            get {
+                return ResourceManager.GetString("SettingServerDiscordBotNameText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Timestamp.
+        /// </summary>
+        public static string SettingServerDiscordTimestamp {
+            get {
+                return ResourceManager.GetString("SettingServerDiscordTimestamp", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Send messages as embed with a timestamp, so each message shows its time even whe.
+        /// </summary>
+        public static string SettingServerDiscordTimestampText {
+            get {
+                return ResourceManager.GetString("SettingServerDiscordTimestampText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Report external IP changes.
+        /// </summary>
+        public static string SettingServerNotifyIpChange {
+            get {
+                return ResourceManager.GetString("SettingServerNotifyIpChange", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Check the external IP every 10 minutes while the server runs and send a Discord .
+        /// </summary>
+        public static string SettingServerNotifyIpChangeText {
+            get {
+                return ResourceManager.GetString("SettingServerNotifyIpChangeText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to server off, showing its log.
+        /// </summary>
+        public static string ConsoleOfflineLog {
+            get {
+                return ResourceManager.GetString("ConsoleOfflineLog", resourceCulture);
+            }
+        }
     }
 }

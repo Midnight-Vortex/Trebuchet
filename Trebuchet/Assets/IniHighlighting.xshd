@@ -1,0 +1,17 @@
+<SyntaxDefinition name="Ini" extensions=".ini" xmlns="http://icsharpcode.net/sharpdevelop/syntaxdefinition/2008">
+    <Color name="Section" foreground="#3a8eda" fontWeight="bold" exampleText="[ServerSettings]" />
+    <Color name="Key" foreground="#EA7C3C" exampleText="AdminPassword" />
+    <Color name="Comment" foreground="#5a9b40" exampleText="; comment" />
+
+    <RuleSet>
+        <Span color="Comment" multiline="false">
+            <Begin>^\s*[;#]</Begin>
+        </Span>
+        <Rule color="Section">
+            ^\s*\[.*\]\s*$
+        </Rule>
+        <Rule color="Key">
+            ^\s*[^=\[;#]+(?==)
+        </Rule>
+    </RuleSet>
+</SyntaxDefinition>

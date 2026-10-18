@@ -38,6 +38,13 @@ namespace TrebuchetLib
         public List<TimeSpan> AutoRestartDailyTime { get; set; } = AutoRestartDailyTimeDefault;
         public int AutoRestartMaxPerDay { get; set; } = AutoRestartMaxPerDayDefault;
         public string DiscordWebHookNotifications { get; set; } = DiscordWebHookNotificationsDefault;
+        public string DiscordBotName { get; set; } = DiscordBotNameDefault;
+        public bool DiscordTimestamp { get; set; } = DiscordTimestampDefault;
+        public bool NotifyExternalIpChange { get; set; } = NotifyExternalIpChangeDefault;
+        public string AdditionalArguments { get; set; } = AdditionalArgumentsDefault;
+        public bool EnableMultiHomeHttp { get; set; } = EnableMultiHomeHttpDefault;
+        public bool EnforceProcessSettings { get; set; } = EnforceProcessSettingsDefault;
+        public bool RequiresRestartFileCheck { get; set; } = RequiresRestartFileCheckDefault;
 
         public Sequence StoppingSequence { get; set; } = new();
         public Sequence StartingSequence { get; set; } = new();
@@ -60,11 +67,18 @@ namespace TrebuchetLib
         public string GetServerArgs(int instance, string modlistPath)
         {
             List<string> args = new List<string>() { Map };
+            // Like the Dedicated Server Launcher, user parameters go first so custom map arguments keep working.
+            if (!string.IsNullOrWhiteSpace(AdditionalArguments)) args.Add(AdditionalArguments.Trim());
             if (Log) args.Add(Constants.GameArgsLog);
             if (UseAllCores) args.Add(Constants.GameArgsUseAllCore);
             args.Add(string.Format(Constants.ServerArgsMaxPlayers, MaxPlayers));
             args.Add(string.Format(Constants.GameArgsModList, modlistPath));
-            if (EnableMultiHome) args.Add(string.Format(Constants.ServerArgsMultiHome, MultiHomeAddress));
+            if (EnableMultiHome && !string.IsNullOrWhiteSpace(MultiHomeAddress))
+            {
+                args.Add(string.Format(Constants.ServerArgsMultiHome, MultiHomeAddress.Trim()));
+                if (EnableMultiHomeHttp)
+                    args.Add(string.Format(Constants.ServerArgsMultiHomeHttp, MultiHomeAddress.Trim()));
+            }
 
             return string.Join(" ", args);
         }
@@ -143,5 +157,25 @@ namespace TrebuchetLib
         public static readonly int AutoRestartMaxPerDayDefault = 0;
         public static readonly bool AutoRestartDefault = false;
         public static readonly string DiscordWebHookNotificationsDefault = string.Empty;
+        public static readonly string DiscordBotNameDefault = string.Empty;
+        public static readonly bool DiscordTimestampDefault = false;
+        public static readonly bool NotifyExternalIpChangeDefault = false;
+        public static readonly string AdditionalArgumentsDefault = string.Empty;
+        public static readonly bool EnableMultiHomeHttpDefault = true;
+        public static readonly bool EnforceProcessSettingsDefault = false;
+        public static readonly bool RequiresRestartFileCheckDefault = true;
+
+        /// <summary>ProcessPriority value that leaves priority and affinity untouched.</summary>
+        public const int ProcessPriorityUnchanged = 4;
+
+        /// <summary>
+        /// Webhook URLs, several allowed (one per line, or separated by comma/semicolon).
+        /// </summary>
+        public IEnumerable<string> GetDiscordWebHooks()
+        {
+            return DiscordWebHookNotifications
+                .Split(['\n', '\r', ',', ';', ' '], StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Distinct(StringComparer.OrdinalIgnoreCase);
+        }
     }
 }

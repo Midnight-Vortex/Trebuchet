@@ -61,10 +61,10 @@ public class FileMenuViewModel<T, TRef> : ReactiveObject, IFileMenuViewModel, ID
         {
             if (Selected is { } selected)
                 await OnFileClicked(this, new FileViewModelEventArgs<T, TRef>(selected, FileViewAction.Delete));
-        }, this.WhenAnyValue(x => x.Selected, x => x.IsLoading, (selected, loading) => selected is not null && !loading));
+        }, this.WhenAnyValueUnsafe(x => x.Selected, x => x.IsLoading, (selected, loading) => selected is not null && !loading));
 
         // InvokeCommand drops new selections while its previous async load is running.
-        _selectionSubscription = this.WhenAnyValue(x => x.Selected)
+        _selectionSubscription = this.WhenAnyValueUnsafe(x => x.Selected)
             .Subscribe(selected => _ = OnSelectSafely(selected));
     }
     private FileSystemWatcher _modWatcher;

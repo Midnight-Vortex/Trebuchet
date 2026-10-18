@@ -28,7 +28,7 @@ public class SequenceActionRConCommand : ISequenceAction
 
         try
         {
-            var command = RConCommand.Replace("{Reason}", args.Reason);
+            var command = args.Expand(RConCommand);
             await process.RCon.Send(command, args.CancellationToken);
         }
         catch (Exception ex)

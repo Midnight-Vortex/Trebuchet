@@ -1,0 +1,68 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:f="clr-namespace:Trebuchet.ViewModels.SettingFields"
+                    xmlns:s="clr-namespace:TrebuchetLib.Services;assembly=TrebuchetLib"
+                    xmlns:a="clr-namespace:Trebuchet.Assets"
+                    xmlns:i="https://github.com/projektanker/icons.avalonia"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <DataTemplate x:Key="NetworkInfoField" DataType="f:NetworkInfoField">
+        <Border Classes="Panel Shadowed" Padding="12,12" Margin="0,0,0,12">
+            <StackPanel Spacing="8">
+                <TextBlock Text="{Binding Title}" FontWeight="Bold" />
+                <TextBlock IsVisible="{Binding DisplayDescription}" Text="{Binding Description}" Classes="SubText" TextWrapping="Wrap" FontWeight="Normal" />
+                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto,Auto" Margin="0,4,0,0">
+                    <TextBlock Grid.Row="0" Grid.Column="0" Text="{x:Static a:Resources.NetworkAdapter}" VerticalAlignment="Center" Margin="0,0,12,0" />
+                    <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                        <ComboBox ItemsSource="{Binding Adapters}" SelectedItem="{Binding SelectedAdapter}" MinWidth="320" MaxWidth="520" />
+                        <Button Classes="Base Flat" Command="{Binding UseAsMultiHome}" ToolTip.Tip="{x:Static a:Resources.NetworkUseAsMultiHomeTip}">
+                            <TextBlock Text="{x:Static a:Resources.NetworkUseAsMultiHome}" />
+                        </Button>
+                    </StackPanel>
+                    <TextBlock Grid.Row="1" Grid.Column="0" Text="{x:Static a:Resources.NetworkMacAddress}" VerticalAlignment="Center" Margin="0,6,12,0" />
+                    <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="6" Margin="0,6,0,0">
+                        <SelectableTextBlock Text="{Binding MacAddress}" VerticalAlignment="Center" />
+                        <Button Classes="Base Flat" Command="{Binding CopyMac}">
+                            <i:Icon Value="mdi-content-copy" Classes="Normal" />
+                        </Button>
+                    </StackPanel>
+                    <TextBlock Grid.Row="2" Grid.Column="0" Text="{x:Static a:Resources.NetworkExternalIp}" VerticalAlignment="Center" Margin="0,6,12,0" />
+                    <SelectableTextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ExternalIp}" VerticalAlignment="Center" Margin="0,6,0,0" />
+                </Grid>
+                <ItemsControl ItemsSource="{Binding PortResults}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="s:PortTestResult">
+                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2">
+                                <i:Icon Value="mdi-check-circle" Foreground="#3ba55d" IsVisible="{Binding Available}" />
+                                <i:Icon Value="mdi-alert-circle" Foreground="#e0a030" IsVisible="{Binding !Available}" />
+                                <TextBlock Text="{Binding Label}" FontWeight="Bold" />
+                                <TextBlock Text="{Binding Port}" />
+                                <TextBlock Text="{Binding Protocol}" Classes="SubText" />
+                                <TextBlock Text="{Binding Message}" Classes="SubText" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Text="{Binding Status}" Classes="SubText" TextWrapping="Wrap" IsVisible="{Binding Status, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="12">
+                    <Button Classes="Base Flat" Command="{Binding Refresh}" IsEnabled="{Binding !Busy}">
+                        <StackPanel Orientation="Horizontal" Spacing="3">
+                            <i:Icon Value="mdi-refresh" Classes="Normal" />
+                            <TextBlock Text="{x:Static a:Resources.NetworkRefresh}" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="Base Blue" Command="{Binding TestPorts}" IsEnabled="{Binding !Busy}">
+                        <StackPanel Orientation="Horizontal" Spacing="3">
+                            <i:Icon Value="mdi-lan-check" Classes="Normal" />
+                            <TextBlock Text="{x:Static a:Resources.NetworkTestPorts}" />
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="Base Green" Command="{Binding CopyConnection}">
+                        <StackPanel Orientation="Horizontal" Spacing="3">
+                            <i:Icon Value="mdi-clipboard-text-outline" Classes="Normal" />
+                            <TextBlock Text="{x:Static a:Resources.CopyConnectionInfo}" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </DataTemplate>
+</ResourceDictionary>

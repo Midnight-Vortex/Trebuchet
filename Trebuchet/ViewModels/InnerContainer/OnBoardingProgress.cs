@@ -24,13 +24,6 @@ public class OnBoardingProgress<T> : DialogueContent, IProgress<T>, IOnBoardingP
             cancellation?.Cancel();
         });
 
-        _isIndeterminate = this.WhenAnyValue(x => x.Progress)
-            .Select(x => x == default)
-            .ToProperty(this, x => x.IsIndeterminate);
-
-        _currentProgress = this.WhenAnyValue(x => x.Progress, x => x.MaxValue,
-                (p, m) => double.CreateChecked(p) / double.CreateChecked(m))
-            .ToProperty(this, x => x.CurrentProgress);
     }
     
     private T _progress;
@@ -41,21 +34,25 @@ public class OnBoardingProgress<T> : DialogueContent, IProgress<T>, IOnBoardingP
         set => this.RaiseAndSetIfChanged(ref _canCancel, value);
     }
     public System.Windows.Input.ICommand CancelCommand { get; }
-    private readonly ObservableAsPropertyHelper<bool> _isIndeterminate;
-    private readonly ObservableAsPropertyHelper<double> _currentProgress;
 
     public string Title { get; }
     public string Description { get; }
-    public double CurrentProgress => _currentProgress.Value;
+    public double CurrentProgress => double.CreateChecked(Progress) / double.CreateChecked(MaxValue);
     public T MaxValue { get; }
 
+    // Derived values are raised here: ReactiveUI 25+ cannot back properties of generic types by reflection.
     public T Progress
     {
         get => _progress;
-        set => this.RaiseAndSetIfChanged(ref _progress, value);
+        set
+        {
+            this.RaiseAndSetIfChanged(ref _progress, value);
+            this.RaisePropertyChanged(nameof(IsIndeterminate));
+            this.RaisePropertyChanged(nameof(CurrentProgress));
+        }
     }
 
-    public bool IsIndeterminate => _isIndeterminate.Value;
+    public bool IsIndeterminate => Progress == T.Zero;
 
     public void Report(T value)
     {
