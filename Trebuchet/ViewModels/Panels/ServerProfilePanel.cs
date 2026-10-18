@@ -47,9 +47,10 @@ namespace Trebuchet.ViewModels.Panels
             _logger = logger;
             CanBeOpened = Tools.IsServerInstallValid(_setup.Config);
 
+            CreateExampleProfileOnce();
             var startingProfile = _appFiles.Server.Resolve(_uiConfig.CurrentServerProfile);
             _profile = _appFiles.Server.Get(startingProfile);
-            LocalizeStoredDefaults();
+            UpdateStoredDefaults();
             SaveProfile = ReactiveCommand.Create(() => _profile.SaveFile());
             SaveConfig = ReactiveCommand.Create(() => _setup.Config.SaveFile());
 
@@ -90,7 +91,7 @@ namespace Trebuchet.ViewModels.Panels
             if (FileMenu.Selected is not { } selected) return;
             _profile = _appFiles.Server.Get(selected);
             // New profiles start with the English library defaults: show them in the UI language.
-            if (LocalizedDefaults.LocalizeProfile(_profile))
+            if (LocalizedDefaults.LocalizeProfile(_profile) | LogFilterRules.EnsureRequiredServerFilters(_profile.LogFilters))
                 _profile.SaveFile();
             await RefreshProfileSize(selected);
             foreach (var f in Fields.OfType<IRefreshableField>())
@@ -156,7 +157,24 @@ namespace Trebuchet.ViewModels.Panels
         /// <summary>
         /// Untouched default texts (notifications, restart messages) follow the UI language; custom texts stay.
         /// </summary>
-        private void LocalizeStoredDefaults()
+        private void CreateExampleProfileOnce()
+        {
+            if (_uiConfig.ExampleServerProfileCreated) return;
+            try
+            {
+                var created = ExampleServerProfile.CreateIfMissing(_appFiles.Server);
+                if (created is not null)
+                    _logger.LogInformation(@"Created the example server save {Name}", created.Name);
+                _uiConfig.ExampleServerProfileCreated = true;
+                _uiConfig.SaveFile();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, @"Could not create the example server save");
+            }
+        }
+
+        private void UpdateStoredDefaults()
         {
             try
             {
@@ -165,13 +183,13 @@ namespace Trebuchet.ViewModels.Panels
                 foreach (var reference in _appFiles.Server.GetList())
                 {
                     var profile = reference.Get();
-                    if (LocalizedDefaults.LocalizeProfile(profile))
+                    if (LocalizedDefaults.LocalizeProfile(profile) | LogFilterRules.EnsureRequiredServerFilters(profile.LogFilters))
                         profile.SaveFile();
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, @"Could not localize default notification texts");
+                _logger.LogWarning(ex, @"Could not update the stored default texts and log filters");
             }
         }
 

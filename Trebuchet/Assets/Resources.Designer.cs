@@ -5048,5 +5048,122 @@ namespace Trebuchet.Assets {
                 return ResourceManager.GetString("SettingServerRConCustomCommandText", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Example-All-Options.
+        /// </summary>
+        public static string ExampleProfileName {
+            get {
+                return ResourceManager.GetString("ExampleProfileName", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Example server (all options).
+        /// </summary>
+        public static string ExampleServerName {
+            get {
+                return ResourceManager.GetString("ExampleServerName", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to change-admin-password.
+        /// </summary>
+        public static string ExampleAdminPassword {
+            get {
+                return ResourceManager.GetString("ExampleAdminPassword", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Example-Password.
+        /// </summary>
+        public static string ExampleServerPassword {
+            get {
+                return ResourceManager.GetString("ExampleServerPassword", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to change-rcon-password.
+        /// </summary>
+        public static string ExampleRConPassword {
+            get {
+                return ResourceManager.GetString("ExampleRConPassword", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to {servername} restarts in 15 minutes. Reason: {reason}.
+        /// </summary>
+        public static string ExampleWarning15 {
+            get {
+                return ResourceManager.GetString("ExampleWarning15", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The gates of {servername} are open! Join: {steamconnect}.
+        /// </summary>
+        public static string ExampleMessageReady {
+            get {
+                return ResourceManager.GetString("ExampleMessageReady", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to {servername} is shutting down. Reason: {reason}.
+        /// </summary>
+        public static string ExampleMessageShutdown {
+            get {
+                return ResourceManager.GetString("ExampleMessageShutdown", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to {servername} is online, have fun! ({players}/{max_players} players).
+        /// </summary>
+        public static string ExampleMessageOnline {
+            get {
+                return ResourceManager.GetString("ExampleMessageOnline", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to **{servername}** is online!.
+        /// </summary>
+        public static string ExampleDiscordMessage {
+            get {
+                return ResourceManager.GetString("ExampleDiscordMessage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to example-after-backup.bat.
+        /// </summary>
+        public static string ExampleScriptFileName {
+            get {
+                return ResourceManager.GetString("ExampleScriptFileName", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to README.txt.
+        /// </summary>
+        public static string ExampleReadmeFileName {
+            get {
+                return ResourceManager.GetString("ExampleReadmeFileName", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Example server save: Example-All-Options.
+        /// </summary>
+        public static string ExampleReadme {
+            get {
+                return ResourceManager.GetString("ExampleReadme", resourceCulture);
+            }
+        }
     }
 }

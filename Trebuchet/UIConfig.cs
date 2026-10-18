@@ -18,6 +18,8 @@ namespace Trebuchet
         public bool DebugMode { get; set; } = DebugModeDefault;
         public bool AutoRestartAfterCrash { get; set; } = AutoRestartAfterCrashDefault;
         public bool KeepSystemAwake { get; set; } = KeepSystemAwakeDefault;
+        /// <summary>The example server save is created once; deleting it is respected.</summary>
+        public bool ExampleServerProfileCreated { get; set; }
         /// <summary>Last commands/messages sent from the server console (DSL keeps 50).</summary>
         public System.Collections.Generic.List<string> ConsoleHistory { get; set; } = [];
 

@@ -1727,4 +1727,86 @@ Die Stopp-Sequenz ersetzt das einfache Stoppen des Servers. So kannst du Aktione
     <data name="SettingServerRConCustomCommandText" xml:space="preserve">
         <value>RCon-Befehl aus einem Mod, die Nachricht wird nach einem Leerzeichen angehängt (z. B. „totchat“ sendet „totchat &lt;Nachricht&gt;“). Tot ! Enhanced Chat ersetzt den Vanilla-Chat und hat selbst keinen RCon-Befehl: Nachrichten erreichen ihn nur über einen Brücken-Mod, der seine Kanal-API aufruft (Tot_I_ChatChannel.SendMessage mit Absender 0). Bis dahin broadcast verwenden, dessen Popup wird vom Chat-Mod nicht ausgeblendet.</value>
     </data>
+    <data name="ExampleProfileName" xml:space="preserve">
+        <value>Beispiel-Alle-Optionen</value>
+    </data>
+    <data name="ExampleServerName" xml:space="preserve">
+        <value>Beispiel-Server (alle Optionen)</value>
+    </data>
+    <data name="ExampleAdminPassword" xml:space="preserve">
+        <value>Admin-Passwort-hier-aendern</value>
+    </data>
+    <data name="ExampleServerPassword" xml:space="preserve">
+        <value>Beispiel-Passwort</value>
+    </data>
+    <data name="ExampleRConPassword" xml:space="preserve">
+        <value>RCon-Passwort-hier-aendern</value>
+    </data>
+    <data name="ExampleWarning15" xml:space="preserve">
+        <value>{servername} startet in 15 Minuten neu. Grund: {reason}</value>
+    </data>
+    <data name="ExampleMessageReady" xml:space="preserve">
+        <value>Die Tore von {servername} sind offen! Beitreten: {steamconnect}</value>
+    </data>
+    <data name="ExampleMessageShutdown" xml:space="preserve">
+        <value>{servername} wird heruntergefahren. Grund: {reason}</value>
+    </data>
+    <data name="ExampleMessageOnline" xml:space="preserve">
+        <value>{servername} ist online, viel Spaß! ({players}/{max_players} Spieler)</value>
+    </data>
+    <data name="ExampleDiscordMessage" xml:space="preserve">
+        <value>**{servername}** ist online!
+Spieler: {players}/{max_players}
+Karte: {map_name}
+Direkt verbinden: {steamconnect_nopassword}
+Gestartet: {date_now_human}</value>
+    </data>
+    <data name="ExampleScriptFileName" xml:space="preserve">
+        <value>beispiel-nach-backup.bat</value>
+    </data>
+    <data name="ExampleReadmeFileName" xml:space="preserve">
+        <value>LIESMICH.txt</value>
+    </data>
+    <data name="ExampleReadme" xml:space="preserve">
+        <value>Beispiel-Server-Save: Beispiel-Alle-Optionen
+============================================
+
+Dieses Profil zeigt jede Option der Server-Speicherstände einmal sinnvoll ausgefüllt. Trebuchet legt es
+einmalig automatisch an. Zum Nachbauen: unter Server-Speicherstände duplizieren und die Platzhalter
+anpassen. Wird es gelöscht, legt Trebuchet es nicht erneut an.
+
+VOR DEM ERSTEN START ÄNDERN
+- Admin-, Server- und RCon-Passwort (stehen auf Beispielwerten).
+- Discord-Webhooks: echte URLs eintragen, im Profil (Discord) und in der Aktion der Start-Sequenz.
+  Platzhalter werden ignoriert bzw. als ungültig geloggt, der Server startet trotzdem.
+- Sudo-Super-Admins: deine Steam-ID statt 76561190000000000.
+- MULTIHOME ist aus; 192.168.1.10 ist nur ein Beispiel (Netzwerkkonfiguration &gt; Für MULTIHOME verwenden).
+
+WAS WIE ZUSAMMENSPIELT
+- Neustarts: täglich 06:00 und 18:00 (max. 2 pro Tag, mind. 2 h Laufzeit), dazu Mod-/Server-Updates
+  und RequiresRestart.txt im Profil- oder Instanzordner.
+- Warnmeldungen: 15/5/3/1 Minuten vorher über RCon (broadcast) und Discord. Ist niemand online,
+  wird sofort neu gestartet. Kurz vor dem Neustart kommt die Neustart-Meldung.
+  WICHTIG: RCon muss an sein, sonst erreichen die Warnungen keinen Spieler. Eine eigene Stopp-Sequenz
+  würde die Warnmeldungen ersetzen, deshalb ist sie hier leer.
+- Start-Sequenz: Server starten (Hauptaktion), warten bis online, dann 'Nachricht an Spieler' (nur RCon,
+  Begrüßung im Spiel) und 'Discord-Webhook' (formatierte Ankündigung, z. B. für einen öffentlichen Kanal;
+  deshalb {steamconnect_nopassword} statt {steamconnect}). Die Webhook-URL der Aktion ersetzen.
+  Die Profil-Webhooks (Discord) bekommen davon getrennt die Bereit-, Absturz- und Neustart-Meldungen.
+- Bereit-/Herunterfahren-Meldung gehen an Discord.
+- Nachrichten-Methode broadcast funktioniert auch mit Tot ! Enhanced Chat (Popup). 'totchat' steht als
+  eigener Befehl bereit, ist aber erst sinnvoll, wenn ein Mod diesen RCon-Befehl anbietet.
+- Absturz: abgestürzte Server werden neu gestartet (max. 3x in 15 min, dann Pause + Discord-Meldung).
+  Hängt der Server länger als 300 s, wird er beendet (Abgestürzte Server beenden).
+- Backup bei jedem Herunterfahren nach %USERPROFILE%\Documents\Conan-Backups\Beispiel-Alle-Optionen,
+  14 Tagesordner werden behalten. Danach läuft beispiel-nach-backup.bat (schreibt script-log.txt).
+- Voice-Chat komplett aus (serverVoiceChat=0 + Engine-Voice aus).
+- Log-Filter: Standardliste inkl. LogOnlineSubsystemFls=Fatal (unterdrückt die Voice-Fehlerflut).
+- Leistung: Priorität 'Höher als normal', wird bei jeder Aktualisierung erzwungen.
+- Zusätzlicher Startparameter -nosound (Beispiel für eigene Parameter).
+
+Hinweis: Die Benachrichtigungs-Vorlagen für alle Server (Absturz, Online, Gründe ...) stehen ganz
+unten in den Server-Speicherständen und gelten für jedes Profil.
+</value>
+    </data>
 </root>

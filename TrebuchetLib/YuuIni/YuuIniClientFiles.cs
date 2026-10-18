@@ -109,7 +109,8 @@ public static class YuuIniClientFiles
             foreach (string filter in profile.LogFilters)
             {
                 string[] content = filter.Split('=', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-                section.AddParameter(content[0], content[1]);
+                if (content.Length < 2) continue;
+                section.AddParameter(content[0], LogFilterRules.NormalizeVerbosity(content[1]));
             }
         else
             document.Remove(section);

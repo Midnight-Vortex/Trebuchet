@@ -134,22 +134,24 @@ namespace TrebuchetLib
             "HeatmapMetrics=Error",
             "LogUObjectGlobals=Error",
             "AI=Error",
-            "ItemInventory=Critical",
+            "ItemInventory=Fatal",
             "LogScript=Error",
             "LogNetPackageMap=Error",
             "LogCharacterMovement=Error",
             "LogAnimMontage=Error",
             "Combat=Error",
-            "LogStreaming=Critical",
+            "LogStreaming=Fatal",
             "LogModController=Error",
             "LogPhysics=Error",
             "Persistence=Error",
             "LogAnimation=Error",
-            "SpawnTable=Critical",
+            "SpawnTable=Fatal",
             "LogPrimitiveComponent=Error",
-            "building=Critical",
+            "building=Fatal",
             "ConanSandbox=NoLogging",
-            "LogScriptCore=Error"
+            "LogScriptCore=Error",
+            // Without Unreal's voice interface the server asks for it twice per frame and logs an error each time.
+            "LogOnlineSubsystemFls=Fatal"
         ];
         public static readonly string MapDefault = "/Game/Maps/ConanSandbox/ConanSandbox";
         public static readonly int MaximumTickRateDefault = 30;

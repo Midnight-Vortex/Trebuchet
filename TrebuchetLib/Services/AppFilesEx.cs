@@ -393,7 +393,7 @@ public static class AppFilesEx
         where TRef : class,IPRef<T, TRef>
     {
         var profile = handler.UseSubFolders 
-            ? handler.Ref(Tools.GetFirstDirectoryName(handler.GetBaseFolder(), "*"))
+            ? handler.Ref(Tools.GetFirstDirectoryName(handler.GetBaseFolder(), "*", Constants.ExampleServerProfileNames))
             : handler.Ref(Tools.GetFirstFileName(handler.GetBaseFolder(), "*.json"));
         if (!string.IsNullOrEmpty(profile.Name)) 
             return profile;

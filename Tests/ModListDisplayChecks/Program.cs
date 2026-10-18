@@ -198,7 +198,60 @@ checks += await ProfileMenuChecks.Run();
     Check(manager.GetString(nameof(Trebuchet.Assets.Resources.CatBackupAutomation), System.Globalization.CultureInfo.GetCultureInfo("de")) == "Backup und Automatisierung",
         "German texts are resolved for the German culture");
 }
+// Example server save: created once in the UI language, never overwritten, never picked as default save.
+{
+    var previousCulture = Trebuchet.Assets.Resources.Culture;
+    var root = Path.Combine(Path.GetTempPath(), "TrebuchetExampleChecks-" + Guid.NewGuid().ToString("N"));
+    try
+    {
+        Trebuchet.Assets.Resources.Culture = System.Globalization.CultureInfo.GetCultureInfo("de");
+        var serverFiles = new ExampleServerFiles(root);
+        var created = Trebuchet.Services.ExampleServerProfile.CreateIfMissing(serverFiles);
+        Check(created?.Name == "Beispiel-Alle-Optionen", "German example save is created");
+        serverFiles.Cache.Clear();
+        var example = serverFiles.Get(created!);
+        Check(example.StartingSequence.Actions.Count == 4
+              && example.StartingSequence.Actions[2] is TrebuchetLib.Sequences.SequenceActionBroadcast { SendRCon: true, SendDiscord: false }
+              && example.StartingSequence.Actions[3] is TrebuchetLib.Sequences.SequenceActionDiscordWebHook hook && hook.Message.Contains("\nSpieler: {players}"),
+            "Example starting sequence greets in game and announces on Discord");
+        Check(example.RestartWarnings.Count == 4 && example.RestartWarnings[0].Before == TimeSpan.FromMinutes(15) && example.EnableRCon, "Example warnings reach players over RCon");
+        Check(example.LogFilters.Contains("LogOnlineSubsystemFls=Fatal") && File.Exists(example.ScriptPath)
+              && File.Exists(Path.Combine(root, created!.Name, "LIESMICH.txt")), "Example save brings its script, readme and log filters");
+        Check(!example.GetDiscordWebHooks().Any(x => DiscordWebHooks.DiscordWebHooksRegex().IsMatch(x)), "Example webhook placeholder is never called");
+        Check(Trebuchet.Services.ExampleServerProfile.CreateIfMissing(serverFiles) is null, "Existing example save is never overwritten");
+        Trebuchet.Assets.Resources.Culture = System.Globalization.CultureInfo.GetCultureInfo("en");
+        Check(Trebuchet.Services.ExampleServerProfile.CreateIfMissing(serverFiles) is null, "An example save in another language counts as existing");
+        Check(serverFiles.GetDefault().Name == "Default", "The example save is never picked as default save");
+        foreach (var culture in Trebuchet.Utils.AppConstants.UICultureList)
+            Check(Constants.ExampleServerProfileNames.Contains(Trebuchet.Assets.Resources.ResourceManager.GetString(nameof(Trebuchet.Assets.Resources.ExampleProfileName),
+                System.Globalization.CultureInfo.GetCultureInfo(culture))), "Example save name of every UI language is excluded from the default save");
+    }
+    finally
+    {
+        Trebuchet.Assets.Resources.Culture = previousCulture;
+        if (Directory.Exists(root)) Directory.Delete(root, true);
+    }
+}
+
+// The voice error flood filter is in every server save: added once when missing, a level set by the user stays.
+{
+    var filters = new List<string> { "LogNet=Error" };
+    Check(LogFilterRules.EnsureRequiredServerFilters(filters) && filters.Contains("LogOnlineSubsystemFls=Fatal"), "Missing voice log filter is added");
+    Check(!LogFilterRules.EnsureRequiredServerFilters(filters) && filters.Count == 2, "Voice log filter is added only once");
+    var custom = new List<string> { "LogOnlineSubsystemFls = Error" };
+    Check(!LogFilterRules.EnsureRequiredServerFilters(custom) && custom.Count == 1, "A voice log level set by the user is kept");
+    Check(ServerProfile.LogFiltersDefault.Contains("LogOnlineSubsystemFls=Fatal") && new ServerProfile().LogFilters.Contains("LogOnlineSubsystemFls=Fatal"),
+        "New server saves start with the voice log filter");
+}
 Console.WriteLine($"Passed {checks} mod list and profile menu checks.");
+
+sealed class ExampleServerFiles(string root) : IAppFileHandler<ServerProfile, ServerProfileRef>
+{
+    public bool UseSubFolders => true;
+    public Dictionary<ServerProfileRef, ServerProfile> Cache { get; } = [];
+    public string GetBaseFolder() => root;
+    public ServerProfileRef Ref(string name) => new(name, this);
+}
 
 sealed class TestProgress : IProgressCallback<DepotDownloader.Progress>
 {

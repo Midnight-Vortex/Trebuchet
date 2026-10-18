@@ -1735,4 +1735,86 @@ The stopping sequence will be used in place of simply stopping the server. This 
     <data name="SettingServerRConCustomCommandText" xml:space="preserve">
         <value>RCon command added by a mod, the message is appended after a space (e.g. "totchat" sends "totchat &lt;message&gt;"). Tot ! Enhanced Chat replaces the vanilla chat and has no RCon command of its own: messages only reach it through a bridge mod that calls its channel API (Tot_I_ChatChannel.SendMessage with sender 0). Until then use broadcast, its popup is not hidden by the chat mod.</value>
     </data>
+    <data name="ExampleProfileName" xml:space="preserve">
+        <value>Example-All-Options</value>
+    </data>
+    <data name="ExampleServerName" xml:space="preserve">
+        <value>Example server (all options)</value>
+    </data>
+    <data name="ExampleAdminPassword" xml:space="preserve">
+        <value>change-admin-password</value>
+    </data>
+    <data name="ExampleServerPassword" xml:space="preserve">
+        <value>Example-Password</value>
+    </data>
+    <data name="ExampleRConPassword" xml:space="preserve">
+        <value>change-rcon-password</value>
+    </data>
+    <data name="ExampleWarning15" xml:space="preserve">
+        <value>{servername} restarts in 15 minutes. Reason: {reason}</value>
+    </data>
+    <data name="ExampleMessageReady" xml:space="preserve">
+        <value>The gates of {servername} are open! Join: {steamconnect}</value>
+    </data>
+    <data name="ExampleMessageShutdown" xml:space="preserve">
+        <value>{servername} is shutting down. Reason: {reason}</value>
+    </data>
+    <data name="ExampleMessageOnline" xml:space="preserve">
+        <value>{servername} is online, have fun! ({players}/{max_players} players)</value>
+    </data>
+    <data name="ExampleDiscordMessage" xml:space="preserve">
+        <value>**{servername}** is online!
+Players: {players}/{max_players}
+Map: {map_name}
+Join directly: {steamconnect_nopassword}
+Started: {date_now_human}</value>
+    </data>
+    <data name="ExampleScriptFileName" xml:space="preserve">
+        <value>example-after-backup.bat</value>
+    </data>
+    <data name="ExampleReadmeFileName" xml:space="preserve">
+        <value>README.txt</value>
+    </data>
+    <data name="ExampleReadme" xml:space="preserve">
+        <value>Example server save: Example-All-Options
+========================================
+
+This save shows every server save option filled in once with sensible values. Trebuchet creates it
+once automatically. To build your own: duplicate it under Server Saves and replace the placeholders.
+If you delete it, Trebuchet does not create it again.
+
+CHANGE BEFORE THE FIRST START
+- Admin, server and RCon password (they are set to example values).
+- Discord webhooks: enter real URLs, in the profile (Discord) and in the action of the starting sequence.
+  Placeholders are ignored or logged as invalid, the server still starts.
+- Sudo super admins: your Steam ID instead of 76561190000000000.
+- MULTIHOME is off; 192.168.1.10 is only an example (network configuration &gt; Use for MULTIHOME).
+
+HOW IT WORKS TOGETHER
+- Restarts: daily at 06:00 and 18:00 (max. 2 per day, at least 2 h uptime), plus mod/server updates
+  and RequiresRestart.txt in the profile or instance folder.
+- Warnings: 15/5/3/1 minutes before, over RCon (broadcast) and Discord. If nobody is online the server
+  restarts right away. Shortly before the restart the restart message is sent.
+  IMPORTANT: RCon must be on, otherwise no player gets the warnings. A custom stopping sequence
+  would replace the warnings, so it is empty here.
+- Starting sequence: start the server (main action), wait until online, then 'Message to players'
+  (RCon only, greeting in game) and 'Discord webhook' (formatted announcement, e.g. for a public channel;
+  that is why it uses {steamconnect_nopassword} instead of {steamconnect}). Replace the webhook URL of
+  the action. The profile webhooks (Discord) get the ready, crash and restart messages separately.
+- Ready and shutdown messages go to Discord.
+- Message method broadcast also works with Tot ! Enhanced Chat (popup). 'totchat' is prepared as a
+  custom command, but only makes sense once a mod offers this RCon command.
+- Crash: crashed servers are restarted (max. 3 times in 15 min, then a pause and a Discord message).
+  A server that hangs for more than 300 s is stopped (Kill Crashed Servers).
+- Backup on every shutdown to %USERPROFILE%\Documents\Conan-Backups\Example-All-Options,
+  14 daily folders are kept. Afterwards example-after-backup.bat runs (writes script-log.txt).
+- Voice chat completely off (serverVoiceChat=0 + engine voice off).
+- Log filters: default list incl. LogOnlineSubsystemFls=Fatal (stops the voice error flood).
+- Performance: priority 'Above normal', enforced on every refresh.
+- Additional launch argument -nosound (example for your own arguments).
+
+Note: the notification templates for all servers (crash, online, reasons ...) are at the very bottom
+of Server Saves and apply to every profile.
+</value>
+    </data>
 </root>

@@ -47,6 +47,8 @@ public static class Constants
     public const string FolderSyncProfiles = "Sync";
     public const string FolderServerInstances = "ServerInstances";
     public const string FolderServerProfiles = "ServerProfiles";
+    /// <summary>Folder names of the example server save Trebuchet creates once (one per UI language). Never picked as default profile.</summary>
+    public static readonly string[] ExampleServerProfileNames = ["Example-All-Options", "Beispiel-Alle-Optionen"];
     public const string FolderWorkshop = "Workshop";
     public const string FolderBackup = "Backups";
     public const string GameArgsLog = "-log";

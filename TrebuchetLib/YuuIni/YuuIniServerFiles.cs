@@ -138,7 +138,7 @@ public static class YuuIniServerFiles
                 if(!filter.Contains('=')) continue;
                 string[] content = filter.Split('=', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
                 if(content.Length < 2) continue;
-                section.AddParameter(content[0], content[1]);
+                section.AddParameter(content[0], LogFilterRules.NormalizeVerbosity(content[1]));
             }
         else
             document.Remove(section);

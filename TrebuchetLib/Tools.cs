@@ -138,6 +138,15 @@ public static class Tools
         return Path.GetFileNameWithoutExtension(profiles[0]);
     }
 
+    public static string GetFirstDirectoryName(string folder, string pattern, IReadOnlyCollection<string> exclude)
+    {
+        if (!Directory.Exists(folder))
+            return string.Empty;
+        return Directory.GetDirectories(folder, pattern)
+            .Select(Path.GetFileNameWithoutExtension)
+            .FirstOrDefault(x => !string.IsNullOrEmpty(x) && !exclude.Contains(x, StringComparer.OrdinalIgnoreCase)) ?? string.Empty;
+    }
+
     public static string GetFirstFileName(string folder, string pattern)
     {
         if (!Directory.Exists(folder))
