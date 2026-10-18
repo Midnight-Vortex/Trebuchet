@@ -1,0 +1,64 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:c="clr-namespace:tot_gui_lib.Controls"
+        xmlns:l="clr-namespace:tot_gui_lib"
+        xmlns:i="https://github.com/projektanker/icons.avalonia"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        x:Class="tot_gui_lib.CrashHandlerWindow"
+        x:DataType="l:CrashHandlerViewModel"
+        ExtendClientAreaToDecorationsHint="True"
+        ExtendClientAreaTitleBarHeightHint="40"
+        WindowDecorations="Full"
+        Classes="Trebuchet"
+        Width="650"
+        Height="{Binding WindowHeight}"
+        CanResize="False"
+        Title="Critical Error">
+    <Window.Styles>
+        <StyleInclude Source="Styles/GeneralStyles.axaml" />
+    </Window.Styles>
+    <Border x:Name="MainBorder">
+        <DockPanel LastChildFill="True">
+            <c:WindowTitlebar
+                x:Name="TitleBar"
+                Title="Critical Error"
+                DockPanel.Dock="Top"
+                DisableMaximize="True"
+                DisableMinimize="True"
+                DisableClose="False" />
+            <Border DockPanel.Dock="Top" Padding="12">
+                <DockPanel LastChildFill="True">
+                    <TextBlock DockPanel.Dock="Top" Classes="Title" Margin="0 0 0 12" Text="{Binding Title}" />
+                    <TextBlock DockPanel.Dock="Top" Margin="0 0 0 12" Text="{Binding Message}" TextWrapping="Wrap" />
+                    <ProgressBar DockPanel.Dock="Bottom" IsIndeterminate="True" IsVisible="{Binding Sending}" Margin="0 6 0 0" />
+                    <StackPanel DockPanel.Dock="Bottom" HorizontalAlignment="Right" Orientation="Horizontal" Spacing="6">
+                        <Button Classes="Base" Command="{Binding SendReport}" IsVisible="{Binding HasReporter}">
+                            <TextBlock Text="Send Report" />
+                        </Button>
+                        <Button Classes="Base" Command="{Binding SaveReport}" IsVisible="{Binding !HasReporter}">
+                            <TextBlock Text="Save Report" />
+                        </Button>
+                        <Button Classes="Base Red Colored Heavy" Click="Exit_Button_OnClick">
+                            <TextBlock Text="Exit" />
+                        </Button>
+                    </StackPanel>
+                    <DockPanel LastChildFill="True" DockPanel.Dock="Top">
+                        <Border Classes="Panel" DockPanel.Dock="Top">
+                            <StackPanel Orientation="Horizontal" Spacing="12">
+                                <Button Classes="Base Sneak" Padding="4" Command="{Binding FoldCallStack}">
+                                    <i:Icon Value="{Binding FoldIcon}" Classes="Normal" />
+                                </Button>
+                                <TextBlock VerticalAlignment="Center" Text="Call Stack" />
+                            </StackPanel>
+                        </Border>
+                        <ScrollViewer DockPanel.Dock="Top" Margin="0 12 0 0" IsVisible="{Binding !FoldedCallstack}">
+                            <TextBlock Text="{Binding CallStack}" TextWrapping="Wrap" Classes="SubText" />
+                        </ScrollViewer>
+                    </DockPanel>
+                </DockPanel>
+            </Border>
+        </DockPanel>
+    </Border>
+</Window>

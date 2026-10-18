@@ -1,0 +1,23 @@
+﻿<UserControl x:Class="tot_gui_lib.Controls.Tag"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:local="clr-namespace:tot_gui_lib.Controls"
+             x:DataType="local:Tag"
+             mc:Ignorable="d"
+             d:DesignHeight="50" d:DesignWidth="100">
+    <UserControl.Styles>
+        <Style Selector="Border.TagBorder">
+            <Setter Property="Padding" Value="0" />
+            <Setter Property="MinWidth" Value="20" />
+            <Setter Property="MinHeight" Value="5" />
+        </Style>
+    </UserControl.Styles>
+    <Border x:Name="TagBorder" Classes.TagBorder="{Binding $parent[local:Tag].Compact}" CornerRadius="3" Padding="6 1" Cursor="Hand" Background="{Binding Path=$parent[local:Tag].Color}" Margin="0 0 6 0">
+        <Border.KeyBindings>
+            <KeyBinding  Gesture="LeftClick" Command="{Binding Path=$parent[local:Tag].TagClicked}" CommandParameter="{Binding}" />
+        </Border.KeyBindings>
+        <TextBlock x:Name="TagLabel" IsVisible="{Binding $parent[local:Tag].Compact}" Text="{Binding Path=$parent[local:Tag].Label}" FontSize="11" Foreground="White" />
+    </Border>
+</UserControl>

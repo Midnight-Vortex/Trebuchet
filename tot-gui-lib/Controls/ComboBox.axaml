@@ -1,0 +1,37 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:i="https://github.com/projektanker/icons.avalonia"
+             xmlns:c="clr-namespace:tot_gui_lib.Controls"
+             xmlns:t="clr-namespace:tot_gui_lib"
+             mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+             x:Class="tot_gui_lib.Controls.ComboBox">
+    <UserControl.Styles>
+        <StyleInclude Source="avares://tot-gui-lib/Styles/GeneralStyles.axaml" />
+    </UserControl.Styles>
+    <StackPanel HorizontalAlignment="Stretch">
+        <Button x:Name="ProfileSelector" 
+                HorizontalAlignment="Stretch" 
+                Classes="BaseControl" 
+                Command="{Binding $parent[c:ComboBox].TogglePopup}">
+            <Grid ColumnDefinitions="*,Auto" >
+                <TextBlock x:Name="SelectedLabel" />
+                <i:Icon Grid.Column="1" Value="mdi-chevron-down" Classes="Normal" />
+            </Grid>
+        </Button>
+        <Popup IsLightDismissEnabled="True" Name="SelectionPopup" IsOpen="{Binding $parent[c:ComboBox].PopupOpen, Mode=TwoWay}" Placement="BottomEdgeAlignedLeft" PlacementTarget="ProfileSelector" MinWidth="{Binding $parent[c:ComboBox].Bounds.Width}">
+            <Border Classes="BackPanel" HorizontalAlignment="Stretch">
+                <ItemsControl x:Name="PopupControl">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="c:ComboBoxItem">
+                            <Button Classes="Base Blue Flat" Classes.Colored="{Binding Selected}" Classes.Sneak="{Binding !Selected}" HorizontalAlignment="Stretch" Command="{Binding $parent[c:ComboBox].SelectItem}" CommandParameter="{Binding}">
+                                <TextBlock Text="{Binding Item}" />
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </Border>
+        </Popup>
+    </StackPanel>
+</UserControl>

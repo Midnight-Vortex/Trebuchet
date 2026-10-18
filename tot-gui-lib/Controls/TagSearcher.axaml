@@ -1,0 +1,45 @@
+﻿<UserControl x:Class="tot_gui_lib.Controls.TagSearcher"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:i="https://github.com/projektanker/icons.avalonia"
+             xmlns:local="clr-namespace:tot_gui_lib.Controls"
+             xmlns:t="clr-namespace:tot_gui_lib"
+             mc:Ignorable="d"
+             d:DesignHeight="35" d:DesignWidth="250">
+    <UserControl.Styles>
+        <StyleInclude Source="avares://tot-gui-lib/Styles/GeneralStyles.axaml" />
+    </UserControl.Styles>
+    <Grid>
+        <TextBox FontSize="14" Width="{Binding $parent[local:TagSearcher].DeployedWidth}" VerticalContentAlignment="Center" Padding="2 2 2 2" Name="SearchField" Text="{Binding SearchContent, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged, RelativeSource={RelativeSource AncestorType=local:TagSearcher}}">
+            <TextBox.KeyBindings>
+                <KeyBinding Gesture="Return" Command="{Binding ReturnHotkey, RelativeSource={RelativeSource AncestorType=local:TagSearcher}}" />
+                <KeyBinding Gesture="Esc" Command="{Binding ClearCommand, RelativeSource={RelativeSource AncestorType=local:TagSearcher}}" />
+            </TextBox.KeyBindings>
+        </TextBox>
+        <Button Name="SearchButton" HorizontalAlignment="Left" Classes="Base" ToolTip.Tip="Search By Tags"  ToolTip.ShowDelay="0" Margin="0 0 0 0" Classes.current="{Binding $parent[local:TagSearcher].ButtonClass}" VerticalAlignment="Center" Command="{Binding $parent[local:TagSearcher].StartSearch}">
+            <i:Icon Name="IconTag" Value="mdi-tag-search" Classes="Normal" Margin="0,0,12,0"/>
+        </Button>
+        <Popup IsOpen="{Binding ResultsOpen, Mode=OneWay, RelativeSource={RelativeSource AncestorType=local:TagSearcher}}" PlacementTarget="{Binding ElementName=SearchField}" Placement="Bottom">
+            <Border Width="{Binding #SearchField.Bounds.Width}" MinHeight="200" MaxHeight="450">
+                <Border>
+                    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl Margin="5" ItemsSource="{Binding Results, RelativeSource={RelativeSource AncestorType=local:TagSearcher}}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="t:ITag">
+                                    <local:Tag Color="{Binding Color}" Label="{Binding Name}" TagMargin="{Binding Path=$parent[local:TagSearcher].TagMargin}" Compact="False" TagClicked="{Binding Path=$parent[local:TagSearcher].TagClicked}" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Border>
+            </Border>
+        </Popup>
+    </Grid>
+</UserControl>

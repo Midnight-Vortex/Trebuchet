@@ -1,0 +1,83 @@
+﻿<UserControl x:Class="tot_gui_lib.Controls.WindowTitlebar"
+             xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:i="https://github.com/projektanker/icons.avalonia"
+             xmlns:local="clr-namespace:tot_gui_lib.Controls"
+             mc:Ignorable="d"
+             d:DesignHeight="30" d:DesignWidth="800">
+    <UserControl.Styles>
+        <StyleInclude Source="avares://tot-gui-lib/Styles/GeneralStyles.axaml" />
+        <Style Selector="Button.WinNormal /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="CornerRadius" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="Button.WinClose">
+            <Setter Property="Background" Value="{DynamicResource TRedAbsent}"/>
+        </Style>
+        <Style Selector="Button.WinClose /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="CornerRadius" Value="0"/>
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Background" Value="{DynamicResource TRedAbsent}"/>
+        </Style>
+        <Style Selector="Button.WinNormal:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource TPanel}"/>
+        </Style>
+        <Style Selector="Button.WinClose:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource TRed}"/>
+        </Style>
+    </UserControl.Styles>
+    <Border Height="40">
+        <Panel>
+            <!-- Drag region behind controls; do NOT put TitleBar on the whole bar (blocks button clicks on Avalonia 12). -->
+            <Border Background="Transparent" WindowDecorationProperties.ElementRole="TitleBar" />
+            <DockPanel LastChildFill="True">
+                <Image x:Name="AppLogo" DockPanel.Dock="Left" Classes="AppLogo" IsVisible="{Binding $parent[local:WindowTitlebar].DisplayWindowControls}" IsHitTestVisible="false" Height="20" Width="20" VerticalAlignment="Center" Margin="6,0,6,0" />
+                <StackPanel DockPanel.Dock="Right"
+                            Orientation="Horizontal"
+                            IsVisible="{Binding $parent[local:WindowTitlebar].DisplayWindowControls}"
+                            VerticalAlignment="Top"
+                            WindowDecorationProperties.ElementRole="User">
+                    <Button x:Name="MinimizeBtn"
+                            Classes="WinNormal"
+                            Width="40"
+                            Height="30"
+                            WindowDecorationProperties.ElementRole="MinimizeButton"
+                            Click="Minimize_MouseLeftButtonUp">
+                        <i:Icon Value="mdi-window-minimize" FontSize="20" HorizontalAlignment="Center" />
+                    </Button>
+                    <Button x:Name="MaximizeBtn"
+                            Classes="WinNormal"
+                            Width="40"
+                            Height="30"
+                            WindowDecorationProperties.ElementRole="MaximizeButton"
+                            Click="MaximizeButton_MouseLeftButtonUp">
+                        <Grid>
+                            <i:Icon Value="mdi-window-maximize" IsVisible="{Binding !$parent[local:WindowTitlebar].IsMaximized}" FontSize="20" HorizontalAlignment="Center" />
+                            <i:Icon Value="mdi-window-restore" IsVisible="{Binding $parent[local:WindowTitlebar].IsMaximized}" FontSize="20" HorizontalAlignment="Center" />
+                        </Grid>
+                    </Button>
+                    <Button x:Name="CloseBtn"
+                            Classes="WinClose"
+                            Width="40"
+                            Height="30"
+                            WindowDecorationProperties.ElementRole="CloseButton"
+                            Click="Close_MouseLeftButtonUp">
+                        <i:Icon Value="mdi-window-close" FontSize="20" HorizontalAlignment="Center" />
+                    </Button>
+                </StackPanel>
+                <TextBlock DockPanel.Dock="Left" IsVisible="{Binding $parent[local:WindowTitlebar].DisplayWindowControls}" IsHitTestVisible="false" FontWeight="Bold" VerticalAlignment="Center" Margin="6,0,12,0">
+                    <Run x:Name="TitleRun" />
+                    <Run x:Name="SubTitleRun" FontSize="10" FontWeight="Normal" />
+                </TextBlock>
+            </DockPanel>
+            <!-- Empty ContentPresenter otherwise fills the Panel and steals all titlebar clicks. -->
+            <ContentPresenter Content="{Binding $parent[local:WindowTitlebar].Header}"
+                              Margin="0,0,12,0"
+                              IsHitTestVisible="{Binding $parent[local:WindowTitlebar].Header, Converter={x:Static ObjectConverters.IsNotNull}}"
+                              WindowDecorationProperties.ElementRole="User" />
+        </Panel>
+    </Border>
+</UserControl>

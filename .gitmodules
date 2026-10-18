@@ -1,9 +1,0 @@
-[submodule "tot-lib"]
-	path = tot-lib
-	url = https://github.com/Totchinuko/tot-lib.git
-[submodule "DepotDownloader"]
-	path = DepotDownloader
-	url = https://github.com/Totchinuko/DepotDownloader.git
-[submodule "tot-gui-lib"]
-	path = tot-gui-lib
-	url = https://github.com/Totchinuko/tot-gui-lib.git

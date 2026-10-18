@@ -1,0 +1,6 @@
+﻿<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:local="clr-namespace:tot_gui_lib.Converters">
+    <local:IntDoubleConverter x:Key="IntDouble" />
+    <local:UtcToStringConverter x:Key="UtcToString" />
+</ResourceDictionary>
