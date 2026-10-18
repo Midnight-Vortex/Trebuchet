@@ -43,6 +43,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     private readonly List<PublishedMod> _modNeedUpdate = [];
     private List<ulong> _reportedModUpdates = [];
     private bool _updateWaitLogged;
+    private readonly HashSet<ulong> _failedModUpdates = [];
     private bool _serverNeedUpdate;
     private DateTime _lastUpdateCheckTime;
     private readonly List<StartDates> _startDates;
@@ -834,7 +835,8 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     public async Task<bool> PerformCatapultUpdates()
     {
         if (_setup.Config.AutoUpdateStatus == AutoUpdateStatus.Never) return true;
-        if (IsAnyServerRunning() || IsClientRunning()) return true;
+        // The game client does not block here: server files are not shared and UpdateMods checks the mod files.
+        if (IsAnyServerRunning()) return true;
         if (!await UpdateMods()) return false;
         if (!await UpdateServers()) return false;
         return true;
@@ -881,7 +883,18 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     
     public async Task<bool> UpdateMods(List<ulong> mods)
     {
-        if (IsAnyServerRunning() || IsClientRunning()) return true;
+        // A running server keeps its mod versions until it restarts: updating now would hide that it needs one.
+        if (IsAnyServerRunning())
+        {
+            _logger.LogInformation("Mods are not updated while a server is running, they are updated when it restarts");
+            return true;
+        }
+        // The Enhanced game client runs on extracted copies, Legacy keeps the workshop files open.
+        if (IsClientRunning() && !CanReplaceModFiles(mods))
+        {
+            _logger.LogInformation("Mods are not updated now, their files are in use by the game client");
+            return true;
+        }
         
         try
         {
@@ -897,6 +910,12 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
                 await ScriptRunner.Run(_setup.Config.ScriptAfterUpdate, string.Empty, _logger, "After update");
             }
             await CheckModUpdates();
+            var failed = _modNeedUpdate.Where(x => mods.Contains(x.PublishedFileId)).ToList();
+            if (failed.Count > 0)
+            {
+                _logger.LogWarning("Mods could not be updated: {Mods}", string.Join(", ", failed.Select(x => $"{x.Title} ({x.PublishedFileId})")));
+                foreach (var mod in failed) _failedModUpdates.Add(mod.PublishedFileId);
+            }
             return true;
         }
         catch (OperationCanceledException)
@@ -912,7 +931,8 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
 
     public async Task<bool> UpdateServers()
     {
-        if (IsAnyServerRunning() || IsClientRunning()) return true;
+        // The game client does not use the server files.
+        if (IsAnyServerRunning()) return true;
 
         try
         {
@@ -1158,39 +1178,81 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         }
 
         if (_setup.Config.AutoUpdateStatus != AutoUpdateStatus.CheckForUpdates) return;
-        // The game client started by Trebuchet uses the same workshop files: they cannot be replaced while it runs.
-        if (IsClientRunning())
-        {
-            if ((_serverNeedUpdate || _modListNeedUpdate.Count > 0) && !_updateWaitLogged)
-            {
-                _logger.LogInformation("Updates wait until the game client is closed (it uses the same mod and server files)");
-                _updateWaitLogged = true;
-            }
-            return;
-        }
-        _updateWaitLogged = false;
 
-        foreach (var process in _serverProcesses.Values)
+        // The Enhanced game client only reads a workshop file while extracting it (it runs on copies), Legacy keeps
+        // the files open: mod updates wait only while an outdated file is really in use. Server files are not shared.
+        var modsInUse = _modNeedUpdate.Count > 0 && IsClientRunning()
+                        && !CanReplaceModFiles(_modNeedUpdate.Select(x => x.PublishedFileId));
+        // Mods are only updated while no server runs: restarting one of several servers would bring it back with the
+        // old mods and the next check would restart it again.
+        var otherServersRunning = _serverProcesses.Count > 1;
+        if (_modListNeedUpdate.Count > 0 && (modsInUse || otherServersRunning))
+        {
+            if (!_updateWaitLogged)
+                _logger.LogInformation(modsInUse
+                    ? "Mod updates wait until the game client is closed (it uses the outdated mod files)"
+                    : "Mod updates wait until only one server is running (mods are updated while no server runs)");
+            _updateWaitLogged = true;
+        }
+        else
+            _updateWaitLogged = false;
+
+        foreach (var process in _serverProcesses.Values.ToList())
         {
             if(!process.State.IsRunning() || process.State.IsStopping()) continue;
             if(_serverSequences.ContainsKey(process.Infos.Instance)) continue;
-            
+
             if (_serverNeedUpdate)
             {
                 _lastRestartReason = _setup.GetReasonServerUpdate();
                 RestartServer(process.Infos.Instance);
                 continue;
             }
-                    
+
+            if (modsInUse || otherServersRunning) continue;
             var modListRef = _appFiles.ResolveModList(_setup.Config.GetInstanceModlist(process.Infos.Instance));
-            if (_modListNeedUpdate.Contains(modListRef))
+            if (!_modListNeedUpdate.Contains(modListRef)) continue;
+            var mods = modListRef.GetModsFromList().ToList();
+            var outdated = _modNeedUpdate.Where(x => mods.Contains(x.PublishedFileId)).ToList();
+            // An update that failed is not retried for the same mods, or every check would restart the server again.
+            if (outdated.Count == 0 || outdated.All(x => _failedModUpdates.Contains(x.PublishedFileId))) continue;
+
+            // Players hear which mods changed first, then the restart warnings of the save count down (as for restarts).
+            var announcement = _setup.Config.NotificationModUpdateDetected
+                .Replace("{modList}", string.Join(", ", outdated.Select(x => x.Title)));
+            await BroadcastMessage(process.Infos.Instance, announcement, discord: false);
+            _lastRestartReason = _setup.GetReasonModUpdate(outdated);
+            RestartServer(process.Infos.Instance);
+        }
+    }
+
+    /// <summary>
+    /// True when no process holds a file of these mods (they can be replaced by the update).
+    /// </summary>
+    private bool CanReplaceModFiles(IEnumerable<ulong> mods)
+    {
+        foreach (var mod in mods)
+        {
+            if (!_setup.TryGetModPath(mod.ToString(), out var path)) continue;
+            var folder = Path.GetDirectoryName(path);
+            if (folder is null || !Directory.Exists(folder)) continue;
+            foreach (var file in Directory.EnumerateFiles(folder))
             {
-                var mods = modListRef.GetModsFromList();
-                _lastRestartReason
-                    = _setup.GetReasonModUpdate(_modNeedUpdate.Where(x => mods.Contains(x.PublishedFileId)));
-                RestartServer(process.Infos.Instance);
+                try
+                {
+                    using var stream = new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.None);
+                }
+                catch (IOException)
+                {
+                    return false;
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    return false;
+                }
             }
         }
+        return true;
     }
 
     /// <summary>Logs the outdated mods once each time the list changes (the check runs every few minutes).</summary>
@@ -1200,6 +1262,8 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         if (outdated.SequenceEqual(_reportedModUpdates)) return;
         _reportedModUpdates = outdated;
         _updateWaitLogged = false;
+        // Other versions now: a failed update may work this time.
+        _failedModUpdates.Clear();
         if (outdated.Count == 0) return;
         _logger.LogInformation("Mod updates available: {Mods}",
             string.Join(", ", _modNeedUpdate.Select(x => $"{x.Title} ({x.PublishedFileId}, {x.Status.Status})")));

@@ -1828,4 +1828,10 @@ unten in den Server-Speicherständen und gelten für jedes Profil.
     <data name="RConTestEmptyAnswer" xml:space="preserve">
         <value>(keine Antwort)</value>
     </data>
+    <data name="SettingNotificationModUpdateDetected" xml:space="preserve">
+        <value>Mod-Updates gefunden (an Spieler)</value>
+    </data>
+    <data name="DefaultNotificationModUpdateDetected" xml:space="preserve">
+        <value>Mod-Updates gefunden: {modList}. Der Server startet zum Installieren neu.</value>
+    </data>
 </root>

@@ -38,6 +38,7 @@ namespace TrebuchetLib
         public string NotificationServerManualRestart { get; set; } = NotificationServerManualRestartDefault;
         public string NotificationExternalIpChanged { get; set; } = NotificationExternalIpChangedDefault;
         public string NotificationCrashLoop { get; set; } = NotificationCrashLoopDefault;
+        public string NotificationModUpdateDetected { get; set; } = NotificationModUpdateDetectedDefault;
         public string ScriptBeforeUpdate { get; set; } = string.Empty;
         public string ScriptAfterUpdate { get; set; } = string.Empty;
         
@@ -100,6 +101,7 @@ namespace TrebuchetLib
         public static readonly string NotificationServerServerUpdateDefault = "Game update detected";
         public static readonly uint CellIdDefault = 0;
         public static readonly string NotificationServerManualRestartDefault = "Manual restart requested";
+        public static readonly string NotificationModUpdateDetectedDefault = "Mod updates found: {modList}. The server restarts to install them.";
         public static readonly string NotificationCrashLoopDefault = "Server {servername} crashed {count} times within {minutes} minutes, automatic restart is paused. Check the logs and start it manually.";
         public static readonly string NotificationExternalIpChangedDefault ="The external IP address of {servername} changed from {old_ip} to {ip}";
     }

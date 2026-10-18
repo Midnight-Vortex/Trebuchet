@@ -170,6 +170,8 @@ checks += await ProfileMenuChecks.Run();
         var config = new Config { NotificationServerOnline = "Mein eigener Text", NotificationServerStop = string.Empty };
         Check(Trebuchet.Services.LocalizedDefaults.LocalizeConfig(config), "Untouched English defaults are localized");
         Check(config.NotificationServerCrash == "Server {serverName} ist abgestürzt", "German crash notification");
+        Check(config.NotificationModUpdateDetected.StartsWith("Mod-Updates gefunden: {modList}", StringComparison.Ordinal),
+            "Mod update announcement to players is localized");
         Check(config.NotificationServerOnline == "Mein eigener Text" && config.NotificationServerStop == string.Empty, "Custom and empty templates are kept");
         Trebuchet.Assets.Resources.Culture = System.Globalization.CultureInfo.GetCultureInfo("en");
         Check(Trebuchet.Services.LocalizedDefaults.LocalizeConfig(config) && config.NotificationServerCrash == Config.NotificationServerCrashDefault,

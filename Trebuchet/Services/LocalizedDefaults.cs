@@ -52,6 +52,7 @@ public static class LocalizedDefaults
         (nameof(Resources.DefaultNotificationServerServerUpdate), Config.NotificationServerServerUpdateDefault, c => c.NotificationServerServerUpdate, (c, v) => c.NotificationServerServerUpdate = v),
         (nameof(Resources.DefaultNotificationExternalIpChanged), Config.NotificationExternalIpChangedDefault, c => c.NotificationExternalIpChanged, (c, v) => c.NotificationExternalIpChanged = v),
         (nameof(Resources.DefaultNotificationCrashLoop), Config.NotificationCrashLoopDefault, c => c.NotificationCrashLoop, (c, v) => c.NotificationCrashLoop = v),
+        (nameof(Resources.DefaultNotificationModUpdateDetected), Config.NotificationModUpdateDetectedDefault, c => c.NotificationModUpdateDetected, (c, v) => c.NotificationModUpdateDetected = v),
     ];
 
     /// <returns>true when a template was switched to the current language (the config needs saving).</returns>

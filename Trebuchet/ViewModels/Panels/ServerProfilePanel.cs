@@ -816,6 +816,7 @@ namespace Trebuchet.ViewModels.Panels
                 [nameof(AppResources.DefaultNotificationServerServerUpdate)] = AppResources.SettingNotificationServerServerUpdate,
                 [nameof(AppResources.DefaultNotificationExternalIpChanged)] = AppResources.SettingNotificationExternalIpChanged,
                 [nameof(AppResources.DefaultNotificationCrashLoop)] = AppResources.SettingNotificationCrashLoop,
+                [nameof(AppResources.DefaultNotificationModUpdateDetected)] = AppResources.SettingNotificationModUpdateDetected,
             };
             foreach (var (key, libraryDefault, get, set) in LocalizedDefaults.ConfigTemplates)
             {

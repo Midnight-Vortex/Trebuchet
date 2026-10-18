@@ -1836,4 +1836,10 @@ of Server Saves and apply to every profile.
     <data name="RConTestEmptyAnswer" xml:space="preserve">
         <value>(no answer)</value>
     </data>
+    <data name="SettingNotificationModUpdateDetected" xml:space="preserve">
+        <value>Mod updates found (to players)</value>
+    </data>
+    <data name="DefaultNotificationModUpdateDetected" xml:space="preserve">
+        <value>Mod updates found: {modList}. The server restarts to install them.</value>
+    </data>
 </root>

@@ -5231,5 +5231,23 @@ namespace Trebuchet.Assets {
                 return ResourceManager.GetString("RConTestEmptyAnswer", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Mod updates found (to players).
+        /// </summary>
+        public static string SettingNotificationModUpdateDetected {
+            get {
+                return ResourceManager.GetString("SettingNotificationModUpdateDetected", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Mod updates found: {modList}. The server restarts to install them..
+        /// </summary>
+        public static string DefaultNotificationModUpdateDetected {
+            get {
+                return ResourceManager.GetString("DefaultNotificationModUpdateDetected", resourceCulture);
+            }
+        }
     }
 }
