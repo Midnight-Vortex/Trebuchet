@@ -145,19 +145,29 @@ public partial class LogReader(ILogger<LogReader> logger, string logPath) : IDis
         var lines = output.Trim().Split(["\r\n", "\r", "\n"], StringSplitOptions.RemoveEmptyEntries);
         foreach (var line in lines)
         {
-            var matches = LogRegex().Match(line);
-            if (!matches.Success)
+            if (!TryParseLine(line, out var source, out var level, out var content))
             {
                 logger.LogInformation(line);
                 continue;
             }
-            
-            //var date = ParseDate(matches.Groups[1].Value);
-            var source = matches.Groups[3].Value.Trim();
-            var level = ParseLogLevel(matches.Groups[4].Value);
-            var content = matches.Groups[5].Value;
             logger.Log(level, "{source}: {content}", source, content);
         }
+    }
+
+    /// <summary>Splits an Unreal log line "[date][frame]Category: Verbosity: message" (verbosity optional).</summary>
+    public static bool TryParseLine(string line, out string source, out LogLevel level, out string content)
+    {
+        var matches = LogRegex().Match(line);
+        if (!matches.Success)
+        {
+            source = content = string.Empty;
+            level = LogLevel.Information;
+            return false;
+        }
+        source = matches.Groups[3].Value.Trim();
+        level = ParseLogLevel(matches.Groups[4].Value);
+        content = matches.Groups[5].Value;
+        return true;
     }
 
     // private DateTime ParseDate(string data)
@@ -176,7 +186,7 @@ public partial class LogReader(ILogger<LogReader> logger, string logPath) : IDis
     // }
 
     //Fatal, Error, Warning, Display, Log, Verbose, VeryVerbose, All (=VeryVerbose)
-    private LogLevel ParseLogLevel(string data)
+    private static LogLevel ParseLogLevel(string data)
     {
         data = data.ToLower().Trim();
         switch (data)
@@ -195,8 +205,10 @@ public partial class LogReader(ILogger<LogReader> logger, string logPath) : IDis
         }
     }
 
-    //regexr /^\[([0-9\.\-\:]+)\]\[([0-9\s]+)\]([\w\s]+):(?:([\w\s]+):)?(.+)/
-    [GeneratedRegex("^\\[([0-9\\.\\-\\:]+)\\]\\[([0-9\\s]+)\\]([\\w\\s]+):(?:([\\w\\s]+):)?(.+)")]
+    // Only Unreal's verbosity names count as level: in "LogNet: Join succeeded: Name" the words "Join succeeded" were
+    // taken as level and cut from the message, so joins, disconnects and chat lines were never recognized.
+    //regexr /^\[([0-9\.\-\:]+)\]\[([0-9\s]+)\]([\w\s]+):(?:\s*(Fatal|Error|Warning|Display|Log|Verbose|VeryVerbose):)?(.+)/
+    [GeneratedRegex("^\\[([0-9\\.\\-\\:]+)\\]\\[([0-9\\s]+)\\]([\\w\\s]+):(?:\\s*(Fatal|Error|Warning|Display|Log|Verbose|VeryVerbose):)?(.+)")]
     private static partial Regex LogRegex();
     
     // //regexr /([0-9]+)\.([0-9]+)\.([0-9]+)-([0-9]+)\.([0-9]+)\.([0-9]+):([0-9]+)/

@@ -210,6 +210,24 @@ checks += await ProfileMenuChecks.Run();
     Check(failing.Status == "no rcon" && canRunAgain, "A failing test button shows the error and stays usable");
 }
 
+// Unreal log lines: only real verbosities are taken as level, "Join succeeded:" & co. stay in the message.
+{
+    Check(TrebuchetLib.LogReader.TryParseLine("[2026.10.18-14.56.39:205][162]LogNet: Join succeeded: Blackhearts [MVX]#24594", out var logSource, out var level, out var content)
+          && logSource == "LogNet" && level == Microsoft.Extensions.Logging.LogLevel.Information && content.Trim() == "Join succeeded: Blackhearts [MVX]#24594",
+        "Join line keeps its text");
+    Check(TrebuchetLib.LogReader.TryParseLine("[2026.10.18-14.55.17:520][106]LogNet: Player disconnected: Unknown", out _, out _, out content)
+          && content.Trim() == "Player disconnected: Unknown", "Disconnect line keeps its text");
+    Check(TrebuchetLib.LogReader.TryParseLine("[2026.10.18-14.53.32:000][  1]LogTemp: Error: Character 'X' is in an unsafe movement", out logSource, out level, out content)
+          && logSource == "LogTemp" && level == Microsoft.Extensions.Logging.LogLevel.Error && content.Trim().StartsWith("Character", StringComparison.Ordinal),
+        "Verbosity is still taken as level");
+    Check(TrebuchetLib.LogReader.TryParseLine("[2026.10.18-14.56.39:204][162]Login: Display: [FunCombat_PlayerController_C] User logged in.", out logSource, out _, out content)
+          && logSource == "Login" && content.Trim().StartsWith("[FunCombat", StringComparison.Ordinal), "Display verbosity is removed from the message");
+    var listed = MixedConsoleViewModel.ParseListPlayers(
+        "Idx | Char name |             Player name |     User ID |       Platform ID | Platform Name\n  0 |      test | Blackhearts [MVX]#24594 | A-2XNIEBERC | 76561190000000000 |         STEAM\n");
+    Check(listed.SequenceEqual(["Blackhearts [MVX]#24594"]), "RCon ListPlayers table gives the player names");
+    Check(MixedConsoleViewModel.ParseListPlayers("Idx | Char name | Player name | User ID | Platform ID | Platform Name\n").Count == 0, "Empty ListPlayers gives no players");
+}
+
 // Example server save: created once in the UI language, never overwritten, never picked as default save.
 {
     var previousCulture = Trebuchet.Assets.Resources.Culture;

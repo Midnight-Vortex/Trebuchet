@@ -41,6 +41,8 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     private int _tickCounter;
     private readonly List<IPRefWithModList> _modListNeedUpdate = [];
     private readonly List<PublishedMod> _modNeedUpdate = [];
+    private List<ulong> _reportedModUpdates = [];
+    private bool _updateWaitLogged;
     private bool _serverNeedUpdate;
     private DateTime _lastUpdateCheckTime;
     private readonly List<StartDates> _startDates;
@@ -954,13 +956,15 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
                 lists.Add(clientModList);
             if (lists.Count == 0) return true;
             
-            var details = await _steam.RequestModDetails(lists.GetModsFromList().ToList());
+            // Fresh details: with the 15 minute cache a new mod version was only seen up to 15 minutes later.
+            var details = await _steam.RequestModDetails(lists.GetModsFromList().ToList(), fresh: true);
             if (details.Count == 0) return true;
-            
-            _modNeedUpdate.Clear();;
+
+            _modNeedUpdate.Clear();
             _modNeedUpdate.AddRange(details
                 .Where(d => d.Status.Status != UGCStatus.UpToDate));
             _modListNeedUpdate.AddRange(lists.Where(x => x.GetModsFromList().Intersect(_modNeedUpdate.Select(y => y.PublishedFileId)).Any()));
+            ReportModUpdates();
             return true;
         }
         catch (OperationCanceledException)
@@ -1154,8 +1158,18 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         }
 
         if (_setup.Config.AutoUpdateStatus != AutoUpdateStatus.CheckForUpdates) return;
-        if (IsClientRunning()) return; // can't auto-update if any client is running
-        
+        // The game client started by Trebuchet uses the same workshop files: they cannot be replaced while it runs.
+        if (IsClientRunning())
+        {
+            if ((_serverNeedUpdate || _modListNeedUpdate.Count > 0) && !_updateWaitLogged)
+            {
+                _logger.LogInformation("Updates wait until the game client is closed (it uses the same mod and server files)");
+                _updateWaitLogged = true;
+            }
+            return;
+        }
+        _updateWaitLogged = false;
+
         foreach (var process in _serverProcesses.Values)
         {
             if(!process.State.IsRunning() || process.State.IsStopping()) continue;
@@ -1177,6 +1191,18 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
                 RestartServer(process.Infos.Instance);
             }
         }
+    }
+
+    /// <summary>Logs the outdated mods once each time the list changes (the check runs every few minutes).</summary>
+    private void ReportModUpdates()
+    {
+        var outdated = _modNeedUpdate.Select(x => x.PublishedFileId).OrderBy(x => x).ToList();
+        if (outdated.SequenceEqual(_reportedModUpdates)) return;
+        _reportedModUpdates = outdated;
+        _updateWaitLogged = false;
+        if (outdated.Count == 0) return;
+        _logger.LogInformation("Mod updates available: {Mods}",
+            string.Join(", ", _modNeedUpdate.Select(x => $"{x.Title} ({x.PublishedFileId}, {x.Status.Status})")));
     }
 
     private async Task<bool> CheckServerUpdate()

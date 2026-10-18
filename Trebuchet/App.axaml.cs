@@ -74,6 +74,8 @@ public partial class App : Application, IApplication
         // Initialize() applied the start window's language; the edition settings hold the user's choice.
         if (!string.IsNullOrEmpty(_uiConfig?.UICulture))
             _langManager?.SetLanguage(_uiConfig.UICulture);
+        // Same for the theme: the start window applied the one of the Legacy settings.
+        Utils.Utils.ApplyPlateformTheme((PlateformTheme)_uiConfig!.PlateformTheme);
 
         bool catapult = false;
         

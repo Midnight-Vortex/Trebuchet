@@ -94,10 +94,11 @@ public class Steam : IDebugListener, IDisposable
         ContentDownloader.Config.Progress = _progress;
     }
         
-    public async Task<List<PublishedMod>> RequestModDetails(List<ulong> list)
+    /// <param name="fresh">Ask Steam even for cached mods (update checks must see a new version right away).</param>
+    public async Task<List<PublishedMod>> RequestModDetails(List<ulong> list, bool fresh = false)
     {
         var pending = list.ToList();
-        var results = GetCache(pending);
+        var results = fresh ? [] : GetCache(pending);
         if (pending.Count > 0)
         {
             using (_logger.BeginScope((@"ModList", pending)))

@@ -145,6 +145,9 @@ public class ConsolePanel : ReactiveObject, IRefreshablePanel, ITickingPanel
             if (running is not null) SelectedConsole = running;
         }
 
+        // Not awaited: a slow RCon answer must not hold up the tick of the whole application.
+        foreach (var console in ConsoleList.ToList())
+            _ = console.SyncPlayersAsync();
         return Task.CompletedTask;
     }
 

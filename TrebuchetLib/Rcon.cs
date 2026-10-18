@@ -221,7 +221,7 @@ namespace TrebuchetLib
         private async Task RConLogin(string password, NetworkStream stream, CancellationToken ct)
         {
             var auth = BuildAuthPacket(password);
-            await using var bw = new BinaryWriter(stream, Encoding.ASCII, true);
+            await using var bw = new BinaryWriter(stream, Encoding.UTF8, true);
             var result = await auth.WriteBinary(bw);
             LogResponse(result);
             ct.ThrowIfCancellationRequested();
@@ -231,7 +231,7 @@ namespace TrebuchetLib
 
         private async Task<RConResponse> RConReceive(NetworkStream stream, CancellationToken ct)
         {
-            using var br = new BinaryReader(stream, Encoding.ASCII, true);
+            using var br = new BinaryReader(stream, Encoding.UTF8, true);
             ct.ThrowIfCancellationRequested();
             var response = await EvaluateRconResponse(br);
             LogResponse(response);
@@ -240,7 +240,7 @@ namespace TrebuchetLib
 
         private async Task<RConResponse> RConSend(TcpClient client, RconPacket packet, CancellationToken ct)
         {
-            await using var bw = new BinaryWriter(client.GetStream(), Encoding.ASCII, true);
+            await using var bw = new BinaryWriter(client.GetStream(), Encoding.UTF8, true);
             var result = await packet.WriteBinary(bw);
             LogResponse(result);
             ct.ThrowIfCancellationRequested();
@@ -268,7 +268,6 @@ namespace TrebuchetLib
             public int Id { get; init; }
             public RconPacketType Type { get; init; }
 
-            private int Length => Body.Length + 10;
 
             public async Task<RConResponse> WriteBinary(BinaryWriter bw)
             {
@@ -276,10 +275,14 @@ namespace TrebuchetLib
                 {
                     try
                     {
-                        bw.Write(Length);
+                        // UTF-8 (the server reads it as such): ASCII turned every umlaut into '?', and the
+                        // length has to count bytes, not characters.
+                        var body = Encoding.UTF8.GetBytes(Body);
+                        bw.Write(body.Length + 10);
                         bw.Write(Id);
                         bw.Write((int)Type);
-                        bw.WriteNullTerminatedString(Body);
+                        bw.Write(body);
+                        bw.Write((byte)0);
                         bw.Write((byte)0);
                         return RConResponse.Empty;
                     }

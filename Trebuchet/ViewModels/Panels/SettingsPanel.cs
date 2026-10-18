@@ -182,6 +182,7 @@ public class SettingsPanel : ReactiveObject, IRefreshablePanel, IRefreshingPanel
     private void OnPlateformThemeChanged()
     {
         Utils.Utils.ApplyPlateformTheme((PlateformTheme)_uiConfig.PlateformTheme);
+        UIConfig.SaveSharedTheme(_uiConfig.PlateformTheme);
     }
 
     private void EnsureFields()

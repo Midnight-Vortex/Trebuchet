@@ -118,6 +118,9 @@ public class MixedConsoleViewModel : ReactiveObject, IScrollController
     private int _historyIndex;
     private ConsoleTabBase _selectedTab;
     private readonly HashSet<string> _players = new(StringComparer.OrdinalIgnoreCase);
+    private bool _playersSynced;
+    private DateTime _nextPlayerSync;
+    private bool _playerSyncRunning;
     private readonly Func<LogEvent, bool> _instanceEqual;
     private readonly Func<LogEvent, bool> _hasAnySource;
     private readonly Func<LogEvent, bool> _isServerLog;
@@ -364,6 +367,56 @@ public class MixedConsoleViewModel : ReactiveObject, IScrollController
             : $@"{_players.Count}: {string.Join(@", ", _players.OrderBy(x => x, StringComparer.OrdinalIgnoreCase))}";
     }
 
+    /// <summary>
+    /// The log only shows joins made while Trebuchet follows it (not those before a restart of Trebuchet). When the
+    /// player count of the server query does not match the list, the real list is asked with RCon "ListPlayers".
+    /// </summary>
+    public async Task SyncPlayersAsync()
+    {
+        if (Process is not { State: ProcessState.ONLINE, RCon: { } rcon } process) return;
+        if (_playersSynced && process.Players == _players.Count) return;
+        if (_playerSyncRunning || DateTime.UtcNow < _nextPlayerSync) return;
+        _nextPlayerSync = DateTime.UtcNow + TimeSpan.FromSeconds(15);
+        _playerSyncRunning = true;
+        try
+        {
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            var response = await rcon.Send(@"ListPlayers", timeout.Token);
+            if (response.Exception is not null || !ReferenceEquals(Process, process)) return;
+            _players.Clear();
+            foreach (var name in ParseListPlayers(response.Response))
+                _players.Add(name);
+            _playersSynced = true;
+            UpdateOnlinePlayers();
+            // The server query can disagree for a while (or always, when it is blocked): do not ask every 15 s then.
+            if (_players.Count != process.Players)
+                _nextPlayerSync = DateTime.UtcNow + TimeSpan.FromMinutes(2);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, @"Could not list the players");
+        }
+        finally
+        {
+            _playerSyncRunning = false;
+        }
+    }
+
+    /// <summary>Player names (the name shown by "Join succeeded") from the RCon "ListPlayers" table.</summary>
+    public static List<string> ParseListPlayers(string response)
+    {
+        var names = new List<string>();
+        foreach (var line in response.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            var columns = line.Split('|', StringSplitOptions.TrimEntries);
+            // Idx | Char name | Player name | User ID | Platform ID | Platform Name
+            if (columns.Length < 3 || !int.TryParse(columns[0], out _)) continue;
+            var name = columns[2].Length > 0 ? columns[2] : columns[1];
+            if (name.Length > 0) names.Add(name);
+        }
+        return names;
+    }
+
     private static bool IsSteamEvent(LogEvent log)
     {
         var context = GetScalar(log, @"SourceContext");
@@ -401,6 +454,7 @@ public class MixedConsoleViewModel : ReactiveObject, IScrollController
 
         // New server process: the player list starts empty again.
         _players.Clear();
+        _playersSynced = false;
         UpdateOnlinePlayers();
         RefreshLabel();
     }

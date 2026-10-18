@@ -45,6 +45,23 @@ namespace Trebuchet
             }
         }
 
+        /// <summary>
+        /// Write the theme into every edition's UI settings: the start window applies the theme of the Legacy
+        /// settings before an edition is opened, so a theme saved for one edition only was lost on the next start.
+        /// </summary>
+        public static void SaveSharedTheme(int theme)
+        {
+            foreach (var edition in Enum.GetValues<GameEdition>())
+            {
+                var path = Utils.AppConstants.GetUIConfigPath(edition);
+                if (!System.IO.File.Exists(path)) continue;
+                var config = LoadConfig(path);
+                if (config.PlateformTheme == theme) continue;
+                config.PlateformTheme = theme;
+                config.SaveFile();
+            }
+        }
+
         public static readonly bool AutoRestartAfterCrashDefault = true;
         public static readonly bool KeepSystemAwakeDefault = true;
         public static readonly bool DisplayProcessPerformanceDefault = true;
