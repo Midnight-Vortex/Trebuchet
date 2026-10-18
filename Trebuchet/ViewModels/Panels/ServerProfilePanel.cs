@@ -157,6 +157,19 @@ namespace Trebuchet.ViewModels.Panels
         /// <summary>
         /// Untouched default texts (notifications, restart messages) follow the UI language; custom texts stay.
         /// </summary>
+        private async Task<string> SendRConTestMessage()
+        {
+            if (FileMenu.Selected is not { } selected) return string.Empty;
+            using var timeout = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(10));
+            var results = await _launcher.SendRConTestMessage(selected.Name, AppResources.RConTestMessage, timeout.Token);
+            if (results.Count == 0) return AppResources.RConTestNoServer;
+            return string.Join(Environment.NewLine, results.Select(r =>
+                !r.RConConnected ? string.Format(AppResources.RConTestNoRCon, r.Instance)
+                : r.Error is not null ? string.Format(AppResources.RConTestFailed, r.Instance, r.Command, r.Error.Message)
+                : string.Format(AppResources.RConTestSent, r.Instance, r.Command,
+                    string.IsNullOrWhiteSpace(r.Response) ? AppResources.RConTestEmptyAnswer : r.Response.Trim())));
+        }
+
         private void CreateExampleProfileOnce()
         {
             if (_uiConfig.ExampleServerProfileCreated) return;
@@ -706,8 +719,12 @@ namespace Trebuchet.ViewModels.Panels
                 .SetGetter(() => _profile.RConBroadcastCustomCommand)
                 .SetSetter((v) => _profile.RConBroadcastCustomCommand = v)
                 .SetDefault(() => ServerProfile.RConBroadcastCustomCommandDefault);
+            var rconTest = new ActionButtonField(AppResources.RConTestSend, @"mdi-send", SendRConTestMessage)
+                .SetTitle(AppResources.SettingServerRConTest)
+                .SetDescription(AppResources.SettingServerRConTestText);
             Fields.Add(rconMethod);
             Fields.Add(rconCustom);
+            Fields.Add(rconTest);
             rconMethod.WhenAnyValue(x => x.Value)
                 .Subscribe(x => rconCustom.IsVisible = rcon.Value && x == ServerProfile.RConBroadcastCustom);
             rcon.WhenAnyValue(x => x.Value)
@@ -717,6 +734,7 @@ namespace Trebuchet.ViewModels.Panels
                     rconPort.IsVisible = x;
                     rconKarma.IsVisible = x;
                     rconMethod.IsVisible = x;
+                    rconTest.IsVisible = x;
                     rconCustom.IsVisible = x && rconMethod.Value == ServerProfile.RConBroadcastCustom;
                 });
                 

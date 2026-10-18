@@ -5165,5 +5165,95 @@ namespace Trebuchet.Assets {
                 return ResourceManager.GetString("ExampleReadme", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Running....
+        /// </summary>
+        public static string ActionRunning {
+            get {
+                return ResourceManager.GetString("ActionRunning", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Test message.
+        /// </summary>
+        public static string SettingServerRConTest {
+            get {
+                return ResourceManager.GetString("SettingServerRConTest", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Sends a test message with the selected message method to every running server th.
+        /// </summary>
+        public static string SettingServerRConTestText {
+            get {
+                return ResourceManager.GetString("SettingServerRConTestText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Send test message.
+        /// </summary>
+        public static string RConTestSend {
+            get {
+                return ResourceManager.GetString("RConTestSend", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Trebuchet test: this message reaches {servername} through the selected message m.
+        /// </summary>
+        public static string RConTestMessage {
+            get {
+                return ResourceManager.GetString("RConTestMessage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to No running server uses this save. Start a server with this save and test again..
+        /// </summary>
+        public static string RConTestNoServer {
+            get {
+                return ResourceManager.GetString("RConTestNoServer", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Instance {0}: the server runs without RCon. Turn RCon on and restart the server..
+        /// </summary>
+        public static string RConTestNoRCon {
+            get {
+                return ResourceManager.GetString("RConTestNoRCon", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Instance {0}: "{1}" failed: {2}.
+        /// </summary>
+        public static string RConTestFailed {
+            get {
+                return ResourceManager.GetString("RConTestFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Instance {0}: sent "{1}", answer: {2}.
+        /// </summary>
+        public static string RConTestSent {
+            get {
+                return ResourceManager.GetString("RConTestSent", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to (no answer).
+        /// </summary>
+        public static string RConTestEmptyAnswer {
+            get {
+                return ResourceManager.GetString("RConTestEmptyAnswer", resourceCulture);
+            }
+        }
     }
 }

@@ -1,0 +1,21 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:s="clr-namespace:Trebuchet.ViewModels.SettingFields"
+                    xmlns:i="https://github.com/projektanker/icons.avalonia"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <DataTemplate x:Key="ActionButtonField" DataType="s:ActionButtonField">
+        <Border Classes="Panel Shadowed" Padding="12,12" Margin="0,0,0,12" IsVisible="{Binding IsVisible}">
+            <StackPanel Spacing="8">
+                <TextBlock Text="{Binding Title}" FontWeight="Bold" />
+                <TextBlock IsVisible="{Binding DisplayDescription}" Text="{Binding Description}" Classes="SubText" TextWrapping="Wrap" FontWeight="Normal" />
+                <Button Command="{Binding Command}" HorizontalAlignment="Left">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <i:Icon Value="{Binding Icon}" Classes="Normal" />
+                        <TextBlock Text="{Binding ButtonLabel}" />
+                    </StackPanel>
+                </Button>
+                <SelectableTextBlock Text="{Binding Status}" TextWrapping="Wrap"
+                                     IsVisible="{Binding Status, Converter={x:Static StringConverters.IsNotNullOrEmpty}}" />
+            </StackPanel>
+        </Border>
+    </DataTemplate>
+</ResourceDictionary>

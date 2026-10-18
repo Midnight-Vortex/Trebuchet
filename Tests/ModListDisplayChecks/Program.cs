@@ -198,6 +198,18 @@ checks += await ProfileMenuChecks.Run();
     Check(manager.GetString(nameof(Trebuchet.Assets.Resources.CatBackupAutomation), System.Globalization.CultureInfo.GetCultureInfo("de")) == "Backup und Automatisierung",
         "German texts are resolved for the German culture");
 }
+// Test buttons (e.g. RCon test message) show the result of their action, and the error instead of crashing.
+{
+    var working = new Trebuchet.ViewModels.SettingFields.ActionButtonField("Test", "mdi-send", () => Task.FromResult("sent"));
+    working.Command.Execute().Subscribe();
+    Check(working.Status == "sent", "Test button shows the result of its action");
+    var failing = new Trebuchet.ViewModels.SettingFields.ActionButtonField("Test", "mdi-send", () => throw new InvalidOperationException("no rcon"));
+    failing.Command.Execute().Subscribe();
+    var canRunAgain = false;
+    using (failing.Command.CanExecute.Subscribe(x => canRunAgain = x)) { }
+    Check(failing.Status == "no rcon" && canRunAgain, "A failing test button shows the error and stays usable");
+}
+
 // Example server save: created once in the UI language, never overwritten, never picked as default save.
 {
     var previousCulture = Trebuchet.Assets.Resources.Culture;

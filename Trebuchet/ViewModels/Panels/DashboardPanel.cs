@@ -320,10 +320,13 @@ namespace Trebuchet.ViewModels.Panels
             ServerUpdateAvailable = _launcher.HasServerUpdate();
             
             var refreshes = new List<Task> { Client.ProcessRefresh(_launcher.GetClientProcess(), _uiConfig.DisplayProcessPerformance) };
-            foreach (var instance in _launcher.GetServerProcesses().ToList())
+            // Every instance is refreshed, also those without a process: a server that stopped or was removed
+            // would otherwise keep showing as running.
+            var processes = _launcher.GetServerProcesses().ToList();
+            for (var i = 0; i < Instances.Count; i++)
             {
-                if (instance.Infos.Instance < 0 || instance.Infos.Instance >= Instances.Count) continue;
-                refreshes.Add(Instances[instance.Infos.Instance].ProcessRefresh(instance, _uiConfig.DisplayProcessPerformance));
+                var instance = i;
+                refreshes.Add(Instances[i].ProcessRefresh(processes.FirstOrDefault(x => x.Infos.Instance == instance), _uiConfig.DisplayProcessPerformance));
             }
             await Task.WhenAll(refreshes);
         }

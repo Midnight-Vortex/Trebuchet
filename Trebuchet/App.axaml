@@ -70,6 +70,7 @@
                 <MergeResourceInclude Source="Templates\SequenceActionWaitOnlineView.axaml" />
                 <MergeResourceInclude Source="Templates\SequenceActionWaitView.axaml" />
                 <MergeResourceInclude Source="Templates\SequenceEditorField.axaml" />
+                <MergeResourceInclude Source="Templates\ActionButtonField.axaml" />
                 <MergeResourceInclude Source="Templates\SequenceMainActionView.axaml" />
                 <MergeResourceInclude Source="Templates\SequenceView.axaml" />
                 <MergeResourceInclude Source="Templates\NetworkInfoField.axaml" />
@@ -136,6 +137,7 @@
         <StaticResource ResourceKey="SequenceActionWaitOnlineView" />
         <StaticResource ResourceKey="SequenceActionWaitView" />
         <StaticResource ResourceKey="SequenceEditorField" />
+        <StaticResource ResourceKey="ActionButtonField" />
         <StaticResource ResourceKey="SequenceMainActionView" />
         <StaticResource ResourceKey="SequenceView" />
         <StaticResource ResourceKey="NetworkInfoField" />

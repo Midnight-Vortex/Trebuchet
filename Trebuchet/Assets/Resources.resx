@@ -1817,4 +1817,34 @@ Note: the notification templates for all servers (crash, online, reasons ...) ar
 of Server Saves and apply to every profile.
 </value>
     </data>
+    <data name="ActionRunning" xml:space="preserve">
+        <value>Running...</value>
+    </data>
+    <data name="SettingServerRConTest" xml:space="preserve">
+        <value>Test message</value>
+    </data>
+    <data name="SettingServerRConTestText" xml:space="preserve">
+        <value>Sends a test message with the selected message method to every running server that uses this save and shows the RCon answer. Check in game whether it arrives. RCon must have been on when the server started.</value>
+    </data>
+    <data name="RConTestSend" xml:space="preserve">
+        <value>Send test message</value>
+    </data>
+    <data name="RConTestMessage" xml:space="preserve">
+        <value>Trebuchet test: this message reaches {servername} through the selected message method.</value>
+    </data>
+    <data name="RConTestNoServer" xml:space="preserve">
+        <value>No running server uses this save. Start a server with this save and test again.</value>
+    </data>
+    <data name="RConTestNoRCon" xml:space="preserve">
+        <value>Instance {0}: the server runs without RCon. Turn RCon on and restart the server.</value>
+    </data>
+    <data name="RConTestFailed" xml:space="preserve">
+        <value>Instance {0}: "{1}" failed: {2}</value>
+    </data>
+    <data name="RConTestSent" xml:space="preserve">
+        <value>Instance {0}: sent "{1}", answer: {2}</value>
+    </data>
+    <data name="RConTestEmptyAnswer" xml:space="preserve">
+        <value>(no answer)</value>
+    </data>
 </root>

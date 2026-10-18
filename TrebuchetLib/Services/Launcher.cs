@@ -58,6 +58,10 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     public const int CrashRestartLimit = 3;
     public static readonly TimeSpan CrashRestartWindow = TimeSpan.FromMinutes(15);
     private readonly CrashRestartGuard _crashGuard = new(CrashRestartLimit, CrashRestartWindow);
+    // Instances started from the tick that are still in their starting sequence.
+    private readonly HashSet<int> _backgroundStarts = [];
+    // Instances whose server process is being launched right now (updates, ini, process start).
+    private readonly HashSet<int> _launchingInstances = [];
 
     public event EventHandler? StateChanged;
     public event EventHandler<SequenceProgress>? SequenceProgressChanged; 
@@ -200,20 +204,56 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             return;
         }
 
-        var process = await CatapultServerProcess(profileName, listRef, instance);
+        // Two starts of one instance (button and automatic start) must not launch two servers on the same save.
+        if (!_launchingInstances.Add(instance)) return;
+        try
+        {
+            var process = await CatapultServerProcess(profileName, listRef, instance);
 
-        var builder = _processFactory.Create()
-            .SetProcess(process)
-            .SetServerInfos(profile, instance)
-            .SetLogFile(_appFiles.Server.GetGameLogs(profileName))
-            .StartLogAtBeginning();
-        if (profile.EnableRCon)
-            builder.UseRCon();
+            var builder = _processFactory.Create()
+                .SetProcess(process)
+                .SetServerInfos(profile, instance)
+                .SetLogFile(_appFiles.Server.GetGameLogs(profileName))
+                .StartLogAtBeginning();
+            if (profile.EnableRCon)
+                builder.UseRCon();
 
-        var serverProcess = await builder.BuildServer();
-        serverProcess.StateChanged += OnServerStateChanged;
-        _serverProcesses.TryAdd(instance, serverProcess);
-        OnStateChanged();
+            var serverProcess = await builder.BuildServer();
+            serverProcess.StateChanged += OnServerStateChanged;
+            _serverProcesses.TryAdd(instance, serverProcess);
+            OnStateChanged();
+        }
+        finally
+        {
+            _launchingInstances.Remove(instance);
+        }
+    }
+
+    /// <summary>
+    /// Starts a server from the tick without waiting for it. A starting sequence can take minutes (e.g. wait until
+    /// online) and waits for states only the tick updates: awaiting it in the tick froze every refresh until its
+    /// timeout, so the dashboard showed the running server as stopped.
+    /// </summary>
+    private void CatapultServerInBackground(int instance)
+    {
+        if (!_backgroundStarts.Add(instance)) return;
+        _ = RunBackgroundStart(instance);
+    }
+
+    private async Task RunBackgroundStart(int instance)
+    {
+        try
+        {
+            await CatapultServer(instance);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to start server {Instance}", instance);
+        }
+        finally
+        {
+            _backgroundStarts.Remove(instance);
+        }
     }
     
     public async Task<Process> CatapultServerProcess(ServerProfileRef profileName, IPRefWithModList listRef, int instance)
@@ -551,6 +591,38 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     ///     Get the server port information for all the running server processes.
     /// </summary>
     /// <returns></returns>
+    /// <summary>
+    /// Sends a message with the message method of the save to every running server that uses it and returns the
+    /// RCon answers, so the method can be tested from the server save.
+    /// </summary>
+    public async Task<List<RConTestResult>> SendRConTestMessage(string profileName, string message, CancellationToken token)
+    {
+        var results = new List<RConTestResult>();
+        foreach (var process in _serverProcesses.Values.ToList())
+        {
+            var instance = process.Infos.Instance;
+            if (process.State is not (ProcessState.RUNNING or ProcessState.ONLINE)) continue;
+            if (!_appFiles.Server.TryResolve(_setup.Config.GetInstanceProfile(instance), out var reference) || reference.Name != profileName) continue;
+            var context = CreateMacroContext(instance);
+            var command = $"{context.Profile?.GetRConBroadcastCommand() ?? "broadcast"} {ServerMacros.Expand(message, context)}";
+            if (process.RCon is not { } rcon)
+            {
+                results.Add(new RConTestResult(instance, command, string.Empty, null, false));
+                continue;
+            }
+            try
+            {
+                var response = await rcon.Send(command, token);
+                results.Add(new RConTestResult(instance, command, response.Response, response.Exception, true));
+            }
+            catch (Exception ex)
+            {
+                results.Add(new RConTestResult(instance, command, string.Empty, ex, true));
+            }
+        }
+        return results;
+    }
+
     public IEnumerable<IConanServerProcess> GetServerProcesses()
     {
         foreach (var p in _serverProcesses.Values)
@@ -600,6 +672,11 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
 
     public async Task Tick()
     {
+        // Servers that kept running while Trebuchet was closed must be attached before deciding what to start,
+        // otherwise a second server was launched on the same instance (or the start failed on the locked save).
+        if (!_hasCatapulted)
+            await TickStage(FindExistingServers, nameof(FindExistingServers));
+
         if (!_hasCatapulted && _setup.Catapult)
         {
             _hasCatapulted = true;
@@ -607,7 +684,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             {
                 var instance = i;
                 if(!_serverProcesses.ContainsKey(instance))
-                    await TickStage(() => CatapultServer(instance), nameof(CatapultServer));
+                    CatapultServerInBackground(instance);
             }
         } else if (!_hasCatapulted)
         {
@@ -616,13 +693,14 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             {
                 var instance = i;
                 if(_serverProcesses.ContainsKey(instance)) continue;
-                await TickStage(async () =>
+                await TickStage(() =>
                 {
                     var profileUri = _setup.Config.GetInstanceProfile(instance);
                     var serverPRef = _appFiles.Server.Resolve(profileUri);
                     var serverProfile = serverPRef.Get();
                     if(serverProfile.RestartWhenDown)
-                        await CatapultServer(instance);
+                        CatapultServerInBackground(instance);
+                    return Task.CompletedTask;
                 }, nameof(CatapultServer));
             }
         }
@@ -1569,11 +1647,11 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             {
                 var name = _appFiles.Server.Resolve(_setup.Config.GetInstanceProfile(server.Key));
                 if (server.Value.RequestRestart)
-                    await CatapultServer(server.Key);
+                    CatapultServerInBackground(server.Key);
                 else if (server.Value.State == ProcessState.CRASHED && _appFiles.Server.Get(name).RestartWhenDown)
                 {
                     if (AllowCrashRestart(server.Key))
-                        await CatapultServer(server.Key);
+                        CatapultServerInBackground(server.Key);
                     else
                         await NotifyCrashLoop(server.Key, _appFiles.Server.Get(name));
                 }

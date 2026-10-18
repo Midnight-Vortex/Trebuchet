@@ -1809,4 +1809,34 @@ Hinweis: Die Benachrichtigungs-Vorlagen für alle Server (Absturz, Online, Grün
 unten in den Server-Speicherständen und gelten für jedes Profil.
 </value>
     </data>
+    <data name="ActionRunning" xml:space="preserve">
+        <value>Läuft ...</value>
+    </data>
+    <data name="SettingServerRConTest" xml:space="preserve">
+        <value>Testnachricht</value>
+    </data>
+    <data name="SettingServerRConTestText" xml:space="preserve">
+        <value>Sendet eine Testnachricht mit der gewählten Nachrichten-Methode an jeden laufenden Server mit diesem Speicherstand und zeigt die RCon-Antwort. Im Spiel prüfen, ob sie ankommt. RCon muss beim Serverstart an gewesen sein.</value>
+    </data>
+    <data name="RConTestSend" xml:space="preserve">
+        <value>Testnachricht senden</value>
+    </data>
+    <data name="RConTestMessage" xml:space="preserve">
+        <value>Trebuchet-Test: Diese Nachricht erreicht {servername} über die gewählte Nachrichten-Methode.</value>
+    </data>
+    <data name="RConTestNoServer" xml:space="preserve">
+        <value>Kein laufender Server nutzt diesen Speicherstand. Server mit diesem Speicherstand starten und erneut testen.</value>
+    </data>
+    <data name="RConTestNoRCon" xml:space="preserve">
+        <value>Instanz {0}: Der Server läuft ohne RCon. RCon einschalten und den Server neu starten.</value>
+    </data>
+    <data name="RConTestFailed" xml:space="preserve">
+        <value>Instanz {0}: "{1}" fehlgeschlagen: {2}</value>
+    </data>
+    <data name="RConTestSent" xml:space="preserve">
+        <value>Instanz {0}: "{1}" gesendet, Antwort: {2}</value>
+    </data>
+    <data name="RConTestEmptyAnswer" xml:space="preserve">
+        <value>(keine Antwort)</value>
+    </data>
 </root>
