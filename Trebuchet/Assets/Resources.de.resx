@@ -1646,4 +1646,19 @@ Die Stopp-Sequenz ersetzt das einfache Stoppen des Servers. So kannst du Aktione
     <data name="SequenceMainActionText" xml:space="preserve">
         <value>Führt die Hauptaktion der Sequenz aus: In einer Stopp-Sequenz wird der Server gestoppt, in einer Start-Sequenz gestartet.</value>
     </data>
+    <data name="SettingServerVoiceChat" xml:space="preserve">
+        <value>Voice-Chat</value>
+    </data>
+    <data name="SettingServerVoiceChatText" xml:space="preserve">
+        <value>Unverändert: Der Schalter „Voice Chat“ im Admin-Panel des Spiels entscheidet. Komplett aus: schreibt serverVoiceChat=0 und schaltet zusätzlich das Sprachsystem von Unreal in der Engine.ini ab ([Voice] bEnabled=False, [OnlineSubsystem] bHasVoiceEnabled=False), sodass der Server alle Sprachdaten verwirft. An: schreibt serverVoiceChat=1. Wirkt ab dem nächsten Serverstart.</value>
+    </data>
+    <data name="VoiceChatUnchanged" xml:space="preserve">
+        <value>Unverändert (Admin-Panel)</value>
+    </data>
+    <data name="VoiceChatDisabled" xml:space="preserve">
+        <value>Komplett aus</value>
+    </data>
+    <data name="VoiceChatEnabled" xml:space="preserve">
+        <value>An</value>
+    </data>
 </root>

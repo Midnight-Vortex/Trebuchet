@@ -165,6 +165,36 @@ public static class YuuIniServerFiles
         section.SetParameter("AdminPassword", profile.AdminPassword);
         section.SetParameter("IsBattlEyeEnabled", profile.EnableBattleEye.ToString());
         section.SetParameter("IsVACEnabled", profile.EnableVAC.ToString());
+        // Same key as the "Voice Chat" toggle of the in-game admin panel; untouched unless forced.
+        if (profile.VoiceChatMode == ServerProfile.VoiceChatDisabled)
+            section.SetParameter("serverVoiceChat", "0");
+        else if (profile.VoiceChatMode == ServerProfile.VoiceChatEnabled)
+            section.SetParameter("serverVoiceChat", "1");
+    }
+
+    /// <summary>
+    /// "Voice chat completely off" also disables Unreal's voice interface, so the server ignores voice packets.
+    /// The overrides are removed again for the other modes.
+    /// </summary>
+    [IniSetting(Constants.FileIniServer, "Engine")]
+    public static void ApplyVoiceSettings(AppSetup appSetup, ServerProfile profile, IniDocument document)
+    {
+        var disabled = profile.VoiceChatMode == ServerProfile.VoiceChatDisabled;
+        SetOrRemove(document, "Voice", "bEnabled", disabled ? "False" : null);
+        SetOrRemove(document, "OnlineSubsystem", "bHasVoiceEnabled", disabled ? "False" : null);
+    }
+
+    private static void SetOrRemove(IniDocument document, string sectionName, string key, string? value)
+    {
+        var section = document.GetSection(sectionName);
+        if (value is not null)
+        {
+            section.SetParameter(key, value);
+            return;
+        }
+        section.GetParameters(key).ForEach(section.Remove);
+        if (section.GetParameters().Count == 0)
+            document.Remove(section);
     }
 
     [IniSetting(Constants.FileIniDefault, "Engine")]

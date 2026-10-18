@@ -118,6 +118,29 @@ static class ServerStabilityChecks
             Directory.Delete(saved, true);
         }
 
+        // Voice chat: off writes the server setting and Unreal's voice switches, the other modes clean them up.
+        var voiceSetup = new AppSetup(new Config(), GameEdition.Enhanced, false, false);
+        var voiceProfile = new ServerProfile { VoiceChatMode = ServerProfile.VoiceChatDisabled };
+        var settingsIni = Yuu.Ini.IniParser.Parse("[ServerSettings]\nserverVoiceChat=1\n");
+        var engineIni = Yuu.Ini.IniParser.Parse("[OnlineSubsystem]\nServerName=Test\n");
+        TrebuchetLib.YuuIni.YuuIniServerFiles.ApplyServerSettings(voiceSetup, voiceProfile, settingsIni);
+        TrebuchetLib.YuuIni.YuuIniServerFiles.ApplyVoiceSettings(voiceSetup, voiceProfile, engineIni);
+        var settingsText = settingsIni.ToString().Replace(" = ", "=").Replace(" =", "=");
+        var engineText = engineIni.ToString().Replace(" = ", "=").Replace(" =", "=");
+        Check(settingsText.Contains("serverVoiceChat=0") && engineText.Contains("bHasVoiceEnabled=False")
+              && engineText.Contains("[Voice]") && engineText.Contains("bEnabled=False"),
+            "Voice chat off writes server and engine switches: " + settingsText.Replace("\n", "|") + " ### " + engineText.Replace("\n", "|"));
+        voiceProfile.VoiceChatMode = ServerProfile.VoiceChatUnchanged;
+        TrebuchetLib.YuuIni.YuuIniServerFiles.ApplyServerSettings(voiceSetup, voiceProfile, settingsIni);
+        TrebuchetLib.YuuIni.YuuIniServerFiles.ApplyVoiceSettings(voiceSetup, voiceProfile, engineIni);
+        settingsText = settingsIni.ToString().Replace(" = ", "=");
+        engineText = engineIni.ToString().Replace(" = ", "=");
+        Check(settingsText.Contains("serverVoiceChat=0") && !engineText.Contains("bHasVoiceEnabled") && !engineText.Contains("[Voice]")
+              && engineText.Contains("ServerName=Test"), "Unchanged keeps the admin panel value and removes only the engine overrides");
+        voiceProfile.VoiceChatMode = ServerProfile.VoiceChatEnabled;
+        TrebuchetLib.YuuIni.YuuIniServerFiles.ApplyServerSettings(voiceSetup, voiceProfile, settingsIni);
+        Check(settingsIni.ToString().Replace(" = ", "=").Contains("serverVoiceChat=1"), "Voice chat on writes serverVoiceChat=1");
+
         // Warnings and message method.
         var warningProfile = new ServerProfile();
         Check(!warningProfile.UseRestartWarnings && warningProfile.RestartWarnings.Count == 3

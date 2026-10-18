@@ -1654,4 +1654,19 @@ The stopping sequence will be used in place of simply stopping the server. This 
     <data name="NetworkPortFree" xml:space="preserve">
         <value>Free</value>
     </data>
+    <data name="SettingServerVoiceChat" xml:space="preserve">
+        <value>Voice chat</value>
+    </data>
+    <data name="SettingServerVoiceChatText" xml:space="preserve">
+        <value>Unchanged: the "Voice Chat" toggle of the in-game admin panel decides. Completely off: writes serverVoiceChat=0 and also disables Unreal's voice system in Engine.ini ([Voice] bEnabled=False, [OnlineSubsystem] bHasVoiceEnabled=False), so the server drops all voice data. On: writes serverVoiceChat=1. Applied at the next server start.</value>
+    </data>
+    <data name="VoiceChatUnchanged" xml:space="preserve">
+        <value>Unchanged (admin panel)</value>
+    </data>
+    <data name="VoiceChatDisabled" xml:space="preserve">
+        <value>Completely off</value>
+    </data>
+    <data name="VoiceChatEnabled" xml:space="preserve">
+        <value>On</value>
+    </data>
 </root>

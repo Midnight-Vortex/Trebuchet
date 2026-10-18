@@ -4805,5 +4805,50 @@ namespace Trebuchet.Assets {
                 return ResourceManager.GetString("NetworkPortFree", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Voice chat.
+        /// </summary>
+        public static string SettingServerVoiceChat {
+            get {
+                return ResourceManager.GetString("SettingServerVoiceChat", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Unchanged: the "Voice Chat" toggle of the in-game admin panel decides. Completel.
+        /// </summary>
+        public static string SettingServerVoiceChatText {
+            get {
+                return ResourceManager.GetString("SettingServerVoiceChatText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Unchanged (admin panel).
+        /// </summary>
+        public static string VoiceChatUnchanged {
+            get {
+                return ResourceManager.GetString("VoiceChatUnchanged", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Completely off.
+        /// </summary>
+        public static string VoiceChatDisabled {
+            get {
+                return ResourceManager.GetString("VoiceChatDisabled", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to On.
+        /// </summary>
+        public static string VoiceChatEnabled {
+            get {
+                return ResourceManager.GetString("VoiceChatEnabled", resourceCulture);
+            }
+        }
     }
 }

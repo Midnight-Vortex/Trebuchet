@@ -243,6 +243,17 @@ namespace Trebuchet.ViewModels.Panels
                 .SetSetter((v) => _profile.Map = v)
                 .SetDefault(() => ServerProfile.MapDefault)
             );
+            Fields.Add(new ComboBoxField()
+                .WhenFieldChanged(SaveProfile)
+                .SetTitle(AppResources.SettingServerVoiceChat)
+                .SetDescription(AppResources.SettingServerVoiceChatText)
+                .AddOption(AppResources.VoiceChatUnchanged)
+                .AddOption(AppResources.VoiceChatDisabled)
+                .AddOption(AppResources.VoiceChatEnabled)
+                .SetGetter(() => _profile.VoiceChatMode)
+                .SetSetter((v) => _profile.VoiceChatMode = v)
+                .SetDefault(() => ServerProfile.VoiceChatModeDefault)
+            );
             Fields.Add(new TextField()
                 .WhenFieldChanged(SaveProfile)
                 .SetTitle(AppResources.SettingServerAdditionalArgs)

@@ -59,6 +59,7 @@ namespace TrebuchetLib
         public int ScriptMode { get; set; } = ScriptModeDefault;
         public string ScriptPath { get; set; } = ScriptPathDefault;
         public string ScriptArguments { get; set; } = ScriptArgumentsDefault;
+        public int VoiceChatMode { get; set; } = VoiceChatModeDefault;
 
         public Sequence StoppingSequence { get; set; } = new();
         public Sequence StartingSequence { get; set; } = new();
@@ -198,6 +199,13 @@ namespace TrebuchetLib
         public static readonly int ScriptModeDefault = ScriptModeNone;
         public static readonly string ScriptPathDefault = string.Empty;
         public static readonly string ScriptArgumentsDefault = string.Empty;
+
+        public static readonly int VoiceChatModeDefault = VoiceChatUnchanged;
+
+        // Voice chat: leave it to the in-game admin panel, force it off (server setting and engine voice), or on.
+        public const int VoiceChatUnchanged = 0;
+        public const int VoiceChatDisabled = 1;
+        public const int VoiceChatEnabled = 2;
 
         // DSL "Run Scripts" choices.
         public const int ScriptModeNone = 0;
