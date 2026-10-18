@@ -215,7 +215,7 @@ public class MixedConsoleViewModel : ReactiveObject, IScrollController
         Resources.ConsoleMethodCommand,
         @"broadcast",
         @"server (Pippi)",
-        @"/alert"
+        @"totpop"
     ];
 
     /// <summary>Log file followed while the server of this installed instance is off (empty when none).</summary>
@@ -250,7 +250,7 @@ public class MixedConsoleViewModel : ReactiveObject, IScrollController
                 {
                     1 => @"broadcast " + input,
                     2 => @"server " + input,
-                    3 => @"/alert " + input,
+                    3 => @"totpop " + input,
                     _ => input
                 };
                 _logger.LogInformation(@"Send {command}", command);

@@ -5021,33 +5021,9 @@ namespace Trebuchet.Assets {
                 return ResourceManager.GetString("SettingKeepSystemAwakeText", resourceCulture);
             }
         }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Custom command (chat mod).
-        /// </summary>
-        public static string RConMethodCustom {
-            get {
-                return ResourceManager.GetString("RConMethodCustom", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Custom message command.
-        /// </summary>
-        public static string SettingServerRConCustomCommand {
-            get {
-                return ResourceManager.GetString("SettingServerRConCustomCommand", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to RCon command added by a mod, the message is appended after a space (e.g. "totcha.
-        /// </summary>
-        public static string SettingServerRConCustomCommandText {
-            get {
-                return ResourceManager.GetString("SettingServerRConCustomCommandText", resourceCulture);
-            }
-        }
+
+
+
         
         /// <summary>
         ///   Looks up a localized string similar to Example-All-Options.

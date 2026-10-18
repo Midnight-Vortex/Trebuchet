@@ -46,7 +46,6 @@ namespace TrebuchetLib
         public bool EnforceProcessSettings { get; set; } = EnforceProcessSettingsDefault;
         public bool RequiresRestartFileCheck { get; set; } = RequiresRestartFileCheckDefault;
         public int RConBroadcastMethod { get; set; } = RConBroadcastMethodDefault;
-        public string RConBroadcastCustomCommand { get; set; } = RConBroadcastCustomCommandDefault;
         public bool UseRestartWarnings { get; set; } = UseRestartWarningsDefault;
         public List<RestartWarning> RestartWarnings { get; set; } = RestartWarningsDefault;
         public bool RestartEarlyWhenEmpty { get; set; } = RestartEarlyWhenEmptyDefault;
@@ -216,18 +215,14 @@ namespace TrebuchetLib
         public const int ScriptModeShutdownBeforeBackup = 2;
         public const int ScriptModeShutdownAfterBackup = 3;
 
-        /// <summary>RCon command used for messages to players (DSL "broadcast / server / alert" selector).</summary>
+        /// <summary>RCon command used for messages to players (broadcast, server or totpop).</summary>
         public string GetRConBroadcastCommand() => RConBroadcastMethod switch
         {
             1 => "server",
-            2 => "/alert",
-            // A command added by a mod (e.g. a bridge into a chat mod that replaces the vanilla chat).
-            RConBroadcastCustom when !string.IsNullOrWhiteSpace(RConBroadcastCustomCommand) => RConBroadcastCustomCommand.Trim(),
+            // Popup of the Tot ! Chat mods, an RCon command of its own ("totpop <text>", no slash).
+            2 => "totpop",
             _ => "broadcast"
         };
-
-        public const int RConBroadcastCustom = 3;
-        public static readonly string RConBroadcastCustomCommandDefault = string.Empty;
 
         /// <summary>ProcessPriority value that leaves priority and affinity untouched.</summary>
         public const int ProcessPriorityUnchanged = 4;

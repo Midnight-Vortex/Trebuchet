@@ -704,29 +704,18 @@ namespace Trebuchet.ViewModels.Panels
                 .SetDescription(AppResources.SettingServerRConBroadcastMethodText)
                 .AddOption(@"broadcast")
                 .AddOption(@"server (Pippi)")
-                .AddOption(@"/alert")
-                .AddOption(AppResources.RConMethodCustom)
+                .AddOption(@"totpop")
                 .SetGetter(() => _profile.RConBroadcastMethod)
                 .SetSetter((v) => _profile.RConBroadcastMethod = v)
                 .SetDefault(() => ServerProfile.RConBroadcastMethodDefault);
             Fields.Add(rconPort);
             Fields.Add(rconPass);
             Fields.Add(rconKarma);
-            var rconCustom = new TextField()
-                .WhenFieldChanged(SaveProfile)
-                .SetTitle(AppResources.SettingServerRConCustomCommand)
-                .SetDescription(AppResources.SettingServerRConCustomCommandText)
-                .SetGetter(() => _profile.RConBroadcastCustomCommand)
-                .SetSetter((v) => _profile.RConBroadcastCustomCommand = v)
-                .SetDefault(() => ServerProfile.RConBroadcastCustomCommandDefault);
             var rconTest = new ActionButtonField(AppResources.RConTestSend, @"mdi-send", SendRConTestMessage)
                 .SetTitle(AppResources.SettingServerRConTest)
                 .SetDescription(AppResources.SettingServerRConTestText);
             Fields.Add(rconMethod);
-            Fields.Add(rconCustom);
             Fields.Add(rconTest);
-            rconMethod.WhenAnyValue(x => x.Value)
-                .Subscribe(x => rconCustom.IsVisible = rcon.Value && x == ServerProfile.RConBroadcastCustom);
             rcon.WhenAnyValue(x => x.Value)
                 .Subscribe(x =>
                 {
@@ -735,7 +724,6 @@ namespace Trebuchet.ViewModels.Panels
                     rconKarma.IsVisible = x;
                     rconMethod.IsVisible = x;
                     rconTest.IsVisible = x;
-                    rconCustom.IsVisible = x && rconMethod.Value == ServerProfile.RConBroadcastCustom;
                 });
                 
             Fields.Add(new TitleField().SetTitle(AppResources.CatAntiCheat));

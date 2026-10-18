@@ -46,7 +46,6 @@ public static class ExampleServerProfile
         profile.RConPort = 25575;
         profile.RConPassword = Resources.ExampleRConPassword;
         profile.RConBroadcastMethod = 0;
-        profile.RConBroadcastCustomCommand = "totchat";
 
         profile.EnableMultiHome = false;
         profile.MultiHomeAddress = "192.168.1.10";

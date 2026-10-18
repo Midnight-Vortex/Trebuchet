@@ -1077,7 +1077,7 @@ WARNUNG: Dies kann dazu führen, dass die Erkennung von Zombie-Prozessen nicht m
         <value>RCon-Befehl</value>
     </data>
     <data name="ConsoleMethodTip" xml:space="preserve">
-        <value>Text als RCon-Befehl senden oder als Nachricht an Spieler per broadcast, server (Pippi) oder /alert.</value>
+        <value>Text als RCon-Befehl senden oder als Nachricht an Spieler per broadcast, server (Pippi) oder totpop.</value>
     </data>
     <data name="ConsolePlayersOnline" xml:space="preserve">
         <value>Verbundene Spieler</value>
@@ -1233,7 +1233,7 @@ WARNUNG: Dies kann dazu führen, dass die Erkennung von Zombie-Prozessen nicht m
         <value>Nachrichten-Methode</value>
     </data>
     <data name="SettingServerRConBroadcastMethodText" xml:space="preserve">
-        <value>RCon-Befehl für Nachrichten an Spieler: broadcast (Popup, funktioniert mit jedem Chat-Mod), server (Vanilla-Chat, braucht den Pippi-Mod; unsichtbar bei Chat-Mods, die den Vanilla-Chat ersetzen, z. B. Tot ! Enhanced Chat), /alert (Alarm-Befehl von Tot ! Chat, für alle im aktuellen Kanal sichtbar; ob Tot ! Enhanced Chat ihn über RCon annimmt, muss auf dem Server getestet werden) oder ein eigener Befehl aus einem Mod.</value>
+        <value>RCon-Befehl für Nachrichten an Spieler: broadcast (Popup, funktioniert mit jedem Chat-Mod), server (Vanilla-Chat, braucht den Pippi-Mod; unsichtbar bei Chat-Mods, die den Vanilla-Chat ersetzen, z. B. Tot ! Enhanced Chat) oder totpop (Popup von Tot ! Chat, RCon-Befehl „totpop &lt;Text&gt;“).</value>
     </data>
     <data name="SettingServerBackupOnShutdown" xml:space="preserve">
         <value>Backup beim Herunterfahren</value>
@@ -1718,15 +1718,6 @@ Die Stopp-Sequenz ersetzt das einfache Stoppen des Servers. So kannst du Aktione
     <data name="SettingKeepSystemAwakeText" xml:space="preserve">
         <value>Verhindert Standby/Ruhezustand, solange mindestens ein Server läuft (der Bildschirm darf sich trotzdem abschalten).</value>
     </data>
-    <data name="RConMethodCustom" xml:space="preserve">
-        <value>Eigener Befehl (Chat-Mod)</value>
-    </data>
-    <data name="SettingServerRConCustomCommand" xml:space="preserve">
-        <value>Eigener Nachrichten-Befehl</value>
-    </data>
-    <data name="SettingServerRConCustomCommandText" xml:space="preserve">
-        <value>RCon-Befehl aus einem Mod, die Nachricht wird nach einem Leerzeichen angehängt (z. B. „totchat“ sendet „totchat &lt;Nachricht&gt;“). Tot ! Enhanced Chat ersetzt den Vanilla-Chat und hat selbst keinen RCon-Befehl: Nachrichten erreichen ihn nur über einen Brücken-Mod, der seine Kanal-API aufruft (Tot_I_ChatChannel.SendMessage mit Absender 0). Bis dahin broadcast verwenden, dessen Popup wird vom Chat-Mod nicht ausgeblendet.</value>
-    </data>
     <data name="ExampleProfileName" xml:space="preserve">
         <value>Beispiel-Alle-Optionen</value>
     </data>
@@ -1793,8 +1784,7 @@ WAS WIE ZUSAMMENSPIELT
   Die Webhook-URL der Aktion ersetzen.
   Die Profil-Webhooks (Discord) bekommen davon getrennt die Bereit-, Absturz- und Neustart-Meldungen.
 - Bereit-/Herunterfahren-Meldung gehen an Discord.
-- Nachrichten-Methode broadcast funktioniert auch mit Tot ! Enhanced Chat (Popup). 'totchat' steht als
-  eigener Befehl bereit, ist aber erst sinnvoll, wenn ein Mod diesen RCon-Befehl anbietet.
+- Nachrichten-Methode broadcast funktioniert mit jedem Chat-Mod (Popup). totpop zeigt das Popup von Tot ! Chat.
 - Absturz: abgestürzte Server werden neu gestartet (max. 3x in 15 min, dann Pause + Discord-Meldung).
   Hängt der Server länger als 300 s, wird er beendet (Abgestürzte Server beenden).
 - Backup bei jedem Herunterfahren nach %USERPROFILE%\Documents\Conan-Backups\Beispiel-Alle-Optionen,

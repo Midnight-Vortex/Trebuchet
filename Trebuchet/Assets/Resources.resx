@@ -1403,7 +1403,7 @@ The stopping sequence will be used in place of simply stopping the server. This 
         <value>RCon command</value>
     </data>
     <data name="ConsoleMethodTip" xml:space="preserve">
-        <value>Send the text as raw RCon command, or as message to players with broadcast, server (Pippi) or /alert.</value>
+        <value>Send the text as raw RCon command, or as message to players with broadcast, server (Pippi) or totpop.</value>
     </data>
     <data name="ConsolePlayersOnline" xml:space="preserve">
         <value>Connected players</value>
@@ -1553,7 +1553,7 @@ The stopping sequence will be used in place of simply stopping the server. This 
         <value>Message method</value>
     </data>
     <data name="SettingServerRConBroadcastMethodText" xml:space="preserve">
-        <value>RCon command used for messages to players: broadcast (popup, works with every chat mod), server (vanilla chat, needs the Pippi mod, hidden by chat mods that replace the vanilla chat such as Tot ! Enhanced Chat), /alert (alert command of Tot ! Chat, shown to everyone in the current channel; whether Tot ! Enhanced Chat accepts it over RCon has to be tested on the server), or a custom command added by a mod.</value>
+        <value>RCon command used for messages to players: broadcast (popup, works with every chat mod), server (vanilla chat, needs the Pippi mod, hidden by chat mods that replace the vanilla chat such as Tot ! Enhanced Chat) or totpop (popup of Tot ! Chat, RCon command "totpop &lt;text&gt;").</value>
     </data>
     <data name="SettingServerBackupOnShutdown" xml:space="preserve">
         <value>Backup on shutdown</value>
@@ -1726,15 +1726,6 @@ The stopping sequence will be used in place of simply stopping the server. This 
     <data name="SettingKeepSystemAwakeText" xml:space="preserve">
         <value>Prevents standby/sleep while at least one server is running (the screen may still turn off).</value>
     </data>
-    <data name="RConMethodCustom" xml:space="preserve">
-        <value>Custom command (chat mod)</value>
-    </data>
-    <data name="SettingServerRConCustomCommand" xml:space="preserve">
-        <value>Custom message command</value>
-    </data>
-    <data name="SettingServerRConCustomCommandText" xml:space="preserve">
-        <value>RCon command added by a mod, the message is appended after a space (e.g. "totchat" sends "totchat &lt;message&gt;"). Tot ! Enhanced Chat replaces the vanilla chat and has no RCon command of its own: messages only reach it through a bridge mod that calls its channel API (Tot_I_ChatChannel.SendMessage with sender 0). Until then use broadcast, its popup is not hidden by the chat mod.</value>
-    </data>
     <data name="ExampleProfileName" xml:space="preserve">
         <value>Example-All-Options</value>
     </data>
@@ -1801,8 +1792,7 @@ HOW IT WORKS TOGETHER
   Replace the webhook URL of the action. The profile webhooks (Discord) get the ready, crash and
   restart messages separately.
 - Ready and shutdown messages go to Discord.
-- Message method broadcast also works with Tot ! Enhanced Chat (popup). 'totchat' is prepared as a
-  custom command, but only makes sense once a mod offers this RCon command.
+- Message method broadcast works with every chat mod (popup). totpop shows the popup of Tot ! Chat.
 - Crash: crashed servers are restarted (max. 3 times in 15 min, then a pause and a Discord message).
   A server that hangs for more than 300 s is stopped (Kill Crashed Servers).
 - Backup on every shutdown to %USERPROFILE%\Documents\Conan-Backups\Example-All-Options,

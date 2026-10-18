@@ -30,7 +30,8 @@
                 <ItemsControl ItemsSource="{Binding Fields}" ClipToBounds="False">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <VirtualizingStackPanel Margin="12" />
+                            <!-- Not virtualized: fields have different heights, the estimate made the view jump on every change. -->
+                            <StackPanel Margin="12" />
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                 </ItemsControl>

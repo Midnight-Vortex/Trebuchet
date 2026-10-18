@@ -158,11 +158,9 @@ static class ServerStabilityChecks
         warningProfile.RConBroadcastMethod = 1;
         Check(warningProfile.GetRConBroadcastCommand() == "server", "Pippi server method");
         warningProfile.RConBroadcastMethod = 2;
-        Check(warningProfile.GetRConBroadcastCommand() == "/alert", "Alert method");
-        warningProfile.RConBroadcastMethod = ServerProfile.RConBroadcastCustom;
-        Check(warningProfile.GetRConBroadcastCommand() == "broadcast", "Empty custom command falls back to broadcast");
-        warningProfile.RConBroadcastCustomCommand = " totchat ";
-        Check(warningProfile.GetRConBroadcastCommand() == "totchat", "Custom chat mod command is used");
+        Check(warningProfile.GetRConBroadcastCommand() == "totpop", "Tot chat popup method (no slash)");
+        warningProfile.RConBroadcastMethod = 3;
+        Check(warningProfile.GetRConBroadcastCommand() == "broadcast", "Saves with the removed custom command fall back to broadcast");
         var json = System.Text.Json.JsonSerializer.Serialize(new TrebuchetLib.Sequences.Sequence
         {
             Actions = [new TrebuchetLib.Sequences.SequenceActionBroadcast { Message = "hi {servername}" }]
