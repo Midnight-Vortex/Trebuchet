@@ -486,6 +486,100 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     }
 
     /// <summary>
+    /// Stop chosen by the user with a delay. During the delay players are warned with the message method of the save:
+    /// when the countdown starts and at the warning times of the save that fit into the delay. Zero stops now.
+    /// </summary>
+    public async Task CloseServerIn(int instance, TimeSpan delay)
+    {
+        if (!_serverProcesses.ContainsKey(instance)) return;
+        if (delay <= TimeSpan.Zero || GetInstanceProfile(instance) is not { } profile)
+        {
+            await CloseServer(instance);
+            return;
+        }
+        _lastRestartReason = _setup.GetReasonManualShutdown();
+        // The main action stops directly: CloseServer would cancel this countdown.
+        await RunSequence(instance, BuildTimedCountdown(profile, delay, restart: false), () => StopServerNow(instance), isCountdown: true);
+    }
+
+    /// <summary>
+    /// Restart chosen by the user with a delay, warned like <see cref="CloseServerIn"/>. Zero restarts now, without the
+    /// warnings (a custom stopping sequence of the save still runs).
+    /// </summary>
+    public async Task RestartServerIn(int instance, TimeSpan delay)
+    {
+        if (!_serverProcesses.TryGetValue(instance, out var watcher)) return;
+        var profile = GetInstanceProfile(instance);
+        _lastRestartReason = _setup.GetReasonManualRestart();
+        if (delay > TimeSpan.Zero && profile is not null)
+        {
+            // Inside the countdown RestartServerAsync restarts directly.
+            await RunSequence(instance, BuildTimedCountdown(profile, delay, restart: true), () => RestartServerAsync(instance), isCountdown: true);
+            return;
+        }
+
+        if (_countdownInstances.Contains(instance))
+            await CancelServerSequence(instance);
+        if (profile is not null && !_serverSequences.ContainsKey(instance))
+        {
+            if (profile.StoppingSequence.Actions.Count > 0)
+            {
+                await RestartServerWithSequence(instance, profile);
+                return;
+            }
+            await NotifyDiscordSafe(instance, profile, _setup.GetServerShutdownNotification(_lastRestartReason), _lastRestartReason);
+        }
+        _lastRestartReason = string.Empty;
+        await watcher.RestartAsync();
+    }
+
+    private ServerProfile? GetInstanceProfile(int instance)
+    {
+        return _appFiles.Server.TryResolve(_setup.Config.GetInstanceProfile(instance), out var reference) ? reference.Get() : null;
+    }
+
+    private async Task StopServerNow(int instance)
+    {
+        if (!_serverProcesses.TryGetValue(instance, out var watcher)) return;
+        if (GetInstanceProfile(instance) is { } profile)
+        {
+            var reason = _setup.GetReasonManualShutdown();
+            var message = string.IsNullOrWhiteSpace(profile.MessageShutdown)
+                ? _setup.GetServerShutdownNotification(reason)
+                : profile.MessageShutdown;
+            await NotifyDiscordSafe(instance, profile, message, reason);
+        }
+        await watcher.StopAsync();
+    }
+
+    /// <summary>
+    /// Countdown for a stop or restart in <paramref name="delay"/>: a first message when it starts, then the warning
+    /// times of the save that fit into the delay (restarts use the warning texts of the save, stops their own text).
+    /// </summary>
+    private Sequence BuildTimedCountdown(ServerProfile profile, TimeSpan delay, bool restart)
+    {
+        var template = restart ? _setup.Config.NotificationTimedRestart : _setup.Config.NotificationTimedStop;
+        string MessageAt(TimeSpan before) => template.Replace("{minutes}",
+            Math.Max(1, (int)Math.Ceiling(before.TotalMinutes)).ToString(System.Globalization.CultureInfo.InvariantCulture));
+
+        var times = profile.RestartWarnings.Where(x => x.Before > TimeSpan.Zero && x.Before <= delay).ToList();
+        var warnings = restart
+            ? times.ToList()
+            : times.Select(x => new RestartWarning(x.Before, MessageAt(x.Before))).ToList();
+        if (!warnings.Any(x => x.Before == delay))
+            warnings.Add(new RestartWarning(delay, MessageAt(delay)));
+
+        var sequence = new Sequence();
+        sequence.Actions.Add(new SequenceActionRestartCountdown(warnings, profile.RestartEarlyWhenEmpty));
+        if (restart)
+            sequence.Actions.Add(string.IsNullOrWhiteSpace(profile.MessageRestarted)
+                ? new SequenceActionBroadcast { Message = _setup.GetServerShutdownNotification("{reason}"), SendRCon = false }
+                : new SequenceActionBroadcast { Message = profile.MessageRestarted });
+        sequence.Actions.Add(new SequenceMainAction());
+        return sequence;
+    }
+
+    /// <summary>
     /// Macro values for messages of an instance (Discord, RCon, sequences, web panel).
     /// </summary>
     public MacroContext CreateMacroContext(int instance, string reason = "")
@@ -898,6 +992,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         
         try
         {
+            await WaitForSteamIdle();
             using(_logger.BeginScope(("mods", mods)))
                 _logger.LogInformation("Updating mods");
             await ScriptRunner.Run(_setup.Config.ScriptBeforeUpdate, string.Empty, _logger, "Before update");
@@ -933,6 +1028,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     {
         // The game client does not use the server files.
         if (IsAnyServerRunning()) return true;
+        await WaitForSteamIdle();
 
         try
         {
@@ -1167,6 +1263,9 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
 
     private async Task PerformPeriodicUpdateCheck()
     {
+        // While Steam downloads (e.g. "update all mods" from the dashboard) half written mods look corrupted: no check
+        // and no restart until it is done.
+        if (_steam.Status != SteamStatus.StandBy) return;
         var frequency = _setup.Config.UpdateCheckFrequency;
         if (frequency < TimeSpan.FromMinutes(1))
             frequency = TimeSpan.FromMinutes(1);
@@ -1223,6 +1322,25 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             await BroadcastMessage(process.Infos.Instance, announcement, discord: false);
             _lastRestartReason = _setup.GetReasonModUpdate(outdated);
             RestartServer(process.Infos.Instance);
+        }
+    }
+
+    /// <summary>
+    /// Steam runs one download at a time and refuses a second one: a restart would fail with "pre-launch update
+    /// failed" while the dashboard updates mods. Waits for the running download instead (at most an hour).
+    /// </summary>
+    private async Task WaitForSteamIdle()
+    {
+        var deadline = DateTime.UtcNow + TimeSpan.FromHours(1);
+        var logged = false;
+        while (_steam.Status != SteamStatus.StandBy && DateTime.UtcNow < deadline)
+        {
+            if (!logged)
+            {
+                _logger.LogInformation("Waiting for the running Steam download to finish");
+                logged = true;
+            }
+            await Task.Delay(1000);
         }
     }
 

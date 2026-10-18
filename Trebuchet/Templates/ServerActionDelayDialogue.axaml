@@ -1,0 +1,43 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:l="clr-namespace:Trebuchet.ViewModels.InnerContainer"
+                    xmlns:a="clr-namespace:Trebuchet.Assets"
+                    xmlns:i="https://github.com/projektanker/icons.avalonia"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <DataTemplate x:Key="ServerActionDelayDialogue" DataType="l:ServerActionDelayDialogue">
+        <StackPanel Spacing="12" MinWidth="520" MaxWidth="620">
+            <TextBlock Classes="Title" Text="{Binding Title}" />
+            <TextBlock Text="{Binding Description}" TextWrapping="Wrap" />
+            <ItemsControl ItemsSource="{Binding Presets}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel ItemSpacing="6" LineSpacing="6" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="l:DelayPreset">
+                        <Button Classes="Base" Classes.Green="{Binding !IsNow}" MinWidth="80" Command="{Binding Command}">
+                            <TextBlock Text="{Binding Label}" HorizontalAlignment="Center" />
+                        </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <TextBlock Text="{x:Static a:Resources.DelayCustom}" VerticalAlignment="Center" />
+                <NumericUpDown Value="{Binding CustomMinutes}" Minimum="1" Maximum="1440" Increment="1" FormatString="0" Width="140" />
+                <TextBlock Text="{x:Static a:Resources.DelayMinutesUnit}" VerticalAlignment="Center" />
+                <Button Classes="Base Green" HotKey="Enter" Command="{Binding ConfirmCustom}">
+                    <StackPanel Orientation="Horizontal" Spacing="3">
+                        <i:Icon Value="mdi-timer-outline" Classes="Normal" />
+                        <TextBlock Text="{x:Static a:Resources.DelayStart}" />
+                    </StackPanel>
+                </Button>
+            </StackPanel>
+            <Button Classes="Base" HorizontalAlignment="Right" HotKey="Escape" Command="{Binding CancelCommand}">
+                <StackPanel Orientation="Horizontal" Spacing="3">
+                    <i:Icon Value="mdi-cancel" Classes="Normal" />
+                    <TextBlock Text="{x:Static a:Resources.Cancel}" />
+                </StackPanel>
+            </Button>
+        </StackPanel>
+    </DataTemplate>
+</ResourceDictionary>

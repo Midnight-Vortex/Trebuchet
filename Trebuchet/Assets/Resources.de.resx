@@ -1834,4 +1834,46 @@ unten in den Server-Speicherständen und gelten für jedes Profil.
     <data name="DefaultNotificationModUpdateDetected" xml:space="preserve">
         <value>Mod-Updates gefunden: {modList}. Der Server startet zum Installieren neu.</value>
     </data>
+    <data name="ServerStopDelayTitle" xml:space="preserve">
+        <value>Server stoppen</value>
+    </data>
+    <data name="ServerStopDelayText" xml:space="preserve">
+        <value>Wann soll Instanz {0} stoppen? Bei einer Wartezeit werden die Spieler über die Nachrichten-Methode des Speicherstands gewarnt: beim Start des Countdowns und zu den Warnzeiten des Speicherstands, die in die Wartezeit passen. Ist niemand online (und „Sofort neu starten, wenn niemand online ist“ an), wird sofort gestoppt.</value>
+    </data>
+    <data name="ServerRestartDelayTitle" xml:space="preserve">
+        <value>Server neu starten</value>
+    </data>
+    <data name="ServerRestartDelayText" xml:space="preserve">
+        <value>Wann soll Instanz {0} neu starten? Bei einer Wartezeit werden die Spieler über die Nachrichten-Methode des Speicherstands gewarnt: beim Start des Countdowns und mit den Neustart-Warnungen des Speicherstands, die in die Wartezeit passen. „Sofort“ startet ohne Warnungen neu.</value>
+    </data>
+    <data name="DelayNow" xml:space="preserve">
+        <value>Sofort</value>
+    </data>
+    <data name="DelayMinutes" xml:space="preserve">
+        <value>{0} Min.</value>
+    </data>
+    <data name="DelayHours" xml:space="preserve">
+        <value>{0} Std.</value>
+    </data>
+    <data name="DelayCustom" xml:space="preserve">
+        <value>Andere Zeit:</value>
+    </data>
+    <data name="DelayMinutesUnit" xml:space="preserve">
+        <value>Minuten</value>
+    </data>
+    <data name="DelayStart" xml:space="preserve">
+        <value>Countdown starten</value>
+    </data>
+    <data name="SettingNotificationTimedRestart" xml:space="preserve">
+        <value>Neustart in X Minuten (an Spieler)</value>
+    </data>
+    <data name="SettingNotificationTimedStop" xml:space="preserve">
+        <value>Stopp in X Minuten (an Spieler)</value>
+    </data>
+    <data name="DefaultNotificationTimedRestart" xml:space="preserve">
+        <value>{servername} startet in {minutes} Min. neu. Grund: {reason}</value>
+    </data>
+    <data name="DefaultNotificationTimedStop" xml:space="preserve">
+        <value>{servername} wird in {minutes} Min. heruntergefahren. Grund: {reason}</value>
+    </data>
 </root>

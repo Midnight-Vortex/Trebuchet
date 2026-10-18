@@ -1842,4 +1842,46 @@ of Server Saves and apply to every profile.
     <data name="DefaultNotificationModUpdateDetected" xml:space="preserve">
         <value>Mod updates found: {modList}. The server restarts to install them.</value>
     </data>
+    <data name="ServerStopDelayTitle" xml:space="preserve">
+        <value>Stop server</value>
+    </data>
+    <data name="ServerStopDelayText" xml:space="preserve">
+        <value>When should instance {0} stop? With a delay, the players are warned with the message method of the save: when the countdown starts and at the warning times of the save that fit into the delay. If nobody is online (and "Restart immediately when nobody is online" is on), it stops right away.</value>
+    </data>
+    <data name="ServerRestartDelayTitle" xml:space="preserve">
+        <value>Restart server</value>
+    </data>
+    <data name="ServerRestartDelayText" xml:space="preserve">
+        <value>When should instance {0} restart? With a delay, the players are warned with the message method of the save: when the countdown starts and with the restart warnings of the save that fit into the delay. "Now" restarts without warnings.</value>
+    </data>
+    <data name="DelayNow" xml:space="preserve">
+        <value>Now</value>
+    </data>
+    <data name="DelayMinutes" xml:space="preserve">
+        <value>{0} min</value>
+    </data>
+    <data name="DelayHours" xml:space="preserve">
+        <value>{0} h</value>
+    </data>
+    <data name="DelayCustom" xml:space="preserve">
+        <value>Other time:</value>
+    </data>
+    <data name="DelayMinutesUnit" xml:space="preserve">
+        <value>minutes</value>
+    </data>
+    <data name="DelayStart" xml:space="preserve">
+        <value>Start countdown</value>
+    </data>
+    <data name="SettingNotificationTimedRestart" xml:space="preserve">
+        <value>Restart in X minutes (to players)</value>
+    </data>
+    <data name="SettingNotificationTimedStop" xml:space="preserve">
+        <value>Stop in X minutes (to players)</value>
+    </data>
+    <data name="DefaultNotificationTimedRestart" xml:space="preserve">
+        <value>{servername} restarts in {minutes} min. Reason: {reason}</value>
+    </data>
+    <data name="DefaultNotificationTimedStop" xml:space="preserve">
+        <value>{servername} shuts down in {minutes} min. Reason: {reason}</value>
+    </data>
 </root>

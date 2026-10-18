@@ -172,6 +172,9 @@ checks += await ProfileMenuChecks.Run();
         Check(config.NotificationServerCrash == "Server {serverName} ist abgestürzt", "German crash notification");
         Check(config.NotificationModUpdateDetected.StartsWith("Mod-Updates gefunden: {modList}", StringComparison.Ordinal),
             "Mod update announcement to players is localized");
+        Check(config.NotificationTimedRestart.Contains("{minutes} Min. neu", StringComparison.Ordinal)
+              && config.NotificationTimedStop.Contains("{minutes} Min. heruntergefahren", StringComparison.Ordinal),
+            "Countdown messages of a delayed stop/restart are localized");
         Check(config.NotificationServerOnline == "Mein eigener Text" && config.NotificationServerStop == string.Empty, "Custom and empty templates are kept");
         Trebuchet.Assets.Resources.Culture = System.Globalization.CultureInfo.GetCultureInfo("en");
         Check(Trebuchet.Services.LocalizedDefaults.LocalizeConfig(config) && config.NotificationServerCrash == Config.NotificationServerCrashDefault,
@@ -210,6 +213,25 @@ checks += await ProfileMenuChecks.Run();
     var canRunAgain = false;
     using (failing.Command.CanExecute.Subscribe(x => canRunAgain = x)) { }
     Check(failing.Status == "no rcon" && canRunAgain, "A failing test button shows the error and stays usable");
+}
+
+// Stop/restart delay dialogue: "now", the presets, minutes typed in, cancel.
+{
+    var dialogue = new Trebuchet.ViewModels.InnerContainer.ServerActionDelayDialogue("Stop", "When?", [5, 60]);
+    Check(dialogue.Presets.Count == 3 && dialogue.Presets[0].IsNow
+          && dialogue.Presets[2].Label == Trebuchet.ViewModels.InnerContainer.ServerActionDelayDialogue.FormatMinutes(60),
+        "Delay dialogue offers now and the presets");
+    dialogue.Presets[1].Command.Execute().Subscribe();
+    Check(dialogue.Result == TimeSpan.FromMinutes(5), "A preset chooses its delay");
+    var custom = new Trebuchet.ViewModels.InnerContainer.ServerActionDelayDialogue("Restart", "When?", [5]) { CustomMinutes = 42 };
+    custom.ConfirmCustom.Execute().Subscribe();
+    Check(custom.Result == TimeSpan.FromMinutes(42), "Minutes typed in choose the delay");
+    var now = new Trebuchet.ViewModels.InnerContainer.ServerActionDelayDialogue("Restart", "When?", [5]);
+    now.Presets[0].Command.Execute().Subscribe();
+    Check(now.Result == TimeSpan.Zero, "Now chooses no delay");
+    var cancelled = new Trebuchet.ViewModels.InnerContainer.ServerActionDelayDialogue("Restart", "When?", [5]);
+    cancelled.CancelCommand.Execute().Subscribe();
+    Check(cancelled.Result is null, "Cancel chooses nothing");
 }
 
 // Unreal log lines: only real verbosities are taken as level, "Join succeeded:" & co. stay in the message.

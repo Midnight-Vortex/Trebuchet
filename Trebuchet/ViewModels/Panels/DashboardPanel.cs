@@ -200,10 +200,15 @@ namespace Trebuchet.ViewModels.Panels
             var dashboard = GetServerInstance(instance);
             if (!dashboard.ProcessRunning) return;
 
-            _logger.LogInformation(@"Closing server {instance}", instance);
+            var dialogue = new ServerActionDelayDialogue(Resources.ServerStopDelayTitle,
+                string.Format(Resources.ServerStopDelayText, instance), [1, 5, 10, 15, 30, 60]);
+            await _box.OpenAsync(dialogue);
+            if (dialogue.Result is not { } delay) return;
+
+            _logger.LogInformation(@"Closing server {instance} in {delay}", instance, delay);
             try
             {
-                await _launcher.CloseServer(instance);
+                await _launcher.CloseServerIn(instance, delay);
             }
             catch (Exception ex)
             {
@@ -217,10 +222,15 @@ namespace Trebuchet.ViewModels.Panels
             var dashboard = GetServerInstance(instance);
             if (!dashboard.ProcessRunning) return;
 
-            _logger.LogInformation(@"Restarting server {instance}", instance);
+            var dialogue = new ServerActionDelayDialogue(Resources.ServerRestartDelayTitle,
+                string.Format(Resources.ServerRestartDelayText, instance), [1, 5, 10, 15, 30, 60, 120]);
+            await _box.OpenAsync(dialogue);
+            if (dialogue.Result is not { } delay) return;
+
+            _logger.LogInformation(@"Restarting server {instance} in {delay}", instance, delay);
             try
             {
-                await _launcher.RestartServerManualAsync(instance);
+                await _launcher.RestartServerIn(instance, delay);
             }
             catch (Exception ex)
             {

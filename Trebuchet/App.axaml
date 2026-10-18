@@ -16,6 +16,7 @@
                 <MergeResourceInclude Source="Templates\OnBoardingConfirmation.axaml" />
                 <MergeResourceInclude Source="Templates\OnBoardingChoice.axaml" />
                 <MergeResourceInclude Source="Templates\OnBoardingBranch.axaml" />
+                <MergeResourceInclude Source="Templates\ServerActionDelayDialogue.axaml" />
                 <MergeResourceInclude Source="Templates\AppSettings.axaml" />
                 <MergeResourceInclude Source="Templates\WorkshopSearchResult.axaml" />
                 <MergeResourceInclude Source="Templates\TitleField.axaml" />
@@ -96,6 +97,7 @@
         <StaticResource ResourceKey="TitleField" />
         <StaticResource ResourceKey="ToggleField" />
         <StaticResource ResourceKey="OnBoardingBranch" />
+        <StaticResource ResourceKey="ServerActionDelayDialogue" />
         <StaticResource ResourceKey="OnBoardingChoice" />
         <StaticResource ResourceKey="OnBoardingDirectory" />
         <StaticResource ResourceKey="OnBoardingProgress" />

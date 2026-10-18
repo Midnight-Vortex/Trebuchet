@@ -5249,5 +5249,131 @@ namespace Trebuchet.Assets {
                 return ResourceManager.GetString("DefaultNotificationModUpdateDetected", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Stop server.
+        /// </summary>
+        public static string ServerStopDelayTitle {
+            get {
+                return ResourceManager.GetString("ServerStopDelayTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to When should instance {0} stop? With a delay, the players are warned with the mes.
+        /// </summary>
+        public static string ServerStopDelayText {
+            get {
+                return ResourceManager.GetString("ServerStopDelayText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Restart server.
+        /// </summary>
+        public static string ServerRestartDelayTitle {
+            get {
+                return ResourceManager.GetString("ServerRestartDelayTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to When should instance {0} restart? With a delay, the players are warned with the .
+        /// </summary>
+        public static string ServerRestartDelayText {
+            get {
+                return ResourceManager.GetString("ServerRestartDelayText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Now.
+        /// </summary>
+        public static string DelayNow {
+            get {
+                return ResourceManager.GetString("DelayNow", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to {0} min.
+        /// </summary>
+        public static string DelayMinutes {
+            get {
+                return ResourceManager.GetString("DelayMinutes", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to {0} h.
+        /// </summary>
+        public static string DelayHours {
+            get {
+                return ResourceManager.GetString("DelayHours", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Other time:.
+        /// </summary>
+        public static string DelayCustom {
+            get {
+                return ResourceManager.GetString("DelayCustom", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to minutes.
+        /// </summary>
+        public static string DelayMinutesUnit {
+            get {
+                return ResourceManager.GetString("DelayMinutesUnit", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Start countdown.
+        /// </summary>
+        public static string DelayStart {
+            get {
+                return ResourceManager.GetString("DelayStart", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Restart in X minutes (to players).
+        /// </summary>
+        public static string SettingNotificationTimedRestart {
+            get {
+                return ResourceManager.GetString("SettingNotificationTimedRestart", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Stop in X minutes (to players).
+        /// </summary>
+        public static string SettingNotificationTimedStop {
+            get {
+                return ResourceManager.GetString("SettingNotificationTimedStop", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to {servername} restarts in {minutes} min. Reason: {reason}.
+        /// </summary>
+        public static string DefaultNotificationTimedRestart {
+            get {
+                return ResourceManager.GetString("DefaultNotificationTimedRestart", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to {servername} shuts down in {minutes} min. Reason: {reason}.
+        /// </summary>
+        public static string DefaultNotificationTimedStop {
+            get {
+                return ResourceManager.GetString("DefaultNotificationTimedStop", resourceCulture);
+            }
+        }
     }
 }
