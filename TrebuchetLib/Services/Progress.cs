@@ -15,12 +15,19 @@ public class Progress : IProgressCallback<DepotDownloader.Progress>
         try
         {
             await _semaphore.WaitAsync();
+        }
+        catch
+        {
+            return;
+        }
+        try
+        {
             _value = value;
             ProgressChanged?.Invoke(this, value);
         }
         catch
         {
-            return;
+            // progress display must never break a download
         }
         finally
         {

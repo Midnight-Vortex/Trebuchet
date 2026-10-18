@@ -70,7 +70,7 @@ namespace Trebuchet.ViewModels
         private void OnProgressChanged(object? sender, DepotDownloader.Progress e)
         {
             if (e.IsFile) return;
-            Dispatcher.UIThread.Invoke(() =>
+            Dispatcher.UIThread.Post(() =>
             {
                 Progress = e.Current / (double)e.Total;
                 IsIndeterminate = e.Total == 0;
@@ -125,7 +125,7 @@ namespace Trebuchet.ViewModels
 
         private void OnSteamDisconnected(object? sender, EventArgs e)
         {
-            Dispatcher.UIThread.Invoke(() =>
+            Dispatcher.UIThread.Post(() =>
             {
                 IsConnected = false;
                 CanConnect = true;
@@ -134,7 +134,7 @@ namespace Trebuchet.ViewModels
 
         private void OnSteamConnected(object? sender, EventArgs e)
         {
-            Dispatcher.UIThread.Invoke(() =>
+            Dispatcher.UIThread.Post(() =>
             {
                 IsConnected = true;
                 CanConnect = true;

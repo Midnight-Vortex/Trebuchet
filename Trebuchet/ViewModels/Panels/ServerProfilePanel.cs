@@ -8,6 +8,7 @@ using Humanizer;
 using Microsoft.Extensions.Logging;
 using ReactiveUI;
 using AppResources = Trebuchet.Assets.Resources;
+using Trebuchet.Services;
 using Trebuchet.ViewModels.InnerContainer;
 using Trebuchet.ViewModels.Sequences;
 using Trebuchet.ViewModels.SettingFields;
@@ -48,6 +49,7 @@ namespace Trebuchet.ViewModels.Panels
 
             var startingProfile = _appFiles.Server.Resolve(_uiConfig.CurrentServerProfile);
             _profile = _appFiles.Server.Get(startingProfile);
+            LocalizeStoredDefaults();
             SaveProfile = ReactiveCommand.Create(() => _profile.SaveFile());
             SaveConfig = ReactiveCommand.Create(() => _setup.Config.SaveFile());
 
@@ -87,6 +89,9 @@ namespace Trebuchet.ViewModels.Panels
             CanBeOpened = Tools.IsServerInstallValid(_setup.Config);
             if (FileMenu.Selected is not { } selected) return;
             _profile = _appFiles.Server.Get(selected);
+            // New profiles start with the English library defaults: show them in the UI language.
+            if (LocalizedDefaults.LocalizeProfile(_profile))
+                _profile.SaveFile();
             await RefreshProfileSize(selected);
             foreach (var f in Fields.OfType<IRefreshableField>())
                 f.Update.Execute().Subscribe();
@@ -146,6 +151,28 @@ namespace Trebuchet.ViewModels.Panels
             var path = _appFiles.Server.GetDirectory(profile);
             var size = await Task.Run(() => Tools.DirectorySize(path));
             ProfileSize = size.Bytes().Humanize();
+        }
+
+        /// <summary>
+        /// Untouched default texts (notifications, restart messages) follow the UI language; custom texts stay.
+        /// </summary>
+        private void LocalizeStoredDefaults()
+        {
+            try
+            {
+                if (LocalizedDefaults.LocalizeConfig(_setup.Config))
+                    _setup.Config.SaveFile();
+                foreach (var reference in _appFiles.Server.GetList())
+                {
+                    var profile = reference.Get();
+                    if (LocalizedDefaults.LocalizeProfile(profile))
+                        profile.SaveFile();
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, @"Could not localize default notification texts");
+            }
         }
 
         private MacroContext CreateMacroContext()
@@ -371,7 +398,7 @@ namespace Trebuchet.ViewModels.Panels
                 .SetGetter(() => _profile.UseRestartWarnings)
                 .SetSetter((v) => _profile.UseRestartWarnings = v)
                 .SetDefault(() => ServerProfile.UseRestartWarningsDefault);
-            var warnings = new RestartWarningsField(() => _profile, () => _profile.SaveFile())
+            var warnings = new RestartWarningsField(() => _profile, () => _profile.SaveFile(), () => LocalizedDefaults.RestartWarnings)
                 .SetTitle(AppResources.SettingServerRestartWarnings)
                 .SetDescription(AppResources.SettingServerRestartWarningsText);
             var earlyRestart = new ToggleField()
@@ -387,7 +414,7 @@ namespace Trebuchet.ViewModels.Panels
                 .SetDescription(AppResources.SettingServerMessageRestartedText)
                 .SetGetter(() => _profile.MessageRestarted)
                 .SetSetter((v) => _profile.MessageRestarted = v)
-                .SetDefault(() => ServerProfile.MessageRestartedDefault);
+                .SetDefault(() => LocalizedDefaults.RestartedMessage);
             useWarnings.WhenAnyValue(x => x.Value).Subscribe(x =>
             {
                 warnings.IsVisible = x;
@@ -647,13 +674,24 @@ namespace Trebuchet.ViewModels.Panels
                 .AddOption(@"broadcast")
                 .AddOption(@"server (Pippi)")
                 .AddOption(@"/alert")
+                .AddOption(AppResources.RConMethodCustom)
                 .SetGetter(() => _profile.RConBroadcastMethod)
                 .SetSetter((v) => _profile.RConBroadcastMethod = v)
                 .SetDefault(() => ServerProfile.RConBroadcastMethodDefault);
             Fields.Add(rconPort);
             Fields.Add(rconPass);
             Fields.Add(rconKarma);
+            var rconCustom = new TextField()
+                .WhenFieldChanged(SaveProfile)
+                .SetTitle(AppResources.SettingServerRConCustomCommand)
+                .SetDescription(AppResources.SettingServerRConCustomCommandText)
+                .SetGetter(() => _profile.RConBroadcastCustomCommand)
+                .SetSetter((v) => _profile.RConBroadcastCustomCommand = v)
+                .SetDefault(() => ServerProfile.RConBroadcastCustomCommandDefault);
             Fields.Add(rconMethod);
+            Fields.Add(rconCustom);
+            rconMethod.WhenAnyValue(x => x.Value)
+                .Subscribe(x => rconCustom.IsVisible = rcon.Value && x == ServerProfile.RConBroadcastCustom);
             rcon.WhenAnyValue(x => x.Value)
                 .Subscribe(x =>
                 {
@@ -661,6 +699,7 @@ namespace Trebuchet.ViewModels.Panels
                     rconPort.IsVisible = x;
                     rconKarma.IsVisible = x;
                     rconMethod.IsVisible = x;
+                    rconCustom.IsVisible = x && rconMethod.Value == ServerProfile.RConBroadcastCustom;
                 });
                 
             Fields.Add(new TitleField().SetTitle(AppResources.CatAntiCheat));
@@ -741,35 +780,29 @@ namespace Trebuchet.ViewModels.Panels
 
             // Notification templates are shared by all servers (moved here from the application settings).
             Fields.Add(new TitleField().SetTitle(AppResources.CatNotificationAllServers));
-            AddNotificationField(AppResources.SettingNotificationServerCrash,
-                () => _setup.Config.NotificationServerCrash, v => _setup.Config.NotificationServerCrash = v, Config.NotificationServerCrashDefault);
-            AddNotificationField(AppResources.SettingNotificationServerOnline,
-                () => _setup.Config.NotificationServerOnline, v => _setup.Config.NotificationServerOnline = v, Config.NotificationServerOnlineDefault);
-            AddNotificationField(AppResources.SettingNotificationServerStop,
-                () => _setup.Config.NotificationServerStop, v => _setup.Config.NotificationServerStop = v, Config.NotificationServerStopDefault);
-            AddNotificationField(AppResources.SettingNotificationServerManualStop,
-                () => _setup.Config.NotificationServerManualStop, v => _setup.Config.NotificationServerManualStop = v, Config.NotificationServerManualStopDefault);
-            AddNotificationField(AppResources.SettingNotificationServerManualRestart,
-                () => _setup.Config.NotificationServerManualRestart, v => _setup.Config.NotificationServerManualRestart = v, Config.NotificationServerManualRestartDefault);
-            AddNotificationField(AppResources.SettingNotificationServerAutomatedRestart,
-                () => _setup.Config.NotificationServerAutomatedRestart, v => _setup.Config.NotificationServerAutomatedRestart = v, Config.NotificationServerAutomatedRestartDefault);
-            AddNotificationField(AppResources.SettingNotificationServerModUpdate,
-                () => _setup.Config.NotificationServerModUpdate, v => _setup.Config.NotificationServerModUpdate = v, Config.NotificationServerModUpdateDefault);
-            AddNotificationField(AppResources.SettingNotificationServerServerUpdate,
-                () => _setup.Config.NotificationServerServerUpdate, v => _setup.Config.NotificationServerServerUpdate = v, Config.NotificationServerServerUpdateDefault);
-            AddNotificationField(AppResources.SettingNotificationExternalIpChanged,
-                () => _setup.Config.NotificationExternalIpChanged, v => _setup.Config.NotificationExternalIpChanged = v, Config.NotificationExternalIpChangedDefault);
-        }
-
-        private void AddNotificationField(string title, Func<string> getter, Action<string> setter, string defaultValue)
-        {
-            Fields.Add(new TextField()
-                .WhenFieldChanged(SaveConfig)
-                .SetTitle(title)
-                .SetGetter(getter)
-                .SetSetter(setter)
-                .SetDefault(() => defaultValue)
-            );
+            var titles = new Dictionary<string, string>
+            {
+                [nameof(AppResources.DefaultNotificationServerCrash)] = AppResources.SettingNotificationServerCrash,
+                [nameof(AppResources.DefaultNotificationServerOnline)] = AppResources.SettingNotificationServerOnline,
+                [nameof(AppResources.DefaultNotificationServerStop)] = AppResources.SettingNotificationServerStop,
+                [nameof(AppResources.DefaultNotificationServerManualStop)] = AppResources.SettingNotificationServerManualStop,
+                [nameof(AppResources.DefaultNotificationServerManualRestart)] = AppResources.SettingNotificationServerManualRestart,
+                [nameof(AppResources.DefaultNotificationServerAutomatedRestart)] = AppResources.SettingNotificationServerAutomatedRestart,
+                [nameof(AppResources.DefaultNotificationServerModUpdate)] = AppResources.SettingNotificationServerModUpdate,
+                [nameof(AppResources.DefaultNotificationServerServerUpdate)] = AppResources.SettingNotificationServerServerUpdate,
+                [nameof(AppResources.DefaultNotificationExternalIpChanged)] = AppResources.SettingNotificationExternalIpChanged,
+                [nameof(AppResources.DefaultNotificationCrashLoop)] = AppResources.SettingNotificationCrashLoop,
+            };
+            foreach (var (key, libraryDefault, get, set) in LocalizedDefaults.ConfigTemplates)
+            {
+                Fields.Add(new TextField()
+                    .WhenFieldChanged(SaveConfig)
+                    .SetTitle(titles.GetValueOrDefault(key, key))
+                    .SetGetter(() => get(_setup.Config))
+                    .SetSetter(v => set(_setup.Config, v))
+                    .SetDefault(() => LocalizedDefaults.Get(key, libraryDefault))
+                );
+            }
         }
     }
 }

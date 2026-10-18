@@ -55,6 +55,9 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     private string _lastRestartReason = string.Empty;
     private DateTime _lastExternalIpCheck = DateTime.MinValue;
     private readonly HashSet<int> _countdownInstances = [];
+    public const int CrashRestartLimit = 3;
+    public static readonly TimeSpan CrashRestartWindow = TimeSpan.FromMinutes(15);
+    private readonly CrashRestartGuard _crashGuard = new(CrashRestartLimit, CrashRestartWindow);
 
     public event EventHandler? StateChanged;
     public event EventHandler<SequenceProgress>? SequenceProgressChanged; 
@@ -350,6 +353,24 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             }
             await watcher.RestartAsync();
         }
+    }
+
+    /// <summary>
+    /// Crash loop protection for 24/7 operation: a server crashing again and again (broken mod, bad config, port in
+    /// use) is restarted at most <see cref="CrashRestartLimit"/> times per <see cref="CrashRestartWindow"/>.
+    /// </summary>
+    public bool AllowCrashRestart(int instance) => _crashGuard.Allow(instance, DateTime.UtcNow);
+
+    private async Task NotifyCrashLoop(int instance, ServerProfile profile)
+    {
+        _logger.LogError("Server instance {Instance} crashed {Count} times within {Minutes} minutes, automatic restart paused",
+            instance, CrashRestartLimit, CrashRestartWindow.TotalMinutes);
+        await NotifyDiscordSafe(instance, profile, _setup.Config.NotificationCrashLoop,
+            configure: ctx =>
+            {
+                ctx.Extra["count"] = CrashRestartLimit.ToString();
+                ctx.Extra["minutes"] = ((int)CrashRestartWindow.TotalMinutes).ToString();
+            });
     }
 
     /// <summary>
@@ -1547,10 +1568,14 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             try
             {
                 var name = _appFiles.Server.Resolve(_setup.Config.GetInstanceProfile(server.Key));
-                if ((server.Value.State == ProcessState.CRASHED && _appFiles.Server.Get(name).RestartWhenDown)
-                    || server.Value.RequestRestart)
-                {
+                if (server.Value.RequestRestart)
                     await CatapultServer(server.Key);
+                else if (server.Value.State == ProcessState.CRASHED && _appFiles.Server.Get(name).RestartWhenDown)
+                {
+                    if (AllowCrashRestart(server.Key))
+                        await CatapultServer(server.Key);
+                    else
+                        await NotifyCrashLoop(server.Key, _appFiles.Server.Get(name));
                 }
             }
             catch (Exception ex)

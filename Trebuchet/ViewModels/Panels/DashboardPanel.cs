@@ -309,6 +309,7 @@ namespace Trebuchet.ViewModels.Panels
         public async Task TickPanel()
         {
             await _launcher.Tick();
+            Utils.PowerManagement.KeepAwake(_uiConfig.KeepSystemAwake && _launcher.IsAnyServerRunning());
 
             if (Client.SelectedModlist is not null)
                 Client.UpdateNeeded = _launcher.HasModListUpdates(Client.SelectedModlist.ModList);

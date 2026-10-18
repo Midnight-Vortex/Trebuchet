@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Reactive;
@@ -12,10 +13,11 @@ namespace Trebuchet.ViewModels.SettingFields;
 /// </summary>
 public class RestartWarningsField : DescriptiveElement<RestartWarningsField>, IRefreshableField
 {
-    public RestartWarningsField(Func<ServerProfile> profile, Action save)
+    public RestartWarningsField(Func<ServerProfile> profile, Action save, Func<List<RestartWarning>> defaults)
     {
         _profile = profile;
         _save = save;
+        _defaults = defaults;
 
         Add = ReactiveCommand.Create(() =>
         {
@@ -31,7 +33,7 @@ public class RestartWarningsField : DescriptiveElement<RestartWarningsField>, IR
         });
         ResetDefaults = ReactiveCommand.Create(() =>
         {
-            Load(ServerProfile.RestartWarningsDefault);
+            Load(_defaults());
             Commit();
         });
         Update = ReactiveCommand.Create(() => Load(_profile().RestartWarnings));
@@ -41,6 +43,7 @@ public class RestartWarningsField : DescriptiveElement<RestartWarningsField>, IR
 
     private readonly Func<ServerProfile> _profile;
     private readonly Action _save;
+    private readonly Func<List<RestartWarning>> _defaults;
     private bool _isVisible = true;
     private bool _loading;
 

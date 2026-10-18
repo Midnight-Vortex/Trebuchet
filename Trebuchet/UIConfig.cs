@@ -16,6 +16,8 @@ namespace Trebuchet
         public int PlateformTheme { get; set; } = PlatformThemeDefault;
         public bool Experiments { get; set; } = ExperimentsDefault;
         public bool DebugMode { get; set; } = DebugModeDefault;
+        public bool AutoRestartAfterCrash { get; set; } = AutoRestartAfterCrashDefault;
+        public bool KeepSystemAwake { get; set; } = KeepSystemAwakeDefault;
         /// <summary>Last commands/messages sent from the server console (DSL keeps 50).</summary>
         public System.Collections.Generic.List<string> ConsoleHistory { get; set; } = [];
 
@@ -41,6 +43,8 @@ namespace Trebuchet
             }
         }
 
+        public static readonly bool AutoRestartAfterCrashDefault = true;
+        public static readonly bool KeepSystemAwakeDefault = true;
         public static readonly bool DisplayProcessPerformanceDefault = true;
         public static readonly bool DisplayWarningOnKillDefault = true;
         public static readonly string UICultureDefault = string.Empty;

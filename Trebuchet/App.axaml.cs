@@ -290,6 +290,10 @@ public partial class App : Application, IApplication
                     logTemplate,
                     Path.Combine(Constants.GetLoggingDirectory().FullName, @"app.log"),
                     retainedFileTimeLimit: TimeSpan.FromDays(7),
+                    // 24/7: never stop logging at Serilog's 1 GB default, roll into new files instead.
+                    fileSizeLimitBytes: 50L * 1024 * 1024,
+                    rollOnFileSizeLimit: true,
+                    retainedFileCountLimit: 60,
                     rollingInterval: RollingInterval.Day)
                 .Filter.ByExcluding(Matching.WithProperty<ConsoleLogSource>(@"TrebSource", _ => true))
             );
@@ -301,6 +305,9 @@ public partial class App : Application, IApplication
                     logTemplate,
                     Path.Combine(installLogDir!, "debug-.log"),
                     retainedFileTimeLimit: TimeSpan.FromDays(14),
+                    fileSizeLimitBytes: 100L * 1024 * 1024,
+                    rollOnFileSizeLimit: true,
+                    retainedFileCountLimit: 100,
                     rollingInterval: RollingInterval.Day)
                 .Filter.ByExcluding(Matching.WithProperty<ConsoleLogSource>(@"TrebSource", _ => true))
             );
@@ -415,15 +422,17 @@ public partial class App : Application, IApplication
         }
     }
 
-    private async void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
+    private void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
     {
+        // A forgotten background task failing is not fatal in .NET: log it and keep the 24/7 automation running.
+        e.SetObserved();
         try
         {
-            await App.HandleAppCrash(e.Exception);
+            _logger?.LogError(e.Exception, @"Unobserved task exception");
         }
-        catch(Exception ex)
+        catch
         {
-            _logger?.LogCritical(ex, @"OnUnobservedTaskException");
+            // logging must never throw here
         }
     }
     
@@ -445,6 +454,67 @@ public partial class App : Application, IApplication
                 });
             }
         }
+        // Synchronous on purpose: for a crash on a background thread the process ends at the first await.
+        if (TryRestartAfterCrash(ex, logs)) return;
         await CrashHandler.Handle(ex, logs);
+    }
+
+    /// <summary>
+    /// 24/7 operation: save the crash report and start a new Trebuchet instead of waiting on a modal crash window.
+    /// The servers keep running and are attached again. Falls back to the window after 3 crashes in 30 minutes.
+    /// </summary>
+    private bool TryRestartAfterCrash(Exception ex, List<CrashHandlerLog> logs)
+    {
+        try
+        {
+            if (_uiConfig is not { AutoRestartAfterCrash: true } || _serviceProvider is null) return false;
+            var processPath = Environment.ProcessPath;
+            if (string.IsNullOrEmpty(processPath)) return false;
+
+            var historyPath = Path.Combine(AppSetup.GetAppConfigDirectory().FullName, @"crash-restarts.json");
+            var history = File.Exists(historyPath)
+                ? System.Text.Json.JsonSerializer.Deserialize<List<DateTime>>(File.ReadAllText(historyPath)) ?? []
+                : [];
+            history = history.Where(x => DateTime.UtcNow - x < TimeSpan.FromMinutes(30)).ToList();
+            if (history.Count >= 3)
+            {
+                _logger?.LogCritical(@"Trebuchet crashed {Count} times within 30 minutes, not restarting automatically", history.Count);
+                return false;
+            }
+            history.Add(DateTime.UtcNow);
+            File.WriteAllText(historyPath, System.Text.Json.JsonSerializer.Serialize(history));
+
+            var reportPath = Path.Combine(Constants.GetLoggingDirectory().FullName, $@"crash-{DateTime.Now:yyyyMMdd-HHmmss}.json");
+            File.WriteAllText(reportPath, System.Text.Json.JsonSerializer.Serialize(new
+            {
+                Message = ex.Message,
+                Exception = ex.ToString(),
+                Version = TrebuchetApp.VersionHeader,
+                Logs = logs
+            }, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+
+            var setup = _serviceProvider.GetRequiredService<AppSetup>();
+            var arguments = Environment.GetCommandLineArgs().Skip(1).Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
+            foreach (var editionArg in Constants.GetCliArg(setup.Edition).Split(' ', StringSplitOptions.RemoveEmptyEntries))
+                if (!arguments.Contains(editionArg)) arguments.Add(editionArg);
+            if (!arguments.Contains(AppConstants.RestartArg)) arguments.Add(AppConstants.RestartArg);
+
+            var start = new ProcessStartInfo(processPath) { UseShellExecute = false };
+            foreach (var argument in arguments) start.ArgumentList.Add(argument);
+            Process.Start(start);
+            _logger?.LogCritical(ex, @"Trebuchet crashed and restarted itself, report: {Report}", reportPath);
+            Log.CloseAndFlush();
+
+            if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+                desktop.Shutdown(1);
+            else
+                Environment.Exit(1);
+            return true;
+        }
+        catch (Exception restartError)
+        {
+            _logger?.LogError(restartError, @"Automatic restart after the crash failed");
+            return false;
+        }
     }
 }

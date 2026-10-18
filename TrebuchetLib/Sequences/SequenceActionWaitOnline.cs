@@ -18,8 +18,9 @@ public class SequenceActionWaitOnline : ISequenceAction
             return;
         }
 
-        while (process.State != ProcessState.ONLINE && (DateTime.UtcNow - start) < TimeOut)
-            await Task.Delay(25);
+        // 500 ms is plenty for a state refreshed every 2 s; stop early if the server died while starting.
+        while (process.State != ProcessState.ONLINE && process.State.IsRunning() && (DateTime.UtcNow - start) < TimeOut)
+            await Task.Delay(500, args.CancellationToken);
         
         if(CancelOnFailure && process.State != ProcessState.ONLINE)
             throw new OperationCanceledException("Server failed to get online");

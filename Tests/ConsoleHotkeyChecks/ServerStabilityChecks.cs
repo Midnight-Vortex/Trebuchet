@@ -141,6 +141,14 @@ static class ServerStabilityChecks
         TrebuchetLib.YuuIni.YuuIniServerFiles.ApplyServerSettings(voiceSetup, voiceProfile, settingsIni);
         Check(settingsIni.ToString().Replace(" = ", "=").Contains("serverVoiceChat=1"), "Voice chat on writes serverVoiceChat=1");
 
+        // Crash loop protection: 3 automatic restarts per 15 minutes, then paused until the window passed.
+        var guard = new CrashRestartGuard(3, TimeSpan.FromMinutes(15));
+        var t0 = new DateTime(2026, 10, 18, 12, 0, 0, DateTimeKind.Utc);
+        Check(guard.Allow(0, t0) && guard.Allow(0, t0.AddMinutes(1)) && guard.Allow(0, t0.AddMinutes(2)), "First crashes are restarted");
+        Check(!guard.Allow(0, t0.AddMinutes(3)), "A crash loop pauses the automatic restart");
+        Check(guard.Allow(1, t0.AddMinutes(3)), "Other instances are not affected");
+        Check(guard.Allow(0, t0.AddMinutes(17)), "Restarts are allowed again once the window passed");
+
         // Warnings and message method.
         var warningProfile = new ServerProfile();
         Check(!warningProfile.UseRestartWarnings && warningProfile.RestartWarnings.Count == 3
@@ -150,6 +158,10 @@ static class ServerStabilityChecks
         Check(warningProfile.GetRConBroadcastCommand() == "server", "Pippi server method");
         warningProfile.RConBroadcastMethod = 2;
         Check(warningProfile.GetRConBroadcastCommand() == "/alert", "Alert method");
+        warningProfile.RConBroadcastMethod = ServerProfile.RConBroadcastCustom;
+        Check(warningProfile.GetRConBroadcastCommand() == "broadcast", "Empty custom command falls back to broadcast");
+        warningProfile.RConBroadcastCustomCommand = " totchat ";
+        Check(warningProfile.GetRConBroadcastCommand() == "totchat", "Custom chat mod command is used");
         var json = System.Text.Json.JsonSerializer.Serialize(new TrebuchetLib.Sequences.Sequence
         {
             Actions = [new TrebuchetLib.Sequences.SequenceActionBroadcast { Message = "hi {servername}" }]

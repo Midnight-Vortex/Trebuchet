@@ -1553,7 +1553,7 @@ The stopping sequence will be used in place of simply stopping the server. This 
         <value>Message method</value>
     </data>
     <data name="SettingServerRConBroadcastMethodText" xml:space="preserve">
-        <value>RCon command used for messages to players: broadcast (message box), server (chat, needs the Pippi mod) or /alert.</value>
+        <value>RCon command used for messages to players: broadcast (popup, works with every chat mod), server (vanilla chat, needs the Pippi mod, hidden by chat mods that replace the vanilla chat such as Tot ! Enhanced Chat), /alert (alert command of Tot ! Chat, shown to everyone in the current channel; whether Tot ! Enhanced Chat accepts it over RCon has to be tested on the server), or a custom command added by a mod.</value>
     </data>
     <data name="SettingServerBackupOnShutdown" xml:space="preserve">
         <value>Backup on shutdown</value>
@@ -1668,5 +1668,71 @@ The stopping sequence will be used in place of simply stopping the server. This 
     </data>
     <data name="VoiceChatEnabled" xml:space="preserve">
         <value>On</value>
+    </data>
+    <data name="DefaultNotificationServerCrash" xml:space="preserve">
+        <value>Server {serverName} has crashed</value>
+    </data>
+    <data name="DefaultNotificationServerOnline" xml:space="preserve">
+        <value>Server {serverName} is now online</value>
+    </data>
+    <data name="DefaultNotificationServerStop" xml:space="preserve">
+        <value>Server Shutdown: {Reason}</value>
+    </data>
+    <data name="DefaultNotificationServerManualStop" xml:space="preserve">
+        <value>Manual shutdown requested</value>
+    </data>
+    <data name="DefaultNotificationServerManualRestart" xml:space="preserve">
+        <value>Manual restart requested</value>
+    </data>
+    <data name="DefaultNotificationServerAutomatedRestart" xml:space="preserve">
+        <value>Automated Restart</value>
+    </data>
+    <data name="DefaultNotificationServerModUpdate" xml:space="preserve">
+        <value>Mod update detected: {modList}</value>
+    </data>
+    <data name="DefaultNotificationServerServerUpdate" xml:space="preserve">
+        <value>Game update detected</value>
+    </data>
+    <data name="DefaultNotificationExternalIpChanged" xml:space="preserve">
+        <value>The external IP address of {servername} changed from {old_ip} to {ip}</value>
+    </data>
+    <data name="DefaultNotificationCrashLoop" xml:space="preserve">
+        <value>Server {servername} crashed {count} times within {minutes} minutes, automatic restart is paused. Check the logs and start it manually.</value>
+    </data>
+    <data name="DefaultMessageRestarted" xml:space="preserve">
+        <value>Restarting the server... Reason: {reason}</value>
+    </data>
+    <data name="DefaultRestartWarning1" xml:space="preserve">
+        <value>The server will restart in 5 minutes... Reason: {reason}</value>
+    </data>
+    <data name="DefaultRestartWarning2" xml:space="preserve">
+        <value>3 minutes before server restart! Reason: {reason}</value>
+    </data>
+    <data name="DefaultRestartWarning3" xml:space="preserve">
+        <value>ONE MINUTE BEFORE RESTART, GET SAFE! Reason: {reason}</value>
+    </data>
+    <data name="SettingNotificationCrashLoop" xml:space="preserve">
+        <value>Crash loop (automatic restart paused)</value>
+    </data>
+    <data name="SettingAutoRestartAfterCrash" xml:space="preserve">
+        <value>Restart Trebuchet after a crash</value>
+    </data>
+    <data name="SettingAutoRestartAfterCrashText" xml:space="preserve">
+        <value>For unattended 24/7 operation: if Trebuchet itself crashes, the crash report is saved to the logs folder and Trebuchet restarts on its own (servers keep running and are picked up again). After 3 crashes within 30 minutes the crash window is shown instead.</value>
+    </data>
+    <data name="SettingKeepSystemAwake" xml:space="preserve">
+        <value>Keep Windows awake while servers run</value>
+    </data>
+    <data name="SettingKeepSystemAwakeText" xml:space="preserve">
+        <value>Prevents standby/sleep while at least one server is running (the screen may still turn off).</value>
+    </data>
+    <data name="RConMethodCustom" xml:space="preserve">
+        <value>Custom command (chat mod)</value>
+    </data>
+    <data name="SettingServerRConCustomCommand" xml:space="preserve">
+        <value>Custom message command</value>
+    </data>
+    <data name="SettingServerRConCustomCommandText" xml:space="preserve">
+        <value>RCon command added by a mod, the message is appended after a space (e.g. "totchat" sends "totchat &lt;message&gt;"). Tot ! Enhanced Chat replaces the vanilla chat and has no RCon command of its own: messages only reach it through a bridge mod that calls its channel API (Tot_I_ChatChannel.SendMessage with sender 0). Until then use broadcast, its popup is not hidden by the chat mod.</value>
     </data>
 </root>

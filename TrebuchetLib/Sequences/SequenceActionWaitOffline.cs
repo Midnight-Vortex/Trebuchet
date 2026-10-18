@@ -11,7 +11,7 @@ public class SequenceActionWaitOffline : ISequenceAction
         var start = DateTime.UtcNow;
         while (args.Launcher.GetServerProcesses().Any(x => x.Infos.Instance == args.Instance) 
                && (DateTime.UtcNow - start) < TimeOut)
-            await Task.Delay(25);
+            await Task.Delay(500, args.CancellationToken);
         if(CancelOnFailure && args.Launcher.GetServerProcesses().Any(x => x.Infos.Instance == args.Instance) )
             throw new OperationCanceledException("Server failed to get offline");
     }

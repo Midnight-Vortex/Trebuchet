@@ -114,6 +114,8 @@ internal sealed class ConanServerProcess : IConanServerProcess
         try { Process.Dispose(); } catch { /* best effort */ }
         try { SourceQueryReader.Dispose(); } catch { /* best effort */ }
         try { _logReader.Dispose(); } catch { /* best effort */ }
+        // One RCon client per server run: without this every restart leaked an open socket.
+        try { (RCon as IDisposable)?.Dispose(); } catch { /* best effort */ }
     }
 
     public async Task RefreshAsync()

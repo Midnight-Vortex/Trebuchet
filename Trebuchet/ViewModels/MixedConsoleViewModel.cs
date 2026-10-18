@@ -87,9 +87,19 @@ public class MixedConsoleViewModel : ReactiveObject, IScrollController
 
     private Task OnSinkLogReceived(object? sender, IReadOnlyCollection<LogEvent> args)
     {
-        Dispatcher.UIThread.Invoke(() =>
+        // Post, never Invoke: the logging pipeline must not wait on a busy UI thread.
+        // The batch may be reused by Serilog once this returns, so take a copy first.
+        var events = args.ToList();
+        Dispatcher.UIThread.Post(() =>
         {
-            WriteLogs(args);
+            try
+            {
+                WriteLogs(events);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, @"Could not display log events");
+            }
         });
         return Task.CompletedTask;
     }

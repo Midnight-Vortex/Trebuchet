@@ -4850,5 +4850,203 @@ namespace Trebuchet.Assets {
                 return ResourceManager.GetString("VoiceChatEnabled", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Server {serverName} has crashed.
+        /// </summary>
+        public static string DefaultNotificationServerCrash {
+            get {
+                return ResourceManager.GetString("DefaultNotificationServerCrash", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Server {serverName} is now online.
+        /// </summary>
+        public static string DefaultNotificationServerOnline {
+            get {
+                return ResourceManager.GetString("DefaultNotificationServerOnline", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Server Shutdown: {Reason}.
+        /// </summary>
+        public static string DefaultNotificationServerStop {
+            get {
+                return ResourceManager.GetString("DefaultNotificationServerStop", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Manual shutdown requested.
+        /// </summary>
+        public static string DefaultNotificationServerManualStop {
+            get {
+                return ResourceManager.GetString("DefaultNotificationServerManualStop", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Manual restart requested.
+        /// </summary>
+        public static string DefaultNotificationServerManualRestart {
+            get {
+                return ResourceManager.GetString("DefaultNotificationServerManualRestart", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Automated Restart.
+        /// </summary>
+        public static string DefaultNotificationServerAutomatedRestart {
+            get {
+                return ResourceManager.GetString("DefaultNotificationServerAutomatedRestart", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Mod update detected: {modList}.
+        /// </summary>
+        public static string DefaultNotificationServerModUpdate {
+            get {
+                return ResourceManager.GetString("DefaultNotificationServerModUpdate", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Game update detected.
+        /// </summary>
+        public static string DefaultNotificationServerServerUpdate {
+            get {
+                return ResourceManager.GetString("DefaultNotificationServerServerUpdate", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The external IP address of {servername} changed from {old_ip} to {ip}.
+        /// </summary>
+        public static string DefaultNotificationExternalIpChanged {
+            get {
+                return ResourceManager.GetString("DefaultNotificationExternalIpChanged", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Server {servername} crashed {count} times within {minutes} minutes, automatic re.
+        /// </summary>
+        public static string DefaultNotificationCrashLoop {
+            get {
+                return ResourceManager.GetString("DefaultNotificationCrashLoop", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Restarting the server... Reason: {reason}.
+        /// </summary>
+        public static string DefaultMessageRestarted {
+            get {
+                return ResourceManager.GetString("DefaultMessageRestarted", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The server will restart in 5 minutes... Reason: {reason}.
+        /// </summary>
+        public static string DefaultRestartWarning1 {
+            get {
+                return ResourceManager.GetString("DefaultRestartWarning1", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to 3 minutes before server restart! Reason: {reason}.
+        /// </summary>
+        public static string DefaultRestartWarning2 {
+            get {
+                return ResourceManager.GetString("DefaultRestartWarning2", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ONE MINUTE BEFORE RESTART, GET SAFE! Reason: {reason}.
+        /// </summary>
+        public static string DefaultRestartWarning3 {
+            get {
+                return ResourceManager.GetString("DefaultRestartWarning3", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Crash loop (automatic restart paused).
+        /// </summary>
+        public static string SettingNotificationCrashLoop {
+            get {
+                return ResourceManager.GetString("SettingNotificationCrashLoop", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Restart Trebuchet after a crash.
+        /// </summary>
+        public static string SettingAutoRestartAfterCrash {
+            get {
+                return ResourceManager.GetString("SettingAutoRestartAfterCrash", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to For unattended 24/7 operation: if Trebuchet itself crashes, the crash report is .
+        /// </summary>
+        public static string SettingAutoRestartAfterCrashText {
+            get {
+                return ResourceManager.GetString("SettingAutoRestartAfterCrashText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Keep Windows awake while servers run.
+        /// </summary>
+        public static string SettingKeepSystemAwake {
+            get {
+                return ResourceManager.GetString("SettingKeepSystemAwake", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Prevents standby/sleep while at least one server is running (the screen may stil.
+        /// </summary>
+        public static string SettingKeepSystemAwakeText {
+            get {
+                return ResourceManager.GetString("SettingKeepSystemAwakeText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Custom command (chat mod).
+        /// </summary>
+        public static string RConMethodCustom {
+            get {
+                return ResourceManager.GetString("RConMethodCustom", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Custom message command.
+        /// </summary>
+        public static string SettingServerRConCustomCommand {
+            get {
+                return ResourceManager.GetString("SettingServerRConCustomCommand", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to RCon command added by a mod, the message is appended after a space (e.g. "totcha.
+        /// </summary>
+        public static string SettingServerRConCustomCommandText {
+            get {
+                return ResourceManager.GetString("SettingServerRConCustomCommandText", resourceCulture);
+            }
+        }
     }
 }

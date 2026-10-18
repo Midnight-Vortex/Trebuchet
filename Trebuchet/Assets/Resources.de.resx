@@ -1233,7 +1233,7 @@ WARNUNG: Dies kann dazu führen, dass die Erkennung von Zombie-Prozessen nicht m
         <value>Nachrichten-Methode</value>
     </data>
     <data name="SettingServerRConBroadcastMethodText" xml:space="preserve">
-        <value>RCon-Befehl für Nachrichten an Spieler: broadcast (Meldungsfenster), server (Chat, braucht den Pippi-Mod) oder /alert.</value>
+        <value>RCon-Befehl für Nachrichten an Spieler: broadcast (Popup, funktioniert mit jedem Chat-Mod), server (Vanilla-Chat, braucht den Pippi-Mod; unsichtbar bei Chat-Mods, die den Vanilla-Chat ersetzen, z. B. Tot ! Enhanced Chat), /alert (Alarm-Befehl von Tot ! Chat, für alle im aktuellen Kanal sichtbar; ob Tot ! Enhanced Chat ihn über RCon annimmt, muss auf dem Server getestet werden) oder ein eigener Befehl aus einem Mod.</value>
     </data>
     <data name="SettingServerBackupOnShutdown" xml:space="preserve">
         <value>Backup beim Herunterfahren</value>
@@ -1660,5 +1660,71 @@ Die Stopp-Sequenz ersetzt das einfache Stoppen des Servers. So kannst du Aktione
     </data>
     <data name="VoiceChatEnabled" xml:space="preserve">
         <value>An</value>
+    </data>
+    <data name="DefaultNotificationServerCrash" xml:space="preserve">
+        <value>Server {serverName} ist abgestürzt</value>
+    </data>
+    <data name="DefaultNotificationServerOnline" xml:space="preserve">
+        <value>Server {serverName} ist jetzt online</value>
+    </data>
+    <data name="DefaultNotificationServerStop" xml:space="preserve">
+        <value>Server wird heruntergefahren: {Reason}</value>
+    </data>
+    <data name="DefaultNotificationServerManualStop" xml:space="preserve">
+        <value>Manuelles Herunterfahren angefordert</value>
+    </data>
+    <data name="DefaultNotificationServerManualRestart" xml:space="preserve">
+        <value>Manueller Neustart angefordert</value>
+    </data>
+    <data name="DefaultNotificationServerAutomatedRestart" xml:space="preserve">
+        <value>Automatischer Neustart</value>
+    </data>
+    <data name="DefaultNotificationServerModUpdate" xml:space="preserve">
+        <value>Mod-Update erkannt: {modList}</value>
+    </data>
+    <data name="DefaultNotificationServerServerUpdate" xml:space="preserve">
+        <value>Spiel-Update erkannt</value>
+    </data>
+    <data name="DefaultNotificationExternalIpChanged" xml:space="preserve">
+        <value>Die externe IP-Adresse von {servername} hat sich von {old_ip} auf {ip} geändert</value>
+    </data>
+    <data name="DefaultNotificationCrashLoop" xml:space="preserve">
+        <value>Server {servername} ist innerhalb von {minutes} Minuten {count}-mal abgestürzt, der automatische Neustart ist pausiert. Bitte die Logs prüfen und den Server manuell starten.</value>
+    </data>
+    <data name="DefaultMessageRestarted" xml:space="preserve">
+        <value>Der Server wird neu gestartet... Grund: {reason}</value>
+    </data>
+    <data name="DefaultRestartWarning1" xml:space="preserve">
+        <value>Der Server startet in 5 Minuten neu... Grund: {reason}</value>
+    </data>
+    <data name="DefaultRestartWarning2" xml:space="preserve">
+        <value>Noch 3 Minuten bis zum Server-Neustart! Grund: {reason}</value>
+    </data>
+    <data name="DefaultRestartWarning3" xml:space="preserve">
+        <value>NOCH EINE MINUTE BIS ZUM NEUSTART, BRING DICH IN SICHERHEIT! Grund: {reason}</value>
+    </data>
+    <data name="SettingNotificationCrashLoop" xml:space="preserve">
+        <value>Absturzschleife (automatischer Neustart pausiert)</value>
+    </data>
+    <data name="SettingAutoRestartAfterCrash" xml:space="preserve">
+        <value>Trebuchet nach einem Absturz neu starten</value>
+    </data>
+    <data name="SettingAutoRestartAfterCrashText" xml:space="preserve">
+        <value>Für den unbeaufsichtigten 24/7-Betrieb: Stürzt Trebuchet selbst ab, wird der Absturzbericht im Log-Ordner gespeichert und Trebuchet startet von selbst neu (die Server laufen weiter und werden wieder übernommen). Nach 3 Abstürzen innerhalb von 30 Minuten erscheint stattdessen das Absturzfenster.</value>
+    </data>
+    <data name="SettingKeepSystemAwake" xml:space="preserve">
+        <value>Windows wach halten, solange Server laufen</value>
+    </data>
+    <data name="SettingKeepSystemAwakeText" xml:space="preserve">
+        <value>Verhindert Standby/Ruhezustand, solange mindestens ein Server läuft (der Bildschirm darf sich trotzdem abschalten).</value>
+    </data>
+    <data name="RConMethodCustom" xml:space="preserve">
+        <value>Eigener Befehl (Chat-Mod)</value>
+    </data>
+    <data name="SettingServerRConCustomCommand" xml:space="preserve">
+        <value>Eigener Nachrichten-Befehl</value>
+    </data>
+    <data name="SettingServerRConCustomCommandText" xml:space="preserve">
+        <value>RCon-Befehl aus einem Mod, die Nachricht wird nach einem Leerzeichen angehängt (z. B. „totchat“ sendet „totchat &lt;Nachricht&gt;“). Tot ! Enhanced Chat ersetzt den Vanilla-Chat und hat selbst keinen RCon-Befehl: Nachrichten erreichen ihn nur über einen Brücken-Mod, der seine Kanal-API aufruft (Tot_I_ChatChannel.SendMessage mit Absender 0). Bis dahin broadcast verwenden, dessen Popup wird vom Chat-Mod nicht ausgeblendet.</value>
     </data>
 </root>

@@ -228,6 +228,22 @@ public class SettingsPanel : ReactiveObject, IRefreshablePanel, IRefreshingPanel
             );
         Fields.Add(new ToggleField()
             .WhenFieldChanged(SaveUiConfig)
+            .SetTitle(Resources.SettingAutoRestartAfterCrash)
+            .SetDescription(Resources.SettingAutoRestartAfterCrashText)
+            .SetGetter(() => _uiConfig.AutoRestartAfterCrash)
+            .SetSetter((v) => _uiConfig.AutoRestartAfterCrash = v)
+            .SetDefault(() => UIConfig.AutoRestartAfterCrashDefault)
+        );
+        Fields.Add(new ToggleField()
+            .WhenFieldChanged(SaveUiConfig)
+            .SetTitle(Resources.SettingKeepSystemAwake)
+            .SetDescription(Resources.SettingKeepSystemAwakeText)
+            .SetGetter(() => _uiConfig.KeepSystemAwake)
+            .SetSetter((v) => _uiConfig.KeepSystemAwake = v)
+            .SetDefault(() => UIConfig.KeepSystemAwakeDefault)
+        );
+        Fields.Add(new ToggleField()
+            .WhenFieldChanged(SaveUiConfig)
             .SetTitle(Resources.SettingDisplayWarningOnKill)
             .SetDescription(Resources.SettingDisplayWarningOnKillText)
             .SetGetter(() => _uiConfig.DisplayWarningOnKill)

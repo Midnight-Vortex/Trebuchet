@@ -145,6 +145,46 @@ checks += await ProfileMenuChecks.Run();
     Check(sequenceEditor.ActionTypes.All(x => x.Label != "INVALID" && x.Label != x.Type.Name), "Every sequence action has a translated label");
 }
 
+// 24/7 console buffer: bounded, keeps the newest text, appends without rebuilding the whole text each time.
+{
+    var writer = new Trebuchet.ConsoleWriter(500, 1000);
+    var flushed = 0;
+    writer.TextFlushed += (_, text) => flushed += text.Length;
+    for (var i = 0; i < 300; i++) writer.Write($"line {i:D4} ");
+    writer.Flush();
+    Check(writer.Text.Length == 1000 && writer.Text.EndsWith("line 0299 ", StringComparison.Ordinal), "Console text keeps the newest characters only");
+    Check(flushed == 300 * 10, "Every written character is flushed once to the view");
+    writer.Write(new string('x', 1234));
+    writer.Flush();
+    Check(writer.Text.Length == 1000 && writer.Text.EndsWith("xxx", StringComparison.Ordinal), "Strings longer than the buffer are written in chunks");
+    writer.Clear();
+    Check(writer.Text.Length == 0, "Clear empties the console");
+}
+
+// Default notification texts follow the UI language, custom and empty texts stay.
+{
+    var previousCulture = Trebuchet.Assets.Resources.Culture;
+    try
+    {
+        Trebuchet.Assets.Resources.Culture = System.Globalization.CultureInfo.GetCultureInfo("de");
+        var config = new Config { NotificationServerOnline = "Mein eigener Text", NotificationServerStop = string.Empty };
+        Check(Trebuchet.Services.LocalizedDefaults.LocalizeConfig(config), "Untouched English defaults are localized");
+        Check(config.NotificationServerCrash == "Server {serverName} ist abgestürzt", "German crash notification");
+        Check(config.NotificationServerOnline == "Mein eigener Text" && config.NotificationServerStop == string.Empty, "Custom and empty templates are kept");
+        Trebuchet.Assets.Resources.Culture = System.Globalization.CultureInfo.GetCultureInfo("en");
+        Check(Trebuchet.Services.LocalizedDefaults.LocalizeConfig(config) && config.NotificationServerCrash == Config.NotificationServerCrashDefault,
+            "Switching back to English restores the English defaults");
+        Trebuchet.Assets.Resources.Culture = System.Globalization.CultureInfo.GetCultureInfo("de");
+        var profile = new ServerProfile();
+        Check(Trebuchet.Services.LocalizedDefaults.LocalizeProfile(profile) && profile.MessageRestarted.StartsWith("Der Server wird neu gestartet", StringComparison.Ordinal)
+              && profile.RestartWarnings[0].Message.StartsWith("Der Server startet in 5 Minuten", StringComparison.Ordinal), "Profile default messages are localized");
+    }
+    finally
+    {
+        Trebuchet.Assets.Resources.Culture = previousCulture;
+    }
+}
+
 // Every English UI text has a German translation (the language setting must switch the whole UI).
 {
     var manager = Trebuchet.Assets.Resources.ResourceManager;

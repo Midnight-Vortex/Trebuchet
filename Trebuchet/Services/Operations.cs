@@ -148,27 +148,55 @@ public class Operations : IDisposable
             Tools.CreateDir(path);
 
         _modWatcher = new FileSystemWatcher(path);
+        // LastAccess/Security were pure noise (reading paks while servers run); a larger buffer survives mod updates.
         _modWatcher.NotifyFilter = NotifyFilters.Attributes
                                    | NotifyFilters.CreationTime
                                    | NotifyFilters.DirectoryName
                                    | NotifyFilters.FileName
-                                   | NotifyFilters.LastAccess
                                    | NotifyFilters.LastWrite
-                                   | NotifyFilters.Security
                                    | NotifyFilters.Size;
+        _modWatcher.InternalBufferSize = 64 * 1024;
         _modWatcher.Changed += OnModFileChanged;
         _modWatcher.Created += OnModFileChanged;
         _modWatcher.Deleted += OnModFileChanged;
         _modWatcher.Renamed += OnModFileChanged;
+        _modWatcher.Error += OnModWatcherError;
         _modWatcher.IncludeSubdirectories = true;
         _modWatcher.EnableRaisingEvents = true;
     }
 
     private void OnModFileChanged(object sender, FileSystemEventArgs e)
     {
-        Dispatcher.UIThread.Invoke(() =>
+        // Raised on a thread pool thread: an exception here would terminate the process, and a blocking
+        // Invoke would stall the watcher while the UI is busy.
+        Dispatcher.UIThread.Post(() =>
         {
-            ModFileChanged?.Invoke(this, e);
+            try
+            {
+                ModFileChanged?.Invoke(this, e);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, @"Mod file change handling failed for {Path}", e.FullPath);
+            }
+        });
+    }
+
+    private void OnModWatcherError(object sender, ErrorEventArgs e)
+    {
+        // Buffer overflow (many files changed at once) or folder temporarily unavailable: restart watching.
+        _logger.LogWarning(e.GetException(), @"Mod file watcher error, restarting it");
+        Dispatcher.UIThread.Post(() =>
+        {
+            try
+            {
+                _modWatcher.EnableRaisingEvents = false;
+                _modWatcher.EnableRaisingEvents = true;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, @"Could not restart the mod file watcher");
+            }
         });
     }
     
