@@ -133,6 +133,18 @@ Check(model.List.Count == 2, "Previously captured delete action cannot remove fr
 
 checks += await ProfileMenuChecks.Run();
 
+// Sequence editor: every offered action type can be added; internal actions (restart countdown) are hidden.
+{
+    var sequenceEditor = new Trebuchet.ViewModels.Sequences.SequenceViewModel(new TrebuchetLib.Sequences.Sequence());
+    var offered = sequenceEditor.ActionTypes.Select(x => x.Type).ToList();
+    Check(offered.Contains(typeof(TrebuchetLib.Sequences.SequenceActionBroadcast)) && offered.All(x => x.IsPublic)
+          && offered.All(x => !x.Name.Contains("Countdown")), "Sequence editor offers public editable actions only");
+    foreach (var actionType in offered)
+        sequenceEditor.AddAction.Execute(actionType).Subscribe();
+    Check(sequenceEditor.Actions.Count == offered.Count, "Every offered sequence action can be added without error");
+    Check(sequenceEditor.ActionTypes.All(x => x.Label != "INVALID" && x.Label != x.Type.Name), "Every sequence action has a translated label");
+}
+
 // Every English UI text has a German translation (the language setting must switch the whole UI).
 {
     var manager = Trebuchet.Assets.Resources.ResourceManager;

@@ -29,9 +29,18 @@ public class SequenceViewModel : ReactiveObject
 
         AddAction = ReactiveCommand.Create<Type>((type) =>
         {
-            var value = Activator.CreateInstance(type);
-            if (value is not ISequenceAction action) return;
             PopupOpen = false;
+            ISequenceAction? action;
+            try
+            {
+                action = Activator.CreateInstance(type) as ISequenceAction;
+            }
+            catch (Exception)
+            {
+                // Never let an action type break the editor (the command pipeline would end the app).
+                return;
+            }
+            if (action is null) return;
             Actions.Add(MakeActionViewModel(action));
         });
 
@@ -76,13 +85,31 @@ public class SequenceViewModel : ReactiveObject
 
     private IEnumerable<SequenceActionTypeViewModel> GenerateActionTypeList()
     {
-        var type = typeof(ISequenceAction);
-        return AppDomain.CurrentDomain.GetAssemblies().SelectMany(x => x.GetTypes())
-            .Where(x => type.IsAssignableFrom(x) && !x.IsAbstract)
+        // Only actions the editor can show and create: an editor view model ([SequenceAction]) and a public
+        // parameterless constructor. Internal actions (e.g. the built-in restart countdown) stay hidden.
+        var editable = AppDomain.CurrentDomain.GetAssemblies().SelectMany(SafeGetTypes)
+            .Select(x => x.GetCustomAttribute<SequenceActionAttribute>()?.Target)
+            .OfType<Type>()
+            .ToHashSet();
+        return editable
+            .Where(x => typeof(ISequenceAction).IsAssignableFrom(x) && x is { IsPublic: true, IsAbstract: false, IsInterface: false }
+                        && x.GetConstructor(Type.EmptyTypes) is not null)
             .Select(x => new SequenceActionTypeViewModel(
-                x, 
-                Resources.ResourceManager.GetString(x.Name, Resources.Culture) ?? @"INVALID")
-            );
+                x,
+                Resources.ResourceManager.GetString(x.Name, Resources.Culture) ?? x.Name))
+            .OrderBy(x => x.Label, StringComparer.CurrentCultureIgnoreCase);
+    }
+
+    private static IEnumerable<Type> SafeGetTypes(Assembly assembly)
+    {
+        try
+        {
+            return assembly.GetTypes();
+        }
+        catch (ReflectionTypeLoadException ex)
+        {
+            return ex.Types.OfType<Type>();
+        }
     }
 
     private void OnActionChanged(object? sender, EventArgs args)

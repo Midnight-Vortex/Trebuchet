@@ -151,6 +151,28 @@ public partial class App : Application, IApplication
 
     public void Crash() => HasCrashed = true;
 
+    /// <summary>
+    /// Unhandled error of a ReactiveCommand/observable (e.g. a failing button action): logged and shown as an
+    /// error message. ReactiveUI's default would rethrow it and close the whole application.
+    /// </summary>
+    public static void HandleReactiveError(Exception ex)
+    {
+        if (Application.Current is not App app) return;
+        app._logger?.LogError(ex, @"Unhandled error in a command");
+        if (app._serviceProvider?.GetService<DialogueBox>() is not { } box) return;
+        Dispatcher.UIThread.Post(async () =>
+        {
+            try
+            {
+                await box.OpenErrorAsync(ex.Message);
+            }
+            catch (Exception boxError)
+            {
+                app._logger?.LogError(boxError, @"Could not show the error message");
+            }
+        });
+    }
+
     public static async Task HandleAppCrash(Exception ex)
     {
         if (Application.Current is null) return;

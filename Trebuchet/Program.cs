@@ -46,7 +46,9 @@ static class Program
             .Register<MaterialDesignIconProvider>();
         
         return AppBuilder.Configure<App>()
-            .UseReactiveUI(_ => { })
+            // An unhandled command/observable error is logged and shown instead of ending the application.
+            .UseReactiveUI(builder => builder.WithExceptionHandler(
+                System.Reactive.Observer.Create<Exception>(App.HandleReactiveError)))
             .UsePlatformDetect()
             .WithInterFont()
             .LogToTrace();
