@@ -64,9 +64,6 @@ public partial class App : Application, IApplication
 #endif
     }
 
-    public void OpenApp(GameEdition edition)
-        => OpenAppAsync(edition).GetAwaiter().GetResult();
-
     public async Task OpenAppAsync(GameEdition edition)
     {
         if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop)
@@ -172,7 +169,8 @@ public partial class App : Application, IApplication
             
             if (Constants.ParseEditionArgs(desktop.Args ?? []) is { } edition)
             {
-                OpenApp(edition);
+                // Run inside the dispatcher loop: blocking here deadlocks the UI-thread continuation of OpenAppAsync.
+                Dispatcher.UIThread.Post(async () => await OpenAppAsync(edition));
                 return;
             }
             
