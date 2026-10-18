@@ -54,6 +54,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     private readonly ILogger<Launcher> _logger;
     private string _lastRestartReason = string.Empty;
     private DateTime _lastExternalIpCheck = DateTime.MinValue;
+    private readonly HashSet<int> _countdownInstances = [];
 
     public event EventHandler? StateChanged;
     public event EventHandler<SequenceProgress>? SequenceProgressChanged; 
@@ -237,6 +238,8 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         SetupJunction(savedPath, profile.ProfileFolder);
 
         await _setup.WriteIni(profile, instance);
+        if (profile.ScriptMode == ServerProfile.ScriptModeBeforeStart)
+            await RunProfileScript(instance, profile, "Server startup");
         var process = await CreateServerProcess(instance, profile, list);
         _logger.LogInformation(
             "Starting server process: exe={Exe}, workDir={WorkDir}, instance={Instance}",
@@ -276,14 +279,23 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         if (_serverProcesses.TryGetValue(instance, out var watcher))
         {
             var uri = _setup.Config.GetInstanceProfile(instance);
-            if (!_appFiles.Server.TryResolve(uri, out var reference) 
+            // Stopping during a restart countdown: the countdown is abandoned, the stop happens now.
+            if (_countdownInstances.Contains(instance))
+                await CancelServerSequence(instance);
+
+            if (!_appFiles.Server.TryResolve(uri, out var reference)
                 || reference.Get().StoppingSequence.Actions.Count == 0
                 || _serverSequences.ContainsKey(instance))
             {
                 if (reference is not null && !_serverSequences.ContainsKey(instance))
                 {
-                    await NotifyDiscordSafe(instance, reference.Get(),
-                        _setup.GetServerShutdownNotification(_lastRestartReason), _lastRestartReason);
+                    var profile = reference.Get();
+                    var reason = string.IsNullOrEmpty(_lastRestartReason) ? _setup.GetReasonManualShutdown() : _lastRestartReason;
+                    // DSL: the shutdown message only goes to Discord (players are being disconnected anyway).
+                    var message = string.IsNullOrWhiteSpace(profile.MessageShutdown)
+                        ? _setup.GetServerShutdownNotification(reason)
+                        : profile.MessageShutdown;
+                    await NotifyDiscordSafe(instance, profile, message, reason);
                     _lastRestartReason = string.Empty;
                 }
                 await watcher.StopAsync();
@@ -313,22 +325,90 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         if (_serverProcesses.TryGetValue(instance, out var watcher))
         {
             var uri = _setup.Config.GetInstanceProfile(instance);
-            if (!_appFiles.Server.TryResolve(uri, out var reference) 
-                || reference.Get().StoppingSequence.Actions.Count == 0
-                || _serverSequences.ContainsKey(instance))
+            _appFiles.Server.TryResolve(uri, out var reference);
+            var profile = reference?.Get();
+            if (profile is not null && !_serverSequences.ContainsKey(instance))
             {
-                if (reference is not null && !_serverSequences.ContainsKey(instance))
+                // A custom stopping sequence wins over the built-in DSL warnings.
+                if (profile.StoppingSequence.Actions.Count > 0)
                 {
-                    await NotifyDiscordSafe(instance, reference.Get(),
-                        _setup.GetServerShutdownNotification(_lastRestartReason), _lastRestartReason);
-                    _lastRestartReason = string.Empty;
+                    await RestartServerWithSequence(instance, profile);
+                    return;
                 }
-                await watcher.RestartAsync();
-                return;
+                if (profile.UseRestartWarnings && profile.RestartWarnings.Any(x => x.Before > TimeSpan.Zero))
+                {
+                    await RunSequence(instance, BuildRestartCountdown(profile), () => RestartServerAsync(instance), isCountdown: true);
+                    return;
+                }
             }
 
-            await RestartServerWithSequence(instance, reference.Get());
+            if (profile is not null && !_serverSequences.ContainsKey(instance))
+            {
+                await NotifyDiscordSafe(instance, profile,
+                    _setup.GetServerShutdownNotification(_lastRestartReason), _lastRestartReason);
+                _lastRestartReason = string.Empty;
+            }
+            await watcher.RestartAsync();
         }
+    }
+
+    /// <summary>
+    /// DSL "Backup and Automation" after a server stopped (crash included): script before backup, backup with
+    /// day limit, script after backup. Never throws; the restart decision follows afterwards.
+    /// </summary>
+    private async Task RunShutdownAutomation(int instance)
+    {
+        try
+        {
+            if (!_appFiles.Server.TryResolve(_setup.Config.GetInstanceProfile(instance), out var reference)) return;
+            var profile = reference.Get();
+            if (profile.ScriptMode == ServerProfile.ScriptModeShutdownBeforeBackup)
+                await RunProfileScript(instance, profile, "Server shutdown");
+
+            if (profile.BackupOnShutdown)
+            {
+                try
+                {
+                    var target = await _backupManager.PerformShutdownBackup(reference);
+                    _logger.LogInformation("Backup of instance {Instance} written to {Target}", instance, target);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Backup of instance {Instance} failed", instance);
+                }
+            }
+
+            if (profile.ScriptMode == ServerProfile.ScriptModeShutdownAfterBackup)
+                await RunProfileScript(instance, profile, "Server shutdown");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Shutdown automation of instance {Instance} failed", instance);
+        }
+    }
+
+    private async Task RunProfileScript(int instance, ServerProfile profile, string purpose)
+    {
+        if (string.IsNullOrWhiteSpace(profile.ScriptPath)) return;
+        var arguments = ServerMacros.Expand(profile.ScriptArguments, CreateMacroContext(instance));
+        if (await ScriptRunner.Run(profile.ScriptPath, arguments, _logger, purpose)) return;
+        // DSL 1.7.9: report a script that could not run on Discord.
+        await NotifyDiscordSafe(instance, profile, $"{purpose} script could not run: {profile.ScriptPath}");
+    }
+
+    /// <summary>
+    /// DSL restart flow: timed warnings (RCon + Discord), early restart when nobody is connected, then the
+    /// "Restarted" message and the restart itself.
+    /// </summary>
+    private Sequence BuildRestartCountdown(ServerProfile profile)
+    {
+        var sequence = new Sequence();
+        sequence.Actions.Add(new SequenceActionRestartCountdown(profile.RestartWarnings.ToList(), profile.RestartEarlyWhenEmpty));
+        sequence.Actions.Add(string.IsNullOrWhiteSpace(profile.MessageRestarted)
+            ? new SequenceActionBroadcast { Message = _setup.GetServerShutdownNotification("{reason}"), SendRCon = false }
+            : new SequenceActionBroadcast { Message = profile.MessageRestarted });
+        sequence.Actions.Add(new SequenceMainAction());
+        return sequence;
     }
 
     /// <summary>
@@ -402,18 +482,20 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     /// <summary>
     /// Send a chat/broadcast message to the players of an instance through RCon and Discord (DSL "Send" box).
     /// </summary>
-    public async Task<bool> BroadcastMessage(int instance, string message, string rconMethod = "broadcast")
+    public async Task<bool> BroadcastMessage(int instance, string message, string? rconMethod = null,
+        string reason = "", bool rcon = true, bool discord = true)
     {
         if (string.IsNullOrWhiteSpace(message)) return false;
-        var context = CreateMacroContext(instance);
+        var context = CreateMacroContext(instance, reason);
         var text = ServerMacros.Expand(message, context);
+        rconMethod ??= context.Profile?.GetRConBroadcastCommand() ?? "broadcast";
         var sent = false;
-        if (_serverProcesses.TryGetValue(instance, out var process) && process.RCon is { } rcon
+        if (rcon && _serverProcesses.TryGetValue(instance, out var process) && process.RCon is { } rconClient
             && process.State is ProcessState.RUNNING or ProcessState.ONLINE)
         {
             try
             {
-                var response = await rcon.Send($"{rconMethod} {text}", CancellationToken.None);
+                var response = await rconClient.Send($"{rconMethod} {text}", CancellationToken.None);
                 sent = response.Exception is null;
                 if (response.Exception is not null)
                     _logger.LogWarning(response.Exception, "RCon broadcast failed on instance {Instance}", instance);
@@ -424,9 +506,9 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             }
         }
 
-        if (context.Profile is { } profile && profile.GetDiscordWebHooks().Any())
+        if (discord && context.Profile is { } profile && profile.GetDiscordWebHooks().Any())
         {
-            await NotifyDiscordSafe(instance, profile, message);
+            await NotifyDiscordSafe(instance, profile, message, reason);
             sent = true;
         }
         return sent;
@@ -704,7 +786,15 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         {
             using(_logger.BeginScope(("mods", mods)))
                 _logger.LogInformation("Updating mods");
-            await _steam.UpdateMods(mods);
+            await ScriptRunner.Run(_setup.Config.ScriptBeforeUpdate, string.Empty, _logger, "Before update");
+            try
+            {
+                await _steam.UpdateMods(mods);
+            }
+            finally
+            {
+                await ScriptRunner.Run(_setup.Config.ScriptAfterUpdate, string.Empty, _logger, "After update");
+            }
             await CheckModUpdates();
             return true;
         }
@@ -726,7 +816,15 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         try
         {
             _logger.LogInformation("Updating servers");
-            await _steam.UpdateServerInstances();
+            await ScriptRunner.Run(_setup.Config.ScriptBeforeUpdate, string.Empty, _logger, "Before update");
+            try
+            {
+                await _steam.UpdateServerInstances();
+            }
+            finally
+            {
+                await ScriptRunner.Run(_setup.Config.ScriptAfterUpdate, string.Empty, _logger, "After update");
+            }
             await CheckServerUpdate();
             return true;
         }
@@ -797,10 +895,11 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         return RunSequence(instance, profile.StartingSequence, () => CatapultServer(instance));
     }
 
-    private async Task RunSequence(int instance, Sequence sequence, Func<Task> mainAction)
+    private async Task RunSequence(int instance, Sequence sequence, Func<Task> mainAction, bool isCountdown = false)
     {
         if (sequence.Actions.Count == 0) return;
         await CancelServerSequence(instance);
+        if (isCountdown) _countdownInstances.Add(instance);
 
         var reason = _lastRestartReason;
         var args = new SequenceArgs()
@@ -841,7 +940,10 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         {
             // A failed sequence must not stay registered, or the instance is never cleaned up/restarted again.
             if (_serverSequences.TryGetValue(instance, out var current) && ReferenceEquals(current, runner))
+            {
                 _serverSequences.Remove(instance);
+                _countdownInstances.Remove(instance);
+            }
         }
     }
 
@@ -851,6 +953,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         {
             await oldSequence.Cts.CancelAsync();
             _serverSequences.Remove(instance);
+            _countdownInstances.Remove(instance);
         }
     }
 
@@ -1389,8 +1492,11 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
                 case ProcessState.ONLINE:
                     _logger.LogInformation("Server {Instance} online (PID {Pid}, build {Build})",
                         process.Infos.Instance, process.PId, SafeBuildId(process.Infos.Instance));
-                    await NotifyDiscordSafe(process.Infos.Instance, reference.Get(),
-                        _setup.GetOnlineNotification(process.Infos.Title));
+                    var readyProfile = reference.Get();
+                    await NotifyDiscordSafe(process.Infos.Instance, readyProfile,
+                        string.IsNullOrWhiteSpace(readyProfile.MessageReady)
+                            ? _setup.GetOnlineNotification(process.Infos.Title)
+                            : readyProfile.MessageReady);
                     return;
             }
         }
@@ -1437,6 +1543,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             _serverProcesses.Remove(server.Key);
             server.Value.StateChanged -= OnServerStateChanged;
             OnStateChanged();
+            await RunShutdownAutomation(server.Key);
             try
             {
                 var name = _appFiles.Server.Resolve(_setup.Config.GetInstanceProfile(server.Key));

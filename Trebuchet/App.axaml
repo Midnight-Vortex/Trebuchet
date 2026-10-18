@@ -73,6 +73,8 @@
                 <MergeResourceInclude Source="Templates\SequenceMainActionView.axaml" />
                 <MergeResourceInclude Source="Templates\SequenceView.axaml" />
                 <MergeResourceInclude Source="Templates\NetworkInfoField.axaml" />
+                <MergeResourceInclude Source="Templates\RestartWarningsField.axaml" />
+                <MergeResourceInclude Source="Templates\SequenceActionBroadcastView.axaml" />
             </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>
@@ -137,6 +139,8 @@
         <StaticResource ResourceKey="SequenceMainActionView" />
         <StaticResource ResourceKey="SequenceView" />
         <StaticResource ResourceKey="NetworkInfoField" />
+        <StaticResource ResourceKey="RestartWarningsField" />
+        <StaticResource ResourceKey="SequenceActionBroadcastView" />
     </Application.DataTemplates>
     <Application.Styles>
         <FluentTheme />

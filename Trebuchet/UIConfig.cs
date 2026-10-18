@@ -16,11 +16,29 @@ namespace Trebuchet
         public int PlateformTheme { get; set; } = PlatformThemeDefault;
         public bool Experiments { get; set; } = ExperimentsDefault;
         public bool DebugMode { get; set; } = DebugModeDefault;
+        /// <summary>Last commands/messages sent from the server console (DSL keeps 50).</summary>
+        public System.Collections.Generic.List<string> ConsoleHistory { get; set; } = [];
 
         public int[] ConsoleFilters
         {
             get => _consoleFilters;
             set => _consoleFilters = value;
+        }
+
+        /// <summary>
+        /// Write the UI language into every edition's UI settings, so the start window and all editions agree.
+        /// </summary>
+        public static void SaveSharedCulture(string culture)
+        {
+            foreach (var edition in Enum.GetValues<GameEdition>())
+            {
+                var path = Utils.AppConstants.GetUIConfigPath(edition);
+                if (!System.IO.File.Exists(path)) continue;
+                var config = LoadConfig(path);
+                if (config.UICulture == culture) continue;
+                config.UICulture = culture;
+                config.SaveFile();
+            }
         }
 
         public static readonly bool DisplayProcessPerformanceDefault = true;

@@ -4,6 +4,7 @@ namespace TrebuchetLib.Sequences;
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "ActionType")]
 [JsonDerivedType(typeof(SequenceActionBackupServerData), "BackupServer")]
+[JsonDerivedType(typeof(SequenceActionBroadcast), "Broadcast")]
 [JsonDerivedType(typeof(SequenceActionDiscordWebHook), "DiscordWebhook")]
 [JsonDerivedType(typeof(SequenceActionExecuteProcess), "ExecuteProcess")]
 [JsonDerivedType(typeof(SequenceActionRConCommand), "RConCommand")]

@@ -45,6 +45,20 @@ namespace TrebuchetLib
         public bool EnableMultiHomeHttp { get; set; } = EnableMultiHomeHttpDefault;
         public bool EnforceProcessSettings { get; set; } = EnforceProcessSettingsDefault;
         public bool RequiresRestartFileCheck { get; set; } = RequiresRestartFileCheckDefault;
+        public int RConBroadcastMethod { get; set; } = RConBroadcastMethodDefault;
+        public bool UseRestartWarnings { get; set; } = UseRestartWarningsDefault;
+        public List<RestartWarning> RestartWarnings { get; set; } = RestartWarningsDefault;
+        public bool RestartEarlyWhenEmpty { get; set; } = RestartEarlyWhenEmptyDefault;
+        public string MessageReady { get; set; } = MessageReadyDefault;
+        public string MessageRestarted { get; set; } = MessageRestartedDefault;
+        public string MessageShutdown { get; set; } = MessageShutdownDefault;
+        public bool BackupOnShutdown { get; set; } = BackupOnShutdownDefault;
+        public string BackupDirectory { get; set; } = BackupDirectoryDefault;
+        public bool BackupLimitEnabled { get; set; } = BackupLimitEnabledDefault;
+        public int BackupLimitDays { get; set; } = BackupLimitDaysDefault;
+        public int ScriptMode { get; set; } = ScriptModeDefault;
+        public string ScriptPath { get; set; } = ScriptPathDefault;
+        public string ScriptArguments { get; set; } = ScriptArgumentsDefault;
 
         public Sequence StoppingSequence { get; set; } = new();
         public Sequence StartingSequence { get; set; } = new();
@@ -164,6 +178,40 @@ namespace TrebuchetLib
         public static readonly bool EnableMultiHomeHttpDefault = true;
         public static readonly bool EnforceProcessSettingsDefault = false;
         public static readonly bool RequiresRestartFileCheckDefault = true;
+
+        public static readonly int RConBroadcastMethodDefault = 0;
+        public static readonly bool UseRestartWarningsDefault = false;
+        public static List<RestartWarning> RestartWarningsDefault =>
+        [
+            new(TimeSpan.FromMinutes(5), "The server will restart in 5 minutes... Reason: {reason}"),
+            new(TimeSpan.FromMinutes(3), "3 minutes before server restart! Reason: {reason}"),
+            new(TimeSpan.FromMinutes(1), "ONE MINUTE BEFORE RESTART, GET SAFE! Reason: {reason}")
+        ];
+        public static readonly bool RestartEarlyWhenEmptyDefault = true;
+        public static readonly string MessageReadyDefault = string.Empty;
+        public static readonly string MessageRestartedDefault = "Restarting the server... Reason: {reason}";
+        public static readonly string MessageShutdownDefault = string.Empty;
+        public static readonly bool BackupOnShutdownDefault = false;
+        public static readonly string BackupDirectoryDefault = string.Empty;
+        public static readonly bool BackupLimitEnabledDefault = false;
+        public static readonly int BackupLimitDaysDefault = 7;
+        public static readonly int ScriptModeDefault = ScriptModeNone;
+        public static readonly string ScriptPathDefault = string.Empty;
+        public static readonly string ScriptArgumentsDefault = string.Empty;
+
+        // DSL "Run Scripts" choices.
+        public const int ScriptModeNone = 0;
+        public const int ScriptModeBeforeStart = 1;
+        public const int ScriptModeShutdownBeforeBackup = 2;
+        public const int ScriptModeShutdownAfterBackup = 3;
+
+        /// <summary>RCon command used for messages to players (DSL "broadcast / server / alert" selector).</summary>
+        public string GetRConBroadcastCommand() => RConBroadcastMethod switch
+        {
+            1 => "server",
+            2 => "/alert",
+            _ => "broadcast"
+        };
 
         /// <summary>ProcessPriority value that leaves priority and affinity untouched.</summary>
         public const int ProcessPriorityUnchanged = 4;

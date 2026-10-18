@@ -134,7 +134,7 @@ public class NetworkInfoField : DescriptiveElement<NetworkInfoField>
                 .ToList());
             PortResults.Clear();
             foreach (var result in results)
-                PortResults.Add(result);
+                PortResults.Add(result.Available ? result with { Message = Resources.NetworkPortFree } : result);
             Status = results.All(x => x.Available) ? Resources.NetworkPortsFree : Resources.NetworkPortsInUse;
         }
         finally

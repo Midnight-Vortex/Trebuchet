@@ -36,6 +36,8 @@ public class LanguageManager : ILanguageManager
         var culture = CultureInfo.GetCultureInfo(languageCode);
         Assets.Resources.Culture = culture;
         Thread.CurrentThread.CurrentUICulture = culture;
+        // Background threads (humanized durations, formatted logs) follow the selected language too.
+        CultureInfo.DefaultThreadCurrentUICulture = culture;
     }
 
     public void SetLanguage(LanguageModel languageModel) => SetLanguage(languageModel.Code);

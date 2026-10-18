@@ -37,6 +37,8 @@ namespace TrebuchetLib
         public uint CellId { get; set; } = CellIdDefault;
         public string NotificationServerManualRestart { get; set; } = NotificationServerManualRestartDefault;
         public string NotificationExternalIpChanged { get; set; } = NotificationExternalIpChangedDefault;
+        public string ScriptBeforeUpdate { get; set; } = string.Empty;
+        public string ScriptAfterUpdate { get; set; } = string.Empty;
         
         [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingDefault)]
         [Obsolete]

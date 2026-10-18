@@ -45,6 +45,89 @@ public class BackupManager(AppSetup setup, AppFiles appFiles)
         await PerformServerBackup(directory, prefix);
     }
 
+    /// <summary>
+    /// DSL style backup after a server shutdown: game databases, last log, the three server ini files and the
+    /// black/white lists go into &lt;target&gt;/&lt;day&gt;/&lt;time&gt;. Optionally only the newest day folders are kept.
+    /// </summary>
+    public async Task<string> PerformShutdownBackup(ServerProfileRef reference)
+    {
+        var profile = reference.Get();
+        var root = string.IsNullOrWhiteSpace(profile.BackupDirectory)
+            ? Path.Combine(GetBackupDirectory(), $"Server.{reference.Name}")
+            : Environment.ExpandEnvironmentVariables(profile.BackupDirectory.Trim());
+        var now = DateTime.Now;
+        var target = Path.Combine(root, now.ToString("yyyy-MM-dd"), now.ToString("HH-mm-ss"));
+
+        await Task.Run(() =>
+        {
+            Directory.CreateDirectory(target);
+            foreach (var (source, relative) in GetShutdownBackupFiles(profile.ProfileFolder))
+            {
+                var destination = Path.Combine(target, relative);
+                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                File.Copy(source, destination, true);
+            }
+
+            if (profile is { BackupLimitEnabled: true, BackupLimitDays: > 0 })
+                TrimDayFolders(root, profile.BackupLimitDays);
+        });
+        return target;
+    }
+
+    /// <summary>Files of a server profile (Saved folder) that are part of a shutdown backup.</summary>
+    public static IEnumerable<(string source, string relative)> GetShutdownBackupFiles(string savedFolder)
+    {
+        if (!Directory.Exists(savedFolder)) yield break;
+        foreach (var db in Directory.EnumerateFiles(savedFolder, "*.db"))
+        {
+            if (!IsBackedUpDatabase(Path.GetFileName(db))) continue;
+            yield return (db, Path.GetFileName(db));
+            // SQLite write-ahead files hold data not yet merged into the database.
+            foreach (var companion in new[] { db + "-wal", db + "-shm" })
+                if (File.Exists(companion))
+                    yield return (companion, Path.GetFileName(companion));
+        }
+
+        var candidates = new[]
+        {
+            Path.Combine("Logs", Constants.FileGameLogFile),
+            Path.Combine("Config", "WindowsServer", "Game.ini"),
+            Path.Combine("Config", "WindowsServer", "Engine.ini"),
+            Path.Combine("Config", "WindowsServer", "ServerSettings.ini"),
+            "blacklist.txt",
+            "whitelist.txt"
+        };
+        foreach (var relative in candidates)
+        {
+            var path = Path.Combine(savedFolder, relative);
+            if (File.Exists(path)) yield return (path, relative);
+        }
+    }
+
+    /// <summary>
+    /// DSL 1.9.0 rules: any game db (game.db, game_0.db on UE5, DLC_Siptah.db, custom maps), except the game's own
+    /// copies whose name contains "backup" or "upgrade_tags". (The older "_number" rule would skip UE5's game_0.db.)
+    /// </summary>
+    public static bool IsBackedUpDatabase(string fileName)
+    {
+        if (!fileName.EndsWith(".db", StringComparison.OrdinalIgnoreCase)) return false;
+        if (fileName.Contains("backup", StringComparison.OrdinalIgnoreCase)) return false;
+        return !fileName.Contains("upgrade_tags", StringComparison.OrdinalIgnoreCase);
+    }
+
+    /// <summary>Keep only the newest <paramref name="keep"/> day folders (yyyy-MM-dd).</summary>
+    public static void TrimDayFolders(string root, int keep)
+    {
+        if (!Directory.Exists(root)) return;
+        var days = new DirectoryInfo(root).GetDirectories()
+            .Where(d => DateTime.TryParseExact(d.Name, "yyyy-MM-dd", null, System.Globalization.DateTimeStyles.None, out _))
+            .OrderByDescending(d => d.Name, StringComparer.Ordinal)
+            .Skip(keep)
+            .ToList();
+        foreach (var day in days)
+            day.Delete(true);
+    }
+
     private async Task PerformServerBackup(string directory, string filePrefix)
     {
         var timestamp = new DateTimeOffset(DateTime.UtcNow).ToUnixTimeSeconds();

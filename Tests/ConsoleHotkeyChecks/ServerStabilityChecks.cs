@@ -88,6 +88,53 @@ static class ServerStabilityChecks
         Check(NetworkTools.TestPort("test", freePort, ProtocolType.Tcp, null).Available, "Free TCP port is reported as available");
         Check(!NetworkTools.TestPort("test", 0, ProtocolType.Tcp, null).Available, "Invalid port is rejected");
 
+        // DSL backup: database selection rules, file set and day folder limit.
+        Check(BackupManager.IsBackedUpDatabase("game.db") && BackupManager.IsBackedUpDatabase("DLC_Siptah.db")
+              && BackupManager.IsBackedUpDatabase("game_0.db"), "Game (UE4 and UE5 game_0.db) and DLC databases are backed up");
+        Check(!BackupManager.IsBackedUpDatabase("game_0_backup_1.db") && !BackupManager.IsBackedUpDatabase("game_0_upgrade_tags_%d30_1.db"),
+            "The game's own backup and upgrade copies are skipped (DSL 1.9.0)");
+        var saved = Path.Combine(Path.GetTempPath(), "TrebuchetBackupChecks-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(saved, "Logs"));
+            Directory.CreateDirectory(Path.Combine(saved, "Config", "WindowsServer"));
+            foreach (var file in new[] { "game_0.db", "game_0.db-wal", "game_0_backup_1.db", "blacklist.txt", Path.Combine("Logs", "ConanSandbox.log"),
+                         Path.Combine("Config", "WindowsServer", "Engine.ini"), Path.Combine("Config", "WindowsServer", "Game.ini") })
+                await File.WriteAllTextAsync(Path.Combine(saved, file), "x");
+            var files = BackupManager.GetShutdownBackupFiles(saved).Select(x => x.relative).ToList();
+            Check(files.Contains("game_0.db") && files.Contains("game_0.db-wal") && !files.Contains("game_0_backup_1.db")
+                  && files.Contains("blacklist.txt") && files.Contains(Path.Combine("Logs", "ConanSandbox.log")) && files.Count == 6,
+                "Shutdown backup takes db with WAL, log, ini files and lists");
+
+            var root = Path.Combine(saved, "backups");
+            foreach (var day in new[] { "2026-10-01", "2026-10-02", "2026-10-03", "not-a-day" })
+                Directory.CreateDirectory(Path.Combine(root, day));
+            BackupManager.TrimDayFolders(root, 2);
+            Check(!Directory.Exists(Path.Combine(root, "2026-10-01")) && Directory.Exists(Path.Combine(root, "2026-10-03"))
+                  && Directory.Exists(Path.Combine(root, "not-a-day")), "Only the newest day folders are kept, other folders untouched");
+        }
+        finally
+        {
+            Directory.Delete(saved, true);
+        }
+
+        // Warnings and message method.
+        var warningProfile = new ServerProfile();
+        Check(!warningProfile.UseRestartWarnings && warningProfile.RestartWarnings.Count == 3
+              && warningProfile.RestartWarnings.All(x => x.Message.Contains("{reason}")), "Default DSL warnings are prepared but off");
+        Check(warningProfile.GetRConBroadcastCommand() == "broadcast", "Default message method is broadcast");
+        warningProfile.RConBroadcastMethod = 1;
+        Check(warningProfile.GetRConBroadcastCommand() == "server", "Pippi server method");
+        warningProfile.RConBroadcastMethod = 2;
+        Check(warningProfile.GetRConBroadcastCommand() == "/alert", "Alert method");
+        var json = System.Text.Json.JsonSerializer.Serialize(new TrebuchetLib.Sequences.Sequence
+        {
+            Actions = [new TrebuchetLib.Sequences.SequenceActionBroadcast { Message = "hi {servername}" }]
+        });
+        var back = System.Text.Json.JsonSerializer.Deserialize<TrebuchetLib.Sequences.Sequence>(json);
+        Check(back?.Actions.Single() is TrebuchetLib.Sequences.SequenceActionBroadcast { Message: "hi {servername}" },
+            "Broadcast sequence action survives profile serialization");
+
         return count;
     }
 }

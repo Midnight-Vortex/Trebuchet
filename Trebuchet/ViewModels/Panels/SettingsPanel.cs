@@ -135,18 +135,21 @@ public class SettingsPanel : ReactiveObject, IRefreshablePanel, IRefreshingPanel
         _uiConfig.UICulture = model.Code;
         _langManager.SetLanguage(model.Code);
         _uiConfig.SaveFile();
+        // The language is an application wide preference: keep every edition (and the start window) in sync.
+        UIConfig.SaveSharedCulture(model.Code);
+        // Texts are loaded with the windows: a restart applies the new language. Only possible when idle.
         if (_blocker.CanLaunch)
-        {
-            var message = new OnBoardingMessage(Resources.OnBoardingLanguageChange, Resources.OnBoardingLanguageChangeMessage);
-            await _box.OpenAsync(message);
-        }
-        else
         {
             var confirm = new OnBoardingConfirmation(Resources.OnBoardingLanguageChange,
                 Resources.OnBoardingLanguageChangeConfirm);
             await _box.OpenAsync(confirm);
             if(confirm.Result)
                 App.RestartProcess();
+        }
+        else
+        {
+            var message = new OnBoardingMessage(Resources.OnBoardingLanguageChange, Resources.OnBoardingLanguageChangeMessage);
+            await _box.OpenAsync(message);
         }
     }
 
@@ -295,57 +298,6 @@ public class SettingsPanel : ReactiveObject, IRefreshablePanel, IRefreshingPanel
             .SetGetter(() => _setup.Config.MaxDownloads)
             .SetSetter((v) => _setup.Config.MaxDownloads = v)
             .SetDefault(() => Config.MaxDownloadsDefault)
-        );
-        
-        Fields.Add(new TitleField().SetTitle(Resources.CatNotification));
-        Fields.Add(new TextField()
-            .WhenFieldChanged(SaveConfig)
-            .SetTitle(Resources.SettingNotificationServerCrash)
-            .SetGetter(() => _setup.Config.NotificationServerCrash)
-            .SetSetter((v) => _setup.Config.NotificationServerCrash = v)
-            .SetDefault(() => Config.NotificationServerCrashDefault)
-            );
-        Fields.Add(new TextField()
-            .WhenFieldChanged(SaveConfig)
-            .SetTitle(Resources.SettingNotificationServerOnline)
-            .SetGetter(() => _setup.Config.NotificationServerOnline)
-            .SetSetter((v) => _setup.Config.NotificationServerOnline = v)
-            .SetDefault(() => Config.NotificationServerOnlineDefault)
-        );
-        Fields.Add(new TextField()
-            .WhenFieldChanged(SaveConfig)
-            .SetTitle(Resources.SettingNotificationServerStop)
-            .SetGetter(() => _setup.Config.NotificationServerStop)
-            .SetSetter((v) => _setup.Config.NotificationServerStop = v)
-            .SetDefault(() => Config.NotificationServerStopDefault)
-        );
-        Fields.Add(new TextField()
-            .WhenFieldChanged(SaveConfig)
-            .SetTitle(Resources.SettingNotificationServerManualStop)
-            .SetGetter(() => _setup.Config.NotificationServerManualStop)
-            .SetSetter((v) => _setup.Config.NotificationServerManualStop = v)
-            .SetDefault(() => Config.NotificationServerManualStopDefault)
-        );
-        Fields.Add(new TextField()
-            .WhenFieldChanged(SaveConfig)
-            .SetTitle(Resources.SettingNotificationServerAutomatedRestart)
-            .SetGetter(() => _setup.Config.NotificationServerAutomatedRestart)
-            .SetSetter((v) => _setup.Config.NotificationServerAutomatedRestart = v)
-            .SetDefault(() => Config.NotificationServerAutomatedRestartDefault)
-        );
-        Fields.Add(new TextField()
-            .WhenFieldChanged(SaveConfig)
-            .SetTitle(Resources.SettingNotificationServerModUpdate)
-            .SetGetter(() => _setup.Config.NotificationServerModUpdate)
-            .SetSetter((v) => _setup.Config.NotificationServerModUpdate = v)
-            .SetDefault(() => Config.NotificationServerModUpdateDefault)
-        );
-        Fields.Add(new TextField()
-            .WhenFieldChanged(SaveConfig)
-            .SetTitle(Resources.SettingNotificationServerServerUpdate)
-            .SetGetter(() => _setup.Config.NotificationServerServerUpdate)
-            .SetSetter((v) => _setup.Config.NotificationServerServerUpdate = v)
-            .SetDefault(() => Config.NotificationServerServerUpdateDefault)
         );
     }
 

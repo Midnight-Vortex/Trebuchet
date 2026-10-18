@@ -1,0 +1,17 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:s="clr-namespace:Trebuchet.ViewModels.Sequences"
+                    xmlns:a="clr-namespace:Trebuchet.Assets"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <DataTemplate x:Key="SequenceActionBroadcastView" DataType="s:SequenceActionBroadcastViewModel">
+        <StackPanel Orientation="Vertical" Spacing="6">
+            <CheckBox IsChecked="{Binding CancelOnFailure}" Content="{x:Static a:Resources.CancelOnFailure}" />
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <CheckBox IsChecked="{Binding SendRCon}" Content="{x:Static a:Resources.BroadcastSendRCon}" />
+                <CheckBox IsChecked="{Binding SendDiscord}" Content="{x:Static a:Resources.BroadcastSendDiscord}" />
+            </StackPanel>
+            <TextBlock Text="{x:Static a:Resources.BroadcastMessage}" />
+            <TextBox Text="{Binding Message}" TextWrapping="Wrap" AcceptsReturn="False" />
+            <TextBlock Text="{x:Static a:Resources.MacroHint}" Classes="SubText" TextWrapping="Wrap" />
+        </StackPanel>
+    </DataTemplate>
+</ResourceDictionary>

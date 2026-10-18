@@ -4319,5 +4319,491 @@ namespace Trebuchet.Assets {
                 return ResourceManager.GetString("ConsoleOfflineLog", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Warning Messages.
+        /// </summary>
+        public static string CatRestartWarnings {
+            get {
+                return ResourceManager.GetString("CatRestartWarnings", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Backup and Automation.
+        /// </summary>
+        public static string CatBackupAutomation {
+            get {
+                return ResourceManager.GetString("CatBackupAutomation", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Notifications (all servers).
+        /// </summary>
+        public static string CatNotificationAllServers {
+            get {
+                return ResourceManager.GetString("CatNotificationAllServers", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Warn players before restarts.
+        /// </summary>
+        public static string SettingServerUseRestartWarnings {
+            get {
+                return ResourceManager.GetString("SettingServerUseRestartWarnings", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Like the Dedicated Server Launcher: automatic, update and manual restarts send t.
+        /// </summary>
+        public static string SettingServerUseRestartWarningsText {
+            get {
+                return ResourceManager.GetString("SettingServerUseRestartWarningsText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Warnings before restart.
+        /// </summary>
+        public static string SettingServerRestartWarnings {
+            get {
+                return ResourceManager.GetString("SettingServerRestartWarnings", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Each message is sent this long before the restart. Macros: {servername}, {reason.
+        /// </summary>
+        public static string SettingServerRestartWarningsText {
+            get {
+                return ResourceManager.GetString("SettingServerRestartWarningsText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Time before the restart.
+        /// </summary>
+        public static string RestartWarningBeforeTip {
+            get {
+                return ResourceManager.GetString("RestartWarningBeforeTip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Message to the players.
+        /// </summary>
+        public static string RestartWarningMessagePlaceholder {
+            get {
+                return ResourceManager.GetString("RestartWarningMessagePlaceholder", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Add warning.
+        /// </summary>
+        public static string RestartWarningAdd {
+            get {
+                return ResourceManager.GetString("RestartWarningAdd", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Default warnings.
+        /// </summary>
+        public static string RestartWarningResetDefaults {
+            get {
+                return ResourceManager.GetString("RestartWarningResetDefaults", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Restart immediately when nobody is online.
+        /// </summary>
+        public static string SettingServerRestartEarlyWhenEmpty {
+            get {
+                return ResourceManager.GetString("SettingServerRestartEarlyWhenEmpty", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Skips the countdown as soon as the server is online with no player connected..
+        /// </summary>
+        public static string SettingServerRestartEarlyWhenEmptyText {
+            get {
+                return ResourceManager.GetString("SettingServerRestartEarlyWhenEmptyText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Restarted message.
+        /// </summary>
+        public static string SettingServerMessageRestarted {
+            get {
+                return ResourceManager.GetString("SettingServerMessageRestarted", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Sent over RCon and Discord right before the restart (DSL "Restarted"). Empty: th.
+        /// </summary>
+        public static string SettingServerMessageRestartedText {
+            get {
+                return ResourceManager.GetString("SettingServerMessageRestartedText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Ready message.
+        /// </summary>
+        public static string SettingServerMessageReady {
+            get {
+                return ResourceManager.GetString("SettingServerMessageReady", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Sent to Discord when the server is online (DSL "Ready"), e.g. "The gates to {ser.
+        /// </summary>
+        public static string SettingServerMessageReadyText {
+            get {
+                return ResourceManager.GetString("SettingServerMessageReadyText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Shutdown message.
+        /// </summary>
+        public static string SettingServerMessageShutdown {
+            get {
+                return ResourceManager.GetString("SettingServerMessageShutdown", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Sent to Discord when the server is stopped manually (DSL "Shutdown"). Empty: the.
+        /// </summary>
+        public static string SettingServerMessageShutdownText {
+            get {
+                return ResourceManager.GetString("SettingServerMessageShutdownText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Message method.
+        /// </summary>
+        public static string SettingServerRConBroadcastMethod {
+            get {
+                return ResourceManager.GetString("SettingServerRConBroadcastMethod", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to RCon command used for messages to players: broadcast (message box), server (chat.
+        /// </summary>
+        public static string SettingServerRConBroadcastMethodText {
+            get {
+                return ResourceManager.GetString("SettingServerRConBroadcastMethodText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Backup on shutdown.
+        /// </summary>
+        public static string SettingServerBackupOnShutdown {
+            get {
+                return ResourceManager.GetString("SettingServerBackupOnShutdown", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to After every shutdown (also crashes) the game databases, the last log, Game/Engin.
+        /// </summary>
+        public static string SettingServerBackupOnShutdownText {
+            get {
+                return ResourceManager.GetString("SettingServerBackupOnShutdownText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Backup folder.
+        /// </summary>
+        public static string SettingServerBackupDirectory {
+            get {
+                return ResourceManager.GetString("SettingServerBackupDirectory", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Where the backups are written. Empty: the Trebuchet backup folder of the downloa.
+        /// </summary>
+        public static string SettingServerBackupDirectoryText {
+            get {
+                return ResourceManager.GetString("SettingServerBackupDirectoryText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Limit backups.
+        /// </summary>
+        public static string SettingServerBackupLimit {
+            get {
+                return ResourceManager.GetString("SettingServerBackupLimit", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Only keep the newest day folders, older ones are deleted after each backup..
+        /// </summary>
+        public static string SettingServerBackupLimitText {
+            get {
+                return ResourceManager.GetString("SettingServerBackupLimitText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Keep days.
+        /// </summary>
+        public static string SettingServerBackupLimitDays {
+            get {
+                return ResourceManager.GetString("SettingServerBackupLimitDays", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Number of day folders to keep..
+        /// </summary>
+        public static string SettingServerBackupLimitDaysText {
+            get {
+                return ResourceManager.GetString("SettingServerBackupLimitDaysText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Run script.
+        /// </summary>
+        public static string SettingServerScriptMode {
+            get {
+                return ResourceManager.GetString("SettingServerScriptMode", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Run a script or program before the server starts, or after a shutdown before or .
+        /// </summary>
+        public static string SettingServerScriptModeText {
+            get {
+                return ResourceManager.GetString("SettingServerScriptModeText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Don't run scripts.
+        /// </summary>
+        public static string ScriptModeNone {
+            get {
+                return ResourceManager.GetString("ScriptModeNone", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Before server start.
+        /// </summary>
+        public static string ScriptModeBeforeStart {
+            get {
+                return ResourceManager.GetString("ScriptModeBeforeStart", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to On shutdown, before backup.
+        /// </summary>
+        public static string ScriptModeShutdownBeforeBackup {
+            get {
+                return ResourceManager.GetString("ScriptModeShutdownBeforeBackup", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to On shutdown, after backup.
+        /// </summary>
+        public static string ScriptModeShutdownAfterBackup {
+            get {
+                return ResourceManager.GetString("ScriptModeShutdownAfterBackup", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Script path.
+        /// </summary>
+        public static string SettingServerScriptPath {
+            get {
+                return ResourceManager.GetString("SettingServerScriptPath", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Full path of a .bat, .cmd, .ps1 or .exe file..
+        /// </summary>
+        public static string SettingServerScriptPathText {
+            get {
+                return ResourceManager.GetString("SettingServerScriptPathText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Script arguments.
+        /// </summary>
+        public static string SettingServerScriptArguments {
+            get {
+                return ResourceManager.GetString("SettingServerScriptArguments", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Optional arguments, macros allowed (e.g. {servername} {instance})..
+        /// </summary>
+        public static string SettingServerScriptArgumentsText {
+            get {
+                return ResourceManager.GetString("SettingServerScriptArgumentsText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Script before updates (all servers).
+        /// </summary>
+        public static string SettingScriptBeforeUpdate {
+            get {
+                return ResourceManager.GetString("SettingScriptBeforeUpdate", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Runs before every server or mod update (DSL BeforeSteamCMDLauncher.bat)..
+        /// </summary>
+        public static string SettingScriptBeforeUpdateText {
+            get {
+                return ResourceManager.GetString("SettingScriptBeforeUpdateText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Script after updates (all servers).
+        /// </summary>
+        public static string SettingScriptAfterUpdate {
+            get {
+                return ResourceManager.GetString("SettingScriptAfterUpdate", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Runs after every server or mod update (DSL AfterSteamCMDLauncher.bat)..
+        /// </summary>
+        public static string SettingScriptAfterUpdateText {
+            get {
+                return ResourceManager.GetString("SettingScriptAfterUpdateText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Reason: Manual Restart.
+        /// </summary>
+        public static string SettingNotificationServerManualRestart {
+            get {
+                return ResourceManager.GetString("SettingNotificationServerManualRestart", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to External IP changed.
+        /// </summary>
+        public static string SettingNotificationExternalIpChanged {
+            get {
+                return ResourceManager.GetString("SettingNotificationExternalIpChanged", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Message to Players.
+        /// </summary>
+        public static string SequenceActionBroadcast {
+            get {
+                return ResourceManager.GetString("SequenceActionBroadcast", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Send a message to the players over RCon (with the profile's message method) and/.
+        /// </summary>
+        public static string SequenceActionBroadcastText {
+            get {
+                return ResourceManager.GetString("SequenceActionBroadcastText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Send over RCon.
+        /// </summary>
+        public static string BroadcastSendRCon {
+            get {
+                return ResourceManager.GetString("BroadcastSendRCon", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Send to Discord.
+        /// </summary>
+        public static string BroadcastSendDiscord {
+            get {
+                return ResourceManager.GetString("BroadcastSendDiscord", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Message.
+        /// </summary>
+        public static string BroadcastMessage {
+            get {
+                return ResourceManager.GetString("BroadcastMessage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Macros: {servername}, {reason}, {steamconnect}, {ip}, {game_port}, {players}, {m.
+        /// </summary>
+        public static string MacroHint {
+            get {
+                return ResourceManager.GetString("MacroHint", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Command or message (arrow keys: history).
+        /// </summary>
+        public static string ConsoleCommandPlaceholder {
+            get {
+                return ResourceManager.GetString("ConsoleCommandPlaceholder", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Map Selection.
+        /// </summary>
+        public static string MapSelectionTip {
+            get {
+                return ResourceManager.GetString("MapSelectionTip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Free.
+        /// </summary>
+        public static string NetworkPortFree {
+            get {
+                return ResourceManager.GetString("NetworkPortFree", resourceCulture);
+            }
+        }
     }
 }

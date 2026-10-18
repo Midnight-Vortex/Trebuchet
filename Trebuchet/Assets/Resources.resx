@@ -1492,4 +1492,166 @@ The stopping sequence will be used in place of simply stopping the server. This 
     <data name="ConsoleOfflineLog" xml:space="preserve">
         <value>server off, showing its log</value>
     </data>
+    <data name="CatRestartWarnings" xml:space="preserve">
+        <value>Warning Messages</value>
+    </data>
+    <data name="CatBackupAutomation" xml:space="preserve">
+        <value>Backup and Automation</value>
+    </data>
+    <data name="CatNotificationAllServers" xml:space="preserve">
+        <value>Notifications (all servers)</value>
+    </data>
+    <data name="SettingServerUseRestartWarnings" xml:space="preserve">
+        <value>Warn players before restarts</value>
+    </data>
+    <data name="SettingServerUseRestartWarningsText" xml:space="preserve">
+        <value>Like the Dedicated Server Launcher: automatic, update and manual restarts send the warning messages below over RCon and Discord, then restart. A custom stopping sequence replaces this.</value>
+    </data>
+    <data name="SettingServerRestartWarnings" xml:space="preserve">
+        <value>Warnings before restart</value>
+    </data>
+    <data name="SettingServerRestartWarningsText" xml:space="preserve">
+        <value>Each message is sent this long before the restart. Macros: {servername}, {reason}, {steamconnect}, {ip}, {game_port}, {players}, {map_name}, {date_now_human}</value>
+    </data>
+    <data name="RestartWarningBeforeTip" xml:space="preserve">
+        <value>Time before the restart</value>
+    </data>
+    <data name="RestartWarningMessagePlaceholder" xml:space="preserve">
+        <value>Message to the players</value>
+    </data>
+    <data name="RestartWarningAdd" xml:space="preserve">
+        <value>Add warning</value>
+    </data>
+    <data name="RestartWarningResetDefaults" xml:space="preserve">
+        <value>Default warnings</value>
+    </data>
+    <data name="SettingServerRestartEarlyWhenEmpty" xml:space="preserve">
+        <value>Restart immediately when nobody is online</value>
+    </data>
+    <data name="SettingServerRestartEarlyWhenEmptyText" xml:space="preserve">
+        <value>Skips the countdown as soon as the server is online with no player connected.</value>
+    </data>
+    <data name="SettingServerMessageRestarted" xml:space="preserve">
+        <value>Restarted message</value>
+    </data>
+    <data name="SettingServerMessageRestartedText" xml:space="preserve">
+        <value>Sent over RCon and Discord right before the restart (DSL "Restarted"). Empty: the shutdown notification of all servers is sent to Discord.</value>
+    </data>
+    <data name="SettingServerMessageReady" xml:space="preserve">
+        <value>Ready message</value>
+    </data>
+    <data name="SettingServerMessageReadyText" xml:space="preserve">
+        <value>Sent to Discord when the server is online (DSL "Ready"), e.g. "The gates to {servername} are now open, join on {steamconnect}". Empty: the online notification of all servers.</value>
+    </data>
+    <data name="SettingServerMessageShutdown" xml:space="preserve">
+        <value>Shutdown message</value>
+    </data>
+    <data name="SettingServerMessageShutdownText" xml:space="preserve">
+        <value>Sent to Discord when the server is stopped manually (DSL "Shutdown"). Empty: the shutdown notification of all servers.</value>
+    </data>
+    <data name="SettingServerRConBroadcastMethod" xml:space="preserve">
+        <value>Message method</value>
+    </data>
+    <data name="SettingServerRConBroadcastMethodText" xml:space="preserve">
+        <value>RCon command used for messages to players: broadcast (message box), server (chat, needs the Pippi mod) or /alert.</value>
+    </data>
+    <data name="SettingServerBackupOnShutdown" xml:space="preserve">
+        <value>Backup on shutdown</value>
+    </data>
+    <data name="SettingServerBackupOnShutdownText" xml:space="preserve">
+        <value>After every shutdown (also crashes) the game databases, the last log, Game/Engine/ServerSettings.ini and the black/white lists are copied into a folder per day with a subfolder per shutdown. The game's own copies (*backup*, *upgrade_tags*) are skipped.</value>
+    </data>
+    <data name="SettingServerBackupDirectory" xml:space="preserve">
+        <value>Backup folder</value>
+    </data>
+    <data name="SettingServerBackupDirectoryText" xml:space="preserve">
+        <value>Where the backups are written. Empty: the Trebuchet backup folder of the downloaded data directory.</value>
+    </data>
+    <data name="SettingServerBackupLimit" xml:space="preserve">
+        <value>Limit backups</value>
+    </data>
+    <data name="SettingServerBackupLimitText" xml:space="preserve">
+        <value>Only keep the newest day folders, older ones are deleted after each backup.</value>
+    </data>
+    <data name="SettingServerBackupLimitDays" xml:space="preserve">
+        <value>Keep days</value>
+    </data>
+    <data name="SettingServerBackupLimitDaysText" xml:space="preserve">
+        <value>Number of day folders to keep.</value>
+    </data>
+    <data name="SettingServerScriptMode" xml:space="preserve">
+        <value>Run script</value>
+    </data>
+    <data name="SettingServerScriptModeText" xml:space="preserve">
+        <value>Run a script or program before the server starts, or after a shutdown before or after the backup (e.g. maintenance, reboot). Trebuchet waits until it ends (10 minutes max).</value>
+    </data>
+    <data name="ScriptModeNone" xml:space="preserve">
+        <value>Don't run scripts</value>
+    </data>
+    <data name="ScriptModeBeforeStart" xml:space="preserve">
+        <value>Before server start</value>
+    </data>
+    <data name="ScriptModeShutdownBeforeBackup" xml:space="preserve">
+        <value>On shutdown, before backup</value>
+    </data>
+    <data name="ScriptModeShutdownAfterBackup" xml:space="preserve">
+        <value>On shutdown, after backup</value>
+    </data>
+    <data name="SettingServerScriptPath" xml:space="preserve">
+        <value>Script path</value>
+    </data>
+    <data name="SettingServerScriptPathText" xml:space="preserve">
+        <value>Full path of a .bat, .cmd, .ps1 or .exe file.</value>
+    </data>
+    <data name="SettingServerScriptArguments" xml:space="preserve">
+        <value>Script arguments</value>
+    </data>
+    <data name="SettingServerScriptArgumentsText" xml:space="preserve">
+        <value>Optional arguments, macros allowed (e.g. {servername} {instance}).</value>
+    </data>
+    <data name="SettingScriptBeforeUpdate" xml:space="preserve">
+        <value>Script before updates (all servers)</value>
+    </data>
+    <data name="SettingScriptBeforeUpdateText" xml:space="preserve">
+        <value>Runs before every server or mod update (DSL BeforeSteamCMDLauncher.bat).</value>
+    </data>
+    <data name="SettingScriptAfterUpdate" xml:space="preserve">
+        <value>Script after updates (all servers)</value>
+    </data>
+    <data name="SettingScriptAfterUpdateText" xml:space="preserve">
+        <value>Runs after every server or mod update (DSL AfterSteamCMDLauncher.bat).</value>
+    </data>
+    <data name="SettingNotificationServerManualRestart" xml:space="preserve">
+        <value>Reason: Manual Restart</value>
+    </data>
+    <data name="SettingNotificationExternalIpChanged" xml:space="preserve">
+        <value>External IP changed</value>
+    </data>
+    <data name="SequenceActionBroadcast" xml:space="preserve">
+        <value>Message to Players</value>
+    </data>
+    <data name="SequenceActionBroadcastText" xml:space="preserve">
+        <value>Send a message to the players over RCon (with the profile's message method) and/or to the Discord webhooks of the profile. Macros like {servername} and {reason} are expanded.</value>
+    </data>
+    <data name="BroadcastSendRCon" xml:space="preserve">
+        <value>Send over RCon</value>
+    </data>
+    <data name="BroadcastSendDiscord" xml:space="preserve">
+        <value>Send to Discord</value>
+    </data>
+    <data name="BroadcastMessage" xml:space="preserve">
+        <value>Message</value>
+    </data>
+    <data name="MacroHint" xml:space="preserve">
+        <value>Macros: {servername}, {reason}, {steamconnect}, {ip}, {game_port}, {players}, {map_name}, {date_now_human}</value>
+    </data>
+    <data name="ConsoleCommandPlaceholder" xml:space="preserve">
+        <value>Command or message (arrow keys: history)</value>
+    </data>
+    <data name="MapSelectionTip" xml:space="preserve">
+        <value>Map Selection</value>
+    </data>
+    <data name="NetworkPortFree" xml:space="preserve">
+        <value>Free</value>
+    </data>
 </root>

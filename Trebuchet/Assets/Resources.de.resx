@@ -21,7 +21,7 @@
         <value>Anhängen</value>
     </data>
     <data name="BattleEye" xml:space="preserve">
-        <value>Battle Eye</value>
+        <value>BattlEye</value>
     </data>
     <data name="Cancel" xml:space="preserve">
         <value>Abbrechen</value>
@@ -1171,5 +1171,479 @@ WARNUNG: Dies kann dazu führen, dass die Erkennung von Zombie-Prozessen nicht m
     </data>
     <data name="ConsoleOfflineLog" xml:space="preserve">
         <value>Server aus, zeigt sein Log</value>
+    </data>
+    <data name="CatRestartWarnings" xml:space="preserve">
+        <value>Warnmeldungen</value>
+    </data>
+    <data name="CatBackupAutomation" xml:space="preserve">
+        <value>Backup und Automatisierung</value>
+    </data>
+    <data name="CatNotificationAllServers" xml:space="preserve">
+        <value>Benachrichtigungen (alle Server)</value>
+    </data>
+    <data name="SettingServerUseRestartWarnings" xml:space="preserve">
+        <value>Spieler vor Neustarts warnen</value>
+    </data>
+    <data name="SettingServerUseRestartWarningsText" xml:space="preserve">
+        <value>Wie beim Dedicated Server Launcher: Automatische, Update- und manuelle Neustarts senden die Warnmeldungen unten über RCon und Discord und starten dann neu. Eine eigene Stopp-Sequenz ersetzt diesen Ablauf.</value>
+    </data>
+    <data name="SettingServerRestartWarnings" xml:space="preserve">
+        <value>Warnungen vor dem Neustart</value>
+    </data>
+    <data name="SettingServerRestartWarningsText" xml:space="preserve">
+        <value>Jede Nachricht wird so lange vor dem Neustart gesendet. Makros: {servername}, {reason}, {steamconnect}, {ip}, {game_port}, {players}, {map_name}, {date_now_human}</value>
+    </data>
+    <data name="RestartWarningBeforeTip" xml:space="preserve">
+        <value>Zeit vor dem Neustart</value>
+    </data>
+    <data name="RestartWarningMessagePlaceholder" xml:space="preserve">
+        <value>Nachricht an die Spieler</value>
+    </data>
+    <data name="RestartWarningAdd" xml:space="preserve">
+        <value>Warnung hinzufügen</value>
+    </data>
+    <data name="RestartWarningResetDefaults" xml:space="preserve">
+        <value>Standard-Warnungen</value>
+    </data>
+    <data name="SettingServerRestartEarlyWhenEmpty" xml:space="preserve">
+        <value>Sofort neu starten, wenn niemand online ist</value>
+    </data>
+    <data name="SettingServerRestartEarlyWhenEmptyText" xml:space="preserve">
+        <value>Überspringt den Countdown, sobald der Server online ist und kein Spieler verbunden ist.</value>
+    </data>
+    <data name="SettingServerMessageRestarted" xml:space="preserve">
+        <value>Neustart-Meldung</value>
+    </data>
+    <data name="SettingServerMessageRestartedText" xml:space="preserve">
+        <value>Wird direkt vor dem Neustart über RCon und Discord gesendet (DSL „Restarted“). Leer: Die Shutdown-Benachrichtigung aller Server geht an Discord.</value>
+    </data>
+    <data name="SettingServerMessageReady" xml:space="preserve">
+        <value>Bereit-Meldung</value>
+    </data>
+    <data name="SettingServerMessageReadyText" xml:space="preserve">
+        <value>Wird an Discord gesendet, sobald der Server online ist (DSL „Ready“), z. B. „Die Tore von {servername} sind offen, beitreten über {steamconnect}“. Leer: die Online-Benachrichtigung aller Server.</value>
+    </data>
+    <data name="SettingServerMessageShutdown" xml:space="preserve">
+        <value>Herunterfahren-Meldung</value>
+    </data>
+    <data name="SettingServerMessageShutdownText" xml:space="preserve">
+        <value>Wird an Discord gesendet, wenn der Server manuell gestoppt wird (DSL „Shutdown“). Leer: die Shutdown-Benachrichtigung aller Server.</value>
+    </data>
+    <data name="SettingServerRConBroadcastMethod" xml:space="preserve">
+        <value>Nachrichten-Methode</value>
+    </data>
+    <data name="SettingServerRConBroadcastMethodText" xml:space="preserve">
+        <value>RCon-Befehl für Nachrichten an Spieler: broadcast (Meldungsfenster), server (Chat, braucht den Pippi-Mod) oder /alert.</value>
+    </data>
+    <data name="SettingServerBackupOnShutdown" xml:space="preserve">
+        <value>Backup beim Herunterfahren</value>
+    </data>
+    <data name="SettingServerBackupOnShutdownText" xml:space="preserve">
+        <value>Nach jedem Herunterfahren (auch nach Abstürzen) werden die Spieldatenbanken, das letzte Log, Game/Engine/ServerSettings.ini und die Black-/Whitelist in einen Ordner pro Tag mit Unterordner pro Herunterfahren kopiert. Die eigenen Kopien des Spiels (*backup*, *upgrade_tags*) werden ausgelassen.</value>
+    </data>
+    <data name="SettingServerBackupDirectory" xml:space="preserve">
+        <value>Backup-Ordner</value>
+    </data>
+    <data name="SettingServerBackupDirectoryText" xml:space="preserve">
+        <value>Wohin die Backups geschrieben werden. Leer: der Trebuchet-Backup-Ordner im Download-Datenverzeichnis.</value>
+    </data>
+    <data name="SettingServerBackupLimit" xml:space="preserve">
+        <value>Backups begrenzen</value>
+    </data>
+    <data name="SettingServerBackupLimitText" xml:space="preserve">
+        <value>Nur die neuesten Tagesordner behalten, ältere werden nach jedem Backup gelöscht.</value>
+    </data>
+    <data name="SettingServerBackupLimitDays" xml:space="preserve">
+        <value>Tage behalten</value>
+    </data>
+    <data name="SettingServerBackupLimitDaysText" xml:space="preserve">
+        <value>Anzahl der Tagesordner, die behalten werden.</value>
+    </data>
+    <data name="SettingServerScriptMode" xml:space="preserve">
+        <value>Skript ausführen</value>
+    </data>
+    <data name="SettingServerScriptModeText" xml:space="preserve">
+        <value>Ein Skript oder Programm vor dem Serverstart oder nach dem Herunterfahren vor bzw. nach dem Backup ausführen (z. B. Wartung, Neustart des Rechners). Trebuchet wartet, bis es fertig ist (höchstens 10 Minuten).</value>
+    </data>
+    <data name="ScriptModeNone" xml:space="preserve">
+        <value>Keine Skripte ausführen</value>
+    </data>
+    <data name="ScriptModeBeforeStart" xml:space="preserve">
+        <value>Vor dem Serverstart</value>
+    </data>
+    <data name="ScriptModeShutdownBeforeBackup" xml:space="preserve">
+        <value>Beim Herunterfahren, vor dem Backup</value>
+    </data>
+    <data name="ScriptModeShutdownAfterBackup" xml:space="preserve">
+        <value>Beim Herunterfahren, nach dem Backup</value>
+    </data>
+    <data name="SettingServerScriptPath" xml:space="preserve">
+        <value>Skript-Pfad</value>
+    </data>
+    <data name="SettingServerScriptPathText" xml:space="preserve">
+        <value>Vollständiger Pfad zu einer .bat-, .cmd-, .ps1- oder .exe-Datei.</value>
+    </data>
+    <data name="SettingServerScriptArguments" xml:space="preserve">
+        <value>Skript-Argumente</value>
+    </data>
+    <data name="SettingServerScriptArgumentsText" xml:space="preserve">
+        <value>Optionale Argumente, Makros erlaubt (z. B. {servername} {instance}).</value>
+    </data>
+    <data name="SettingScriptBeforeUpdate" xml:space="preserve">
+        <value>Skript vor Updates (alle Server)</value>
+    </data>
+    <data name="SettingScriptBeforeUpdateText" xml:space="preserve">
+        <value>Läuft vor jedem Server- oder Mod-Update (DSL BeforeSteamCMDLauncher.bat).</value>
+    </data>
+    <data name="SettingScriptAfterUpdate" xml:space="preserve">
+        <value>Skript nach Updates (alle Server)</value>
+    </data>
+    <data name="SettingScriptAfterUpdateText" xml:space="preserve">
+        <value>Läuft nach jedem Server- oder Mod-Update (DSL AfterSteamCMDLauncher.bat).</value>
+    </data>
+    <data name="SettingNotificationServerManualRestart" xml:space="preserve">
+        <value>Grund: Manueller Neustart</value>
+    </data>
+    <data name="SettingNotificationExternalIpChanged" xml:space="preserve">
+        <value>Externe IP geändert</value>
+    </data>
+    <data name="SequenceActionBroadcast" xml:space="preserve">
+        <value>Nachricht an Spieler</value>
+    </data>
+    <data name="SequenceActionBroadcastText" xml:space="preserve">
+        <value>Sendet eine Nachricht über RCon an die Spieler (mit der Nachrichten-Methode des Profils) und/oder an die Discord-Webhooks des Profils. Makros wie {servername} und {reason} werden ersetzt.</value>
+    </data>
+    <data name="BroadcastSendRCon" xml:space="preserve">
+        <value>Über RCon senden</value>
+    </data>
+    <data name="BroadcastSendDiscord" xml:space="preserve">
+        <value>An Discord senden</value>
+    </data>
+    <data name="BroadcastMessage" xml:space="preserve">
+        <value>Nachricht</value>
+    </data>
+    <data name="MacroHint" xml:space="preserve">
+        <value>Makros: {servername}, {reason}, {steamconnect}, {ip}, {game_port}, {players}, {map_name}, {date_now_human}</value>
+    </data>
+    <data name="ConsoleCommandPlaceholder" xml:space="preserve">
+        <value>Befehl oder Nachricht (Pfeiltasten: Verlauf)</value>
+    </data>
+    <data name="MapSelectionTip" xml:space="preserve">
+        <value>Kartenauswahl</value>
+    </data>
+    <data name="NetworkPortFree" xml:space="preserve">
+        <value>Frei</value>
+    </data>
+    <data name="SettingServerCrashRestartText" xml:space="preserve">
+        <value>Startet eine Serverinstanz automatisch neu, wenn sie unerwartet beendet wurde oder beim Start von Trebuchet nicht läuft.</value>
+    </data>
+    <data name="OnBoardingSteamClientOffline" xml:space="preserve">
+        <value>Steam läuft nicht</value>
+    </data>
+    <data name="OnBoardingSteamClientOfflineSub" xml:space="preserve">
+        <value>Dein Steam-Client läuft gerade nicht. Für Online-Spiele in Conan Exiles musst du bei Steam angemeldet sein.</value>
+    </data>
+    <data name="SettingPlateformTheme" xml:space="preserve">
+        <value>Design der Anwendung</value>
+    </data>
+    <data name="SettingPlateformThemeText" xml:space="preserve">
+        <value>Zwischen dunklem und hellem Design wählen</value>
+    </data>
+    <data name="SettingPlateformThemeDefault" xml:space="preserve">
+        <value>Betriebssystem</value>
+    </data>
+    <data name="SettingPlateformThemeDark" xml:space="preserve">
+        <value>Dunkel</value>
+    </data>
+    <data name="SettingPlateformThemeLight" xml:space="preserve">
+        <value>Hell</value>
+    </data>
+    <data name="OnBoardingDataDirectory" xml:space="preserve">
+        <value>Verzeichnis für heruntergeladene Daten</value>
+    </data>
+    <data name="OnBoardingDataDirectorySub" xml:space="preserve">
+        <value>Dieses Verzeichnis enthält die Mods und Serverdateien, die Trebuchet aus dem Steam Workshop herunterlädt. Du kannst den Standardort an eine passendere Stelle verlegen.
+Lege es NICHT in dein Steam-Verzeichnis.</value>
+    </data>
+    <data name="ErrorInvalidDirectory" xml:space="preserve">
+        <value>Dieses Verzeichnis ist ungültig</value>
+    </data>
+    <data name="Reset" xml:space="preserve">
+        <value>Zurücksetzen</value>
+    </data>
+    <data name="AutoScroll" xml:space="preserve">
+        <value>Automatisch scrollen</value>
+    </data>
+    <data name="ServerLogs" xml:space="preserve">
+        <value>Server-Logs</value>
+    </data>
+    <data name="TrebuchetLogs" xml:space="preserve">
+        <value>Trebuchet-Logs</value>
+    </data>
+    <data name="Unavailable" xml:space="preserve">
+        <value>Nicht verfügbar</value>
+    </data>
+    <data name="Clear" xml:space="preserve">
+        <value>Leeren</value>
+    </data>
+    <data name="OnBoardingRestartProcess" xml:space="preserve">
+        <value>Neustart erforderlich</value>
+    </data>
+    <data name="OnBoardingRestartProcessSub" xml:space="preserve">
+        <value>Eine Einstellung, die einen Neustart braucht, wurde geändert. Jetzt neu starten?</value>
+    </data>
+    <data name="OnBoardingRestartProcessSubMessage" xml:space="preserve">
+        <value>Eine Einstellung, die einen Neustart braucht, wurde geändert, aber es laufen noch Aufgaben. Bitte starte Trebuchet neu, sobald alle Aufgaben fertig sind.</value>
+    </data>
+    <data name="SettingExperiments" xml:space="preserve">
+        <value>Experimente</value>
+    </data>
+    <data name="SettingExperimentsText" xml:space="preserve">
+        <value>Aktiviert experimentelle Funktionen von Trebuchet, die nicht immer stabil oder fertig sind.</value>
+    </data>
+    <data name="WatermarkServerIp" xml:space="preserve">
+        <value>IP-Adresse</value>
+    </data>
+    <data name="WatermarkServerPort" xml:space="preserve">
+        <value>Port</value>
+    </data>
+    <data name="WatermarkServerPassword" xml:space="preserve">
+        <value>Passwort</value>
+    </data>
+    <data name="TooltipServerAutoConnect" xml:space="preserve">
+        <value>Automatische Serververbindung: IP, Port und Passwort eintragen, um zu starten und direkt zu verbinden (optional).</value>
+    </data>
+    <data name="Connect" xml:space="preserve">
+        <value>Verbinden</value>
+    </data>
+    <data name="Rename" xml:space="preserve">
+        <value>Umbenennen</value>
+    </data>
+    <data name="Export" xml:space="preserve">
+        <value>Exportieren</value>
+    </data>
+    <data name="Import" xml:space="preserve">
+        <value>Importieren</value>
+    </data>
+    <data name="Open" xml:space="preserve">
+        <value>Öffnen</value>
+    </data>
+    <data name="Refresh" xml:space="preserve">
+        <value>Aktualisieren</value>
+    </data>
+    <data name="Edit" xml:space="preserve">
+        <value>Bearbeiten</value>
+    </data>
+    <data name="SyncText" xml:space="preserve">
+        <value>Synchronisiere deine Modliste mit einer Steam-Kollektion oder einer kompatiblen JSON-Datei (aus Trebuchet exportiert). Deine Liste wird dabei ersetzt.</value>
+    </data>
+    <data name="Save" xml:space="preserve">
+        <value>Speichern</value>
+    </data>
+    <data name="Corrupted" xml:space="preserve">
+        <value>Beschädigt</value>
+    </data>
+    <data name="Name" xml:space="preserve">
+        <value>Name</value>
+    </data>
+    <data name="PanelClientConnections" xml:space="preserve">
+        <value>Client-Verbindungen</value>
+    </data>
+    <data name="Add" xml:space="preserve">
+        <value>Hinzufügen</value>
+    </data>
+    <data name="PanelSync" xml:space="preserve">
+        <value>Synchronisieren</value>
+    </data>
+    <data name="DropPakLabel" xml:space="preserve">
+        <value>.pak-Dateien hier ablegen, um sie zur Liste hinzuzufügen</value>
+    </data>
+    <data name="Dock" xml:space="preserve">
+        <value>Andocken</value>
+    </data>
+    <data name="Undock" xml:space="preserve">
+        <value>Abdocken</value>
+    </data>
+    <data name="StatusRestarting" xml:space="preserve">
+        <value>Startet neu</value>
+    </data>
+    <data name="SettingUpdateCheckFrequency" xml:space="preserve">
+        <value>Häufigkeit der Update-Prüfung</value>
+    </data>
+    <data name="SettingServerAutoRestart" xml:space="preserve">
+        <value>Automatischer Neustart</value>
+    </data>
+    <data name="SettingServerAutoRestartMinUptime" xml:space="preserve">
+        <value>Automatischer Neustart: Mindestlaufzeit</value>
+    </data>
+    <data name="SettingServerAutoRestartDailyTime" xml:space="preserve">
+        <value>Automatischer Neustart: Uhrzeiten</value>
+    </data>
+    <data name="SettingServerAutoRestartMaxPerDay" xml:space="preserve">
+        <value>Automatischer Neustart: Höchstens pro Tag</value>
+    </data>
+    <data name="SettingRunOnLogon" xml:space="preserve">
+        <value>Bei der Anmeldung automatisch starten</value>
+    </data>
+    <data name="CatNotification" xml:space="preserve">
+        <value>Benachrichtigungen</value>
+    </data>
+    <data name="SettingNotificationServerCrash" xml:space="preserve">
+        <value>Server abgestürzt</value>
+    </data>
+    <data name="SettingNotificationServerOnline" xml:space="preserve">
+        <value>Server online</value>
+    </data>
+    <data name="CancelOnFailure" xml:space="preserve">
+        <value>Bei Fehler abbrechen</value>
+    </data>
+    <data name="MaxAge" xml:space="preserve">
+        <value>Maximales Alter</value>
+    </data>
+    <data name="WebHookUrl" xml:space="preserve">
+        <value>Webhook-URL</value>
+    </data>
+    <data name="Message" xml:space="preserve">
+        <value>Nachricht</value>
+    </data>
+    <data name="SequenceActionBackupServerData" xml:space="preserve">
+        <value>Server sichern</value>
+    </data>
+    <data name="SequenceActionDiscordWebHook" xml:space="preserve">
+        <value>Discord-Webhook</value>
+    </data>
+    <data name="SequenceActionExecuteProcess" xml:space="preserve">
+        <value>Programm ausführen</value>
+    </data>
+    <data name="SequenceActionRConCommand" xml:space="preserve">
+        <value>RCon-Befehl</value>
+    </data>
+    <data name="SequenceActionSendRESTQuery" xml:space="preserve">
+        <value>REST-Anfrage senden</value>
+    </data>
+    <data name="SequenceActionWaitOffline" xml:space="preserve">
+        <value>Warten bis offline</value>
+    </data>
+    <data name="SequenceActionWaitOnline" xml:space="preserve">
+        <value>Warten bis online</value>
+    </data>
+    <data name="SequenceActionWait" xml:space="preserve">
+        <value>Warten</value>
+    </data>
+    <data name="SequenceMainAction" xml:space="preserve">
+        <value>Hauptaktion der Sequenz</value>
+    </data>
+    <data name="SequenceEditor" xml:space="preserve">
+        <value>Sequenz-Editor</value>
+    </data>
+    <data name="SettingServerStartingSequence" xml:space="preserve">
+        <value>Start-Sequenz</value>
+    </data>
+    <data name="SettingServerStoppingSequence" xml:space="preserve">
+        <value>Stopp-Sequenz</value>
+    </data>
+    <data name="SettingServerStartingSequenceText" xml:space="preserve">
+        <value>Inhalt: {0} Aktion(en)
+Die Start-Sequenz ersetzt den einfachen Serverstart. So kannst du Aktionen vor und nach der Hauptaktion (dem Serverstart) festlegen.</value>
+    </data>
+    <data name="SettingServerStoppingSequenceText" xml:space="preserve">
+        <value>Inhalt: {0} Aktion(en)
+Die Stopp-Sequenz ersetzt das einfache Stoppen des Servers. So kannst du Aktionen vor und nach der Hauptaktion (dem Stoppen) festlegen.</value>
+    </data>
+    <data name="ProcessFilename" xml:space="preserve">
+        <value>Dateipfad</value>
+    </data>
+    <data name="Arguments" xml:space="preserve">
+        <value>Argumente</value>
+    </data>
+    <data name="WaitProcessToExit" xml:space="preserve">
+        <value>Warten, bis das Programm beendet ist</value>
+    </data>
+    <data name="CancelIfErrorCode" xml:space="preserve">
+        <value>Abbrechen, wenn ein Fehlercode zurückkommt</value>
+    </data>
+    <data name="CreateNoWindow" xml:space="preserve">
+        <value>Kein Fenster erstellen</value>
+    </data>
+    <data name="UseShellExecute" xml:space="preserve">
+        <value>Über die Shell ausführen</value>
+    </data>
+    <data name="Command" xml:space="preserve">
+        <value>Befehl</value>
+    </data>
+    <data name="RequestUrl" xml:space="preserve">
+        <value>Anfrage-URL</value>
+    </data>
+    <data name="HttpMethod" xml:space="preserve">
+        <value>HTTP-Methode</value>
+    </data>
+    <data name="RequestBody" xml:space="preserve">
+        <value>Anfrage-Inhalt</value>
+    </data>
+    <data name="RequestHeaders" xml:space="preserve">
+        <value>Anfrage-Header</value>
+    </data>
+    <data name="RequestTimeout" xml:space="preserve">
+        <value>Zeitlimit</value>
+    </data>
+    <data name="WaitTime" xml:space="preserve">
+        <value>Wartezeit</value>
+    </data>
+    <data name="SettingNotificationServerStop" xml:space="preserve">
+        <value>Benachrichtigung beim Herunterfahren</value>
+    </data>
+    <data name="SettingNotificationServerManualStop" xml:space="preserve">
+        <value>Grund: Manuelles Herunterfahren</value>
+    </data>
+    <data name="SettingNotificationServerAutomatedRestart" xml:space="preserve">
+        <value>Grund: Automatischer Neustart</value>
+    </data>
+    <data name="SettingNotificationServerModUpdate" xml:space="preserve">
+        <value>Grund: Mod-Update</value>
+    </data>
+    <data name="SettingNotificationServerServerUpdate" xml:space="preserve">
+        <value>Grund: Server-Update</value>
+    </data>
+    <data name="SettingRunOnLogonText" xml:space="preserve">
+        <value>Startet die App bei der Anmeldung des aktuellen Benutzers, für genau diese Spielversion. Legacy, Enhanced und Enhanced PTC haben jeweils eine eigene Einstellung. Die Auswahl der Spielversion wird dann übersprungen.</value>
+    </data>
+    <data name="SettingServerAutoRestartText" xml:space="preserve">
+        <value>Tägliche Neustarts zu festen Uhrzeiten planen.</value>
+    </data>
+    <data name="SettingServerAutoRestartDailyTimeText" xml:space="preserve">
+        <value>Uhrzeiten, zu denen der Server automatisch für einen Neustart heruntergefahren wird. Achte darauf, dass „Höchstens pro Tag“ und „Mindestlaufzeit“ den Neustart nicht verhindern.</value>
+    </data>
+    <data name="SettingServerAutoRestartMaxPerDayText" xml:space="preserve">
+        <value>Höchstzahl an Neustarts pro Tag. Gezählt wird in Ortszeit, um Mitternacht wird zurückgesetzt. Das verhindert automatische Neustarts, aber nicht solche für Mod- oder Server-Updates.</value>
+    </data>
+    <data name="SettingServerAutoRestartMinUptimeText" xml:space="preserve">
+        <value>Verhindert den automatischen Neustart, solange der Server kürzer als diese Dauer läuft. Neustarts für Mod- oder Server-Updates sind davon nicht betroffen.</value>
+    </data>
+    <data name="SequenceActionBackupServerDataText" xml:space="preserve">
+        <value>Packt den Spielstand in ein ZIP und legt ihn mit eindeutigem Namen in einem eigenen Backup-Ordner ab. Backups, die älter als die angegebene Dauer sind, werden bei neuen Backups gelöscht. Schlägt immer fehl, wenn es nach dem Serverstart oder vor dem Herunterfahren ausgeführt wird.</value>
+    </data>
+    <data name="SequenceActionDiscordWebHookText" xml:space="preserve">
+        <value>Sendet eine Nachricht an einen Discord-Webhook. {Reason} im Text fügt den Grund eines Neustarts ein.</value>
+    </data>
+    <data name="SequenceActionExecuteProcessText" xml:space="preserve">
+        <value>Führt ein Programm oder eine Datei mit Argumenten aus. „Kein Fenster erstellen“ versucht, das Programm im Hintergrund zu starten. „Über die Shell ausführen“ öffnet die Datei über das Betriebssystem, z. B. ein Python-Skript mit dem passenden Programm.</value>
+    </data>
+    <data name="SequenceActionRConCommandText" xml:space="preserve">
+        <value>Sendet einen RCon-Befehl an den Server. Das geht nur, solange der Server online ist, also vor dem Stoppen oder nachdem er fertig geladen hat.</value>
+    </data>
+    <data name="SequenceActionSendRESTQueryText" xml:space="preserve">
+        <value>Sendet eine HTTP-Anfrage an einen beliebigen Online-Dienst. Header stehen je Zeile, Schlüssel und Wert durch Komma getrennt. {Reason} fügt in Headern oder Inhalt den Neustart-Grund ein.</value>
+    </data>
+    <data name="SequenceActionWaitText" xml:space="preserve">
+        <value>Wartet eine bestimmte Zeit, bevor die Sequenz weiterläuft. Praktisch, um Spieler vor einem Neustart zu warnen und erst danach herunterzufahren.</value>
+    </data>
+    <data name="SequenceActionWaitOfflineText" xml:space="preserve">
+        <value>Wartet, bis der Server nach dem Herunterfahren vollständig offline ist.</value>
+    </data>
+    <data name="SequenceActionWaitOnlineText" xml:space="preserve">
+        <value>Wartet, bis der Server vollständig online ist und Spieler annimmt.</value>
+    </data>
+    <data name="SequenceMainActionText" xml:space="preserve">
+        <value>Führt die Hauptaktion der Sequenz aus: In einer Stopp-Sequenz wird der Server gestoppt, in einer Start-Sequenz gestartet.</value>
     </data>
 </root>

@@ -71,7 +71,10 @@ public partial class App : Application, IApplication
 
         // Per-edition UI config keeps profile selections isolated.
         LoadEditionUiConfig(edition);
-        
+        // Initialize() applied the start window's language; the edition settings hold the user's choice.
+        if (!string.IsNullOrEmpty(_uiConfig?.UICulture))
+            _langManager?.SetLanguage(_uiConfig.UICulture);
+
         bool catapult = false;
         
         bool experiment = _uiConfig!.Experiments;

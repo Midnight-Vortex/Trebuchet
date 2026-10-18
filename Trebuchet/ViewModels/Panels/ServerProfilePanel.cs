@@ -49,6 +49,7 @@ namespace Trebuchet.ViewModels.Panels
             var startingProfile = _appFiles.Server.Resolve(_uiConfig.CurrentServerProfile);
             _profile = _appFiles.Server.Get(startingProfile);
             SaveProfile = ReactiveCommand.Create(() => _profile.SaveFile());
+            SaveConfig = ReactiveCommand.Create(() => _setup.Config.SaveFile());
 
             FileMenu = new FileMenuViewModel<ServerProfile, ServerProfileRef>(AppResources.PanelServerSaves, appFiles.Server, box, _logger);
             FileMenu.FileSelected += OnFileSelected;
@@ -60,6 +61,7 @@ namespace Trebuchet.ViewModels.Panels
         public ObservableCollection<FieldElement> Fields { get; } = [];
 
         public ReactiveCommand<Unit,Unit> SaveProfile { get; }
+        public ReactiveCommand<Unit,Unit> SaveConfig { get; }
         
         public FileMenuViewModel<ServerProfile, ServerProfileRef> FileMenu { get; }
 
@@ -349,6 +351,148 @@ namespace Trebuchet.ViewModels.Panels
             Fields.Add(autoRestartTimes);
             Fields.Add(autoRestartMaxPerDay);
             Fields.Add(autoRestartMinUptime);
+
+            Fields.Add(new TitleField().SetTitle(AppResources.CatRestartWarnings));
+            var useWarnings = new ToggleField()
+                .WhenFieldChanged(SaveProfile)
+                .SetTitle(AppResources.SettingServerUseRestartWarnings)
+                .SetDescription(AppResources.SettingServerUseRestartWarningsText)
+                .SetGetter(() => _profile.UseRestartWarnings)
+                .SetSetter((v) => _profile.UseRestartWarnings = v)
+                .SetDefault(() => ServerProfile.UseRestartWarningsDefault);
+            var warnings = new RestartWarningsField(() => _profile, () => _profile.SaveFile())
+                .SetTitle(AppResources.SettingServerRestartWarnings)
+                .SetDescription(AppResources.SettingServerRestartWarningsText);
+            var earlyRestart = new ToggleField()
+                .WhenFieldChanged(SaveProfile)
+                .SetTitle(AppResources.SettingServerRestartEarlyWhenEmpty)
+                .SetDescription(AppResources.SettingServerRestartEarlyWhenEmptyText)
+                .SetGetter(() => _profile.RestartEarlyWhenEmpty)
+                .SetSetter((v) => _profile.RestartEarlyWhenEmpty = v)
+                .SetDefault(() => ServerProfile.RestartEarlyWhenEmptyDefault);
+            var messageRestarted = new TextField()
+                .WhenFieldChanged(SaveProfile)
+                .SetTitle(AppResources.SettingServerMessageRestarted)
+                .SetDescription(AppResources.SettingServerMessageRestartedText)
+                .SetGetter(() => _profile.MessageRestarted)
+                .SetSetter((v) => _profile.MessageRestarted = v)
+                .SetDefault(() => ServerProfile.MessageRestartedDefault);
+            useWarnings.WhenAnyValue(x => x.Value).Subscribe(x =>
+            {
+                warnings.IsVisible = x;
+                earlyRestart.IsVisible = x;
+                messageRestarted.IsVisible = x;
+            });
+            Fields.Add(useWarnings);
+            Fields.Add(warnings);
+            Fields.Add(earlyRestart);
+            Fields.Add(messageRestarted);
+            Fields.Add(new TextField()
+                .WhenFieldChanged(SaveProfile)
+                .SetTitle(AppResources.SettingServerMessageReady)
+                .SetDescription(AppResources.SettingServerMessageReadyText)
+                .SetGetter(() => _profile.MessageReady)
+                .SetSetter((v) => _profile.MessageReady = v)
+                .SetDefault(() => ServerProfile.MessageReadyDefault)
+            );
+            Fields.Add(new TextField()
+                .WhenFieldChanged(SaveProfile)
+                .SetTitle(AppResources.SettingServerMessageShutdown)
+                .SetDescription(AppResources.SettingServerMessageShutdownText)
+                .SetGetter(() => _profile.MessageShutdown)
+                .SetSetter((v) => _profile.MessageShutdown = v)
+                .SetDefault(() => ServerProfile.MessageShutdownDefault)
+            );
+
+            Fields.Add(new TitleField().SetTitle(AppResources.CatBackupAutomation));
+            var backup = new ToggleField()
+                .WhenFieldChanged(SaveProfile)
+                .SetTitle(AppResources.SettingServerBackupOnShutdown)
+                .SetDescription(AppResources.SettingServerBackupOnShutdownText)
+                .SetGetter(() => _profile.BackupOnShutdown)
+                .SetSetter((v) => _profile.BackupOnShutdown = v)
+                .SetDefault(() => ServerProfile.BackupOnShutdownDefault);
+            var backupDirectory = new DirectoryField()
+                .WhenFieldChanged(SaveProfile)
+                .SetTitle(AppResources.SettingServerBackupDirectory)
+                .SetDescription(AppResources.SettingServerBackupDirectoryText)
+                .SetGetter(() => _profile.BackupDirectory)
+                .SetSetter((v) => _profile.BackupDirectory = v)
+                .SetDefault(() => ServerProfile.BackupDirectoryDefault);
+            var backupLimit = new ToggleField()
+                .WhenFieldChanged(SaveProfile)
+                .SetTitle(AppResources.SettingServerBackupLimit)
+                .SetDescription(AppResources.SettingServerBackupLimitText)
+                .SetGetter(() => _profile.BackupLimitEnabled)
+                .SetSetter((v) => _profile.BackupLimitEnabled = v)
+                .SetDefault(() => ServerProfile.BackupLimitEnabledDefault);
+            var backupDays = new IntField(1, 3650)
+                .WhenFieldChanged(SaveProfile)
+                .SetTitle(AppResources.SettingServerBackupLimitDays)
+                .SetDescription(AppResources.SettingServerBackupLimitDaysText)
+                .SetGetter(() => _profile.BackupLimitDays)
+                .SetSetter((v) => _profile.BackupLimitDays = v)
+                .SetDefault(() => ServerProfile.BackupLimitDaysDefault);
+            backup.WhenAnyValue(x => x.Value).Subscribe(x =>
+            {
+                backupDirectory.IsVisible = x;
+                backupLimit.IsVisible = x;
+                backupDays.IsVisible = x && backupLimit.Value;
+            });
+            backupLimit.WhenAnyValue(x => x.Value).Subscribe(x => backupDays.IsVisible = x && backup.Value);
+            Fields.Add(backup);
+            Fields.Add(backupDirectory);
+            Fields.Add(backupLimit);
+            Fields.Add(backupDays);
+            var scriptMode = new ComboBoxField()
+                .WhenFieldChanged(SaveProfile)
+                .SetTitle(AppResources.SettingServerScriptMode)
+                .SetDescription(AppResources.SettingServerScriptModeText)
+                .AddOption(AppResources.ScriptModeNone)
+                .AddOption(AppResources.ScriptModeBeforeStart)
+                .AddOption(AppResources.ScriptModeShutdownBeforeBackup)
+                .AddOption(AppResources.ScriptModeShutdownAfterBackup)
+                .SetGetter(() => _profile.ScriptMode)
+                .SetSetter((v) => _profile.ScriptMode = v)
+                .SetDefault(() => ServerProfile.ScriptModeDefault);
+            var scriptPath = new TextField()
+                .WhenFieldChanged(SaveProfile)
+                .SetTitle(AppResources.SettingServerScriptPath)
+                .SetDescription(AppResources.SettingServerScriptPathText)
+                .SetGetter(() => _profile.ScriptPath)
+                .SetSetter((v) => _profile.ScriptPath = v)
+                .SetDefault(() => ServerProfile.ScriptPathDefault);
+            var scriptArguments = new TextField()
+                .WhenFieldChanged(SaveProfile)
+                .SetTitle(AppResources.SettingServerScriptArguments)
+                .SetDescription(AppResources.SettingServerScriptArgumentsText)
+                .SetGetter(() => _profile.ScriptArguments)
+                .SetSetter((v) => _profile.ScriptArguments = v)
+                .SetDefault(() => ServerProfile.ScriptArgumentsDefault);
+            scriptMode.WhenAnyValue(x => x.Value).Subscribe(x =>
+            {
+                scriptPath.IsVisible = x != ServerProfile.ScriptModeNone;
+                scriptArguments.IsVisible = x != ServerProfile.ScriptModeNone;
+            });
+            Fields.Add(scriptMode);
+            Fields.Add(scriptPath);
+            Fields.Add(scriptArguments);
+            Fields.Add(new TextField()
+                .WhenFieldChanged(SaveConfig)
+                .SetTitle(AppResources.SettingScriptBeforeUpdate)
+                .SetDescription(AppResources.SettingScriptBeforeUpdateText)
+                .SetGetter(() => _setup.Config.ScriptBeforeUpdate)
+                .SetSetter((v) => _setup.Config.ScriptBeforeUpdate = v)
+                .SetDefault(() => string.Empty)
+            );
+            Fields.Add(new TextField()
+                .WhenFieldChanged(SaveConfig)
+                .SetTitle(AppResources.SettingScriptAfterUpdate)
+                .SetDescription(AppResources.SettingScriptAfterUpdateText)
+                .SetGetter(() => _setup.Config.ScriptAfterUpdate)
+                .SetSetter((v) => _setup.Config.ScriptAfterUpdate = v)
+                .SetDefault(() => string.Empty)
+            );
             
             Fields.Add(new TitleField().SetTitle(AppResources.CatPerformance));
             Fields.Add(new IntField(1, int.MaxValue)
@@ -485,15 +629,27 @@ namespace Trebuchet.ViewModels.Panels
                 .SetGetter(() => _profile.RConMaxKarma)
                 .SetSetter((v) => _profile.RConMaxKarma = v)
                 .SetDefault(() => ServerProfile.RConMaxKarmaDefault);
+            var rconMethod = new ComboBoxField()
+                .WhenFieldChanged(SaveProfile)
+                .SetTitle(AppResources.SettingServerRConBroadcastMethod)
+                .SetDescription(AppResources.SettingServerRConBroadcastMethodText)
+                .AddOption(@"broadcast")
+                .AddOption(@"server (Pippi)")
+                .AddOption(@"/alert")
+                .SetGetter(() => _profile.RConBroadcastMethod)
+                .SetSetter((v) => _profile.RConBroadcastMethod = v)
+                .SetDefault(() => ServerProfile.RConBroadcastMethodDefault);
             Fields.Add(rconPort);
             Fields.Add(rconPass);
             Fields.Add(rconKarma);
+            Fields.Add(rconMethod);
             rcon.WhenAnyValue(x => x.Value)
                 .Subscribe(x =>
                 {
                     rconPass.IsVisible = x;
                     rconPort.IsVisible = x;
                     rconKarma.IsVisible = x;
+                    rconMethod.IsVisible = x;
                 });
                 
             Fields.Add(new TitleField().SetTitle(AppResources.CatAntiCheat));
@@ -570,6 +726,38 @@ namespace Trebuchet.ViewModels.Panels
                 .SetGetter(() => string.Join(Environment.NewLine, _profile.LogFilters))
                 .SetSetter((v) => _profile.LogFilters = v.Trim().Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries).ToList())
                 .SetDefault(() => string.Join(Environment.NewLine, ServerProfile.LogFiltersDefault))
+            );
+
+            // Notification templates are shared by all servers (moved here from the application settings).
+            Fields.Add(new TitleField().SetTitle(AppResources.CatNotificationAllServers));
+            AddNotificationField(AppResources.SettingNotificationServerCrash,
+                () => _setup.Config.NotificationServerCrash, v => _setup.Config.NotificationServerCrash = v, Config.NotificationServerCrashDefault);
+            AddNotificationField(AppResources.SettingNotificationServerOnline,
+                () => _setup.Config.NotificationServerOnline, v => _setup.Config.NotificationServerOnline = v, Config.NotificationServerOnlineDefault);
+            AddNotificationField(AppResources.SettingNotificationServerStop,
+                () => _setup.Config.NotificationServerStop, v => _setup.Config.NotificationServerStop = v, Config.NotificationServerStopDefault);
+            AddNotificationField(AppResources.SettingNotificationServerManualStop,
+                () => _setup.Config.NotificationServerManualStop, v => _setup.Config.NotificationServerManualStop = v, Config.NotificationServerManualStopDefault);
+            AddNotificationField(AppResources.SettingNotificationServerManualRestart,
+                () => _setup.Config.NotificationServerManualRestart, v => _setup.Config.NotificationServerManualRestart = v, Config.NotificationServerManualRestartDefault);
+            AddNotificationField(AppResources.SettingNotificationServerAutomatedRestart,
+                () => _setup.Config.NotificationServerAutomatedRestart, v => _setup.Config.NotificationServerAutomatedRestart = v, Config.NotificationServerAutomatedRestartDefault);
+            AddNotificationField(AppResources.SettingNotificationServerModUpdate,
+                () => _setup.Config.NotificationServerModUpdate, v => _setup.Config.NotificationServerModUpdate = v, Config.NotificationServerModUpdateDefault);
+            AddNotificationField(AppResources.SettingNotificationServerServerUpdate,
+                () => _setup.Config.NotificationServerServerUpdate, v => _setup.Config.NotificationServerServerUpdate = v, Config.NotificationServerServerUpdateDefault);
+            AddNotificationField(AppResources.SettingNotificationExternalIpChanged,
+                () => _setup.Config.NotificationExternalIpChanged, v => _setup.Config.NotificationExternalIpChanged = v, Config.NotificationExternalIpChangedDefault);
+        }
+
+        private void AddNotificationField(string title, Func<string> getter, Action<string> setter, string defaultValue)
+        {
+            Fields.Add(new TextField()
+                .WhenFieldChanged(SaveConfig)
+                .SetTitle(title)
+                .SetGetter(getter)
+                .SetSetter(setter)
+                .SetDefault(() => defaultValue)
             );
         }
     }

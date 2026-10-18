@@ -77,6 +77,11 @@ public class MixedConsoleViewModel : ReactiveObject, IScrollController
 
         SelectTab = ReactiveCommand.CreateFromTask<ConsoleTabBase>(OnSelectTab);
 
+        _config = config;
+        _historyIndex = config.ConsoleHistory.Count;
+        HistoryPrevious = ReactiveCommand.Create(() => BrowseHistory(-1));
+        HistoryNext = ReactiveCommand.Create(() => BrowseHistory(1));
+
         RefreshLabel();
     }
 
@@ -99,6 +104,8 @@ public class MixedConsoleViewModel : ReactiveObject, IScrollController
     private int _rconMethod;
     private string _onlinePlayers = string.Empty;
     private string _offlineLogFile = string.Empty;
+    private readonly UIConfig _config;
+    private int _historyIndex;
     private ConsoleTabBase _selectedTab;
     private readonly HashSet<string> _players = new(StringComparer.OrdinalIgnoreCase);
     private readonly Func<LogEvent, bool> _instanceEqual;
@@ -220,6 +227,8 @@ public class MixedConsoleViewModel : ReactiveObject, IScrollController
     public ReactiveCommand<Unit,Unit> ToggleAutoScroll { get; }
     public ReactiveCommand<Unit,Unit> ClearText { get; }
     public ReactiveCommand<ConsoleTabBase, Unit> SelectTab { get; }
+    public ReactiveCommand<Unit, Unit> HistoryPrevious { get; }
+    public ReactiveCommand<Unit, Unit> HistoryNext { get; }
 
     public async Task Send(string input)
     {
@@ -430,7 +439,28 @@ public class MixedConsoleViewModel : ReactiveObject, IScrollController
     {
         var command = CommandField;
         CommandField = string.Empty;
+        AddToHistory(command);
         await Send(command);
+    }
+
+    /// <summary>DSL "Send" box: the last 50 sent texts, browsed with the arrow keys.</summary>
+    private void AddToHistory(string command)
+    {
+        if (string.IsNullOrWhiteSpace(command)) return;
+        var history = _config.ConsoleHistory;
+        history.Remove(command);
+        history.Add(command);
+        while (history.Count > 50) history.RemoveAt(0);
+        _historyIndex = history.Count;
+        try { _config.SaveFile(); } catch (Exception ex) { _logger.LogDebug(ex, @"Could not save console history"); }
+    }
+
+    private void BrowseHistory(int direction)
+    {
+        var history = _config.ConsoleHistory;
+        if (history.Count == 0) return;
+        _historyIndex = Math.Clamp(_historyIndex + direction, 0, history.Count);
+        CommandField = _historyIndex >= history.Count ? string.Empty : history[_historyIndex];
     }
 
     public override string ToString()

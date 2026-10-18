@@ -132,6 +132,20 @@ oldRemoveAction.Execute(null);
 Check(model.List.Count == 2, "Previously captured delete action cannot remove from read-only list");
 
 checks += await ProfileMenuChecks.Run();
+
+// Every English UI text has a German translation (the language setting must switch the whole UI).
+{
+    var manager = Trebuchet.Assets.Resources.ResourceManager;
+    var neutral = manager.GetResourceSet(System.Globalization.CultureInfo.InvariantCulture, true, true)!
+        .Cast<System.Collections.DictionaryEntry>().Select(x => (string)x.Key).ToList();
+    var german = manager.GetResourceSet(System.Globalization.CultureInfo.GetCultureInfo("de"), true, false);
+    Check(german is not null, "German satellite resources are deployed");
+    var germanKeys = german!.Cast<System.Collections.DictionaryEntry>().Select(x => (string)x.Key).ToHashSet();
+    var missingGerman = neutral.Where(x => !germanKeys.Contains(x)).ToList();
+    Check(missingGerman.Count == 0, "German translation is missing: " + string.Join(", ", missingGerman.Take(10)));
+    Check(manager.GetString(nameof(Trebuchet.Assets.Resources.CatBackupAutomation), System.Globalization.CultureInfo.GetCultureInfo("de")) == "Backup und Automatisierung",
+        "German texts are resolved for the German culture");
+}
 Console.WriteLine($"Passed {checks} mod list and profile menu checks.");
 
 sealed class TestProgress : IProgressCallback<DepotDownloader.Progress>
