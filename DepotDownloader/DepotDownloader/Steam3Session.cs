@@ -15,10 +15,22 @@ using SteamKit2.Internal;
 
 namespace DepotDownloader
 {
-    public class Steam3Session
+    public class Steam3Session : IDisposable
     {
-        public bool IsLoggedOn { get; private set; }
-        public bool IsConnecting { get; private set; }
+        // Bounds the whole connect + logon wait of one Connect() call, so it can never hang forever.
+        static readonly TimeSpan ConnectTimeout = TimeSpan.FromSeconds(60);
+        // A non-anonymous logon may wait for a Steam Guard code typed by the user.
+        static readonly TimeSpan AuthenticatedConnectTimeout = TimeSpan.FromMinutes(5);
+        // How long Disconnect() waits for the pump to handle the resulting DisconnectedCallback.
+        static readonly TimeSpan DisconnectTimeout = TimeSpan.FromSeconds(5);
+
+        // The callback handlers run on the callback pump thread while callers read these flags from other
+        // threads (Steam.IsConnected, Connect(), the download code), hence the volatile backing fields.
+        volatile bool isLoggedOn;
+        volatile bool isConnecting;
+
+        public bool IsLoggedOn { get => isLoggedOn; private set => isLoggedOn = value; }
+        public bool IsConnecting { get => isConnecting; private set => isConnecting = value; }
 
         public ReadOnlyCollection<SteamApps.LicenseListCallback.License> Licenses
         {
@@ -44,16 +56,29 @@ namespace DepotDownloader
         readonly CallbackManager callbacks;
 
         readonly bool authenticatedUser;
-        bool bConnecting;
-        bool bAborted;
-        bool bExpectingDisconnectRemote;
-        bool bDidDisconnect;
-        bool bIsConnectionRecovery;
+        volatile bool bConnecting;
+        volatile bool bAborted;
+        volatile bool bExpectingDisconnectRemote;
+        volatile bool bIsConnectionRecovery;
         int connectionBackoff;
-        int seq; // more hack fixes
+        int disconnectCount; // number of DisconnectedCallbacks handled, Disconnect() waits for it to change
         int authEpoch;
-        AuthSession authSession;
-        readonly CancellationTokenSource abortedToken = new();
+        volatile AuthSession authSession;
+
+        // Guards the connection state transitions (Connect, Disconnect, reconnect) between callers and the pump thread.
+        readonly Lock stateLock = new();
+
+        // SteamKit only runs callback handlers (connected, disconnected, logged on/off) while something pumps the
+        // CallbackManager. A single background thread does that for the whole life of the session: without it a
+        // connection lost after the first logon is never noticed nor recovered, and SteamKit's callback queue grows forever.
+        readonly Lock pumpLock = new();
+        volatile Thread callbackPump;
+        volatile bool pumpStopping;
+
+        // Posted to wake the pump up when the session is disposed; no handler is subscribed to it.
+        sealed class PumpWakeUpCallback : CallbackMsg
+        {
+        }
 
         public event EventHandler Disconnected;
         public event EventHandler Connected;
@@ -86,30 +111,27 @@ namespace DepotDownloader
             this.callbacks.Subscribe<SteamClient.ConnectedCallback>(ConnectedCallback);
             this.callbacks.Subscribe<SteamClient.DisconnectedCallback>(DisconnectedCallback);
             this.callbacks.Subscribe<SteamUser.LoggedOnCallback>(LogOnCallback);
+            this.callbacks.Subscribe<SteamUser.LoggedOffCallback>(LoggedOffCallback);
             this.callbacks.Subscribe<SteamApps.LicenseListCallback>(LicenseListCallback);
         }
 
         public delegate bool WaitCondition();
 
-        private readonly Lock steamLock = new();
+        TimeSpan LogOnTimeout => authenticatedUser ? AuthenticatedConnectTimeout : ConnectTimeout;
 
+        /// <summary>
+        /// Runs <paramref name="submitter"/> and waits until <paramref name="waiter"/> is true, the session is aborted
+        /// or the logon timeout elapsed. Callbacks are handled by the pump thread, this only waits for the condition.
+        /// </summary>
         public bool WaitUntilCallback(Action submitter, WaitCondition waiter)
         {
-            while (!bAborted && !waiter())
-            {
-                lock (steamLock)
-                {
-                    submitter();
-                }
+            EnsureCallbackPump();
+            submitter();
 
-                var seq = this.seq;
-                do
-                {
-                    lock (steamLock)
-                    {
-                        callbacks.RunWaitCallbacks(TimeSpan.FromSeconds(1));
-                    }
-                } while (!bAborted && this.seq == seq && !waiter());
+            var deadline = DateTime.UtcNow + LogOnTimeout;
+            while (!bAborted && !waiter() && DateTime.UtcNow < deadline)
+            {
+                Thread.Sleep(100);
             }
 
             return bAborted;
@@ -125,21 +147,73 @@ namespace DepotDownloader
             return IsLoggedOn;
         }
 
-        public async Task TickCallbacks()
+        async Task<bool> WaitForLogOnAsync(TimeSpan timeout)
         {
-            var token = abortedToken.Token;
-
-            try
+            var deadline = DateTime.UtcNow + timeout;
+            while (!IsLoggedOn && !bAborted && DateTime.UtcNow < deadline)
             {
-                while (!token.IsCancellationRequested)
+                await Task.Delay(100).ConfigureAwait(false);
+            }
+
+            return IsLoggedOn;
+        }
+
+        void EnsureCallbackPump()
+        {
+            lock (pumpLock)
+            {
+                if (callbackPump != null || pumpStopping)
+                    return;
+
+                callbackPump = new Thread(RunCallbackPump)
                 {
-                    await callbacks.RunWaitCallbackAsync(token);
+                    IsBackground = true,
+                    Name = "SteamKit callback pump",
+                };
+                callbackPump.Start();
+            }
+        }
+
+        void RunCallbackPump()
+        {
+            while (!pumpStopping)
+            {
+                try
+                {
+                    // Blocks until a callback is posted; Dispose() posts a PumpWakeUpCallback to end the loop.
+                    callbacks.RunWaitCallbacks();
+                }
+                catch (Exception ex)
+                {
+                    // A failing handler must never end the pump, otherwise reconnects silently stop working again.
+                    Util.WriteLine("Error while handling a Steam callback: {0}", ex.Message);
                 }
             }
-            catch (OperationCanceledException)
+        }
+
+        /// <summary>
+        /// Disconnects from Steam and stops the callback pump. The session cannot be used afterwards.
+        /// </summary>
+        public void Dispose()
+        {
+            Disconnect();
+
+            Thread pump;
+            lock (pumpLock)
             {
-                //
+                pumpStopping = true;
+                pump = callbackPump;
+                callbackPump = null;
             }
+
+            if (pump != null)
+            {
+                steamClient.PostCallback(new PumpWakeUpCallback());
+                if (pump != Thread.CurrentThread)
+                    pump.Join(DisconnectTimeout);
+            }
+
+            GC.SuppressFinalize(this);
         }
 
         public async Task RequestAppInfo(uint appId, bool bForce = false)
@@ -199,9 +273,13 @@ namespace DepotDownloader
             {
                 var request = new SteamApps.PICSRequest(package);
 
-                if (PackageTokens.TryGetValue(package, out var token))
+                // LicenseListCallback fills PackageTokens on the callback pump thread
+                lock (PackageTokens)
                 {
-                    request.AccessToken = token;
+                    if (PackageTokens.TryGetValue(package, out var token))
+                    {
+                        request.AccessToken = token;
+                    }
                 }
 
                 packageRequests.Add(request);
@@ -372,26 +450,44 @@ namespace DepotDownloader
         private void ResetConnectionFlags()
         {
             bExpectingDisconnectRemote = false;
-            bDidDisconnect = false;
             bIsConnectionRecovery = false;
         }
 
         public async Task<bool> Connect()
         {
-            if (!IsConnecting)
-            {
-                bAborted = false;
-                bConnecting = true;
-                IsConnecting = true;
-                connectionBackoff = 0;
-                authEpoch++;
-                authSession = null;
+            EnsureCallbackPump();
 
-                ResetConnectionFlags();
-                this.steamClient.Connect();
+            lock (stateLock)
+            {
+                // An aborted attempt (10 failed tries, logon refused, Disconnect(), timeout) must not block new ones:
+                // IsConnecting used to stay true after an abort, so Steam stayed dead until the process restarted.
+                // While a (re)connect is still running we only wait for it below.
+                if (!IsLoggedOn && (!IsConnecting || bAborted))
+                {
+                    bAborted = false;
+                    bConnecting = true;
+                    IsConnecting = true;
+                    connectionBackoff = 0;
+                    Interlocked.Increment(ref authEpoch);
+                    authSession = null;
+
+                    ResetConnectionFlags();
+                    this.steamClient.Connect();
+                }
             }
 
-            return await Task.Run(() => WaitForCredentials());
+            if (await WaitForLogOnAsync(LogOnTimeout).ConfigureAwait(false))
+                return true;
+
+            if (!bAborted)
+            {
+                // The attempt is stuck (no answer from the CM, endless retries...). Abort it so the next Connect()
+                // starts from scratch instead of waiting on it forever.
+                Util.WriteLine("Timed out connecting to Steam3.");
+                Abort(false);
+            }
+
+            return IsLoggedOn;
         }
 
         private void Abort(bool sendLogOff = true)
@@ -401,39 +497,70 @@ namespace DepotDownloader
 
         public void Disconnect(bool sendLogOff = true)
         {
-            if (sendLogOff)
-            {
-                steamUser.LogOff();
-            }
+            bool wasActive;
+            int handledDisconnects;
 
-            bAborted = true;
-            bConnecting = false;
-            bIsConnectionRecovery = false;
-            authEpoch++;
-            authSession = null;
-            abortedToken.Cancel();
-            steamClient.Disconnect();
+            lock (stateLock)
+            {
+                wasActive = steamClient.IsConnected || IsConnecting || IsLoggedOn;
+                handledDisconnects = Volatile.Read(ref disconnectCount);
+
+                bAborted = true;
+                bConnecting = false;
+                // Lets the next Connect() start a new attempt.
+                IsConnecting = false;
+                IsLoggedOn = false;
+                bIsConnectionRecovery = false;
+                Interlocked.Increment(ref authEpoch);
+                authSession = null;
+
+                if (sendLogOff && steamClient.IsConnected)
+                {
+                    steamUser.LogOff();
+                }
+
+                steamClient.Disconnect();
+            }
 
             //TODO: Hide progress
 
-            // flush callbacks until our disconnected event
-            while (!bDidDisconnect)
+            // Give the pump a moment to handle our DisconnectedCallback, so Disconnected has been raised and no
+            // callback of this connection is handled after a later Connect(). Without a connection none will come,
+            // and on the pump thread itself (Abort() from a handler) waiting would only block it: skip both cases.
+            // Never wait without a deadline, this runs on the UI thread at shutdown.
+            if (!wasActive || Thread.CurrentThread == callbackPump)
+                return;
+
+            var deadline = DateTime.UtcNow + DisconnectTimeout;
+            while (Volatile.Read(ref disconnectCount) == handledDisconnects && DateTime.UtcNow < deadline)
             {
-                callbacks.RunWaitAllCallbacks(TimeSpan.FromMilliseconds(100));
+                Thread.Sleep(20);
             }
         }
 
         private void Reconnect()
         {
-            bIsConnectionRecovery = true;
-            authEpoch++;
-            authSession = null;
-            steamClient.Disconnect();
+            lock (stateLock)
+            {
+                if (bAborted)
+                    return;
+
+                bIsConnectionRecovery = true;
+                // Callers wait for this recovery instead of starting a second connection.
+                IsConnecting = true;
+                Interlocked.Increment(ref authEpoch);
+                authSession = null;
+                steamClient.Disconnect();
+            }
         }
 
         private async void ConnectedCallback(SteamClient.ConnectedCallback connected)
         {
-            var epoch = authEpoch;
+            // Connected right before Disconnect()/Abort(): don't log on a connection that is being torn down.
+            if (bAborted)
+                return;
+
+            var epoch = Volatile.Read(ref authEpoch);
 
             Util.WriteLine(" Done!");
             bConnecting = false;
@@ -482,7 +609,7 @@ namespace DepotDownloader
                             return;
                         }
 
-                        if (epoch != authEpoch || bAborted)
+                        if (epoch != Volatile.Read(ref authEpoch) || bAborted)
                             return;
                     }
                 }
@@ -493,7 +620,7 @@ namespace DepotDownloader
                     {
                         var result = await authSession.PollingWaitForResultAsync();
 
-                        if (epoch != authEpoch || bAborted)
+                        if (epoch != Volatile.Read(ref authEpoch) || bAborted)
                             return;
 
                         logonDetails.Username = result.AccountName;
@@ -525,7 +652,7 @@ namespace DepotDownloader
                     authSession = null;
                 }
 
-                if (epoch != authEpoch || bAborted)
+                if (epoch != Volatile.Read(ref authEpoch) || bAborted)
                     return;
 
                 steamUser.LogOn(logonDetails);
@@ -534,7 +661,22 @@ namespace DepotDownloader
 
         private void DisconnectedCallback(SteamClient.DisconnectedCallback disconnected)
         {
-            bDidDisconnect = true;
+            try
+            {
+                HandleDisconnected(disconnected);
+            }
+            finally
+            {
+                Interlocked.Increment(ref disconnectCount);
+            }
+        }
+
+        private void HandleDisconnected(SteamClient.DisconnectedCallback disconnected)
+        {
+            // Make a lost connection visible at once: Steam.IsConnected and WaitSteamConnectionAsync rely on
+            // IsLoggedOn, and every request on a dead connection fails anyway.
+            var wasLoggedOn = IsLoggedOn;
+            IsLoggedOn = false;
 
             DebugLog.WriteLine(nameof(Steam3Session), $"Disconnected: bIsConnectionRecovery = {bIsConnectionRecovery}, UserInitiated = {disconnected.UserInitiated}, bExpectingDisconnectRemote = {bExpectingDisconnectRemote}");
 
@@ -543,44 +685,104 @@ namespace DepotDownloader
             {
                 Util.WriteLine("Disconnected from Steam");
 
-                // Any operations outstanding need to be aborted
-                IsLoggedOn = false;
+                // Outstanding operations were aborted by Disconnect()/Abort(), which set bAborted themselves.
+                // Don't set it here: SteamClient.Connect() also reports a user initiated disconnect of the previous
+                // connection, and aborting then would kill the connection attempt that is just starting.
                 Disconnected?.Invoke(this, EventArgs.Empty);
-                bAborted = true;
+                return;
             }
-            else if (connectionBackoff >= 10)
+
+            if (bAborted)
+                return;
+
+            if (connectionBackoff >= 10)
             {
                 Util.WriteLine("Could not connect to Steam after 10 tries");
-                IsLoggedOn = false;
                 Disconnected?.Invoke(this, EventArgs.Empty);
                 Abort(false);
+                return;
             }
-            else if (!bAborted)
+
+            int backoff;
+            lock (stateLock)
             {
-                connectionBackoff += 1;
+                if (bAborted)
+                    return;
 
-                if (bConnecting)
-                {
-                    Util.WriteLine("Connection to Steam failed. Trying again");
-                }
-                else
-                {
-                    Util.WriteLine("Lost connection to Steam. Reconnecting");
-                }
+                backoff = ++connectionBackoff;
+                // Connect() callers wait for this recovery instead of starting a second connection.
+                IsConnecting = true;
+            }
 
-                Thread.Sleep(1000 * connectionBackoff);
+            if (bConnecting)
+            {
+                Util.WriteLine("Connection to Steam failed. Trying again");
+            }
+            else
+            {
+                Util.WriteLine("Lost connection to Steam. Reconnecting");
+            }
+
+            if (wasLoggedOn)
+                Disconnected?.Invoke(this, EventArgs.Empty);
+
+            Thread.Sleep(1000 * backoff);
+
+            lock (stateLock)
+            {
+                // Disconnect() may have been called while we were waiting.
+                if (bAborted)
+                    return;
 
                 // Any connection related flags need to be reset here to match the state after Connect
                 ResetConnectionFlags();
                 // Invalidate in-flight ConnectedCallback auth (same as Connect/Reconnect).
-                authEpoch++;
+                Interlocked.Increment(ref authEpoch);
                 authSession = null;
                 steamClient.Connect();
             }
         }
 
+        private void LoggedOffCallback(SteamUser.LoggedOffCallback loggedOff)
+        {
+            var wasLoggedOn = IsLoggedOn;
+            IsLoggedOn = false;
+
+            // Our own LogOff from Disconnect() ends up here as well, nothing to recover then.
+            if (bAborted)
+                return;
+
+            Util.WriteLine("Logged off of Steam3: {0}", loggedOff.Result);
+
+            if (wasLoggedOn)
+                Disconnected?.Invoke(this, EventArgs.Empty);
+
+            if (loggedOff.Result == EResult.LoggedInElsewhere)
+            {
+                // Reconnecting would just kick the other session of this account in turn.
+                Abort(false);
+                return;
+            }
+
+            // Steam ended the session (e.g. maintenance) but may keep the socket open, so no DisconnectedCallback
+            // would follow and every request would fail. Recover like after a lost connection.
+            Reconnect();
+        }
+
         private void LogOnCallback(SteamUser.LoggedOnCallback loggedOn)
         {
+            // Stale logon result of a connection that Disconnect()/Abort() already tore down.
+            if (bAborted)
+                return;
+
+            if (loggedOn.Result == EResult.NoConnection)
+            {
+                // The logon was sent after the connection dropped. The DisconnectedCallback of that connection drives
+                // the reconnect; aborting here would cancel that recovery.
+                Util.WriteLine("Unable to login to Steam3: {0}", loggedOn.Result);
+                return;
+            }
+
             if (loggedOn.Result == EResult.TryAnotherCM)
             {
                 Util.Write("Retrying Steam3 connection (TryAnotherCM)...");
@@ -606,11 +808,16 @@ namespace DepotDownloader
                 return;
             }
 
-            Util.WriteLine(" Done!");
+            lock (stateLock)
+            {
+                if (bAborted)
+                    return;
 
-            this.seq++;
-            IsLoggedOn = true;
-            IsConnecting = false;
+                IsLoggedOn = true;
+                IsConnecting = false;
+            }
+
+            Util.WriteLine(" Done!");
             Connected?.Invoke(this, EventArgs.Empty);
 
             if (ContentDownloader.Config.CellID == 0)
@@ -627,7 +834,11 @@ namespace DepotDownloader
             if (licenseList.Result != EResult.OK)
             {
                 Util.WriteLine("Unable to get license list: {0} ", licenseList.Result);
-                Abort();
+
+                // Anonymous sessions never use the license list (see ContentDownloader.AccountHasAccess). Now that
+                // callbacks are pumped after logon, aborting would only drop a working session.
+                if (authenticatedUser)
+                    Abort();
 
                 return;
             }
@@ -635,11 +846,15 @@ namespace DepotDownloader
             Util.WriteLine("Got {0} licenses for account!", licenseList.LicenseList.Count);
             Licenses = licenseList.LicenseList;
 
-            foreach (var license in licenseList.LicenseList)
+            // Runs on the callback pump thread while RequestPackageInfo may read PackageTokens.
+            lock (PackageTokens)
             {
-                if (license.AccessToken > 0)
+                foreach (var license in licenseList.LicenseList)
                 {
-                    PackageTokens.TryAdd(license.PackageID, license.AccessToken);
+                    if (license.AccessToken > 0)
+                    {
+                        PackageTokens.TryAdd(license.PackageID, license.AccessToken);
+                    }
                 }
             }
         }

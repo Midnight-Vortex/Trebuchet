@@ -314,7 +314,8 @@ namespace DepotDownloader
             if (steam3 == null)
                 return;
 
-            steam3.Disconnect();
+            // Also stops the session's callback pump thread.
+            steam3.Dispose();
         }
 
         public static async Task DownloadPubfileAsync(uint appId, ulong publishedFileId)
