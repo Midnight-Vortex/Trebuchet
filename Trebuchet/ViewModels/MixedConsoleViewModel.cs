@@ -257,7 +257,8 @@ public class MixedConsoleViewModel : ReactiveObject, IScrollController
                     _ => input
                 };
                 _logger.LogInformation(@"Send {command}", command);
-                await ConsoleTab.Writer.WriteLineAsync(@"> " + command);
+                // Synchronous on the UI thread: the writer updates the console editor when it flushes.
+                ConsoleTab.Writer.WriteLine(@"> " + command);
                 ConsoleTab.Writer.Flush();
                 var response = await rcon.Send(command, CancellationToken.None);
                 if (response.Exception is not null) throw response.Exception;
@@ -266,7 +267,7 @@ public class MixedConsoleViewModel : ReactiveObject, IScrollController
         catch (Exception ex)
         {
             _logger.LogError(ex, @"Could not Send command");
-            await ConsoleTab.Writer.WriteLineAsync($"RCON: {ex.Message}");
+            ConsoleTab.Writer.WriteLine($"RCON: {ex.Message}");
             ConsoleTab.Writer.Flush();
         }
     }

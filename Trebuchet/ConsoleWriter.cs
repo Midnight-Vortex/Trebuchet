@@ -1,6 +1,8 @@
 using System;
 using System.IO;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Trebuchet;
 
@@ -61,6 +63,35 @@ public class ConsoleWriter : TextWriter
             span = span[take..];
             if (_builder.Length == _builder.MaxCapacity)
                 Flush();
+        }
+    }
+
+    // TextWriter runs its async methods on a thread pool thread: a flush then raised TextFlushed off the UI thread
+    // (the console editor throws there, so e.g. an RCon command was not sent) and raced the builders. The console
+    // writers are only used on the UI thread, so the async methods write synchronously.
+    public override Task WriteAsync(char value) => Sync(() => Write(value));
+    public override Task WriteAsync(string? value) => Sync(() => Write(value));
+    public override Task WriteAsync(char[] buffer, int index, int count) => Sync(() => Write(buffer, index, count));
+    public override Task WriteAsync(ReadOnlyMemory<char> buffer, CancellationToken cancellationToken = default)
+        => Sync(() => Write(buffer.Span));
+    public override Task WriteLineAsync() => Sync(WriteLine);
+    public override Task WriteLineAsync(char value) => Sync(() => WriteLine(value));
+    public override Task WriteLineAsync(string? value) => Sync(() => WriteLine(value));
+    public override Task WriteLineAsync(char[] buffer, int index, int count) => Sync(() => WriteLine(buffer, index, count));
+    public override Task WriteLineAsync(ReadOnlyMemory<char> buffer, CancellationToken cancellationToken = default)
+        => Sync(() => WriteLine(buffer.Span));
+    public override Task FlushAsync() => Sync(Flush);
+
+    private static Task Sync(Action write)
+    {
+        try
+        {
+            write();
+            return Task.CompletedTask;
+        }
+        catch (Exception ex)
+        {
+            return Task.FromException(ex);
         }
     }
 

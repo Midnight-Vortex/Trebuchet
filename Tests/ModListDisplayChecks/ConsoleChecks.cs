@@ -59,6 +59,13 @@ static class ConsoleChecks
         Check(editor.Text == second.Text, "Reattached console restores logs written while detached");
         behavior.Detach();
 
+        var writer = new ConsoleWriter(4, 100);
+        var flushThread = -1;
+        writer.TextFlushed += (_, _) => flushThread = Environment.CurrentManagedThreadId;
+        var write = writer.WriteLineAsync("> command");
+        Check(write.IsCompletedSuccessfully && flushThread == Environment.CurrentManagedThreadId && writer.Text.StartsWith("> com"),
+            "Async console writes flush on the calling (UI) thread, not on the thread pool");
+
         using var sink = new InternalLogSink();
         var console = new MixedConsoleViewModel(new UIConfig(), 0, sink, NullLogger.Instance, (_, _) => null);
         Check(console.Tabs.Count == 10 && console.Tabs.OfType<IniFileTabViewModel>().Count() == 3, "Console has DSL log tabs and the three server ini tabs");
