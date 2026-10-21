@@ -43,22 +43,32 @@ namespace DepotDownloader
 
         public static AccountSettingsStore Instance;
         static readonly IsolatedStorageFile IsolatedStorage = IsolatedStorageFile.GetUserStoreForAssembly();
+        static readonly object SaveLock = new();
+        const string TempSuffix = ".tmp";
 
         public static void LoadFromFile(string filename)
         {
             if (Loaded)
                 return;
 
-            if (IsolatedStorage.FileExists(filename))
+            // Save() deletes the old file only once the new temporary one is complete; if it was interrupted right
+            // after that, the temporary file holds the latest settings.
+            var source = filename;
+            if (!IsolatedStorage.FileExists(source) && IsolatedStorage.FileExists(filename + TempSuffix))
+                source = filename + TempSuffix;
+
+            if (IsolatedStorage.FileExists(source))
             {
                 try
                 {
-                    using var fs = IsolatedStorage.OpenFile(filename, FileMode.Open, FileAccess.Read);
+                    using var fs = IsolatedStorage.OpenFile(source, FileMode.Open, FileAccess.Read);
                     using var ds = new DeflateStream(fs, CompressionMode.Decompress);
                     Instance = Serializer.Deserialize<AccountSettingsStore>(ds);
                 }
-                catch (IOException ex)
+                catch (Exception ex) when (ex is IOException or IsolatedStorageException || Util.IsCorruptDataException(ex))
                 {
+                    // Corrupt data used to throw out of here on every start (this runs in Trebuchet's Steam service
+                    // constructor); the settings are only a cache, start over instead.
                     Util.WriteLine("Failed to load account settings: {0}", ex.Message);
                     Instance = new AccountSettingsStore();
                 }
@@ -76,15 +86,32 @@ namespace DepotDownloader
             if (!Loaded)
                 throw new Exception("Saved config before loading");
 
-            try
+            lock (SaveLock)
             {
-                using var fs = IsolatedStorage.OpenFile(Instance.FileName, FileMode.Create, FileAccess.Write);
-                using var ds = new DeflateStream(fs, CompressionMode.Compress);
-                Serializer.Serialize(ds, Instance);
-            }
-            catch (IOException ex)
-            {
-                Util.WriteLine("Failed to save account settings: {0}", ex.Message);
+                try
+                {
+                    // Write a temporary file first so a crash or power loss while saving can no longer leave a truncated
+                    // file. IsolatedStorageFile cannot replace a file in one step: the old one is deleted only once the
+                    // new one is complete (LoadFromFile falls back to the temporary file if needed).
+                    var tempFileName = Instance.FileName + TempSuffix;
+                    using (var fs = IsolatedStorage.OpenFile(tempFileName, FileMode.Create, FileAccess.Write))
+                    {
+                        using (var ds = new DeflateStream(fs, CompressionMode.Compress, leaveOpen: true))
+                        {
+                            Serializer.Serialize(ds, Instance);
+                        }
+
+                        fs.Flush(flushToDisk: true);
+                    }
+
+                    if (IsolatedStorage.FileExists(Instance.FileName))
+                        IsolatedStorage.DeleteFile(Instance.FileName);
+                    IsolatedStorage.MoveFile(tempFileName, Instance.FileName);
+                }
+                catch (Exception ex) when (ex is IOException or IsolatedStorageException)
+                {
+                    Util.WriteLine("Failed to save account settings: {0}", ex.Message);
+                }
             }
         }
     }

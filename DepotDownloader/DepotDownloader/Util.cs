@@ -9,6 +9,7 @@ using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading.Tasks;
+using ProtoBuf;
 using SteamKit2;
 
 namespace DepotDownloader
@@ -196,6 +197,15 @@ namespace DepotDownloader
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// True for the exceptions that reading a truncated or garbled deflate-compressed protobuf file throws.
+        /// </summary>
+        public static bool IsCorruptDataException(Exception ex)
+        {
+            return ex is InvalidDataException or ProtoException or EndOfStreamException
+                or OverflowException or ArgumentException or InvalidOperationException;
         }
 
         public static bool SaveManifestToFile(string directory, DepotManifest manifest)
