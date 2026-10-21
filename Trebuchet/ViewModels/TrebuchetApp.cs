@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using Microsoft.Extensions.Logging;
@@ -64,6 +65,10 @@ public sealed class TrebuchetApp : ReactiveObject, IDisposable
     private readonly UIConfig _uiConfig;
     private readonly Operations _operations;
     private int _tickFailures;
+    // Longest wait for the ticks of one timer round. A slower panel keeps running and is not ticked again
+    // until it completed (see TickPanels).
+    private static readonly TimeSpan TickTimeout = TimeSpan.FromMinutes(2);
+    private readonly Dictionary<ITickingPanel, Task> _hungTicks = [];
     private readonly List<IPanel> _panels;
     private readonly DispatcherTimer _timer;
     private PanelTab _activePanel;
@@ -105,27 +110,96 @@ public sealed class TrebuchetApp : ReactiveObject, IDisposable
     
     private async void OnTimerTick(object? sender, EventArgs e)
     {
+        _timer.Stop();
+        List<(string panel, Exception error)> failures;
         try
         {
-            _timer.Stop();
-            var tasks = _panels.OfType<ITickingPanel>().Select(p => p.TickPanel()).ToArray();
-            if (tasks.Length > 0)
-                await Task.WhenAll(tasks);
-            _tickFailures = 0;
+            failures = await TickPanels();
         }
-        catch (OperationCanceledException) {}
         catch (Exception ex)
+        {
+            failures = [(nameof(TrebuchetApp), ex)];
+        }
+
+        if (failures.Count == 0)
+            _tickFailures = 0;
+        else
         {
             // One failed refresh (process exiting mid-tick, locked file, ...) must not close the application.
             _tickFailures++;
-            _logger.LogError(ex, @"Panel tick failed ({Count} in a row)", _tickFailures);
+            foreach (var (panel, error) in failures)
+                _logger.LogError(error, @"Tick of {Panel} failed ({Count} in a row)", panel, _tickFailures);
             if (_tickFailures >= 30)
             {
-                await App.HandleAppCrash(ex);
+                await App.HandleAppCrash(failures[0].error);
                 return;
             }
         }
         _timer.Start();
+    }
+
+    /// <summary>
+    /// Tick every panel and wait for them, at most <see cref="TickTimeout"/>. Returns the panels that failed.
+    /// </summary>
+    private async Task<List<(string panel, Exception error)>> TickPanels()
+    {
+        var ticks = new List<(ITickingPanel panel, Task task)>();
+        foreach (var panel in _panels.OfType<ITickingPanel>())
+        {
+            // A panel whose previous tick is still running (hung await, e.g. a WMI query that never returns) is
+            // skipped: never two Launcher ticks at the same time. The other panels keep ticking meanwhile.
+            if (_hungTicks.TryGetValue(panel, out var hung))
+            {
+                if (!hung.IsCompleted) continue;
+                _hungTicks.Remove(panel);
+                _logger.LogWarning(hung.Exception, @"Tick of {Panel} completed late ({Status}), ticking it again",
+                    panel.GetType().Name, hung.Status);
+            }
+            ticks.Add((panel, StartPanelTick(panel)));
+        }
+        if (ticks.Count == 0) return [];
+
+        // Watchdog: a tick that never completed used to stop the timer for good (no crash restarts, no scheduled
+        // restarts, frozen dashboard) while the window still looked alive. Now the timer goes on after the timeout
+        // and the hung tick is kept (not started again) until it completes.
+        var all = Task.WhenAll(ticks.Select(x => x.task));
+        // Errors are read per panel below; this keeps the combined task from reporting them again as unobserved.
+        _ = all.ContinueWith(static t => _ = t.Exception, CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
+        using var timeout = new CancellationTokenSource();
+        var completed = await Task.WhenAny(all, Task.Delay(TickTimeout, timeout.Token));
+        await timeout.CancelAsync();
+        if (completed != all)
+        {
+            foreach (var (panel, task) in ticks.Where(x => !x.task.IsCompleted))
+            {
+                _hungTicks[panel] = task;
+                _logger.LogError(@"Tick of {Panel} did not complete within {Timeout}, it is skipped until it does",
+                    panel.GetType().Name, TickTimeout);
+            }
+        }
+
+        return ticks
+            .Where(x => x.task.IsFaulted)
+            .Select(x => (x.panel.GetType().Name, x.task.Exception!.GetBaseException()))
+            .Where(x => x.Item2 is not OperationCanceledException)
+            .ToList();
+    }
+
+    /// <summary>
+    /// A synchronous throw in one panel's TickPanel (before its first await) must not prevent the ticks of the
+    /// panels after it, e.g. the console panel ticking before the dashboard (Launcher): it becomes a failed task.
+    /// </summary>
+    private static Task StartPanelTick(ITickingPanel panel)
+    {
+        try
+        {
+            return panel.TickPanel();
+        }
+        catch (Exception ex)
+        {
+            return Task.FromException(ex);
+        }
     }
 
     private async void Start()
