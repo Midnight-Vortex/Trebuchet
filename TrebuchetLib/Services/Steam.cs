@@ -504,8 +504,9 @@ public class Steam : IDebugListener, IDisposable
 
     public void Dispose()
     {
+        // Disconnects and also ends the session's callback thread.
         if (_sessionLazy.IsValueCreated)
-            Disconnect();
+            _session.Dispose();
     }
     
     public void CancelOperation()

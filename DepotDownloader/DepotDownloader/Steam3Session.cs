@@ -40,13 +40,15 @@ namespace DepotDownloader
             private set;
         }
 
-        public Dictionary<uint, ulong> AppTokens { get; } = [];
+        // Concurrent: the periodic build check (every few minutes) and a running download fill them at the same
+        // time, and a plain Dictionary written from two threads can be corrupted for good.
+        public ConcurrentDictionary<uint, ulong> AppTokens { get; } = [];
         public Dictionary<uint, ulong> PackageTokens { get; } = [];
-        public Dictionary<uint, byte[]> DepotKeys { get; } = [];
+        public ConcurrentDictionary<uint, byte[]> DepotKeys { get; } = [];
         public ConcurrentDictionary<(uint, string), TaskCompletionSource<SteamContent.CDNAuthToken>> CDNAuthTokens { get; } = [];
-        public Dictionary<uint, SteamApps.PICSProductInfoCallback.PICSProductInfo> AppInfo { get; } = [];
-        public Dictionary<uint, SteamApps.PICSProductInfoCallback.PICSProductInfo> PackageInfo { get; } = [];
-        public Dictionary<string, byte[]> AppBetaPasswords { get; } = [];
+        public ConcurrentDictionary<uint, SteamApps.PICSProductInfoCallback.PICSProductInfo> AppInfo { get; } = [];
+        public ConcurrentDictionary<uint, SteamApps.PICSProductInfoCallback.PICSProductInfo> PackageInfo { get; } = [];
+        public ConcurrentDictionary<string, byte[]> AppBetaPasswords { get; } = [];
 
         public SteamClient steamClient;
         public SteamUser steamUser;
