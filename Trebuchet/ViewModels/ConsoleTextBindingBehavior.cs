@@ -26,6 +26,8 @@ public class ConsoleTextBindingBehavior : Behavior<TextEditor>
         if (AssociatedObject is not { } textEditor) return;
         _textEditor = textEditor;
         _textEditor.Options.AllowScrollBelowDocument = false;
+        _textEditor.DocumentChanged += OnDocumentChanged;
+        DisableUndo();
         BindSource(TextSource);
     }
 
@@ -33,7 +35,21 @@ public class ConsoleTextBindingBehavior : Behavior<TextEditor>
     {
         base.OnDetaching();
         BindSource(null);
+        if (_textEditor is not null) _textEditor.DocumentChanged -= OnDocumentChanged;
         _textEditor = null;
+    }
+
+    private void OnDocumentChanged(object? sender, EventArgs e) => DisableUndo();
+
+    /// <summary>
+    /// Read only log view: no undo history. AvaloniaEdit's undo stack is unlimited by default and kept every
+    /// appended and trimmed text, so the console character limit freed nothing and a console left open on a busy
+    /// server grew by tens to hundreds of MB a day until out of memory.
+    /// </summary>
+    private void DisableUndo()
+    {
+        if (_textEditor?.Document is { } document)
+            document.UndoStack.SizeLimit = 0;
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
@@ -52,6 +68,7 @@ public class ConsoleTextBindingBehavior : Behavior<TextEditor>
         }
         _subscribedSource = null;
         if (_textEditor is not { Document: not null }) return;
+        DisableUndo();
         _textEditor.Clear();
         if (source is null) return;
         _subscribedSource = source;

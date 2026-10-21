@@ -52,6 +52,7 @@ static class ConsoleChecks
         Check(editor.Text == second.Text, "Switching console detaches both events from old source");
         second.Append(new string('x', 200));
         Check(editor.Text.Length == second.MaxChar && editor.Text == second.Text, "Long lines trim safely to the console memory limit");
+        Check(editor.Document.UndoStack.SizeLimit == 0 && !editor.Document.UndoStack.CanUndo, "Read-only console keeps no undo history (memory)");
         behavior.Detach();
         second.Append("after detach\n");
         behavior.Attach(editor);
