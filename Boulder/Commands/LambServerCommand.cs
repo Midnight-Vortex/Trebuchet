@@ -35,6 +35,13 @@ public class LambServerCommand(AppFiles files, Launcher launcher, ILogger<LambSe
             };
             using(logger.BeginScope(data))
                 logger.LogInformation("Starting process");
+            // The running servers must be known: their files are not updated and their saves are locked.
+            await launcher.AttachRunningServers();
+            if (launcher.GetActiveServers().Contains(Instance))
+            {
+                logger.LogError("Server instance {Instance} is already running", Instance);
+                return 1;
+            }
             var process = await launcher.CatapultServerProcess(
                 files.Server.Resolve(Profile), 
                 files.ResolveModList(Modlist), 

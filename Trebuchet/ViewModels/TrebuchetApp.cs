@@ -69,6 +69,10 @@ public sealed class TrebuchetApp : ReactiveObject, IDisposable
     // until it completed (see TickPanels).
     private static readonly TimeSpan TickTimeout = TimeSpan.FromMinutes(2);
     private readonly Dictionary<ITickingPanel, Task> _hungTicks = [];
+    private readonly Dictionary<ITickingPanel, DateTime> _hungSinceUtc = [];
+    // A tick that stays hung this long stops the automation for good (no crash or scheduled restarts): Trebuchet
+    // restarts itself then, the servers keep running and are attached again.
+    private static readonly TimeSpan HungTickRestart = TimeSpan.FromMinutes(10);
     private readonly List<IPanel> _panels;
     private readonly DispatcherTimer _timer;
     private PanelTab _activePanel;
@@ -121,6 +125,14 @@ public sealed class TrebuchetApp : ReactiveObject, IDisposable
             failures = [(nameof(TrebuchetApp), ex)];
         }
 
+        var hung = _hungSinceUtc.FirstOrDefault(x => DateTime.UtcNow - x.Value > HungTickRestart);
+        if (hung.Key is not null)
+        {
+            await App.HandleAppCrash(new TimeoutException(
+                $@"Tick of {hung.Key.GetType().Name} hangs since {hung.Value:u}, the automation stopped"));
+            return;
+        }
+
         if (failures.Count == 0)
             _tickFailures = 0;
         else
@@ -152,6 +164,7 @@ public sealed class TrebuchetApp : ReactiveObject, IDisposable
             {
                 if (!hung.IsCompleted) continue;
                 _hungTicks.Remove(panel);
+                _hungSinceUtc.Remove(panel);
                 _logger.LogWarning(hung.Exception, @"Tick of {Panel} completed late ({Status}), ticking it again",
                     panel.GetType().Name, hung.Status);
             }
@@ -174,6 +187,7 @@ public sealed class TrebuchetApp : ReactiveObject, IDisposable
             foreach (var (panel, task) in ticks.Where(x => !x.task.IsCompleted))
             {
                 _hungTicks[panel] = task;
+                _hungSinceUtc[panel] = DateTime.UtcNow - TickTimeout;
                 _logger.LogError(@"Tick of {Panel} did not complete within {Timeout}, it is skipped until it does",
                     panel.GetType().Name, TickTimeout);
             }

@@ -49,6 +49,16 @@ static class JsonFileChecks
             File.WriteAllText(backup, "not json");
             Check(Config.LoadConfig(path).ServerInstanceCount == Config.ServerInstanceCountDefault, "Settings without data and a damaged backup load as defaults");
 
+            // Well formed json that does not fit (e.g. written by a newer version) is no damage: it is not reset to
+            // defaults and saved over, the load fails and the file stays as it is.
+            var newer = "{ \"ServerInstanceCount\": \"three\" }";
+            File.WriteAllText(path, newer);
+            var before = Damaged().Length;
+            var threw = false;
+            try { Config.LoadConfig(path); } catch (Exception) { threw = true; }
+            Check(threw && File.ReadAllText(path) == newer && Damaged().Length == before,
+                "Valid json of another version is left untouched instead of being reset to defaults");
+
             // Profiles share the same load path: a damaged one must not crash the profile lists.
             var profilePath = Path.Combine(root, "Profile.json");
             File.WriteAllText(profilePath, "{\"ConsoleHotkey\": \"F1");

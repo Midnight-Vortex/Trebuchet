@@ -140,7 +140,12 @@ internal sealed class ConanServerProcess : IConanServerProcess
         if (_disposed) return;
 
         if (responding)
+        {
             _lastResponse = DateTime.UtcNow;
+            if (_hangReported)
+                Logger?.LogInformation("Server {Instance} responds again", Instance);
+            _hangReported = false;
+        }
 
         try
         {
@@ -181,15 +186,22 @@ internal sealed class ConanServerProcess : IConanServerProcess
 
     public void ZombieCheck()
     {
-        // Without the kill a hung server keeps running: reporting it as crashed made Trebuchet start a second server
-        // on the same save (or attach the hung one again and report it every few minutes).
-        if (!KillZombies) return;
-        if (_lastResponse + TimeSpan.FromSeconds(ZombieCheckSeconds) < DateTime.UtcNow)
+        if (_lastResponse + TimeSpan.FromSeconds(ZombieCheckSeconds) >= DateTime.UtcNow) return;
+        if (!KillZombies)
         {
-            State = ProcessState.CRASHED;
-            KillProcess();
+            // Without the kill a hung server keeps running: reporting it as crashed made Trebuchet start a second
+            // server on the same save. It is only reported.
+            if (!_hangReported)
+                Logger?.LogWarning("Server {Instance} does not respond for {Seconds} s, it is not killed (kill zombies is off)",
+                    Instance, ZombieCheckSeconds);
+            _hangReported = true;
+            return;
         }
+        State = ProcessState.CRASHED;
+        KillProcess();
     }
+
+    private bool _hangReported;
 
     public async Task KillAsync()
     {

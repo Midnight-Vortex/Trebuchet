@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reactive;
+using System.Reactive.Disposables;
 using System.Reactive.Linq;
 using DynamicData.Binding;
 using ReactiveUI;
@@ -21,7 +22,9 @@ public class TimeOfDayListField : Field<TimeOfDayListField, ObservableCollection
 
         Add = ReactiveCommand.Create(() =>
         {
-            Value.Add(CreateRow(TimeSpan.Zero));
+            var row = new TimeSpanViewModel(TimeSpan.Zero);
+            WireRow(row);
+            Value.Add(row);
             ValueChanged.Execute(Value).Subscribe();
 
         });
@@ -31,7 +34,18 @@ public class TimeOfDayListField : Field<TimeOfDayListField, ObservableCollection
             Value.Remove(vm);
             ValueChanged.Execute(Value).Subscribe();
         });
+
+        // Every shown row saves its edits. Rows are created anew by each refresh (Update) and reset: wiring only the
+        // first rows lost every edit of an existing time after the first refresh. The subscriptions of replaced rows
+        // are disposed, the command would otherwise keep every row ever created alive.
+        PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(Value))
+                WireRows();
+        };
     }
+
+    private CompositeDisposable _rowSubscriptions = new();
     
     private Func<List<TimeSpan>>? _internalGetter;
     private Func<List<TimeSpan>>? _internalDefaultBuilder;
@@ -65,15 +79,17 @@ public class TimeOfDayListField : Field<TimeOfDayListField, ObservableCollection
         return this;
     }
 
-    /// <summary>
-    /// Every row saves its own changes. Rows are created anew by each refresh (Update) and reset, so the wiring
-    /// belongs here: wiring only the first rows lost every edit of an existing time after the first refresh.
-    /// </summary>
-    private TimeSpanViewModel CreateRow(TimeSpan time)
+    private void WireRows()
     {
-        var vm = new TimeSpanViewModel(time);
-        vm.WhenAnyValue(x => x.TimeSpan).Skip(1).InvokeCommand(Modify);
-        return vm;
+        _rowSubscriptions.Dispose();
+        _rowSubscriptions = new CompositeDisposable();
+        foreach (var row in Value)
+            WireRow(row);
+    }
+
+    private void WireRow(TimeSpanViewModel row)
+    {
+        _rowSubscriptions.Add(row.WhenAnyValue(x => x.TimeSpan).Skip(1).InvokeCommand(Modify));
     }
 
     protected override bool AreValuesEqual(ObservableCollectionExtended<TimeSpanViewModel> valueA, ObservableCollectionExtended<TimeSpanViewModel> valueB)
@@ -85,7 +101,8 @@ public class TimeOfDayListField : Field<TimeOfDayListField, ObservableCollection
     {
         if (_internalGetter == null)
             throw new Exception(@"Internal getter not set");
-        return new ObservableCollectionExtended<TimeSpanViewModel>(_internalGetter.Invoke().Select(CreateRow));
+        return new ObservableCollectionExtended<TimeSpanViewModel>(_internalGetter.Invoke()
+            .Select(x => new TimeSpanViewModel(x)));
     }
 
     private void InternalSetter(ObservableCollectionExtended<TimeSpanViewModel> value)
@@ -99,7 +116,8 @@ public class TimeOfDayListField : Field<TimeOfDayListField, ObservableCollection
     {
         if (_internalDefaultBuilder == null)
             throw new Exception(@"Internal default builder not set");
-        return new ObservableCollectionExtended<TimeSpanViewModel>(_internalDefaultBuilder.Invoke().Select(CreateRow));
+        return new ObservableCollectionExtended<TimeSpanViewModel>(_internalDefaultBuilder.Invoke()
+            .Select(x => new TimeSpanViewModel(x)));
     }
 }
 

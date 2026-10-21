@@ -492,9 +492,11 @@ public class Steam : IDebugListener, IDisposable
     /// <summary>True when the instance is installed and has the build of instance 0.</summary>
     public bool IsInstanceCopyCurrent(int instance)
     {
-        var bin = Path.Combine(_appSetup.GetInstancePath(instance), Constants.FolderGameBinaries, Constants.FileServerBin);
+        var path = _appSetup.GetInstancePath(instance);
+        var bin = Path.Combine(path, Constants.FolderGameBinaries, Constants.FileServerBin);
         var build = GetInstanceBuildId(instance);
-        return File.Exists(bin) && build != 0 && build == GetInstanceBuildId(0);
+        return File.Exists(bin) && !File.Exists(Path.Combine(path, CopyMarkerFile))
+               && build != 0 && build == GetInstanceBuildId(0);
     }
 
     public void WriteLine(string category, string msg)
@@ -579,17 +581,15 @@ public class Steam : IDebugListener, IDisposable
         Tools.DeleteIfExists(instance);
         Tools.CreateDir(instance);
 
-        try
-        {
-            await Tools.DeepCopyAsync(instance0, instance, token);
-        }
-        catch
-        {
-            // The build id may already be copied: a half copied instance must not count as current.
-            try { File.Delete(Path.Combine(instance, Constants.FileBuildID)); } catch { /* best effort */ }
-            throw;
-        }
+        // The marker stays when the copy does not finish (also when the process ends meanwhile): the build id may
+        // already be copied, a half copied instance must not count as current.
+        var marker = Path.Combine(instance, CopyMarkerFile);
+        await File.WriteAllTextAsync(marker, DateTime.UtcNow.ToString("O"), token);
+        await Tools.DeepCopyAsync(instance0, instance, token);
+        File.Delete(marker);
     }
+
+    private const string CopyMarkerFile = "trebuchet-copy-incomplete";
 
     /// <summary>
     /// Makes the next server update copy instance 0 to every other instance again ("verify files"): copies are

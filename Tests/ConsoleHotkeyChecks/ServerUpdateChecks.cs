@@ -21,8 +21,12 @@ static class ServerUpdateChecks
         Check(tracker.Report(200, 100, false, detected) && tracker.NeedUpdate && tracker.ShouldRestart(serverStart),
             "A new build restarts a server started before it was known");
         var restarted = detected.AddMinutes(20);
+        Check(tracker.ShouldRestart(restarted), "A server started while no start could install the update (another server ran) restarts again");
+        tracker.ReportRoundStarted();
+        tracker.ReportInstallAttempt(restarted.AddSeconds(-30));
         Check(tracker.Report(200, 100, false, restarted.AddMinutes(5)) && tracker.SinceUtc == detected
-              && !tracker.ShouldRestart(restarted), "A server started after the update is not restarted again when it was not installed");
+              && !tracker.ShouldRestart(restarted) && tracker.ShouldRestart(serverStart),
+            "A server started after a start that could install the update is not restarted again when it was not installed");
         Check(!tracker.Report(0, 100, false, restarted.AddMinutes(10)) && tracker.NeedUpdate && tracker.SteamBuildId == 200,
             "No answer from Steam keeps the pending update");
         Check(tracker.ReportNotInstalled(0) && !tracker.ReportNotInstalled(0) && tracker.ReportNotInstalled(1),
@@ -35,8 +39,20 @@ static class ServerUpdateChecks
             "An installed update needs no restart");
 
         var missing = new ServerUpdateTracker();
-        Check(missing.Report(0, 0, true, t0) && missing.NeedUpdate && missing.ShouldRestart(serverStart)
-              && !missing.ShouldRestart(t0.AddMinutes(1)), "Missing instances need one update restart, also without Steam");
+        Check(missing.Report(0, 0, true, t0) && missing.NeedUpdate && missing.ShouldRestart(serverStart),
+            "Missing instances need an update restart, also without Steam");
+        missing.ReportInstallAttempt(t0.AddSeconds(30));
+        Check(!missing.ShouldRestart(t0.AddMinutes(1)), "Missing instances: one restart that could install them");
+
+        var busy = new ServerUpdateTracker();
+        busy.Report(400, 100, false, t0);
+        for (var round = 0; round < ServerUpdateTracker.MaxRounds; round++)
+        {
+            Check(busy.ShouldRestart(t0.AddMinutes(round + 1)), "Rounds that could not install the update are repeated");
+            busy.ReportRoundStarted();
+        }
+        Check(!busy.ShouldRestart(t0.AddHours(1)), "At most three rounds per build: no restart loop when it never installs");
+        Check(busy.Report(500, 100, false, t0.AddHours(2)) && busy.ShouldRestart(t0.AddHours(1)), "A newer build starts new rounds");
 
         // A mod Steam sent no file for cannot be downloaded: it never counts as outdated.
         Check(!new PublishedMod(new SteamWorksWebAPI.PublishedFile { PublishedFileID = 1 }, UGCFileStatus.Default(1)).HasWorkshopFile

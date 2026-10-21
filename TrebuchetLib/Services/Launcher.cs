@@ -411,6 +411,12 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     }
 
     /// <summary>
+    /// Attaches the servers that already run. Boulder has no tick: without it, a start from the command line saw no
+    /// running server and its pre-launch update replaced files they use.
+    /// </summary>
+    public Task AttachRunningServers() => FindExistingServers();
+
+    /// <summary>
     ///     Ask a particular server instance to close. If the process is borked, this will not work.
     /// </summary>
     /// <param name="instance"></param>
@@ -1153,6 +1159,9 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         // Without an answer from Steam the last known state counts: with every instance installed and current a
         // download attempt could only fail too (it delayed the start by another connection timeout).
         await CheckServerUpdate();
+        // This start can install a server update (found now or before): servers started after it are not restarted
+        // again for it.
+        _serverUpdate.ReportInstallAttempt(DateTime.UtcNow);
         if (!_serverUpdate.NeedUpdate && AreInstanceCopiesCurrent()) return true;
         return await UpdateServers();
     }
@@ -1317,11 +1326,18 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             }
             if(_appFiles.TryParseModListRef(_setup.Config.SelectedClientModlist, out var clientModList))
                 lists.Add(clientModList);
-            if (lists.Count == 0) return true;
+            var ids = lists.GetModsFromList().Distinct().ToList();
+            if (ids.Count == 0)
+            {
+                _modNeedUpdate.Clear();
+                return true;
+            }
             
             // Fresh details: with the 15 minute cache a new mod version was only seen up to 15 minutes later.
-            var details = await _steam.RequestModDetails(lists.GetModsFromList().ToList(), fresh: true);
-            if (details.Count == 0) return true;
+            var details = await _steam.RequestModDetails(ids, fresh: true);
+            // No answer from the Steam web API (down, timeout) is no result: the pre-launch update then falls back to
+            // updating every mod, and no restart is decided on stale data.
+            if (details.Count == 0) return false;
 
             _modNeedUpdate.Clear();
             // Without the file from Steam a mod cannot be downloaded: a restart for it would only repeat itself.
@@ -1549,7 +1565,8 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         // A server update installs only while no server runs: all servers restart for it together.
         if (active.Any(x => _serverUpdate.ShouldRestart(x.StartUtc)))
         {
-            await StartUpdateRound(active.Select(x => x.Infos.Instance).ToList(), _ => _setup.GetReasonServerUpdate(), null);
+            if (await StartUpdateRound(active.Select(x => x.Infos.Instance).ToList(), _ => _setup.GetReasonServerUpdate(), null))
+                _serverUpdate.ReportRoundStarted();
             return;
         }
         foreach (var process in active)
@@ -1560,6 +1577,11 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
 
         // Mod updates: every server using an outdated mod restarts, together, so its files are free when the first of
         // them starts and installs it. Servers using other mods keep running.
+        // Mods of listed servers that do not run normally (stopping, hung, still starting) cannot be replaced now:
+        // a round for them could not install them and would repeat with every check.
+        var blockedMods = new HashSet<ulong>();
+        foreach (var process in _serverProcesses.Values.Where(x => !active.Contains(x)))
+            blockedMods.UnionWith(_appFiles.ResolveModList(_setup.Config.GetInstanceModlist(process.Infos.Instance)).GetModsFromList());
         var outdatedByInstance = new Dictionary<int, List<PublishedMod>>();
         foreach (var process in active)
         {
@@ -1567,7 +1589,8 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             var mods = modListRef.GetModsFromList().ToHashSet();
             // An update that failed is not retried for the same mods, or every check would restart the server again.
             var outdated = _modNeedUpdate
-                .Where(x => mods.Contains(x.PublishedFileId) && !_failedModUpdates.Contains(x.PublishedFileId))
+                .Where(x => mods.Contains(x.PublishedFileId) && !_failedModUpdates.Contains(x.PublishedFileId)
+                            && !blockedMods.Contains(x.PublishedFileId))
                 .ToList();
             if (outdated.Count > 0)
                 outdatedByInstance[process.Infos.Instance] = outdated;
@@ -1599,11 +1622,12 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     /// all of them are stopped (<see cref="StartAfterRestart"/>). Waits while one of them is paused or busy: restarting
     /// only the others would bring them back without the update and restart them again.
     /// </summary>
-    private async Task StartUpdateRound(List<int> instances, Func<int, string> reasonOf,
+    /// <returns>True when the round was started.</returns>
+    private async Task<bool> StartUpdateRound(List<int> instances, Func<int, string> reasonOf,
         IReadOnlyDictionary<int, List<PublishedMod>>? outdatedMods)
     {
         if (instances.Any(x => _serverSequences.ContainsKey(x) || _restartsPending.Contains(x) || _updateRound.Contains(x)))
-            return;
+            return false;
         var paused = instances.Where(AreAutomaticRestartsPaused).ToList();
         if (paused.Count > 0)
         {
@@ -1611,7 +1635,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
                 _logger.LogInformation("Updates wait until the automatic restarts of instance {Instances} are no longer paused",
                     string.Join(", ", paused));
             _updateRoundWaitLogged = true;
-            return;
+            return false;
         }
         _updateRoundWaitLogged = false;
 
@@ -1629,6 +1653,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             _lastRestartReason = reasonOf(instance);
             RestartServer(instance);
         }
+        return true;
     }
 
     /// <summary>

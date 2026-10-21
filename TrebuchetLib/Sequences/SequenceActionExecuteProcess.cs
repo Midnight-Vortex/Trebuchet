@@ -28,8 +28,18 @@ public class SequenceActionExecuteProcess : ISequenceAction
             process.Start();
             if (WaitForProcessToExit)
             {
-                // Cancelling the sequence (stop, kill, pause) stops waiting for the process.
-                await process.WaitForExitAsync(args.CancellationToken).WaitAsync(MaxWait, args.CancellationToken);
+                try
+                {
+                    // Cancelling the sequence (stop, kill, pause) stops waiting for the process.
+                    await process.WaitForExitAsync(args.CancellationToken).WaitAsync(MaxWait, args.CancellationToken);
+                }
+                catch (TimeoutException)
+                {
+                    // A hung script could still hold the save or backup files the next steps need.
+                    try { process.Kill(entireProcessTree: true); } catch { /* exited meanwhile */ }
+                    throw new OperationCanceledException(
+                        $"Process {Filename} did not exit within {MaxWait.TotalMinutes} minutes and was ended");
+                }
                 if (process.ExitCode != 0 && CancelIfExitCodeIsError)
                     throw new OperationCanceledException(
                         $"Process exited with an error code {Filename} ({process.ExitCode})");
@@ -41,9 +51,11 @@ public class SequenceActionExecuteProcess : ISequenceAction
         }
         catch (Exception ex)
         {
+            // Our own failures (error exit code, timeout) keep their message, others failed to start the process.
+            var message = ex is OperationCanceledException ? ex.Message : $"Failed to start process {Filename}";
             if(CancelOnFailure)
-                throw new OperationCanceledException($"Failed to start process {Filename}", ex);
-            args.Logger.LogError(ex, $"Failed to start process {Filename}");
+                throw new OperationCanceledException(message, ex);
+            args.Logger.LogError(ex, message);
         }
     }
 }

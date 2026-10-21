@@ -151,12 +151,18 @@ namespace TrebuchetLib
         /// <exception cref="Exception"></exception>
         public void SaveFile()
         {
+            SaveFile(keepBackup: true);
+        }
+
+        /// <param name="keepBackup">False replaces the file without making it the new .bak (it is damaged).</param>
+        private void SaveFile(bool keepBackup)
+        {
             string json = JsonSerializer.Serialize(this, typeof(T), _jsonOptions);
             string? folder = Path.GetDirectoryName(FilePath);
             if (folder == null)
                 throw new Exception($"{FilePath} is an invalid path");
             Tools.CreateDir(folder);
-            JsonFileStorage.WriteAllTextAtomic(FilePath, json);
+            JsonFileStorage.WriteAllTextAtomic(FilePath, json, keepBackup);
             OnFileSaved();
         }
 
@@ -210,6 +216,10 @@ namespace TrebuchetLib
                 file.FilePath = path;
                 return file;
             }
+            // Well formed json that does not fit (written by a newer version, e.g. a new sequence action) is no
+            // damage: resetting it to defaults lost the save and its server settings. It stays untouched.
+            if (IsWellFormedJson(json))
+                throw new Exception($"{path} could not be loaded", error);
 
             // Empty or invalid json (e.g. cut short by a crash, a kill or a full disk while an older version saved
             // it). Throwing here stopped Trebuchet before any window opened, on every autostart. Keep the broken
@@ -239,16 +249,35 @@ namespace TrebuchetLib
             }
 
             // Write the repaired file right away: a profile file that was moved aside would otherwise be missing
-            // from the profile lists until its next save.
+            // from the profile lists until its next save. When the damaged file could not be moved aside it must not
+            // become the new .bak: that destroyed the good backup it was just restored from.
             try
             {
-                file.SaveFile();
+                file.SaveFile(keepBackup: aside is not null);
             }
             catch (Exception saveError)
             {
                 JsonFileStorage.LogWarning(saveError, $"Could not write the repaired {path}");
             }
             return file;
+        }
+
+        private static bool IsWellFormedJson(string json)
+        {
+            if (string.IsNullOrWhiteSpace(json)) return false;
+            try
+            {
+                using var document = JsonDocument.Parse(json, new JsonDocumentOptions
+                {
+                    CommentHandling = JsonCommentHandling.Skip,
+                    AllowTrailingCommas = true
+                });
+                return document.RootElement.ValueKind == JsonValueKind.Object;
+            }
+            catch (JsonException)
+            {
+                return false;
+            }
         }
 
         private static bool TryDeserialize(string json, string path, JsonSerializerOptions? options,
@@ -295,7 +324,7 @@ namespace TrebuchetLib
         /// file with it. <see cref="File.WriteAllText(string,string)"/> truncates first, so a crash, kill or full
         /// disk during the write left an empty or half written file. The replaced version is kept as .bak.
         /// </summary>
-        public static void WriteAllTextAtomic(string path, string content)
+        public static void WriteAllTextAtomic(string path, string content, bool keepBackup = true)
         {
             var temp = path + TempSuffix;
             try
@@ -311,7 +340,7 @@ namespace TrebuchetLib
                 {
                     try
                     {
-                        SwapIn(temp, path);
+                        SwapIn(temp, path, keepBackup);
                         return;
                     }
                     catch (Exception ex) when (attempt < 3 && ex is IOException or UnauthorizedAccessException)
@@ -328,9 +357,9 @@ namespace TrebuchetLib
             }
         }
 
-        private static void SwapIn(string temp, string path)
+        private static void SwapIn(string temp, string path, bool keepBackup)
         {
-            if (File.Exists(path))
+            if (keepBackup && File.Exists(path))
             {
                 try
                 {

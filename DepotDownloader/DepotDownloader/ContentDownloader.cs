@@ -1028,14 +1028,14 @@ namespace DepotDownloader
                 CancellationToken = cts.Token
             };
 
-            await Parallel.ForEachAsync(files, parallelOptions, async (file, cancellationToken) =>
-            {
-                await Task.Yield();
-                DownloadSteam3AsyncDepotFile(cts, downloadCounter, depotFilesData, file, networkChunkQueue);
-            });
-
             try
             {
+                await Parallel.ForEachAsync(files, parallelOptions, async (file, cancellationToken) =>
+                {
+                    await Task.Yield();
+                    DownloadSteam3AsyncDepotFile(cts, downloadCounter, depotFilesData, file, networkChunkQueue);
+                });
+
                 await Parallel.ForEachAsync(networkChunkQueue, parallelOptions, async (q, cancellationToken) =>
                 {
                     await DownloadSteam3AsyncDepotFileChunk(
@@ -1046,8 +1046,9 @@ namespace DepotDownloader
             }
             catch
             {
-                // All chunk tasks have ended here. Close the files that still had chunks to write: otherwise they stay
-                // open (and locked) while the run goes on with other mods and when the next update retries them.
+                // All file and chunk tasks have ended here (also when preparing the files failed, e.g. disk full).
+                // Close the files that still had chunks to write: otherwise they stay open (and locked) while the run
+                // goes on with other mods and when the next update retries them.
                 foreach (var fileStreamData in networkChunkQueue.Select(q => q.fileStreamData).Distinct())
                 {
                     fileStreamData.fileStream?.Dispose();

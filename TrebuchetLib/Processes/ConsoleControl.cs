@@ -32,7 +32,14 @@ public static class ConsoleControl
                 // A console application (Boulder) would lose its own console by attaching to another one.
                 if (GetConsoleWindow() != IntPtr.Zero) return false;
                 if (!_handlerInstalled)
+                {
+                    // .NET binds Console.Out/Error to the standard handles when they are first used. Bound while we
+                    // are attached to a server console they would point to a closed handle afterwards and every later
+                    // Console.Write (DepotDownloader writes there) would throw: bind them now, without a console.
+                    _ = Console.Out;
+                    _ = Console.Error;
                     _handlerInstalled = SetConsoleCtrlHandler(IgnoreAll, true);
+                }
                 if (!_handlerInstalled) return false;
                 if (!AttachConsole((uint)pid)) return false;
                 try

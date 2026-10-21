@@ -168,17 +168,27 @@ public partial class App : Application, IApplication
     private UIConfig LoadUiConfig(Func<string> getPath)
     {
         var path = string.Empty;
-        try
+        Exception? error = null;
+        // A crash restart starts while the old instance may still write the file, scanners hold it for a moment:
+        // try a few times before giving up.
+        for (var attempt = 0; attempt < 5; attempt++)
         {
-            path = getPath();
-            return UIConfig.LoadConfig(path);
+            try
+            {
+                path = getPath();
+                return UIConfig.LoadConfig(path);
+            }
+            catch (Exception ex)
+            {
+                error = ex;
+                Thread.Sleep(200);
+            }
         }
-        catch (Exception ex)
-        {
-            _uiConfigErrors.Add(ex);
-            Trace.TraceError($@"UI settings could not be read: {ex}");
-            return UIConfig.CreateConfig(path);
-        }
+
+        _uiConfigErrors.Add(error!);
+        Trace.TraceError($@"UI settings could not be read: {error}");
+        // The defaults are saved next to the real file, never over it: the user's settings stay for the next start.
+        return UIConfig.CreateConfig(string.IsNullOrEmpty(path) ? path : path + @".unreadable");
     }
 
     public void Crash() => HasCrashed = true;
