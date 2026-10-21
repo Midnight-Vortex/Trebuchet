@@ -38,8 +38,6 @@ namespace DepotDownloader
 
         // Manifest and chunk downloads give up after this many attempts instead of retrying forever.
         private const int MaxDownloadAttempts = 8;
-        // A workshop download stops after this many mods failed in a row: the problem is then not the mod.
-        private const int MaxConsecutiveDepotFailures = 3;
         private static readonly TimeSpan CDNAuthTokenTimeout = TimeSpan.FromSeconds(30);
 
         // Exponential backoff between download attempts (0.5 s, 1 s, 2 s, ... at most 30 s), so that a CDN outage or
@@ -625,6 +623,51 @@ namespace DepotDownloader
             public DepotManifest previousManifest;
             public List<DepotManifest.FileData> filteredFiles;
             public HashSet<string> allFileNames;
+            public CancellationTokenSource depotCts;
+        }
+
+        // Tracks the workshop mods that failed during one DownloadSteam3Async run.
+        private sealed class DepotFailures(CancellationTokenSource runCts)
+        {
+            public List<DepotDownloadInfo> Failed { get; } = [];
+
+            // One bad workshop mod (manifest or chunk unavailable, access denied...) must not cancel the update of the
+            // other mods of the run, unless the whole run was cancelled. Depots of an app still fail the whole download.
+            public bool CanIsolate(DepotDownloadInfo depot) => depot.PublishedFileId != 0 && !runCts.IsCancellationRequested;
+
+            public void Add(DepotDownloadInfo depot, Exception ex)
+            {
+                Failed.Add(depot);
+                Util.WriteLine("Mod {0} (depot {1}) could not be downloaded, continuing with the other mods: {2}", depot.PublishedFileId, depot.DepotId, ex.Message);
+
+                // Without a Steam session every remaining mod would fail the same way after its retries: stop the run.
+                // The mods not reached yet keep their installed state and are updated by the next run.
+                if (!steam3.IsLoggedOn)
+                {
+                    throw new ContentDownloaderException($"Lost the connection to Steam, stopped the download after mod {depot.PublishedFileId} failed.");
+                }
+            }
+        }
+
+        // Download failures cancel the token source they are given. A workshop mod gets its own, linked to the run,
+        // so that one bad mod does not cancel all the others; depots of an app share the run's one as before.
+        private static CancellationTokenSource CreateDepotCancellation(DepotDownloadInfo depot, CancellationTokenSource runCts, List<CancellationTokenSource> created)
+        {
+            if (depot.PublishedFileId == 0)
+                return runCts;
+
+            var depotCts = CancellationTokenSource.CreateLinkedTokenSource(runCts.Token);
+            created.Add(depotCts);
+            return depotCts;
+        }
+
+        private static void SetInstalledManifestId(DepotDownloadInfo depot, ulong manifestId)
+        {
+            if (depot.PublishedFileId == 0)
+                DepotConfigStore.Instance.InstalledManifestIDs[depot.DepotId] = manifestId;
+            else
+                DepotConfigStore.Instance.InstalledUGCManifestIDs[depot.PublishedFileId] = manifestId;
+            DepotConfigStore.Save();
         }
 
         private class FileStreamData
@@ -664,50 +707,86 @@ namespace DepotDownloader
             var downloadCounter = new GlobalDownloadCounter();
             var depotsToDownload = new List<DepotFilesData>(depots.Count);
             var allFileNamesAllDepots = new HashSet<string>();
+            var failures = new DepotFailures(cts);
+            var depotSources = new List<CancellationTokenSource>();
 
-            // First, fetch all the manifests for each depot (including previous manifests) and perform the initial setup
-            foreach (var depot in depots)
+            try
             {
-                var depotFileData = await ProcessDepotManifestAndFiles(cts, depot, downloadCounter);
-
-                if (depotFileData != null)
+                // First, fetch all the manifests for each depot (including previous manifests) and perform the initial setup
+                foreach (var depot in depots)
                 {
-                    depotsToDownload.Add(depotFileData);
-                    allFileNamesAllDepots.UnionWith(depotFileData.allFileNames);
+                    var depotCts = CreateDepotCancellation(depot, cts, depotSources);
+                    try
+                    {
+                        var depotFileData = await ProcessDepotManifestAndFiles(depotCts, depot, downloadCounter);
+
+                        if (depotFileData != null)
+                        {
+                            depotFileData.depotCts = depotCts;
+                            depotsToDownload.Add(depotFileData);
+                            allFileNamesAllDepots.UnionWith(depotFileData.allFileNames);
+                        }
+                    }
+                    catch (Exception ex) when (failures.CanIsolate(depot))
+                    {
+                        // The mod's files and installed manifest id are untouched at this point.
+                        failures.Add(depot, ex);
+                    }
+
+                    cts.Token.ThrowIfCancellationRequested();
                 }
 
-                cts.Token.ThrowIfCancellationRequested();
-            }
-
-            // If we're about to write all the files to the same directory, we will need to first de-duplicate any files by path
-            // This is in last-depot-wins order, from Steam or the list of depots supplied by the user
-            if (!string.IsNullOrWhiteSpace(Config.InstallDirectory) && depotsToDownload.Count > 0)
-            {
-                var claimedFileNames = new HashSet<string>();
-                string publishedIdSubFolder;
-
-                for (var i = depotsToDownload.Count - 1; i >= 0; i--)
+                // If we're about to write all the files to the same directory, we will need to first de-duplicate any files by path
+                // This is in last-depot-wins order, from Steam or the list of depots supplied by the user
+                if (!string.IsNullOrWhiteSpace(Config.InstallDirectory) && depotsToDownload.Count > 0)
                 {
-                    // Files in PublishedId sub folders can have the same name, this add discrimination
-                    if (depotsToDownload[i].depotDownloadInfo.PublishedFileId != 0)
-                        publishedIdSubFolder = depotsToDownload[i].depotDownloadInfo.PublishedFileId + "/";
-                    else
-                        publishedIdSubFolder = string.Empty;
-                    // For each depot, remove all files from the list that have been claimed by a later depot
-                    depotsToDownload[i].filteredFiles.RemoveAll(file => claimedFileNames.Contains(publishedIdSubFolder + file.FileName));
+                    var claimedFileNames = new HashSet<string>();
+                    string publishedIdSubFolder;
 
-                    claimedFileNames.UnionWith(depotsToDownload[i].allFileNames.Select(x => publishedIdSubFolder + x));
+                    for (var i = depotsToDownload.Count - 1; i >= 0; i--)
+                    {
+                        // Files in PublishedId sub folders can have the same name, this add discrimination
+                        if (depotsToDownload[i].depotDownloadInfo.PublishedFileId != 0)
+                            publishedIdSubFolder = depotsToDownload[i].depotDownloadInfo.PublishedFileId + "/";
+                        else
+                            publishedIdSubFolder = string.Empty;
+                        // For each depot, remove all files from the list that have been claimed by a later depot
+                        depotsToDownload[i].filteredFiles.RemoveAll(file => claimedFileNames.Contains(publishedIdSubFolder + file.FileName));
+
+                        claimedFileNames.UnionWith(depotsToDownload[i].allFileNames.Select(x => publishedIdSubFolder + x));
+                    }
+                }
+
+                foreach (var depotFileData in depotsToDownload)
+                {
+                    try
+                    {
+                        await DownloadSteam3AsyncDepotFiles(depotFileData.depotCts, downloadCounter, depotFileData, allFileNamesAllDepots);
+                    }
+                    catch (Exception ex) when (failures.CanIsolate(depotFileData.depotDownloadInfo))
+                    {
+                        // The mod stays marked as invalid (its files may be partially written) and is repaired next run.
+                        failures.Add(depotFileData.depotDownloadInfo, ex);
+                    }
                 }
             }
-
-            foreach (var depotFileData in depotsToDownload)
+            finally
             {
-                await DownloadSteam3AsyncDepotFiles(cts, downloadCounter, depotFileData, allFileNamesAllDepots);
+                foreach (var depotSource in depotSources)
+                {
+                    depotSource.Dispose();
+                }
             }
 
             Config.Progress.Report(new Progress(downloadCounter.totalBytesUncompressed, downloadCounter.totalBytesUncompressed, 0L));
             Util.WriteLine("Total downloaded: {0} bytes ({1} bytes uncompressed) from {2} depots",
                 downloadCounter.totalBytesCompressed, downloadCounter.totalBytesUncompressed, depots.Count);
+
+            if (failures.Failed.Count > 0)
+            {
+                throw new ContentDownloaderException(
+                    $"{failures.Failed.Count} of {depots.Count} mods could not be downloaded: {string.Join(", ", failures.Failed.Select(d => d.PublishedFileId))}");
+            }
         }
 
         private static async Task<DepotFilesData> ProcessDepotManifestAndFiles(CancellationTokenSource cts, DepotDownloadInfo depot, GlobalDownloadCounter downloadCounter)
@@ -723,20 +802,18 @@ namespace DepotDownloader
             DepotManifest newManifest = null;
             var configDir = Config.DepotConfigDirectory;
 
+            // The depot is only marked as invalid in DownloadSteam3AsyncDepotFiles, right before its own files change.
+            // Marking every depot here, before any of them was downloaded, left all mods that a failed or cancelled
+            // multi-mod update had not reached yet reported as corrupted, which needlessly restarted servers.
             var lastManifestId = INVALID_MANIFEST_ID;
             if (depot.PublishedFileId == 0)
             {
                 DepotConfigStore.Instance.InstalledManifestIDs.TryGetValue(depot.DepotId, out lastManifestId);
-                // In case we have an early exit, this will force equiv of verifyall next run.
-                DepotConfigStore.Instance.InstalledManifestIDs[depot.DepotId] = INVALID_MANIFEST_ID;
             }
             else
             {
                 DepotConfigStore.Instance.InstalledUGCManifestIDs.TryGetValue(depot.PublishedFileId, out lastManifestId);
-                // In case we have an early exit, this will force equiv of verifyall next run.
-                DepotConfigStore.Instance.InstalledUGCManifestIDs[depot.PublishedFileId] = INVALID_MANIFEST_ID;
             }
-            DepotConfigStore.Save();
 
             if (lastManifestId != INVALID_MANIFEST_ID)
             {
@@ -938,6 +1015,10 @@ namespace DepotDownloader
 
             Util.WriteLine("Downloading depot {0}", depot.DepotId);
 
+            // This depot's files are about to change: in case we have an early exit, this will force equiv of
+            // verifyall next run.
+            SetInstalledManifestId(depot, INVALID_MANIFEST_ID);
+
             var files = depotFilesData.filteredFiles.Where(f => !f.Flags.HasFlag(EDepotFileFlag.Directory)).ToArray();
             var networkChunkQueue = new ConcurrentQueue<(FileStreamData fileStreamData, DepotManifest.FileData fileData, DepotManifest.ChunkData chunk)>();
 
@@ -953,13 +1034,27 @@ namespace DepotDownloader
                 DownloadSteam3AsyncDepotFile(cts, downloadCounter, depotFilesData, file, networkChunkQueue);
             });
 
-            await Parallel.ForEachAsync(networkChunkQueue, parallelOptions, async (q, cancellationToken) =>
+            try
             {
-                await DownloadSteam3AsyncDepotFileChunk(
-                    cts, downloadCounter, depotFilesData,
-                    q.fileData, q.fileStreamData, q.chunk
-                );
-            });
+                await Parallel.ForEachAsync(networkChunkQueue, parallelOptions, async (q, cancellationToken) =>
+                {
+                    await DownloadSteam3AsyncDepotFileChunk(
+                        cts, downloadCounter, depotFilesData,
+                        q.fileData, q.fileStreamData, q.chunk
+                    );
+                });
+            }
+            catch
+            {
+                // All chunk tasks have ended here. Close the files that still had chunks to write: otherwise they stay
+                // open (and locked) while the run goes on with other mods and when the next update retries them.
+                foreach (var fileStreamData in networkChunkQueue.Select(q => q.fileStreamData).Distinct())
+                {
+                    fileStreamData.fileStream?.Dispose();
+                }
+
+                throw;
+            }
 
             // Check for deleted files if updating the depot.
             if (depotFilesData.previousManifest != null)
@@ -990,11 +1085,7 @@ namespace DepotDownloader
                 }
             }
 
-            if (depot.PublishedFileId == 0)
-                DepotConfigStore.Instance.InstalledManifestIDs[depot.DepotId] = depot.ManifestId;
-            else
-                DepotConfigStore.Instance.InstalledUGCManifestIDs[depot.PublishedFileId] = depot.ManifestId;
-            DepotConfigStore.Save();
+            SetInstalledManifestId(depot, depot.ManifestId);
         }
 
         private static void DownloadSteam3AsyncDepotFile(
