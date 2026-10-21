@@ -216,9 +216,19 @@ public sealed class TrebuchetApp : ReactiveObject, IDisposable
         catch (OperationCanceledException){}
         catch (Exception ex)
         {
-            await App.HandleAppCrash(ex);
+            // Not the crash path: a restart runs the same start actions again and fails the same way, which only
+            // used up the automatic crash restarts (then the modal crash window). The tick timer is already running
+            // (servers stay watched), so log and show the error instead.
+            _logger.LogError(ex, @"Start actions failed");
+            try
+            {
+                await DialogueBox.OpenErrorAsync(ex.Message);
+            }
+            catch (Exception dialogError)
+            {
+                _logger.LogError(dialogError, @"Could not show the error message");
+            }
         }
-        
     }
 
     private async Task RefreshActivePanel()

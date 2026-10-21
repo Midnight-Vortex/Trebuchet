@@ -70,7 +70,9 @@ namespace Trebuchet.Controls
             {}
             catch (Exception ex)
             {
-                await App.HandleAppCrash(ex);
+                // Expected errors (access denied, missing drive, ...): log and show them. The crash path restarted
+                // Trebuchet and used up the automatic crash restarts meant for real crashes.
+                App.HandleReactiveError(ex);
             }
         }
     }
