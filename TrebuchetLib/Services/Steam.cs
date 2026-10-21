@@ -215,7 +215,7 @@ public class Steam : IDebugListener, IDisposable
         if (!await WaitSteamConnectionAsync())
             throw new Exception("Could not connect to steam");
 
-        return await Task.Run(async () =>
+        var build = await Task.Run(async () =>
         {
             try
             {
@@ -229,7 +229,35 @@ public class Steam : IDebugListener, IDisposable
                 return 0U;
             }
         });
+        if (build != 0)
+        {
+            _buildLookupFailures = 0;
+            return build;
+        }
+
+        // Lookups that keep failing mean a stale connection (it dropped while still counted as logged on). Before,
+        // Steam stayed unusable until Trebuchet restarted: now the next check connects again.
+        if (++_buildLookupFailures >= ReconnectAfterFailures && Status == SteamStatus.StandBy)
+        {
+            _buildLookupFailures = 0;
+            _logger.LogWarning("Steam lookups keep failing, reconnecting to Steam");
+            await Task.Run(() =>
+            {
+                try
+                {
+                    _session.Disconnect(sendLogOff: false);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Could not close the Steam connection");
+                }
+            });
+        }
+        return 0;
     }
+
+    private int _buildLookupFailures;
+    private const int ReconnectAfterFailures = 3;
 
     public async Task<CPublishedFile_QueryFiles_Response?> QueryWorkshopSearch(uint appId, string searchTerms, uint perPage,
         uint page, string? requiredTags = null, string? excludedTags = null)

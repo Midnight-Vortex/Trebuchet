@@ -372,3 +372,6 @@ FodyWeavers.xsd
 
 # Local build output (never used by the installer, which takes the publish folders)
 _build-out/
+
+# Local git worktrees of Claude Code agents
+.claude/worktrees/

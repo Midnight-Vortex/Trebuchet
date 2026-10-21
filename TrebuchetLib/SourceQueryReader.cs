@@ -113,9 +113,10 @@ namespace TrebuchetLib
         
         public void Refresh()
         {
-            if (Online && (DateTime.Now - _lastUpdate).TotalMilliseconds < _refreshRate)
+            // UTC: on the switch back from summer time local time repeats an hour and froze the player count.
+            if (Online && (DateTime.UtcNow - _lastUpdate).TotalMilliseconds < _refreshRate)
                 return;
-            _lastUpdate = DateTime.Now;
+            _lastUpdate = DateTime.UtcNow;
 
             try
             { 
