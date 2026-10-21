@@ -438,26 +438,35 @@ public class Steam : IDebugListener, IDisposable
     /// Update instance 0 using steamcmd, then copy the files of instance0 to update other instances.
     /// </summary>
     /// <returns></returns>
-    public async Task UpdateServerInstances()
+    /// <returns>False when instance 0 could not be updated (the other instances are then left untouched).</returns>
+    public async Task<bool> UpdateServerInstances()
     {
-        if (_appSetup.Config.ServerInstanceCount <= 0) return;
+        if (_appSetup.Config.ServerInstanceCount <= 0) return true;
         using var status = EnterStatus(SteamStatus.UpdatingServers, out var cts);
 
-        if (!await WaitSteamConnectionAsync()) return;
+        if (!await WaitSteamConnectionAsync()) return false;
 
         _logger.LogInformation("Updating all server instances...");
+        // A failed download of instance 0 must not be copied over the working other instances.
+        if (!await UpdateServer(0, cts)) return false;
         int count = _appSetup.Config.ServerInstanceCount;
-        for (int i = 0; i < count; i++)
+        for (int i = 1; i < count; i++)
         {
-            if (i == 0)
-            {
-                await UpdateServer(i, cts);
-            }
-            else
-            {
-                await UpdateServerFromInstance0(i, cts.Token);
-            }
+            // Copying the whole server (many GB) on every start made restarts take minutes: only an outdated or
+            // missing copy is replaced.
+            if (IsInstanceCopyCurrent(i))
+                continue;
+            await UpdateServerFromInstance0(i, cts.Token);
         }
+        return true;
+    }
+
+    /// <summary>True when the instance is installed and has the build of instance 0.</summary>
+    public bool IsInstanceCopyCurrent(int instance)
+    {
+        var bin = Path.Combine(_appSetup.GetInstancePath(instance), Constants.FolderGameBinaries, Constants.FileServerBin);
+        var build = GetInstanceBuildId(instance);
+        return File.Exists(bin) && build != 0 && build == GetInstanceBuildId(0);
     }
 
     public void WriteLine(string category, string msg)
@@ -551,11 +560,12 @@ public class Steam : IDebugListener, IDisposable
     /// <param name="cts"></param>
     /// <param name="reinstall"></param>
     /// <returns></returns>
-    private async Task UpdateServer(int instanceNumber, CancellationTokenSource cts, bool reinstall = false)
+    /// <returns>True when the download finished.</returns>
+    private async Task<bool> UpdateServer(int instanceNumber, CancellationTokenSource cts, bool reinstall = false)
     {
-        if (_appSetup.Config.ServerInstanceCount <= 0) return;
+        if (_appSetup.Config.ServerInstanceCount <= 0) return true;
             
-        if (!await WaitSteamConnectionAsync().ConfigureAwait(false)) return;
+        if (!await WaitSteamConnectionAsync().ConfigureAwait(false)) return false;
 
         _logger.LogInformation($"Updating server instance {instanceNumber}.");
 
@@ -569,22 +579,26 @@ public class Steam : IDebugListener, IDisposable
         Tools.CreateDir(instance);
         UpdateDownloaderConfig();
         ContentDownloader.Config.InstallDirectory = instance;
-        await Task.Run(async () =>
+        return await Task.Run(async () =>
         {
             try
             {
                 await ContentDownloader.DownloadAppAsync(_appSetup.ServerAppId, [],
                     ContentDownloader.DEFAULT_BRANCH, null, null, null, false, false, cts);
-                var buildId = await GetSteamBuildId();
-                // 0 means Steam did not answer: keep the installed build id instead of overwriting it with 0.
+                // The build of the app info the download used: a fresh lookup could already name a newer build than
+                // the files that were downloaded, and the server was then never updated to it.
+                var buildId = ContentDownloader.GetSteam3AppBuildNumber(_appSetup.ServerAppId, ContentDownloader.DEFAULT_BRANCH);
+                // 0 means the build is unknown: keep the installed build id instead of overwriting it with 0.
                 if (buildId != 0)
                     SetInstanceBuildId(instanceNumber, buildId);
                 else
                     _logger.LogWarning("Could not read the server build from Steam, build id of instance {Instance} not updated", instanceNumber);
+                return true;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, @"Failed to update server");
+                return false;
             }
         }, cts.Token).ConfigureAwait(false);
     }
@@ -593,6 +607,8 @@ public class Steam : IDebugListener, IDisposable
     {
         ContentDownloader.Config.CellID = 0; //TODO: Offer regional download selection
         ContentDownloader.Config.MaxDownloads = _appSetup.Config.MaxDownloads;
+        // The "Verify all" setting: re-check every file instead of only the changed ones.
+        ContentDownloader.Config.VerifyAll = _appSetup.Config.VerifyAll;
         ContentDownloader.Config.DepotConfigDirectory = Path.Combine(_appSetup.GetWorkshopFolder(), ContentDownloader.CONFIG_DIR);
         // Per-edition Steam account store: Workshop/{VersionFolder}/account.config
         AccountSettingsStore.LoadFromFile(

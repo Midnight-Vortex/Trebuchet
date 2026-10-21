@@ -42,6 +42,7 @@ namespace TrebuchetLib
         public string NotificationTimedRestart { get; set; } = NotificationTimedRestartDefault;
         public string NotificationTimedStop { get; set; } = NotificationTimedStopDefault;
         public string NotificationCountdownCancelled { get; set; } = NotificationCountdownCancelledDefault;
+        public string NotificationRestartPostponed { get; set; } = NotificationRestartPostponedDefault;
         public string ScriptBeforeUpdate { get; set; } = string.Empty;
         public string ScriptAfterUpdate { get; set; } = string.Empty;
         
@@ -138,6 +139,7 @@ namespace TrebuchetLib
         public static readonly string NotificationTimedRestartDefault = "{servername} restarts in {minutes} min. Reason: {reason}";
         public static readonly string NotificationTimedStopDefault = "{servername} shuts down in {minutes} min. Reason: {reason}";
         public static readonly string NotificationCountdownCancelledDefault = "The announced restart or shutdown of {servername} is cancelled.";
+        public static readonly string NotificationRestartPostponedDefault = "The restart of {servername} is postponed by {minutes} minutes.";
         public static readonly string NotificationModUpdateDetectedDefault = "Mod updates found: {modList}. The server restarts to install them.";
         public static readonly string NotificationCrashLoopDefault = "Server {servername} crashed {count} times within {minutes} minutes, automatic restart is paused. Check the logs and start it manually.";
         public static readonly string NotificationExternalIpChangedDefault ="The external IP address of {servername} changed from {old_ip} to {ip}";

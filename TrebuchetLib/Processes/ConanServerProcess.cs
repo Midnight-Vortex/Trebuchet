@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -25,9 +26,11 @@ internal sealed class ConanServerProcess : IConanServerProcess
     private int _players;
     private ProcessState _state;
     private readonly LogReader _logReader;
-    private bool _hasTriedRConShutdown;
-    private bool _hasTriedHandleShutdown;
+    private int _shutdownStep;
+    private volatile bool _shutdownStepFailed;
     private bool _requestRestart;
+    // Time a server gets after a stop request to save and exit before the next, harder way is tried.
+    private static readonly TimeSpan ShutdownGrace = TimeSpan.FromMinutes(3);
 
     public event EventHandler<ProcessState>? StateChanged;
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -95,6 +98,7 @@ internal sealed class ConanServerProcess : IConanServerProcess
     public required ConanServerInfos Infos { get; init; }
     public required SourceQueryReader SourceQueryReader { get; init; }
     public IRcon? RCon { get; init; }
+    public ILogger? Logger { get; init; }
 
     public int Instance => Infos.Instance;
     public int Port => Infos.Port;
@@ -177,11 +181,13 @@ internal sealed class ConanServerProcess : IConanServerProcess
 
     public void ZombieCheck()
     {
+        // Without the kill a hung server keeps running: reporting it as crashed made Trebuchet start a second server
+        // on the same save (or attach the hung one again and report it every few minutes).
+        if (!KillZombies) return;
         if (_lastResponse + TimeSpan.FromSeconds(ZombieCheckSeconds) < DateTime.UtcNow)
         {
             State = ProcessState.CRASHED;
-            if (KillZombies)
-                KillProcess();
+            KillProcess();
         }
     }
 
@@ -190,9 +196,8 @@ internal sealed class ConanServerProcess : IConanServerProcess
         if (_disposed) return;
         if (State is ProcessState.STOPPED or ProcessState.CRASHED) return;
         State = ProcessState.STOPPING;
-        // Make sure the regular shutdown path cannot fire again after a kill.
-        _hasTriedRConShutdown = true;
-        _hasTriedHandleShutdown = true;
+        // Make sure the regular shutdown path cannot fire again after a kill (only the kill is repeated).
+        _shutdownStep = ShutdownStepKill - 1;
         _shutdownCallTime = DateTime.UtcNow;
         await Task.Run(KillProcess);
     }
@@ -258,36 +263,64 @@ internal sealed class ConanServerProcess : IConanServerProcess
         }
     }
 
+    private const int ShutdownStepKill = 4;
+
+    /// <summary>
+    /// Stops the server, from the gentlest way to the hardest: Ctrl+C on its console (it saves and exits), the RCon
+    /// "shutdown" command, closing its window, then kill. Each way that was delivered gets <see cref="ShutdownGrace"/>;
+    /// a way that could not be delivered hands over at once (it used to wait 3 minutes each time, so a server without
+    /// RCon or a console window only stopped after 3 to 6 minutes, and then by a kill).
+    /// </summary>
     private void SendShutdown()
     {
-        if ((DateTime.UtcNow - _shutdownCallTime) < TimeSpan.FromMinutes(3)) return;
+        if (_shutdownStep > 0 && !_shutdownStepFailed && DateTime.UtcNow - _shutdownCallTime < ShutdownGrace) return;
         _shutdownCallTime = DateTime.UtcNow;
+        _shutdownStepFailed = false;
 
-        if (RCon is not null && !_hasTriedRConShutdown)
+        while (true)
         {
-            _hasTriedRConShutdown = true;
-            _ = SendRConShutdown(RCon);
+            switch (++_shutdownStep)
+            {
+                case 1:
+                    if (!ConsoleControl.TrySendCtrlC(PId)) continue;
+                    Logger?.LogInformation("Stopping server {Instance}: Ctrl+C sent to its console", Instance);
+                    return;
+                case 2:
+                    if (RCon is null) continue;
+                    Logger?.LogInformation("Stopping server {Instance}: RCon shutdown sent", Instance);
+                    _ = SendRConShutdown(RCon);
+                    return;
+                case 3:
+                    bool closed;
+                    lock (_processLock)
+                        closed = !_disposed && Process.TryCloseMainWindow();
+                    // Console servers have no main window: nothing was sent.
+                    if (!closed) continue;
+                    Logger?.LogInformation("Stopping server {Instance}: window close sent", Instance);
+                    return;
+                default:
+                    _shutdownStep = ShutdownStepKill;
+                    Logger?.LogWarning("Stopping server {Instance}: it did not exit, killing it", Instance);
+                    KillProcess();
+                    return;
+            }
         }
-        else if (!_hasTriedHandleShutdown)
-        {
-            _hasTriedHandleShutdown = true;
-            lock (_processLock)
-                if (!_disposed) Process.TryCloseMainWindow();
-        }
-        else
-            KillProcess();
     }
 
-    private static async Task SendRConShutdown(IRcon rcon)
+    private async Task SendRConShutdown(IRcon rcon)
     {
         try
         {
-            await rcon.Send(@"shutdown", CancellationToken.None);
+            var response = await rcon.Send(@"shutdown", CancellationToken.None);
+            if (response.Exception is null) return;
+            Logger?.LogWarning(response.Exception, "RCon shutdown of server {Instance} failed", Instance);
         }
-        catch
+        catch (Exception ex)
         {
-            // The kill fallback takes over after the shutdown delay.
+            Logger?.LogWarning(ex, "RCon shutdown of server {Instance} failed", Instance);
         }
+        // Not delivered: the next refresh goes on with the next way instead of waiting.
+        _shutdownStepFailed = true;
     }
 
     private void OnPropertyChanged([CallerMemberName] string? propertyName = null)

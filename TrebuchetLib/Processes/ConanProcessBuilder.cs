@@ -19,6 +19,7 @@ public class ConanProcessBuilder : IConanProcessServerBuilderLogTracked
     private Func<Task<ConanServerInfos>>? _serverInfosGetter;
     private ILogger<LogReader>? _gameLogger;
     private bool _useRcon;
+    private ILogger? _processLogger;
 
     public static ConanProcessBuilder Create()
     {
@@ -52,6 +53,12 @@ public class ConanProcessBuilder : IConanProcessServerBuilderLogTracked
     public ConanProcessBuilder SetGameLogger(ILogger<LogReader> logger)
     {
         _gameLogger = logger;
+        return this;
+    }
+
+    public ConanProcessBuilder SetProcessLogger(ILogger logger)
+    {
+        _processLogger = logger;
         return this;
     }
 
@@ -112,7 +119,8 @@ public class ConanProcessBuilder : IConanProcessServerBuilderLogTracked
             SourceQueryReader = sourceQuery,
             StartUtc = _start,
             RCon = rcon,
-            Infos = serverInfo
+            Infos = serverInfo,
+            Logger = _processLogger
         };
     }
 

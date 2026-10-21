@@ -5492,5 +5492,23 @@ namespace Trebuchet.Assets {
                 return ResourceManager.GetString("ProfileInUseByInstances", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Restart postponed (to players).
+        /// </summary>
+        public static string SettingNotificationRestartPostponed {
+            get {
+                return ResourceManager.GetString("SettingNotificationRestartPostponed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The restart of {servername} is postponed by {minutes} minutes..
+        /// </summary>
+        public static string DefaultNotificationRestartPostponed {
+            get {
+                return ResourceManager.GetString("DefaultNotificationRestartPostponed", resourceCulture);
+            }
+        }
     }
 }

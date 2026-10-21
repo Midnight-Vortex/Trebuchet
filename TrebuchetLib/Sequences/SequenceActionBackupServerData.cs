@@ -9,7 +9,8 @@ public class SequenceActionBackupServerData : ISequenceAction
     
     public async Task Execute(SequenceArgs args)
     {
-        if (args.Launcher.GetServerProcesses().Any(x => x.Infos.Instance == args.Instance))
+        // A stopped server stays listed until its sequence ended: only a running process blocks the backup.
+        if (SequenceActionWaitOffline.IsServerRunning(args))
         {
             if (CancelOnFailure)
                 throw new OperationCanceledException("Cannot backup while server is running");

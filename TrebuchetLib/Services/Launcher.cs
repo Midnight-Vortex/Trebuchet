@@ -45,7 +45,10 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     private bool _updateWaitLogged;
     private readonly HashSet<ulong> _failedModUpdates = [];
     private readonly ServerUpdateTracker _serverUpdate = new();
-    private DateTime _lastUpdateCheckTime;
+    private DateTime _nextUpdateCheckUtc;
+    private bool _lastUpdateCheckFailed;
+    // A failed check (Steam unreachable) is retried after this delay instead of on every 2 s tick.
+    private static readonly TimeSpan UpdateCheckRetryDelay = TimeSpan.FromMinutes(1);
     private readonly List<StartDates> _startDates;
     private readonly AppFiles _appFiles;
     private readonly IOsPlatformSpecific _osSpecific;
@@ -58,6 +61,10 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     private string _lastRestartReason = string.Empty;
     private DateTime _lastExternalIpCheck = DateTime.MinValue;
     private readonly HashSet<int> _countdownInstances = [];
+    // Reason of the restart a running countdown leads to (stop countdowns are not in it).
+    private readonly Dictionary<int, string> _restartCountdownReasons = [];
+    // Restarts whose countdown was cancelled by a pause: they run when the pause is over.
+    private readonly Dictionary<int, string> _postponedRestarts = [];
     // Automatic restarts (schedule, updates, RequiresRestart.txt) paused per instance, e.g. during an RP event.
     private readonly Dictionary<int, DateTime> _automaticRestartsPausedUntil = [];
     public const int CrashRestartLimit = 3;
@@ -67,6 +74,27 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     private readonly HashSet<int> _backgroundStarts = [];
     // Instances whose server process is being launched right now (updates, ini, process start).
     private readonly HashSet<int> _launchingInstances = [];
+    // Launching instances past their pre-launch update: their files are fresh and about to be in use.
+    private readonly HashSet<int> _startingProcesses = [];
+    // One pre-launch update at a time: starts of several instances at once updated the same files concurrently.
+    private readonly SemaphoreSlim _prelaunchUpdateGate = new(1, 1);
+    // Instances with a restart on its way (countdown, Discord notice): the tick must not request it again.
+    private readonly HashSet<int> _restartsPending = [];
+    // When the user last stopped or killed an instance: a failed automatic start is not retried after that.
+    private readonly Dictionary<int, DateTime> _manualStopsUtc = [];
+    public static readonly TimeSpan StartRetryDelay = TimeSpan.FromMinutes(1);
+    // Backup and scripts after a stop run outside the tick: a long backup froze the monitoring of every server.
+    private readonly Dictionary<int, Task> _shutdownTasks = [];
+    // Update round: instances restarted together so an update can install (it needs them all stopped). Their starts
+    // are held until every instance of the round is stopped, then the first start installs the update.
+    private readonly HashSet<int> _updateRound = [];
+    private readonly HashSet<int> _heldStarts = [];
+    private DateTime _heldSinceUtc;
+    // Grace for a server of the round that is not on its way to a restart (its restart failed or was cancelled).
+    private static readonly TimeSpan HeldStartTimeout = TimeSpan.FromMinutes(5);
+    private bool _updateRoundWaitLogged;
+    // Instances still running after they were reported as crashed (kill pending or failed).
+    private readonly HashSet<int> _crashedStillRunning = [];
 
     public event EventHandler? StateChanged;
     public event EventHandler<SequenceProgress>? SequenceProgressChanged; 
@@ -201,6 +229,10 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     public async Task CatapultServer(ServerProfileRef profileName, IPRefWithModList listRef, int instance)
     {
         if (_serverProcesses.ContainsKey(instance)) return;
+        // The backup after the last stop may still copy this save: start once it is done.
+        if (_shutdownTasks.TryGetValue(instance, out var shutdown))
+            await shutdown;
+        if (_serverProcesses.ContainsKey(instance)) return;
         
         var profile = _appFiles.Server.Get(profileName);
         if (profile.StartingSequence.Actions.Count > 0 && !_serverSequences.ContainsKey(instance))
@@ -224,13 +256,19 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
                 builder.UseRCon();
 
             var serverProcess = await builder.BuildServer();
+            if (!_serverProcesses.TryAdd(instance, serverProcess))
+            {
+                // Attached meanwhile by the process scan: this second watcher (query thread, log reader, RCon) leaked.
+                serverProcess.Dispose();
+                return;
+            }
             serverProcess.StateChanged += OnServerStateChanged;
-            _serverProcesses.TryAdd(instance, serverProcess);
             OnStateChanged();
         }
         finally
         {
             _launchingInstances.Remove(instance);
+            _startingProcesses.Remove(instance);
         }
     }
 
@@ -247,6 +285,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
 
     private async Task RunBackgroundStart(int instance)
     {
+        var attemptUtc = DateTime.UtcNow;
         try
         {
             await CatapultServer(instance);
@@ -259,6 +298,38 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         {
             _backgroundStarts.Remove(instance);
         }
+
+        try
+        {
+            await RetryFailedStart(instance, attemptUtc);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to retry the start of server {Instance}", instance);
+        }
+    }
+
+    /// <summary>
+    /// 24/7: an automatic start that failed (pre-launch update, locked file, failed starting sequence) left the server
+    /// down without any notice. It is tried again like a crashed server, at most <see cref="CrashRestartLimit"/> times
+    /// per <see cref="CrashRestartWindow"/>, then Discord is told. A stop or kill by the user ends the retries.
+    /// </summary>
+    private async Task RetryFailedStart(int instance, DateTime attemptUtc)
+    {
+        bool StoppedByUser() => _manualStopsUtc.TryGetValue(instance, out var stopped) && stopped >= attemptUtc;
+        if (_serverProcesses.ContainsKey(instance) || _launchingInstances.Contains(instance) || StoppedByUser()) return;
+
+        var profile = GetInstanceProfile(instance);
+        if (!AllowCrashRestart(instance))
+        {
+            if (profile is not null) await NotifyCrashLoop(instance, profile);
+            return;
+        }
+
+        _logger.LogWarning("Server {Instance} did not start, next try in {Seconds} s", instance, StartRetryDelay.TotalSeconds);
+        await Task.Delay(StartRetryDelay);
+        if (_serverProcesses.ContainsKey(instance) || _launchingInstances.Contains(instance) || StoppedByUser()) return;
+        CatapultServerInBackground(instance);
     }
     
     public async Task<Process> CatapultServerProcess(ServerProfileRef profileName, IPRefWithModList listRef, int instance)
@@ -279,9 +350,31 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         if (IsServerProfileLocked(profileName))
             throw new ArgumentException($"Profile {profileName} folder is currently locked by another process.");
 
-        if (!await PerformCatapultUpdates())
-            throw new Exception("Pre-launch update failed");
-        
+        await _prelaunchUpdateGate.WaitAsync();
+        try
+        {
+            if (!await PerformCatapultUpdates())
+                throw new Exception("Pre-launch update failed");
+            _startingProcesses.Add(instance);
+        }
+        finally
+        {
+            _prelaunchUpdateGate.Release();
+        }
+
+        try
+        {
+            return await StartServerProcess(instance, profile, list);
+        }
+        catch
+        {
+            _startingProcesses.Remove(instance);
+            throw;
+        }
+    }
+
+    private async Task<Process> StartServerProcess(int instance, ServerProfile profile, IEnumerable<string> list)
+    {
         var savedPath = Path.Combine(_setup.GetInstancePath(instance), Constants.FolderGameSave);
         SetupJunction(savedPath, profile.ProfileFolder);
 
@@ -324,6 +417,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     public async Task CloseServer(int instance)
     {
         _logger.LogInformation($"Close Server {instance}");
+        _manualStopsUtc[instance] = DateTime.UtcNow;
         if (_serverProcesses.TryGetValue(instance, out var watcher))
         {
             var uri = _setup.Config.GetInstanceProfile(instance);
@@ -355,8 +449,13 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         }
     }
 
+    /// <summary>
+    /// Restart requested by the tick (schedule, updates, RequiresRestart.txt). Until the server is stopping (countdown,
+    /// Discord notice) the instance counts as pending, so the next ticks do not request and announce it again.
+    /// </summary>
     public async void RestartServer(int instance)
     {
+        if (!_restartsPending.Add(instance)) return;
         try
         {
             await RestartServerAsync(instance);
@@ -364,6 +463,10 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to restart server");
+        }
+        finally
+        {
+            _restartsPending.Remove(instance);
         }
     }
     
@@ -389,7 +492,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
                 }
                 if (profile.UseRestartWarnings && profile.RestartWarnings.Any(x => x.Before > TimeSpan.Zero))
                 {
-                    await RunSequence(instance, BuildRestartCountdown(profile), () => RestartServerAsync(instance), isCountdown: true);
+                    await RunSequence(instance, BuildRestartCountdown(profile), () => RestartServerAsync(instance), isCountdown: true, isRestart: true);
                     return;
                 }
             }
@@ -498,6 +601,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     public async Task CloseServerIn(int instance, TimeSpan delay)
     {
         if (!_serverProcesses.ContainsKey(instance)) return;
+        _manualStopsUtc[instance] = DateTime.UtcNow;
         if (delay <= TimeSpan.Zero || GetInstanceProfile(instance) is not { } profile)
         {
             await CloseServer(instance);
@@ -520,7 +624,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         if (delay > TimeSpan.Zero && profile is not null)
         {
             // Inside the countdown RestartServerAsync restarts directly.
-            await RunSequence(instance, BuildTimedCountdown(profile, delay, restart: true), () => RestartServerAsync(instance), isCountdown: true);
+            await RunSequence(instance, BuildTimedCountdown(profile, delay, restart: true), () => RestartServerAsync(instance), isCountdown: true, isRestart: true);
             return;
         }
 
@@ -563,15 +667,32 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             _logger.LogInformation("Automatic restarts of instance {Instance} paused until {Until}", instance,
                 DateTime.Now + pause);
         }
+        // A paused instance cannot take part in a common update restart: the others start without waiting for it.
+        LeaveUpdateRound(instance);
 
         if (!_countdownInstances.Contains(instance)) return;
+        // A restart countdown cancelled by a pause is postponed: it restarts when the pause is over and the players
+        // are told by how long (they were told it was cancelled, and a scheduled restart then never came).
+        string? postponedReason = null;
+        if (pause > TimeSpan.Zero && _restartCountdownReasons.TryGetValue(instance, out var reason))
+            postponedReason = reason;
         await CancelServerSequence(instance);
+        if (postponedReason is not null)
+        {
+            _postponedRestarts[instance] = postponedReason;
+            _logger.LogInformation("Restart of instance {Instance} postponed by {Minutes} minutes", instance,
+                (int)Math.Round(pause.TotalMinutes));
+            await BroadcastMessage(instance, _setup.Config.NotificationRestartPostponed.Replace("{minutes}",
+                Math.Max(1, (int)Math.Round(pause.TotalMinutes)).ToString(System.Globalization.CultureInfo.InvariantCulture)));
+            return;
+        }
         _logger.LogInformation("Countdown of instance {Instance} cancelled", instance);
         await BroadcastMessage(instance, _setup.Config.NotificationCountdownCancelled);
     }
 
     public void ResumeAutomaticRestarts(int instance)
     {
+        // A postponed restart then runs with the next tick.
         if (_automaticRestartsPausedUntil.Remove(instance))
             _logger.LogInformation("Automatic restarts of instance {Instance} resumed", instance);
     }
@@ -671,6 +792,8 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         };
     }
 
+    private static readonly TimeSpan DiscordTimeout = TimeSpan.FromSeconds(15);
+
     /// <summary>
     /// Discord must never block a stop/restart: failures are only logged.
     /// </summary>
@@ -681,7 +804,8 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         {
             var context = CreateMacroContext(instance, reason);
             configure?.Invoke(context);
-            await DiscordWebHooks.Notify(profile, message, context);
+            // A slow or rate limited webhook delayed restarts (they wait for the notice) without a limit.
+            await DiscordWebHooks.Notify(profile, message, context).WaitAsync(DiscordTimeout);
         }
         catch (Exception ex)
         {
@@ -804,6 +928,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     /// <param name="instance"></param>
     public async Task KillServer(int instance)
     {
+        _manualStopsUtc[instance] = DateTime.UtcNow;
         if (_serverProcesses.TryGetValue(instance, out var watcher))
         {
             _logger.LogInformation($"Kill server {instance}");
@@ -856,6 +981,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
 
         // Each stage is isolated: a process dying mid-tick (kill, crash) must never take the launcher down.
         await TickStage(CleanStoppedProcesses, nameof(CleanStoppedProcesses));
+        await TickStage(ReleaseHeldStarts, nameof(ReleaseHeldStarts));
 
         // Process discovery is relatively expensive (WMI); refresh every tick when missing, else every other tick.
         _tickCounter++;
@@ -978,14 +1104,44 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         return _serverUpdate.NeedUpdate;
     }
 
+    /// <summary>
+    /// Update before a server starts. Only what is outdated is downloaded (one Steam request each finds it): updating
+    /// every mod and copying every server instance on each start made restarts take minutes. Mods of running servers
+    /// and the server files while another server runs or starts are left alone (UpdateMods / UpdateServers).
+    /// </summary>
     public async Task<bool> PerformCatapultUpdates()
     {
         if (_setup.Config.AutoUpdateStatus == AutoUpdateStatus.Never) return true;
-        // The game client does not block here: server files are not shared and UpdateMods checks the mod files.
-        if (IsAnyServerRunning()) return true;
-        if (!await UpdateMods()) return false;
-        if (!await UpdateServers()) return false;
+        var serversBusy = IsAnyServerRunning() || _startingProcesses.Count > 0;
+
+        if (await CheckModUpdates())
+        {
+            var outdated = _modNeedUpdate.Select(x => x.PublishedFileId).Distinct().ToList();
+            if (outdated.Count > 0 && !await UpdateMods(outdated)) return false;
+        }
+        // No answer from Steam: try the full update as before.
+        else if (!serversBusy && !await UpdateMods()) return false;
+
+        if (serversBusy) return true;
+        if (await CheckServerUpdate() && !_serverUpdate.NeedUpdate && AreInstanceCopiesCurrent()) return true;
+        return await UpdateServers();
+    }
+
+    private bool AreInstanceCopiesCurrent()
+    {
+        for (var i = 1; i < _setup.Config.ServerInstanceCount; i++)
+            if (!_steam.IsInstanceCopyCurrent(i))
+                return false;
         return true;
+    }
+
+    /// <summary>Mods of the servers that run or are starting: their files are in use.</summary>
+    private HashSet<ulong> GetModsOfRunningServers()
+    {
+        var mods = new HashSet<ulong>();
+        foreach (var instance in _serverProcesses.Keys.Concat(_startingProcesses).Distinct())
+            mods.UnionWith(_appFiles.ResolveModList(_setup.Config.GetInstanceModlist(instance)).GetModsFromList());
+        return mods;
     }
 
     public async Task<bool> VerifyFiles()
@@ -1029,11 +1185,16 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     
     public async Task<bool> UpdateMods(List<ulong> mods)
     {
-        // A running server keeps its mod versions until it restarts: updating now would hide that it needs one.
-        if (IsAnyServerRunning())
+        // A running server keeps its mod versions until it restarts: updating its mods now would hide that it needs
+        // one (and Legacy servers keep the files open). Mods only other servers use are updated.
+        var inUse = GetModsOfRunningServers();
+        var skipped = mods.Where(inUse.Contains).ToList();
+        if (skipped.Count > 0)
         {
-            _logger.LogInformation("Mods are not updated while a server is running, they are updated when it restarts");
-            return true;
+            _logger.LogInformation("Mods {Mods} are used by a running server, they are updated when it restarts",
+                string.Join(", ", skipped));
+            mods = mods.Except(skipped).ToList();
+            if (mods.Count == 0) return true;
         }
         // The Enhanced game client runs on extracted copies, Legacy keeps the workshop files open.
         if (IsClientRunning() && !CanReplaceModFiles(mods))
@@ -1078,23 +1239,26 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
 
     public async Task<bool> UpdateServers()
     {
-        // The game client does not use the server files.
-        if (IsAnyServerRunning()) return true;
+        // The game client does not use the server files. A server that is starting uses them already.
+        if (IsAnyServerRunning() || _startingProcesses.Count > 0) return true;
         await WaitForSteamIdle();
 
         try
         {
             _logger.LogInformation("Updating servers");
             await ScriptRunner.Run(_setup.Config.ScriptBeforeUpdate, string.Empty, _logger, "Before update");
+            bool updated;
             try
             {
-                await _steam.UpdateServerInstances();
+                updated = await _steam.UpdateServerInstances();
             }
             finally
             {
                 await ScriptRunner.Run(_setup.Config.ScriptAfterUpdate, string.Empty, _logger, "After update");
             }
             await CheckServerUpdate();
+            if (!updated)
+                _logger.LogWarning("Server files could not be updated, the servers start with the installed version");
             return true;
         }
         catch (OperationCanceledException)
@@ -1167,13 +1331,15 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         return RunSequence(instance, profile.StartingSequence, () => CatapultServer(instance));
     }
 
-    private async Task RunSequence(int instance, Sequence sequence, Func<Task> mainAction, bool isCountdown = false)
+    private async Task RunSequence(int instance, Sequence sequence, Func<Task> mainAction, bool isCountdown = false,
+        bool isRestart = false)
     {
         if (sequence.Actions.Count == 0) return;
         await CancelServerSequence(instance);
-        if (isCountdown) _countdownInstances.Add(instance);
-
         var reason = _lastRestartReason;
+        if (isCountdown) _countdownInstances.Add(instance);
+        if (isCountdown && isRestart) _restartCountdownReasons[instance] = reason;
+
         var args = new SequenceArgs()
         {
             BackupManager = _backupManager,
@@ -1215,6 +1381,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             {
                 _serverSequences.Remove(instance);
                 _countdownInstances.Remove(instance);
+                _restartCountdownReasons.Remove(instance);
             }
         }
     }
@@ -1226,16 +1393,26 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             await oldSequence.Cts.CancelAsync();
             _serverSequences.Remove(instance);
             _countdownInstances.Remove(instance);
+            _restartCountdownReasons.Remove(instance);
         }
     }
 
     private Task PerformAutomaticRestarts()
     {
-        foreach (var instance in _serverProcesses.Values)
+        foreach (var instance in _serverProcesses.Values.ToList())
         {
             if(!instance.State.IsRunning() || instance.State.IsStopping()) continue;
             if(_serverSequences.ContainsKey(instance.Infos.Instance)) continue;
+            if(_restartsPending.Contains(instance.Infos.Instance)) continue;
             if(AreAutomaticRestartsPaused(instance.Infos.Instance)) continue;
+
+            // Pause over: the restart postponed by it runs now (with its countdown and warnings again).
+            if (_postponedRestarts.Remove(instance.Infos.Instance, out var postponedReason))
+            {
+                _lastRestartReason = string.IsNullOrEmpty(postponedReason) ? _setup.GetReasonAutomatedRestart() : postponedReason;
+                RestartServer(instance.Infos.Instance);
+                continue;
+            }
 
             var profileUri = _setup.Config.GetInstanceProfile(instance.Infos.Instance);
             var serverPRef = _appFiles.Server.Resolve(profileUri);
@@ -1323,64 +1500,103 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         var frequency = _setup.Config.UpdateCheckFrequency;
         if (frequency < TimeSpan.FromMinutes(1))
             frequency = TimeSpan.FromMinutes(1);
-        if ((DateTime.UtcNow - _lastUpdateCheckTime) >= frequency)
+        if (DateTime.UtcNow >= _nextUpdateCheckUtc)
         {
-            if (!await CheckModUpdates()) return;
-            if (!await CheckServerUpdate()) return;
-            _lastUpdateCheckTime = DateTime.UtcNow;
+            var checkedOk = await CheckModUpdates() && await CheckServerUpdate();
+            _lastUpdateCheckFailed = !checkedOk;
+            // A failed check (Steam unreachable) is retried after a minute: on every 2 s tick it flooded the log and
+            // the Steam API.
+            _nextUpdateCheckUtc = DateTime.UtcNow + (checkedOk ? frequency : UpdateCheckRetryDelay);
         }
-
+        // Without an answer from Steam nothing restarts for updates, they could not be installed anyway.
+        if (_lastUpdateCheckFailed) return;
         if (_setup.Config.AutoUpdateStatus != AutoUpdateStatus.CheckForUpdates) return;
 
-        // The Enhanced game client only reads a workshop file while extracting it (it runs on copies), Legacy keeps
-        // the files open: mod updates wait only while an outdated file is really in use. Server files are not shared.
-        var modsInUse = _modNeedUpdate.Count > 0 && IsClientRunning()
-                        && !CanReplaceModFiles(_modNeedUpdate.Select(x => x.PublishedFileId));
-        // Mods are only updated while no server runs: restarting one of several servers would bring it back with the
-        // old mods and the next check would restart it again.
-        var otherServersRunning = _serverProcesses.Count > 1;
-        if (_modListNeedUpdate.Count > 0 && (modsInUse || otherServersRunning))
+        var active = _serverProcesses.Values.Where(x => x.State.IsRunning() && !x.State.IsStopping()).ToList();
+        if (active.Count == 0) return;
+
+        // A server update installs only while no server runs: all servers restart for it together.
+        if (active.Any(x => _serverUpdate.ShouldRestart(x.StartUtc)))
         {
-            if (!_updateWaitLogged)
-                _logger.LogInformation(modsInUse
-                    ? "Mod updates wait until the game client is closed (it uses the outdated mod files)"
-                    : "Mod updates wait until only one server is running (mods are updated while no server runs)");
-            _updateWaitLogged = true;
+            await StartUpdateRound(active.Select(x => x.Infos.Instance).ToList(), _ => _setup.GetReasonServerUpdate(), null);
+            return;
         }
-        else
-            _updateWaitLogged = false;
-
-        foreach (var process in _serverProcesses.Values.ToList())
-        {
-            if(!process.State.IsRunning() || process.State.IsStopping()) continue;
-            if(_serverSequences.ContainsKey(process.Infos.Instance)) continue;
-            if(AreAutomaticRestartsPaused(process.Infos.Instance)) continue;
-
-            if (_serverUpdate.ShouldRestart(process.StartUtc))
-            {
-                _lastRestartReason = _setup.GetReasonServerUpdate();
-                RestartServer(process.Infos.Instance);
-                continue;
-            }
+        foreach (var process in active)
             if (_serverUpdate.NeedUpdate && _serverUpdate.ReportNotInstalled(process.Infos.Instance))
                 _logger.LogWarning(
                     "Server update (build {Build}) was not installed when instance {Instance} started, it is installed with its next restart",
                     _serverUpdate.SteamBuildId, process.Infos.Instance);
 
-            if (modsInUse || otherServersRunning) continue;
+        // Mod updates: every server using an outdated mod restarts, together, so its files are free when the first of
+        // them starts and installs it. Servers using other mods keep running.
+        var outdatedByInstance = new Dictionary<int, List<PublishedMod>>();
+        foreach (var process in active)
+        {
             var modListRef = _appFiles.ResolveModList(_setup.Config.GetInstanceModlist(process.Infos.Instance));
-            if (!_modListNeedUpdate.Contains(modListRef)) continue;
-            var mods = modListRef.GetModsFromList().ToList();
-            var outdated = _modNeedUpdate.Where(x => mods.Contains(x.PublishedFileId)).ToList();
+            var mods = modListRef.GetModsFromList().ToHashSet();
             // An update that failed is not retried for the same mods, or every check would restart the server again.
-            if (outdated.Count == 0 || outdated.All(x => _failedModUpdates.Contains(x.PublishedFileId))) continue;
+            var outdated = _modNeedUpdate
+                .Where(x => mods.Contains(x.PublishedFileId) && !_failedModUpdates.Contains(x.PublishedFileId))
+                .ToList();
+            if (outdated.Count > 0)
+                outdatedByInstance[process.Infos.Instance] = outdated;
+        }
+        if (outdatedByInstance.Count == 0)
+        {
+            _updateWaitLogged = false;
+            return;
+        }
 
-            // Players hear which mods changed first, then the restart warnings of the save count down (as for restarts).
-            var announcement = _setup.Config.NotificationModUpdateDetected
-                .Replace("{modList}", string.Join(", ", outdated.Select(x => x.Title)));
-            await BroadcastMessage(process.Infos.Instance, announcement, discord: false);
-            _lastRestartReason = _setup.GetReasonModUpdate(outdated);
-            RestartServer(process.Infos.Instance);
+        // The Enhanced game client only reads a workshop file while extracting it (it runs on copies), Legacy keeps
+        // the files open: mod updates wait only while an outdated file is really in use.
+        var outdatedIds = outdatedByInstance.Values.SelectMany(x => x).Select(x => x.PublishedFileId).Distinct().ToList();
+        if (IsClientRunning() && !CanReplaceModFiles(outdatedIds))
+        {
+            if (!_updateWaitLogged)
+                _logger.LogInformation("Mod updates wait until the game client is closed (it uses the outdated mod files)");
+            _updateWaitLogged = true;
+            return;
+        }
+        _updateWaitLogged = false;
+
+        await StartUpdateRound(outdatedByInstance.Keys.ToList(),
+            instance => _setup.GetReasonModUpdate(outdatedByInstance[instance]), outdatedByInstance);
+    }
+
+    /// <summary>
+    /// Restarts these servers together for an update (each with its warnings/countdown). Their starts are held until
+    /// all of them are stopped (<see cref="StartAfterRestart"/>). Waits while one of them is paused or busy: restarting
+    /// only the others would bring them back without the update and restart them again.
+    /// </summary>
+    private async Task StartUpdateRound(List<int> instances, Func<int, string> reasonOf,
+        IReadOnlyDictionary<int, List<PublishedMod>>? outdatedMods)
+    {
+        if (instances.Any(x => _serverSequences.ContainsKey(x) || _restartsPending.Contains(x) || _updateRound.Contains(x)))
+            return;
+        var paused = instances.Where(AreAutomaticRestartsPaused).ToList();
+        if (paused.Count > 0)
+        {
+            if (!_updateRoundWaitLogged)
+                _logger.LogInformation("Updates wait until the automatic restarts of instance {Instances} are no longer paused",
+                    string.Join(", ", paused));
+            _updateRoundWaitLogged = true;
+            return;
+        }
+        _updateRoundWaitLogged = false;
+
+        foreach (var instance in instances)
+            _updateRound.Add(instance);
+        foreach (var instance in instances)
+        {
+            // Players hear which mods changed first, then the restart warnings of the save count down.
+            if (outdatedMods is not null && outdatedMods.TryGetValue(instance, out var outdated))
+            {
+                var announcement = _setup.Config.NotificationModUpdateDetected
+                    .Replace("{modList}", string.Join(", ", outdated.Select(x => x.Title)));
+                await BroadcastMessage(instance, announcement, discord: false);
+            }
+            _lastRestartReason = reasonOf(instance);
+            RestartServer(instance);
         }
     }
 
@@ -1640,6 +1856,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             var instance = process.Infos.Instance;
             if (!process.State.IsRunning() || process.State.IsStopping()) continue;
             if (_serverSequences.ContainsKey(instance)) continue;
+            if (_restartsPending.Contains(instance)) continue;
             // The file stays until the pause is over and restarts the server then.
             if (AreAutomaticRestartsPaused(instance)) continue;
             if (!_appFiles.Server.TryResolve(_setup.Config.GetInstanceProfile(instance), out var reference)) continue;
@@ -1827,7 +2044,13 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     {
         await foreach (var process in FindServerProcesses())
         {
-            if(_serverProcesses.ContainsKey(process.Instance)) continue;
+            // A server Trebuchet is launching right now is attached by its start: attaching it here too leaked one of
+            // the two watchers (query thread, log reader, RCon).
+            if (_serverProcesses.ContainsKey(process.Instance) || _launchingInstances.Contains(process.Instance))
+            {
+                process.Process.Dispose();
+                continue;
+            }
             var serverInfos = await _setup.GetInfosFromIni(process.Instance);
             var builder = _processFactory.Create()
                 .SetStartDate(process.Start)
@@ -1837,8 +2060,13 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             if (serverInfos.RConPort > 0)
                 builder.UseRCon();
             var serverProcess = await builder.BuildServer();
+            if (_serverProcesses.ContainsKey(process.Instance) || _launchingInstances.Contains(process.Instance)
+                || !_serverProcesses.TryAdd(process.Instance, serverProcess))
+            {
+                serverProcess.Dispose();
+                continue;
+            }
             serverProcess.StateChanged += OnServerStateChanged;
-            _serverProcesses.TryAdd(process.Instance, serverProcess);
             OnStateChanged();
         }
     }
@@ -1887,19 +2115,29 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         {
             if (server.Value.State.IsRunning()) continue;
             if(_serverSequences.ContainsKey(server.Value.Infos.Instance)) continue;
-            
-            var exitCodeText = "n/a";
-            if (server.Value.Process.HasExitedSafe(server.Value.PId))
+
+            // A hung server reported as crashed can still run (its kill is pending or failed): starting another one
+            // now ran two servers on the same save, and the process scan attached the hung one again. It is removed
+            // once it is gone.
+            if (!server.Value.Process.HasExitedSafe(server.Value.PId))
             {
-                server.Value.Process.TryRefresh();
-                try
-                {
-                    exitCodeText = server.Value.Process.ExitCode.ToString();
-                }
-                catch (Exception)
-                {
-                    // Attached via GetProcessById — exit code unavailable
-                }
+                if (_crashedStillRunning.Add(server.Key))
+                    _logger.LogWarning("Server {Instance} is reported as {State} but still runs, waiting until it is gone",
+                        server.Key, server.Value.State);
+                server.Value.Process.TryKill(server.Value.PId, out _);
+                continue;
+            }
+            _crashedStillRunning.Remove(server.Key);
+
+            var exitCodeText = "n/a";
+            server.Value.Process.TryRefresh();
+            try
+            {
+                exitCodeText = server.Value.Process.ExitCode.ToString();
+            }
+            catch (Exception)
+            {
+                // Attached via GetProcessById — exit code unavailable
             }
 
             _logger.LogInformation(
@@ -1908,31 +2146,104 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
                 server.Value.State,
                 exitCodeText);
             _serverProcesses.Remove(server.Key);
+            _postponedRestarts.Remove(server.Key);
             server.Value.StateChanged -= OnServerStateChanged;
             OnStateChanged();
-            await RunShutdownAutomation(server.Key);
+            // Backup, scripts and the restart run outside the tick: a long backup froze the monitoring of every other
+            // server, and the dashboard showed the stopped server as running until the backup was done.
+            _ = FinishStoppedServer(server.Key, server.Value);
+        }
+    }
+
+    private async Task FinishStoppedServer(int instance, IConanServerProcess server)
+    {
+        try
+        {
+            var automation = RunShutdownAutomation(instance);
+            _shutdownTasks[instance] = automation;
             try
             {
-                var name = _appFiles.Server.Resolve(_setup.Config.GetInstanceProfile(server.Key));
-                if (server.Value.RequestRestart)
-                    CatapultServerInBackground(server.Key);
-                else if (server.Value.State == ProcessState.CRASHED && _appFiles.Server.Get(name).RestartWhenDown)
-                {
-                    if (AllowCrashRestart(server.Key))
-                        CatapultServerInBackground(server.Key);
-                    else
-                        await NotifyCrashLoop(server.Key, _appFiles.Server.Get(name));
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to restart server {Instance}", server.Key);
+                await automation;
             }
             finally
             {
-                server.Value.Dispose();
+                if (_shutdownTasks.TryGetValue(instance, out var current) && ReferenceEquals(current, automation))
+                    _shutdownTasks.Remove(instance);
+            }
+
+            var name = _appFiles.Server.Resolve(_setup.Config.GetInstanceProfile(instance));
+            if (server.RequestRestart)
+                StartAfterRestart(instance);
+            else
+            {
+                _updateRound.Remove(instance);
+                if (server.State == ProcessState.CRASHED && _appFiles.Server.Get(name).RestartWhenDown)
+                {
+                    if (AllowCrashRestart(instance))
+                        CatapultServerInBackground(instance);
+                    else
+                        await NotifyCrashLoop(instance, _appFiles.Server.Get(name));
+                }
             }
         }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to restart server {Instance}", instance);
+        }
+        finally
+        {
+            server.Dispose();
+        }
+    }
+
+    /// <summary>
+    /// Starts a restarted server again. In an update round it waits until every server of the round is stopped, so
+    /// the first start can install the update (files of running servers are never replaced).
+    /// </summary>
+    private void StartAfterRestart(int instance)
+    {
+        if (_updateRound.Contains(instance) && _updateRound.Any(x => x != instance && _serverProcesses.ContainsKey(x)))
+        {
+            if (_heldStarts.Count == 0) _heldSinceUtc = DateTime.UtcNow;
+            _heldStarts.Add(instance);
+            _logger.LogInformation("Server {Instance} starts once the other servers of the update are stopped", instance);
+            return;
+        }
+        _updateRound.Remove(instance);
+        CatapultServerInBackground(instance);
+    }
+
+    /// <summary>Starts the held servers of an update round once all of its servers are stopped.</summary>
+    private Task ReleaseHeldStarts()
+    {
+        if (_heldStarts.Count == 0) return Task.CompletedTask;
+        var stillRunning = _updateRound.Where(x => !_heldStarts.Contains(x) && _serverProcesses.ContainsKey(x)).ToList();
+        // Servers counting down or stopping are on their way: wait for them, however long their warnings are.
+        var notRestarting = stillRunning.Where(x => !_restartsPending.Contains(x) && !_serverSequences.ContainsKey(x)
+                                                    && !_serverProcesses[x].State.IsStopping()).ToList();
+        if (stillRunning.Count > 0 && notRestarting.Count == 0)
+        {
+            _heldSinceUtc = DateTime.UtcNow;
+            return Task.CompletedTask;
+        }
+        if (notRestarting.Count > 0)
+        {
+            // Safety net: a server of the round that does not restart must not keep the others down.
+            if (DateTime.UtcNow - _heldSinceUtc < HeldStartTimeout) return Task.CompletedTask;
+            _logger.LogWarning("Servers {Instances} did not restart for the update, starting the others anyway",
+                string.Join(", ", notRestarting));
+        }
+        var held = _heldStarts.ToList();
+        _heldStarts.Clear();
+        _updateRound.Clear();
+        foreach (var instance in held)
+            CatapultServerInBackground(instance);
+        return Task.CompletedTask;
+    }
+
+    private void LeaveUpdateRound(int instance)
+    {
+        _updateRound.Remove(instance);
     }
 
     private bool IsClientProfileLocked(ClientProfileRef profileRef)

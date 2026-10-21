@@ -25,20 +25,34 @@ public class SequenceActionSendRESTQuery : ISequenceAction
 
         try
         {
-            var request = new HttpRequestMessage();
+            using var request = new HttpRequestMessage();
             request.Content = new StringContent(args.Expand(Body));
             request.Method = GetMethod(HttpMethod);
             request.Headers.Add($"user-agent", $"TotTrebuchet/{ProcessUtil.GetAppVersion()}");
             foreach (var keyValuePair in ParseHeaders(Headers))
             {
+                var value = args.Expand(keyValuePair.Value);
+                // Content headers (Content-Type, the default) belong to the content: on the request they threw, so the
+                // request with the default headers was never sent.
+                if (keyValuePair.Key.StartsWith("Content-", StringComparison.OrdinalIgnoreCase))
+                {
+                    request.Content.Headers.Remove(keyValuePair.Key);
+                    request.Content.Headers.TryAddWithoutValidation(keyValuePair.Key, value);
+                    continue;
+                }
                 if (request.Headers.Contains(keyValuePair.Key))
                     continue;
-                request.Headers.Add(keyValuePair.Key, args.Expand(keyValuePair.Value));
+                request.Headers.TryAddWithoutValidation(keyValuePair.Key, value);
             }
 
             using var httpClient = new HttpClient();
             httpClient.Timeout = TimeOut;
-            await httpClient.SendAsync(request);
+            using var response = await httpClient.SendAsync(request, args.CancellationToken);
+            response.EnsureSuccessStatusCode();
+        }
+        catch (OperationCanceledException) when (args.CancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {
@@ -53,7 +67,8 @@ public class SequenceActionSendRESTQuery : ISequenceAction
         var addedHeaders = Headers.Split(Environment.NewLine);
         foreach (var header in addedHeaders)
         {
-            var kvp = header.Split(':');
+            // Only the first colon separates the name: values like URLs or tokens contain colons too.
+            var kvp = header.Split(':', 2);
             if(kvp.Length < 2) continue;
             var key = kvp[0].Trim();
             if(string.IsNullOrEmpty(key))

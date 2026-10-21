@@ -98,28 +98,35 @@ static class DirectoryCopyChecks
             var adaptiveSource = Path.Combine(root, "adaptive-source");
             var adaptiveTarget = Path.Combine(root, "adaptive-target");
             Directory.CreateDirectory(adaptiveSource);
-            for (var i = 0; i < 16; i++)
+            // 24 files: after the eight started at the peak, four rounds remain to sample the drained workers.
+            for (var i = 0; i < 24; i++)
             {
                 await using var file = File.Create(Path.Combine(adaptiveSource, $"file-{i}.pak"));
                 for (var j = 0; j < 128; j++) await file.WriteAsync(block);
             }
             var adaptivePeak = 0;
             var afterPressure = new List<int>();
+            HashSet<string>? firstWave = null;
+            static string TargetOf(string temporary) => Path.GetFileNameWithoutExtension(Path.GetFileNameWithoutExtension(temporary));
             await DirectoryCopy.CopyWithLoadAsync(adaptiveSource, adaptiveTarget, CancellationToken.None,
                 new CallbackProgress(p =>
                 {
                     var files = Directory.GetFiles(adaptiveTarget);
-                    var active = files.Count(x => x.EndsWith(".copying", StringComparison.Ordinal));
-                    Interlocked.Exchange(ref adaptivePeak, Math.Max(adaptivePeak, active));
-                    // Once the eight files started at the peak are done, the parked workers must not take new ones.
-                    // Counting finished files instead of a progress window keeps the check independent of disk speed.
-                    if (files.Length - active >= 8 && p < 1) afterPressure.Add(active);
+                    var copying = files.Where(x => x.EndsWith(".copying", StringComparison.Ordinal)).ToList();
+                    Interlocked.Exchange(ref adaptivePeak, Math.Max(adaptivePeak, copying.Count));
+                    // The files in flight at the peak may finish; once they are all done the parked workers must not
+                    // have taken new ones. This is independent of disk speed and report timing.
+                    if (firstWave is null && copying.Count >= 8)
+                        firstWave = copying.Select(TargetOf).ToHashSet();
+                    else if (firstWave is not null && p < 1
+                             && firstWave.All(x => File.Exists(Path.Combine(adaptiveTarget, x))))
+                        afterPressure.Add(copying.Count);
                 }), () => Volatile.Read(ref adaptivePeak) >= 8 ? quiet with { Cpu = 0.95 } : quiet,
                 TimeSpan.FromMilliseconds(10));
             Check(adaptivePeak == 8, "Real copy workers ramp up to eight when the load probe reports headroom");
             Check(afterPressure.Count > 0 && afterPressure.All(x => x <= 4),
                 "Real workers drain back to four after the load probe reports pressure: " + string.Join(",", afterPressure));
-            Check(Directory.GetFiles(adaptiveTarget).Length == 16, "Changing worker limits neither drops nor duplicates queued files");
+            Check(Directory.GetFiles(adaptiveTarget).Length == 24, "Changing worker limits neither drops nor duplicates queued files");
             Console.WriteLine($"Adaptive fixture: reached {adaptivePeak} concurrent files, then drained to four under simulated CPU pressure.");
 
             using (var multiCancel = new CancellationTokenSource())

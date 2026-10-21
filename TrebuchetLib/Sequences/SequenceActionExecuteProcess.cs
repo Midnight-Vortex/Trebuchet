@@ -13,14 +13,14 @@ public class SequenceActionExecuteProcess : ISequenceAction
     public bool UseShellExecute { get; set; }
     public bool CancelOnFailure { get; set; }
     
+    // A script that never ends kept the sequence (and the stop or restart behind it) waiting forever.
+    private static readonly TimeSpan MaxWait = TimeSpan.FromHours(1);
+
     public async Task Execute(SequenceArgs args)
     {
         try
         {
-            var process = new Process()
-            {
-                StartInfo = new()
-            };
+            using var process = new Process();
             process.StartInfo.Arguments = args.Expand(Arguments);
             process.StartInfo.FileName = Filename;
             process.StartInfo.CreateNoWindow = CreateNoWindow;
@@ -28,11 +28,16 @@ public class SequenceActionExecuteProcess : ISequenceAction
             process.Start();
             if (WaitForProcessToExit)
             {
-                await process.WaitForExitAsync();
+                // Cancelling the sequence (stop, kill, pause) stops waiting for the process.
+                await process.WaitForExitAsync(args.CancellationToken).WaitAsync(MaxWait, args.CancellationToken);
                 if (process.ExitCode != 0 && CancelIfExitCodeIsError)
                     throw new OperationCanceledException(
                         $"Process exited with an error code {Filename} ({process.ExitCode})");
             }
+        }
+        catch (OperationCanceledException) when (args.CancellationToken.IsCancellationRequested)
+        {
+            throw;
         }
         catch (Exception ex)
         {

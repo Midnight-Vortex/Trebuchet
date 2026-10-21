@@ -1923,4 +1923,10 @@ of Server Saves and apply to every profile.
     <data name="ProfileInUseByInstances" xml:space="preserve">
         <value>Used by server instance {0}. Choose another save or mod list for it on the dashboard first.</value>
     </data>
+    <data name="SettingNotificationRestartPostponed" xml:space="preserve">
+        <value>Restart postponed (to players)</value>
+    </data>
+    <data name="DefaultNotificationRestartPostponed" xml:space="preserve">
+        <value>The restart of {servername} is postponed by {minutes} minutes.</value>
+    </data>
 </root>
