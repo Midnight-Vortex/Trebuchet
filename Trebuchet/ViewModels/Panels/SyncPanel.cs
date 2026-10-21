@@ -27,7 +27,8 @@ public class SyncPanel : ReactiveObject, IRefreshablePanel, IDisplablePanel, IRe
         UIConfig uiConfig,
         ModListViewModel modList,
         TaskBlocker blocker,
-        ClientConnectionListViewModel clientConnectionList
+        ClientConnectionListViewModel clientConnectionList,
+        AppSetup setup
         )
     {
         _logger = logger;
@@ -41,6 +42,7 @@ public class SyncPanel : ReactiveObject, IRefreshablePanel, IDisplablePanel, IRe
 
         ModList.IsReadOnly = true;
         FileMenu = new FileMenuViewModel<SyncProfile, SyncProfileRef>(Resources.PanelSync, files.Sync, dialogueBox, logger, allowEmpty: true);
+        FileMenu.KeepConfigInSync(setup, logger);
         if (files.Sync.TryResolve(uiConfig.CurrentSyncProfile, out var startingFile))
             FileMenu.Selected = startingFile;
         _profile = FileMenu.Selected is { } selected ? files.Sync.Get(selected) : null;

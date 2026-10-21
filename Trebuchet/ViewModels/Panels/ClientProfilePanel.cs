@@ -40,6 +40,7 @@ namespace Trebuchet.ViewModels.Panels
             SaveProfile = ReactiveCommand.Create(() => _profile.SaveFile());
 
             FileMenu = new FileMenuViewModel<ClientProfile, ClientProfileRef>(AppResources.PanelGameSaves, appFiles.Client, box, _logger);
+            FileMenu.KeepConfigInSync(setup, _logger);
             FileMenu.FileSelected += OnFileSelected;
             FileMenu.Selected = startingProfile;
         }

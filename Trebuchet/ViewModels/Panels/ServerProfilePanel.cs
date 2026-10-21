@@ -55,6 +55,7 @@ namespace Trebuchet.ViewModels.Panels
             SaveConfig = ReactiveCommand.Create(() => _setup.Config.SaveFile());
 
             FileMenu = new FileMenuViewModel<ServerProfile, ServerProfileRef>(AppResources.PanelServerSaves, appFiles.Server, box, _logger);
+            FileMenu.KeepConfigInSync(setup, _logger);
             FileMenu.FileSelected += OnFileSelected;
             FileMenu.Selected = startingProfile;
         }
@@ -113,8 +114,10 @@ namespace Trebuchet.ViewModels.Panels
                 return;
             }
 
+            // Saved into the save the sequence belongs to, even when another save is shown meanwhile.
+            var owner = _profile;
             var vm = new SequenceViewModel(sequence);
-            vm.SequenceChanged += OnSequenceChanged;
+            vm.SequenceChanged += (_, _) => OnSequenceChanged(owner, vm);
             var win = new SequenceEditor();
             win.Closing += (_, _) =>
             {
@@ -125,13 +128,11 @@ namespace Trebuchet.ViewModels.Panels
             win.Show();
         }
 
-        private void OnSequenceChanged(object? sender, EventArgs e)
+        private void OnSequenceChanged(ServerProfile owner, SequenceViewModel vm)
         {
-            if (sender is not SequenceViewModel vm) return;
-            
             vm.Sequence.Actions.Clear();
             vm.Sequence.Actions.AddRange(vm.GetSequence());
-            _profile.SaveFile();
+            owner.SaveFile();
             
             foreach (var f in Fields.OfType<IRefreshableField>())
                 f.Update.Execute().Subscribe();
@@ -140,7 +141,8 @@ namespace Trebuchet.ViewModels.Panels
         private Task OnFileSelected(object? sender, ServerProfileRef? profile)
         {
             if (profile is null) return Task.CompletedTask;
-            foreach (var win in _sequenceWindows.Values)
+            // Closing removes the window from the dictionary: enumerate a copy.
+            foreach (var win in _sequenceWindows.Values.ToList())
                 win.Close();
             _uiConfig.CurrentServerProfile = profile.Uri.OriginalString;
             _uiConfig.SaveFile();
@@ -339,13 +341,13 @@ namespace Trebuchet.ViewModels.Panels
             Fields.Add(new TitleField().SetTitle(AppResources.CatRestartSettings));
             Fields.Add(new SequenceEditorField(
                 AppResources.SettingServerStartingSequenceText, 
-                _profile.StartingSequence,
+                () => _profile.StartingSequence,
                 ReactiveCommand.Create<Sequence>(EditSequence))
                 .SetTitle(AppResources.SettingServerStartingSequence)
                 );
             Fields.Add(new SequenceEditorField(
                     AppResources.SettingServerStoppingSequenceText, 
-                    _profile.StoppingSequence,
+                    () => _profile.StoppingSequence,
                     ReactiveCommand.Create<Sequence>(EditSequence))
                 .SetTitle(AppResources.SettingServerStoppingSequence)
             );

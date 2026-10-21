@@ -1912,4 +1912,7 @@ unten in den Server-Speicherständen und gelten für jedes Profil.
     <data name="ResumeRestarts" xml:space="preserve">
         <value>Neustarts fortsetzen (pausiert bis {0})</value>
     </data>
+    <data name="ProfileInUseByInstances" xml:space="preserve">
+        <value>Wird von Server-Instanz {0} verwendet. Wähle für sie zuerst auf dem Dashboard eine andere Konfiguration oder Modliste.</value>
+    </data>
 </root>

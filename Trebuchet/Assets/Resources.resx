@@ -1920,4 +1920,7 @@ of Server Saves and apply to every profile.
     <data name="ResumeRestarts" xml:space="preserve">
         <value>Resume restarts (paused until {0})</value>
     </data>
+    <data name="ProfileInUseByInstances" xml:space="preserve">
+        <value>Used by server instance {0}. Choose another save or mod list for it on the dashboard first.</value>
+    </data>
 </root>

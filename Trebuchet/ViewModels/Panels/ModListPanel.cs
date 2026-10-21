@@ -45,6 +45,7 @@ namespace Trebuchet.ViewModels.Panels
             
             var startingFile = _appFiles.Mods.Resolve(_uiConfig.CurrentModlistProfile);
             FileMenu = new FileMenuViewModel<ModListProfile, ModListProfileRef>(Resources.PanelMods, appFiles.Mods, box, logger);
+            FileMenu.KeepConfigInSync(setup, logger);
             FileMenu.FileSelected += OnFileSelected;
             FileMenu.Selected = startingFile;
             

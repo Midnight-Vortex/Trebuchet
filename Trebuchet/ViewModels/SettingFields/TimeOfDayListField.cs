@@ -21,9 +21,7 @@ public class TimeOfDayListField : Field<TimeOfDayListField, ObservableCollection
 
         Add = ReactiveCommand.Create(() =>
         {
-            var vm = new TimeSpanViewModel(TimeSpan.Zero);
-            vm.WhenAnyValue(x => x.TimeSpan).Skip(1).InvokeCommand(Modify);
-            Value.Add(vm);
+            Value.Add(CreateRow(TimeSpan.Zero));
             ValueChanged.Execute(Value).Subscribe();
 
         });
@@ -50,7 +48,6 @@ public class TimeOfDayListField : Field<TimeOfDayListField, ObservableCollection
         _internalGetter = getter;
         Getter = InternalGetter;
         Value = Getter.Invoke();
-        WireTimeSpanChanges(Value);
         return this;
     }
     
@@ -68,10 +65,15 @@ public class TimeOfDayListField : Field<TimeOfDayListField, ObservableCollection
         return this;
     }
 
-    private void WireTimeSpanChanges(ObservableCollectionExtended<TimeSpanViewModel> collection)
+    /// <summary>
+    /// Every row saves its own changes. Rows are created anew by each refresh (Update) and reset, so the wiring
+    /// belongs here: wiring only the first rows lost every edit of an existing time after the first refresh.
+    /// </summary>
+    private TimeSpanViewModel CreateRow(TimeSpan time)
     {
-        foreach (var vm in collection)
-            vm.WhenAnyValue(x => x.TimeSpan).Skip(1).InvokeCommand(Modify);
+        var vm = new TimeSpanViewModel(time);
+        vm.WhenAnyValue(x => x.TimeSpan).Skip(1).InvokeCommand(Modify);
+        return vm;
     }
 
     protected override bool AreValuesEqual(ObservableCollectionExtended<TimeSpanViewModel> valueA, ObservableCollectionExtended<TimeSpanViewModel> valueB)
@@ -83,8 +85,7 @@ public class TimeOfDayListField : Field<TimeOfDayListField, ObservableCollection
     {
         if (_internalGetter == null)
             throw new Exception(@"Internal getter not set");
-        return new ObservableCollectionExtended<TimeSpanViewModel>(_internalGetter.Invoke()
-            .Select(x => new TimeSpanViewModel(x)));
+        return new ObservableCollectionExtended<TimeSpanViewModel>(_internalGetter.Invoke().Select(CreateRow));
     }
 
     private void InternalSetter(ObservableCollectionExtended<TimeSpanViewModel> value)
@@ -98,8 +99,7 @@ public class TimeOfDayListField : Field<TimeOfDayListField, ObservableCollection
     {
         if (_internalDefaultBuilder == null)
             throw new Exception(@"Internal default builder not set");
-        return new ObservableCollectionExtended<TimeSpanViewModel>(_internalDefaultBuilder.Invoke()
-            .Select(x => new TimeSpanViewModel(x)));
+        return new ObservableCollectionExtended<TimeSpanViewModel>(_internalDefaultBuilder.Invoke().Select(CreateRow));
     }
 }
 

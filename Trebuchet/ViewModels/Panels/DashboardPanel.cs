@@ -341,6 +341,10 @@ namespace Trebuchet.ViewModels.Panels
                 var process = _launcher.GetServerProcesses()
                     .FirstOrDefault(x => x.Infos.Instance == dashboard.Instance);
                 await dashboard.ProcessRefresh(process, _uiConfig.DisplayProcessPerformance);
+                // A starting sequence logs its failures instead of throwing and is cancelled by stop/kill: without a
+                // server process the start button has to work again, it stayed disabled until Trebuchet restarted.
+                if (process is null)
+                    dashboard.CanLaunch = true;
             }
             catch (Exception ex)
             {

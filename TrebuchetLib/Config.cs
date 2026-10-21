@@ -86,6 +86,37 @@ namespace TrebuchetLib
             if (SelectedServerProfiles.Length <= instance) return string.Empty;
             return SelectedServerProfiles[instance];
         }
+
+        /// <summary>Server instances whose save or mod list is the profile with this uri.</summary>
+        public List<int> GetInstancesUsing(string uri)
+        {
+            var instances = new List<int>();
+            for (var i = 0; i < ServerInstanceCount; i++)
+                if (IsSameReference(GetInstanceProfile(i), uri) || IsSameReference(GetInstanceModlist(i), uri))
+                    instances.Add(i);
+            return instances;
+        }
+
+        /// <summary>
+        /// Points the selections of a renamed save or mod list to its new name. Otherwise the instances silently fell
+        /// back to the first save/mod list at their next start.
+        /// </summary>
+        /// <returns>True when a selection changed.</returns>
+        public bool ReplaceReference(string oldUri, string newUri)
+        {
+            var changed = false;
+            for (var i = 0; i < SelectedServerProfiles.Length; i++)
+                if (IsSameReference(SelectedServerProfiles[i], oldUri)) { SelectedServerProfiles[i] = newUri; changed = true; }
+            for (var i = 0; i < SelectedServerModlists.Length; i++)
+                if (IsSameReference(SelectedServerModlists[i], oldUri)) { SelectedServerModlists[i] = newUri; changed = true; }
+            if (IsSameReference(SelectedClientProfile, oldUri)) { SelectedClientProfile = newUri; changed = true; }
+            if (IsSameReference(SelectedClientModlist, oldUri)) { SelectedClientModlist = newUri; changed = true; }
+            return changed;
+        }
+
+        // Profile names are folder/file names: Windows compares them without case.
+        private static bool IsSameReference(string? a, string b)
+            => !string.IsNullOrEmpty(a) && string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
         
         public static readonly int AutoUpdateStatusDefault = 1;
         public static readonly string ClientPathDefault = string.Empty;

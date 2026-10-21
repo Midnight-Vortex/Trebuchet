@@ -164,18 +164,19 @@ public class SettingsPanel : ReactiveObject, IRefreshablePanel, IRefreshingPanel
 
     private async Task OnRestartProcess()
     {
+        // Like the language change: offer the restart only while idle, a restart would abort running downloads.
         if (_blocker.CanLaunch)
-        {
-            var message = new OnBoardingMessage(Resources.OnBoardingRestartProcess, Resources.OnBoardingRestartProcessSubMessage);
-            await _box.OpenAsync(message);
-        }
-        else
         {
             var confirm = new OnBoardingConfirmation(Resources.OnBoardingRestartProcess,
                 Resources.OnBoardingRestartProcessSub);
             await _box.OpenAsync(confirm);
             if(confirm.Result)
                 App.RestartProcess();
+        }
+        else
+        {
+            var message = new OnBoardingMessage(Resources.OnBoardingRestartProcess, Resources.OnBoardingRestartProcessSubMessage);
+            await _box.OpenAsync(message);
         }
     }
 

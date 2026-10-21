@@ -5483,5 +5483,14 @@ namespace Trebuchet.Assets {
                 return ResourceManager.GetString("ResumeRestarts", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Used by server instance {0}. Choose another save or mod list for it on the dashboard first.
+        /// </summary>
+        public static string ProfileInUseByInstances {
+            get {
+                return ResourceManager.GetString("ProfileInUseByInstances", resourceCulture);
+            }
+        }
     }
 }

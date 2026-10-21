@@ -79,6 +79,12 @@ public class FileMenuViewModel<T, TRef> : ReactiveObject, IFileMenuViewModel, ID
     private bool _isLoading;
 
     public event AsyncEventHandler<TRef?>? FileSelected;
+
+    /// <summary>Raised after a successful rename with the old and the new reference.</summary>
+    public event Action<TRef, TRef>? FileRenamed;
+
+    /// <summary>Why a profile cannot be deleted (e.g. a server instance uses it), null when it can.</summary>
+    public Func<TRef, string?>? DeleteBlocker { get; set; }
     
     public bool Exportable { get; }
     
@@ -189,6 +195,11 @@ public class FileMenuViewModel<T, TRef> : ReactiveObject, IFileMenuViewModel, ID
                 Selected = args.Reference;
                 break;
             case FileViewAction.Delete:
+                if (DeleteBlocker?.Invoke(args.Reference) is { } blocked)
+                {
+                    await _dialogue.OpenErrorAsync($@"Failed to delete the file ({blocked})");
+                    break;
+                }
                 if (await Confirmation(Resources.Deletion, string.Format(Resources.DeletionText, args.Reference)))
                 {
                     IsLoading = true;
@@ -219,8 +230,9 @@ public class FileMenuViewModel<T, TRef> : ReactiveObject, IFileMenuViewModel, ID
                 var reference = _fileHandler.Ref(name);
                 IsLoading = true;
                 _logger.LogInformation(@"Duplicating {name}", name);
-                await CatchError(@"duplicate", () => _fileHandler.Duplicate(args.Reference, reference));
-                Selected = reference;
+                // A failed copy must not select the missing name: that created a new default profile under it.
+                if (await CatchError(@"duplicate", () => _fileHandler.Duplicate(args.Reference, reference)))
+                    Selected = reference;
                 IsLoading = false;
                 break;
             case FileViewAction.Export:
@@ -232,8 +244,11 @@ public class FileMenuViewModel<T, TRef> : ReactiveObject, IFileMenuViewModel, ID
                 var renamedReference = _fileHandler.Ref(renamed);
                 _logger.LogInformation(@"Renaming {old} into {new}", args.Reference, renamed);
                 IsLoading = true;
-                await CatchError(@"rename", () => _fileHandler.Rename(args.Reference, renamedReference));
-                Selected = renamedReference;
+                if (await CatchError(@"rename", () => _fileHandler.Rename(args.Reference, renamedReference)))
+                {
+                    FileRenamed?.Invoke(args.Reference, renamedReference);
+                    Selected = renamedReference;
+                }
                 IsLoading = false;
                 break;
             case FileViewAction.OpenFolder:
@@ -244,22 +259,25 @@ public class FileMenuViewModel<T, TRef> : ReactiveObject, IFileMenuViewModel, ID
         }
     }
 
-    private async Task CatchError(string action, Func<Task> task)
+    /// <returns>True when the action succeeded.</returns>
+    private async Task<bool> CatchError(string action, Func<Task> task)
     {
         try
         {
             await task.Invoke();
+            return true;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, @$"Failed to {action}");
             await _dialogue.OpenErrorAsync(@$"Failed to {action} the file ({ex.Message})");
+            return false;
         }
     }
     
-    private async Task CatchError(string action, Action task)
+    private async Task<bool> CatchError(string action, Action task)
     {
-        await CatchError(action, () =>
+        return await CatchError(action, () =>
         {
             task.Invoke();
             return Task.CompletedTask;
