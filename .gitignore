@@ -369,3 +369,6 @@ MigrationBackup/
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
 /Trebuchet/AppSettings.json
+
+# Local build output (never used by the installer, which takes the publish folders)
+_build-out/
