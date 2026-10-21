@@ -945,7 +945,7 @@ namespace DepotDownloader
                         }
                     }
 
-                    if (newManifest == null)
+                    if (newManifest == null && !cts.IsCancellationRequested)
                     {
                         Util.WriteLine("\nUnable to download manifest {0} for depot {1}", depot.ManifestId, depot.DepotId);
                         cts.Cancel();
@@ -1390,7 +1390,7 @@ namespace DepotDownloader
                     }
                 }
 
-                if (written == 0)
+                if (written == 0 && !cts.IsCancellationRequested)
                 {
                     Util.WriteLine("Failed to find any server with chunk {0} for depot {1}. Aborting.", chunkID, depot.DepotId);
                     cts.Cancel();
