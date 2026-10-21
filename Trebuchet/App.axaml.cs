@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -49,6 +50,8 @@ public partial class App : Application, IApplication
     private InternalLogSink? _internalLogSink;
     private ServiceProvider? _serviceProvider;
     private readonly List<Exception> _uiConfigErrors = [];
+    // Crash restart: 0 = none, 1 = being prepared, 2 = the new instance was started.
+    private int _crashRestartState;
     public bool HasCrashed { get; private set; }
     public IImage? AppIconPath => Resources[@"AppIcon"] as IImage;
 
@@ -494,6 +497,16 @@ public partial class App : Application, IApplication
     /// </summary>
     private bool TryRestartAfterCrash(Exception ex, List<CrashHandlerLog> logs)
     {
+        // Two crash reports at the same time (e.g. UI thread and a background thread) must not start two new
+        // instances. The later report waits briefly for the first one (a background crash ends the process as soon
+        // as its handler returns) and counts as handled when it restarted Trebuchet; its error is already logged.
+        if (Interlocked.CompareExchange(ref _crashRestartState, 1, 0) != 0)
+        {
+            SpinWait.SpinUntil(() => Volatile.Read(ref _crashRestartState) != 1, TimeSpan.FromSeconds(10));
+            return Volatile.Read(ref _crashRestartState) != 0;
+        }
+
+        var reportPath = string.Empty;
         try
         {
             if (_uiConfig is not { AutoRestartAfterCrash: true } || _serviceProvider is null) return false;
@@ -501,9 +514,7 @@ public partial class App : Application, IApplication
             if (string.IsNullOrEmpty(processPath)) return false;
 
             var historyPath = Path.Combine(AppSetup.GetAppConfigDirectory().FullName, @"crash-restarts.json");
-            var history = File.Exists(historyPath)
-                ? System.Text.Json.JsonSerializer.Deserialize<List<DateTime>>(File.ReadAllText(historyPath)) ?? []
-                : [];
+            var history = ReadCrashRestartHistory(historyPath);
             history = history.Where(x => DateTime.UtcNow - x < TimeSpan.FromMinutes(30)).ToList();
             if (history.Count >= 3)
             {
@@ -511,16 +522,25 @@ public partial class App : Application, IApplication
                 return false;
             }
             history.Add(DateTime.UtcNow);
-            File.WriteAllText(historyPath, System.Text.Json.JsonSerializer.Serialize(history));
+            // Temp file + rename: a crash during this write must not leave a damaged history behind.
+            JsonFileStorage.WriteAllTextAtomic(historyPath, System.Text.Json.JsonSerializer.Serialize(history));
 
-            var reportPath = Path.Combine(Constants.GetLoggingDirectory().FullName, $@"crash-{DateTime.Now:yyyyMMdd-HHmmss}.json");
-            File.WriteAllText(reportPath, System.Text.Json.JsonSerializer.Serialize(new
+            reportPath = Path.Combine(Constants.GetLoggingDirectory().FullName, $@"crash-{DateTime.Now:yyyyMMdd-HHmmss}.json");
+            try
             {
-                Message = ex.Message,
-                Exception = ex.ToString(),
-                Version = TrebuchetApp.VersionHeader,
-                Logs = logs
-            }, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+                File.WriteAllText(reportPath, System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    Message = ex.Message,
+                    Exception = ex.ToString(),
+                    Version = TrebuchetApp.VersionHeader,
+                    Logs = logs
+                }, new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
+            }
+            catch (Exception reportError)
+            {
+                // The report is a convenience (the error is in the log): it must not prevent the restart.
+                _logger?.LogError(reportError, @"Could not write the crash report");
+            }
 
             var setup = _serviceProvider.GetRequiredService<AppSetup>();
             var arguments = Environment.GetCommandLineArgs().Skip(1).Where(x => !string.IsNullOrWhiteSpace(x)).ToList();
@@ -531,19 +551,51 @@ public partial class App : Application, IApplication
             var start = new ProcessStartInfo(processPath) { UseShellExecute = false };
             foreach (var argument in arguments) start.ArgumentList.Add(argument);
             Process.Start(start);
-            _logger?.LogCritical(ex, @"Trebuchet crashed and restarted itself, report: {Report}", reportPath);
-            Log.CloseAndFlush();
-
-            if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
-                desktop.Shutdown(1);
-            else
-                Environment.Exit(1);
-            return true;
+            Volatile.Write(ref _crashRestartState, 2);
         }
         catch (Exception restartError)
         {
             _logger?.LogError(restartError, @"Automatic restart after the crash failed");
             return false;
+        }
+        finally
+        {
+            // Not restarted: a later crash may try again (and ends in the crash window once over the limit).
+            Interlocked.CompareExchange(ref _crashRestartState, 0, 1);
+        }
+
+        // The new instance runs: this one must end now, whatever happens, instead of showing the crash window.
+        try
+        {
+            _logger?.LogCritical(ex, @"Trebuchet crashed and restarted itself, report: {Report}", reportPath);
+            Log.CloseAndFlush();
+            if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop && Dispatcher.UIThread.CheckAccess())
+                desktop.Shutdown(1);
+            else
+                Environment.Exit(1);
+        }
+        catch
+        {
+            Environment.Exit(1);
+        }
+        return true;
+    }
+
+    /// <summary>
+    /// A damaged history (e.g. cut short by a crash while it was written) counts as empty. Throwing here made
+    /// every later crash end in the modal crash window, and the file was never repaired.
+    /// </summary>
+    private List<DateTime> ReadCrashRestartHistory(string path)
+    {
+        try
+        {
+            if (!File.Exists(path)) return [];
+            return System.Text.Json.JsonSerializer.Deserialize<List<DateTime>>(File.ReadAllText(path)) ?? [];
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, @"Crash restart history {Path} is unreadable, starting a new one", path);
+            return [];
         }
     }
 }
