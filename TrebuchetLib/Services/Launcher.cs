@@ -44,7 +44,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     private List<ulong> _reportedModUpdates = [];
     private bool _updateWaitLogged;
     private readonly HashSet<ulong> _failedModUpdates = [];
-    private bool _serverNeedUpdate;
+    private readonly ServerUpdateTracker _serverUpdate = new();
     private DateTime _lastUpdateCheckTime;
     private readonly List<StartDates> _startDates;
     private readonly AppFiles _appFiles;
@@ -369,7 +369,11 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     
     public async Task RestartServerAsync(int instance)
     {
-        _logger.LogInformation($"Restarting Server {instance}");
+        // The reason shows in the log why a server restarted (schedule, server update, mod update, ...).
+        if (string.IsNullOrEmpty(_lastRestartReason))
+            _logger.LogInformation("Restarting Server {Instance}", instance);
+        else
+            _logger.LogInformation("Restarting Server {Instance}, reason: {Reason}", instance, _lastRestartReason);
         if (_serverProcesses.TryGetValue(instance, out var watcher))
         {
             var uri = _setup.Config.GetInstanceProfile(instance);
@@ -971,7 +975,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
 
     public bool HasServerUpdate()
     {
-        return _serverNeedUpdate;
+        return _serverUpdate.NeedUpdate;
     }
 
     public async Task<bool> PerformCatapultUpdates()
@@ -1125,8 +1129,9 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             if (details.Count == 0) return true;
 
             _modNeedUpdate.Clear();
+            // Without the file from Steam a mod cannot be downloaded: a restart for it would only repeat itself.
             _modNeedUpdate.AddRange(details
-                .Where(d => d.Status.Status != UGCStatus.UpToDate));
+                .Where(d => d.Status.Status != UGCStatus.UpToDate && d.HasWorkshopFile));
             _modListNeedUpdate.AddRange(lists.Where(x => x.GetModsFromList().Intersect(_modNeedUpdate.Select(y => y.PublishedFileId)).Any()));
             ReportModUpdates();
             return true;
@@ -1351,12 +1356,16 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             if(_serverSequences.ContainsKey(process.Infos.Instance)) continue;
             if(AreAutomaticRestartsPaused(process.Infos.Instance)) continue;
 
-            if (_serverNeedUpdate)
+            if (_serverUpdate.ShouldRestart(process.StartUtc))
             {
                 _lastRestartReason = _setup.GetReasonServerUpdate();
                 RestartServer(process.Infos.Instance);
                 continue;
             }
+            if (_serverUpdate.NeedUpdate && _serverUpdate.ReportNotInstalled(process.Infos.Instance))
+                _logger.LogWarning(
+                    "Server update (build {Build}) was not installed when instance {Instance} started, it is installed with its next restart",
+                    _serverUpdate.SteamBuildId, process.Infos.Instance);
 
             if (modsInUse || otherServersRunning) continue;
             var modListRef = _appFiles.ResolveModList(_setup.Config.GetInstanceModlist(process.Infos.Instance));
@@ -1440,15 +1449,14 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     private async Task<bool> CheckServerUpdate()
     {
         _logger.LogInformation("Checking server updates");
-        if (_steam.GetInstalledInstances() < _setup.Config.ServerInstanceCount)
-        {
-            _serverNeedUpdate = true;
-            return true;
-        }
-        
         try
         {
-            _serverNeedUpdate = await _steam.GetSteamBuildId() != _steam.GetInstanceBuildId(0);
+            var instancesMissing = _steam.GetInstalledInstances() < _setup.Config.ServerInstanceCount;
+            var steamBuild = instancesMissing ? 0 : await _steam.GetSteamBuildId();
+            // Without an answer from Steam the build reads 0: that is no update (it restarted the servers after every
+            // failed check, e.g. once the Steam connection dropped after a few days).
+            if (!_serverUpdate.Report(steamBuild, _steam.GetInstanceBuildId(0), instancesMissing, DateTime.UtcNow))
+                _logger.LogWarning("Could not read the server build from Steam, the server update check is skipped");
             return true;
         }
         catch (OperationCanceledException)

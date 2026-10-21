@@ -576,7 +576,11 @@ public class Steam : IDebugListener, IDisposable
                 await ContentDownloader.DownloadAppAsync(_appSetup.ServerAppId, [],
                     ContentDownloader.DEFAULT_BRANCH, null, null, null, false, false, cts);
                 var buildId = await GetSteamBuildId();
-                SetInstanceBuildId(instanceNumber, buildId);
+                // 0 means Steam did not answer: keep the installed build id instead of overwriting it with 0.
+                if (buildId != 0)
+                    SetInstanceBuildId(instanceNumber, buildId);
+                else
+                    _logger.LogWarning("Could not read the server build from Steam, build id of instance {Instance} not updated", instanceNumber);
             }
             catch (Exception ex)
             {

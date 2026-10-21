@@ -150,6 +150,9 @@ static class ServerStabilityChecks
         Check(guard.Allow(1, t0.AddMinutes(3)), "Other instances are not affected");
         Check(guard.Allow(0, t0.AddMinutes(17)), "Restarts are allowed again once the window passed");
 
+        // Server updates: no answer from Steam is no update, one restart per update and server start.
+        Check(ServerUpdateChecks.Run(t0) > 0, "Server update restart checks ran");
+
         // Warnings and message method.
         var warningProfile = new ServerProfile();
         Check(!warningProfile.UseRestartWarnings && warningProfile.RestartWarnings.Count == 3
