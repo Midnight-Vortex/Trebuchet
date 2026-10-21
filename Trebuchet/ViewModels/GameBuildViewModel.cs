@@ -44,7 +44,17 @@ public class GameBuildViewModel : ReactiveObject
     {
         if (IsOpening) return;
         IsOpening = true;
-        await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
-        await _app.OpenAppAsync(edition);
+        try
+        {
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+            await _app.OpenAppAsync(edition);
+        }
+        catch
+        {
+            // Failed to open: the start window must stay usable (retry, other edition) instead of keeping its
+            // buttons disabled forever. The command's error handler logs and reports the error.
+            IsOpening = false;
+            throw;
+        }
     }
 }
