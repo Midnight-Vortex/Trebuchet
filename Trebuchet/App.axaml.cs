@@ -48,12 +48,13 @@ public partial class App : Application, IApplication
     private LanguageManager? _langManager;
     private InternalLogSink? _internalLogSink;
     private ServiceProvider? _serviceProvider;
+    private readonly List<Exception> _uiConfigErrors = [];
     public bool HasCrashed { get; private set; }
     public IImage? AppIconPath => Resources[@"AppIcon"] as IImage;
 
     public override void Initialize()
     {
-        _uiConfig = UIConfig.LoadConfig(AppConstants.GetUIConfigPath());
+        _uiConfig = LoadUiConfig(AppConstants.GetUIConfigPath);
         var languageConfiguration = new LanguagesConfiguration(AppConstants.UICultureList);
         _langManager = new LanguageManager(languageConfiguration);
         _langManager.SetLanguage(_uiConfig.UICulture);
@@ -93,6 +94,11 @@ public partial class App : Application, IApplication
         ConfigureServices(serviceCollection, edition, catapult, experiment);
         _serviceProvider = serviceCollection.BuildServiceProvider();
         _logger = _serviceProvider.GetRequiredService<ILogger<App>>();
+        // Damaged settings/profiles repaired while loading (also before logging existed) are reported here.
+        JsonFileStorage.SetLogger(_serviceProvider.GetRequiredService<ILoggerFactory>().CreateLogger(@"JsonFile"));
+        foreach (var error in _uiConfigErrors)
+            _logger.LogError(error, @"UI settings could not be read, default settings are used");
+        _uiConfigErrors.Clear();
         var osSpecifics = _serviceProvider.GetRequiredService<IOsPlatformSpecific>();
         var setup = _serviceProvider.GetRequiredService<AppSetup>();
         
@@ -132,12 +138,12 @@ public partial class App : Application, IApplication
         var path = AppConstants.GetUIConfigPath(edition);
         if (edition == GameEdition.Legacy || File.Exists(path))
         {
-            _uiConfig = UIConfig.LoadConfig(path);
+            _uiConfig = LoadUiConfig(() => path);
             return;
         }
 
         // First Enhanced/PTC open: seed shared prefs from Legacy UI, clear edition-specific selections.
-        var seed = _uiConfig ?? UIConfig.LoadConfig(AppConstants.GetUIConfigPath(GameEdition.Legacy));
+        var seed = _uiConfig ?? LoadUiConfig(() => AppConstants.GetUIConfigPath(GameEdition.Legacy));
         var created = UIConfig.CreateConfig(path);
         created.UICulture = seed.UICulture;
         created.PlateformTheme = seed.PlateformTheme;
@@ -149,6 +155,27 @@ public partial class App : Application, IApplication
         created.ConsoleFilters = seed.ConsoleFilters?.ToArray() ?? [];
         created.SaveFile();
         _uiConfig = created;
+    }
+
+    /// <summary>
+    /// UI settings that cannot be read (locked, no access, ...) must not stop Trebuchet before any window opens,
+    /// on every autostart: continue with default settings. Damaged content is already repaired by LoadConfig.
+    /// The error is logged once the logger exists (see OpenAppAsync).
+    /// </summary>
+    private UIConfig LoadUiConfig(Func<string> getPath)
+    {
+        var path = string.Empty;
+        try
+        {
+            path = getPath();
+            return UIConfig.LoadConfig(path);
+        }
+        catch (Exception ex)
+        {
+            _uiConfigErrors.Add(ex);
+            Trace.TraceError($@"UI settings could not be read: {ex}");
+            return UIConfig.CreateConfig(path);
+        }
     }
 
     public void Crash() => HasCrashed = true;

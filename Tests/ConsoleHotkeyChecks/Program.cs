@@ -128,6 +128,7 @@ finally
         throw new InvalidOperationException("Unexpected test cleanup path.");
     Directory.Delete(resolvedRoot, recursive: true);
 }
+checks += JsonFileChecks.Run();
 checks += await DirectoryCopyChecks.Run();
 checks += await ServerStopChecks.Run();
 checks += await ServerStabilityChecks.Run();
