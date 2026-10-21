@@ -41,7 +41,7 @@ public class ConsolePanel : ReactiveObject, IRefreshablePanel, ITickingPanel
                 CreatePopupWindow(i);
 
         _selectedConsole = ConsoleList[0];
-        _console = _uiConfig.GetInstancePopup(0) ? _windows.First(x => x.Instance == 0).PopupOut : ConsoleList[0];
+        _console = (object?)GetPopupWindow(0)?.PopupOut ?? ConsoleList[0];
 
         CanBeOpened = _setup.Config is { ServerInstanceCount: > 0 };
         PopOut = ReactiveCommand.Create(() =>
@@ -272,9 +272,16 @@ public class ConsolePanel : ReactiveObject, IRefreshablePanel, ITickingPanel
     private void OnConsoleSelected(MixedConsoleViewModel console)
     {
         _logger.LogInformation(@"Opening console {name}", console.ServerLabel);
-        if (_uiConfig.GetInstancePopup(console.Instance))
-            Console = _windows.Where(x => x.Instance == console.Instance).Select(x => x.PopupOut).First();
-        else
-            Console = console;
+        Console = (object?)GetPopupWindow(console.Instance)?.PopupOut ?? console;
+    }
+
+    /// <summary>
+    /// The pop-out window of the instance, or null to show its console docked. The saved pop-out flag can exist
+    /// without a window (no server instance configured, instance count reduced, console of a discovered server):
+    /// First() threw then, in the constructor this stopped the whole application from opening.
+    /// </summary>
+    private ConsolePopup? GetPopupWindow(int instance)
+    {
+        return _uiConfig.GetInstancePopup(instance) ? _windows.FirstOrDefault(x => x.Instance == instance) : null;
     }
 }
