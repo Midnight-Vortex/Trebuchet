@@ -15,15 +15,33 @@ namespace Trebuchet.Windows
         public WorkshopSearch()
         {
             InitializeComponent();
-            DataContextProperty.Changed.AddClassHandler<WorkshopSearch>(WorkshopSearchContextChanged);
         }
 
-        private void WorkshopSearchContextChanged(WorkshopSearch sender, AvaloniaPropertyChangedEventArgs args)
+        private WorkshopSearchViewModel? _viewModel;
+
+        // This window only. A DataContextProperty.Changed class handler registered in the constructor kept every
+        // window ever opened alive through the static property, and on each new window the old handlers subscribed
+        // their (closed) windows to PageLoaded of the shared view model again.
+        protected override void OnDataContextChanged(EventArgs e)
         {
-            if (args.OldValue is WorkshopSearchViewModel vm)
-                vm.PageLoaded -= OnPageLoaded;
-            if (args.NewValue is WorkshopSearchViewModel nvm)
-                nvm.PageLoaded += OnPageLoaded;
+            base.OnDataContextChanged(e);
+            SetViewModel(DataContext as WorkshopSearchViewModel);
+        }
+
+        protected override void OnClosed(EventArgs e)
+        {
+            base.OnClosed(e);
+            // The view model is shared by the search windows: a closed one must not stay subscribed to it.
+            SetViewModel(null);
+        }
+
+        private void SetViewModel(WorkshopSearchViewModel? viewModel)
+        {
+            if (_viewModel is not null)
+                _viewModel.PageLoaded -= OnPageLoaded;
+            _viewModel = viewModel;
+            if (_viewModel is not null)
+                _viewModel.PageLoaded += OnPageLoaded;
         }
 
         private Task OnPageLoaded(object? sender, EventArgs e)

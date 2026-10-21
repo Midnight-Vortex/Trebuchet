@@ -19,9 +19,14 @@ namespace Trebuchet.Controls
 
         private static readonly Regex Regex = new Regex("[^0-9.-]+");
 
-        public FloatBox()
+        // Registered once: in the instance constructor every new box added one more handler for all of them.
+        static FloatBox()
         {
             ValueProperty.Changed.AddClassHandler<FloatBox>(OnValueChanged);
+        }
+
+        public FloatBox()
+        {
             InitializeComponent();
         }
         

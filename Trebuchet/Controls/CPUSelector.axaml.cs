@@ -21,13 +21,18 @@ namespace Trebuchet.Controls
         //         OnCPUAffinityChanged, null, true, UpdateSourceTrigger.PropertyChanged)
         //     );
 
+        // Registered once: in the instance constructor every new selector added one more handler for all of them.
+        static CpuSelector()
+        {
+            CpuAffinityProperty.Changed.AddClassHandler<CpuSelector>(OnCPUAffinityChanged);
+        }
+
         public CpuSelector()
         {
             int maxCpu = Environment.ProcessorCount;
             CpuList = new List<int>(maxCpu);
             for (int i = 0; i < maxCpu; i++)
                 CpuList.Add(i);
-            CpuAffinityProperty.Changed.AddClassHandler<CpuSelector>(OnCPUAffinityChanged);
             InitializeComponent();
         }
 
