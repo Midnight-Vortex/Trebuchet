@@ -38,10 +38,21 @@ public class AppSetup
     
     public DirectoryInfo GetCommonAppDataDirectory()
     {
-        if (TryGetCustomDirectory(Config.DataDirectory, out var dir))
+        var custom = Config.DataDirectory;
+        // Validated once per value: the probe (a temporary file) ran on every path lookup, several times a second,
+        // and one transient failure silently switched to ProgramData, where the server instances looked missing
+        // (fake server update restarts, or downloads of the whole server to drive C).
+        if (!string.IsNullOrEmpty(custom) && custom == _validatedDataDirectory)
+            return new DirectoryInfo(custom);
+        if (TryGetCustomDirectory(custom, out var dir))
+        {
+            _validatedDataDirectory = custom;
             return dir;
+        }
         return GetCommonAppDataDirectoryDefault();
     }
+
+    private volatile string? _validatedDataDirectory;
 
     public static DirectoryInfo GetAppConfigDirectory()
     {

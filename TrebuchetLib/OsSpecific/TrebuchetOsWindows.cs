@@ -13,45 +13,46 @@ public class TrebuchetOsWindows : ITrebuchetOsSpecific
     [System.Runtime.InteropServices.DllImport("user32.dll")]
     private static extern int SetForegroundWindow(IntPtr hwnd);
 
+    // Only the fields ProcessData reads: "Select *" made WMI collect about 45 properties per process, every 2-4 s.
+    private const string ProcessFields = "ProcessId, Name, CreationDate, CommandLine";
+
+    // A stalled WMI provider never answered and the tick waited for it forever (no restarts, no crash detection).
+    private static System.Management.EnumerationOptions QueryOptions(bool forwardOnly) => new()
+    {
+        Timeout = TimeSpan.FromSeconds(20),
+        ReturnImmediately = true,
+        Rewindable = !forwardOnly
+    };
+
     public IEnumerable<ProcessData> GetChildProcesses(int parentId)
     {
-        var query = $"Select * From Win32_Process Where ParentProcessId = {parentId}";
-        ManagementObjectSearcher searcher = new ManagementObjectSearcher(query);
-        ManagementObjectCollection processList = searcher.Get();
-
+        var query = $"Select {ProcessFields} From Win32_Process Where ParentProcessId = {parentId}";
+        using var searcher = new ManagementObjectSearcher(new ManagementScope(), new ObjectQuery(query), QueryOptions(true));
+        using var processList = searcher.Get();
         return processList.EnumerateData();
     }
 
     public ProcessData GetFirstChildProcesses(int parentId)
     {
-        var query = $"Select * From Win32_Process Where ParentProcessId = {parentId}";
-        ManagementObjectSearcher searcher = new ManagementObjectSearcher(query);
-        ManagementObjectCollection processList = searcher.Get();
-
-        if (processList.Count == 0) return ProcessData.Empty;
-
-        return new ProcessData(processList.Cast<ManagementObject>().First());
+        return GetChildProcesses(parentId).FirstOrDefault(x => !x.IsEmpty, ProcessData.Empty);
     }
 
     public ProcessData GetProcess(int processId)
     {
-        var query = $"Select * From Win32_Process Where ProcessId = {processId}";
-        ManagementObjectSearcher searcher = new ManagementObjectSearcher(query);
-        ManagementObjectCollection processList = searcher.Get();
-
-        if (processList.Count == 0) return ProcessData.Empty;
-
-        return new ProcessData(processList.Cast<ManagementObject>().First());
+        var query = $"Select {ProcessFields} From Win32_Process Where ProcessId = {processId}";
+        using var searcher = new ManagementObjectSearcher(new ManagementScope(), new ObjectQuery(query), QueryOptions(true));
+        using var processList = searcher.Get();
+        return processList.EnumerateData().FirstOrDefault(x => !x.IsEmpty, ProcessData.Empty);
     }
 
     public async Task<List<ProcessData>> GetProcessesWithName(string processName)
     {
         return await Task.Run(() =>
         {
-            var query = $"Select * From Win32_Process Where Name='{processName}'";
+            var query = $"Select {ProcessFields} From Win32_Process Where Name='{processName}'";
             try
             {
-                using ManagementObjectSearcher searcher = new ManagementObjectSearcher(query);
+                using var searcher = new ManagementObjectSearcher(new ManagementScope(), new ObjectQuery(query), QueryOptions(true));
                 using ManagementObjectCollection processList = searcher.Get();
                 return processList.EnumerateData().ToList();
             }

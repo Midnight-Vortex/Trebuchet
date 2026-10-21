@@ -79,10 +79,24 @@ public class Operations : IDisposable
     public int CountUnusedMods()
     {
         var installedMods = _steam.GetUGCFileIdsFromStorage();
-        var usedMods = _appFiles.Mods.GetList()
-            .SelectMany(x => _appFiles.Mods.Get(x).GetWorkshopMods());
-        var count = installedMods.Except(usedMods).Count();
+        var count = installedMods.Except(GetUsedMods()).Count();
         return count;
+    }
+
+    /// <summary>
+    /// Mods of every mod list and sync profile: servers and the game client can use sync profiles too, their mods
+    /// were removed as unused (and then reported missing, which restarted the servers to download them again).
+    /// </summary>
+    private HashSet<ulong> GetUsedMods()
+    {
+        var used = _appFiles.Mods.GetList()
+            .SelectMany(x => _appFiles.Mods.Get(x).GetWorkshopMods())
+            .ToHashSet();
+        foreach (var sync in _appFiles.Sync.GetList())
+            foreach (var mod in _appFiles.Sync.Get(sync).Modlist)
+                if (ulong.TryParse(mod, out var id))
+                    used.Add(id);
+        return used;
     }
 
     public async Task RemoveUnusedMods()
@@ -90,9 +104,7 @@ public class Operations : IDisposable
         try
         {
             var installedMods = _steam.GetUGCFileIdsFromStorage();
-            var usedMods = _appFiles.Mods.GetList()
-                .SelectMany(x => _appFiles.Mods.Get(x).GetWorkshopMods());
-            var toRemove = installedMods.Except(usedMods).ToList();
+            var toRemove = installedMods.Except(GetUsedMods()).ToList();
             _steam.ClearUGCFileIdsFromStorage(toRemove);
 
             _logger.LogInformation(@"Cleaning unused mods");

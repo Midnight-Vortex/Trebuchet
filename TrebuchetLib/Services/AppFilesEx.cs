@@ -374,8 +374,9 @@ public static class AppFilesEx
         string[] profiles = handler.UseSubFolders 
             ? Directory.GetDirectories(handler.GetBaseFolder(), "*")
             : Directory.GetFiles(handler.GetBaseFolder(), "*.json");
+        // Profile folders keep their whole name ("Exiles 3.0"), only profile files lose their ".json".
         foreach (string p in profiles)
-            yield return handler.Ref(Path.GetFileNameWithoutExtension(p));
+            yield return handler.Ref(handler.UseSubFolders ? Path.GetFileName(p) : Path.GetFileNameWithoutExtension(p));
     }
 
     public static Task<long> GetSize<T, TRef>(this IAppFileHandler<T, TRef> handler, TRef name)

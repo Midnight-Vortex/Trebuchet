@@ -135,7 +135,8 @@ public static class Tools
         string[] profiles = Directory.GetDirectories(folder, pattern);
         if (profiles.Length == 0)
             return string.Empty;
-        return Path.GetFileNameWithoutExtension(profiles[0]);
+        // A folder name has no extension: "Exiles 3.0" must not become "Exiles 3".
+        return Path.GetFileName(profiles[0]);
     }
 
     public static string GetFirstDirectoryName(string folder, string pattern, IReadOnlyCollection<string> exclude)
@@ -143,7 +144,7 @@ public static class Tools
         if (!Directory.Exists(folder))
             return string.Empty;
         return Directory.GetDirectories(folder, pattern)
-            .Select(Path.GetFileNameWithoutExtension)
+            .Select(Path.GetFileName)
             .FirstOrDefault(x => !string.IsNullOrEmpty(x) && !exclude.Contains(x, StringComparer.OrdinalIgnoreCase)) ?? string.Empty;
     }
 
@@ -344,7 +345,19 @@ public static class Tools
         string? folder = Path.GetDirectoryName(path);
         if (folder == null) throw new Exception($"Invalid folder for {path}.");
         CreateDir(folder);
-        await File.WriteAllTextAsync(path, content);
+        // Written next to the file and swapped in: a crash or full disk mid-write left an empty ServerSettings.ini,
+        // the server then started with default settings and passwords.
+        var temporary = path + ".tmp";
+        try
+        {
+            await File.WriteAllTextAsync(temporary, content);
+            File.Move(temporary, path, overwrite: true);
+        }
+        catch
+        {
+            try { File.Delete(temporary); } catch { /* best effort */ }
+            throw;
+        }
     }
 
     public static IEnumerable<string> Split(this string str, Func<char, bool> controller)

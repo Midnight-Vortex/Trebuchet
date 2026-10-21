@@ -949,7 +949,17 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         // Servers that kept running while Trebuchet was closed must be attached before deciding what to start,
         // otherwise a second server was launched on the same instance (or the start failed on the locked save).
         if (!_hasCatapulted)
+        {
             await TickStage(FindExistingServers, nameof(FindExistingServers));
+            // A failed or timed out WMI scan reports no server: starting the instances then launched a second server
+            // on a running one. While more server processes run than were attached, wait a few ticks for a scan that
+            // sees them (other installations can run servers with the same name, so not forever).
+            if (_initialScanRetries < InitialScanMaxRetries && CountServerProcessesByName() > _serverProcesses.Count)
+            {
+                _initialScanRetries++;
+                return;
+            }
+        }
 
         if (!_hasCatapulted && _setup.Catapult)
         {
@@ -1028,6 +1038,23 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         }
         if (refreshTasks.Count > 0)
             await Task.WhenAll(refreshTasks);
+    }
+
+    private int _initialScanRetries;
+    private const int InitialScanMaxRetries = 5;
+
+    private static int CountServerProcessesByName()
+    {
+        try
+        {
+            var processes = Process.GetProcessesByName(Path.GetFileNameWithoutExtension(Constants.FileServerBin));
+            foreach (var process in processes) process.Dispose();
+            return processes.Length;
+        }
+        catch (Exception)
+        {
+            return 0;
+        }
     }
 
     private async Task TickStage(Func<Task> stage, string name)

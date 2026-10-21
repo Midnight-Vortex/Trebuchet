@@ -16,13 +16,13 @@ public class BackupManager(AppSetup setup, AppFiles appFiles)
     public async Task PerformServerBackup(ServerProfileRef reference, TimeSpan maxAge)
     {
         var prefix = $"Server.{reference.Name}";
-        DeleteOldBackup(prefix, maxAge);
-        
         var path = appFiles.Server.GetPath(reference);
         var directory = Path.GetDirectoryName(path);
         if (directory is null)
             throw new DirectoryNotFoundException($"Directory not found ({path})");
         await PerformServerBackup(directory, prefix);
+        // Old backups go only once a new one exists: failing backups left nothing but expired ones deleted.
+        DeleteOldBackup(prefix, maxAge);
     }
 
     public Task PerformClientBackup(TimeSpan maxAge)
@@ -36,13 +36,12 @@ public class BackupManager(AppSetup setup, AppFiles appFiles)
     public async Task PerformClientBackup(ClientProfileRef reference, TimeSpan maxAge)
     {
         var prefix = $"Client.{reference.Name}";
-        DeleteOldBackup(prefix, maxAge);
-        
         var path = appFiles.Client.GetPath(reference);
         var directory = Path.GetDirectoryName(path);
         if (directory is null)
             throw new DirectoryNotFoundException($"Directory not found ({path})");
         await PerformServerBackup(directory, prefix);
+        DeleteOldBackup(prefix, maxAge);
     }
 
     /// <summary>
@@ -61,11 +60,20 @@ public class BackupManager(AppSetup setup, AppFiles appFiles)
         await Task.Run(() =>
         {
             Directory.CreateDirectory(target);
-            foreach (var (source, relative) in GetShutdownBackupFiles(profile.ProfileFolder))
+            try
             {
-                var destination = Path.Combine(target, relative);
-                Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
-                File.Copy(source, destination, true);
+                foreach (var (source, relative) in GetShutdownBackupFiles(profile.ProfileFolder))
+                {
+                    var destination = Path.Combine(target, relative);
+                    Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+                    File.Copy(source, destination, true);
+                }
+            }
+            catch
+            {
+                // A half copied backup looks complete later: remove it.
+                try { Directory.Delete(target, true); } catch { /* best effort */ }
+                throw;
             }
 
             if (profile is { BackupLimitEnabled: true, BackupLimitDays: > 0 })
@@ -135,13 +143,17 @@ public class BackupManager(AppSetup setup, AppFiles appFiles)
         if (File.Exists(filename))
             return;
 
+        // Written under a temporary name: a failed backup left a truncated zip that looked like a good one.
+        var temporary = filename + ".tmp";
         try
         {
-            await using var fileStream = new FileStream(filename, FileMode.CreateNew, FileAccess.Write, FileShare.Read);
-            await Task.Run(() => ZipFile.CreateFromDirectory(directory, fileStream));
+            await using (var fileStream = new FileStream(temporary, FileMode.Create, FileAccess.Write, FileShare.Read))
+                await Task.Run(() => ZipFile.CreateFromDirectory(directory, fileStream));
+            File.Move(temporary, filename);
         }
         catch (Exception ex)
         {
+            try { File.Delete(temporary); } catch { /* best effort */ }
             throw new Exception("Failed to perform backup", ex);
         }
     }
