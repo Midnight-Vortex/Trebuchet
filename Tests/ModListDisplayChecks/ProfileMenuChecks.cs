@@ -78,7 +78,14 @@ internal static class ProfileMenuChecks
                 Check(menu.Selected.Equals(second) && files.Exists(second), "Deleting another profile preserves active selection");
                 Check(menu.List.Count == 1 && !files.Exists(first), "Delete updates menu immediately");
 
-                using (var locked = new FileStream(files.GetPath(second), FileMode.Open, FileAccess.Read, FileShare.None))
+                // Windows refuses to delete a locked file. Other systems delete locked files: there the file is moved
+                // away for the check, which fails the deletion the same way.
+                var secondPath = files.GetPath(second);
+                var movedAway = secondPath + ".away";
+                if (!OperatingSystem.IsWindows()) File.Move(secondPath, movedAway);
+                using (var locked = OperatingSystem.IsWindows()
+                           ? new FileStream(secondPath, FileMode.Open, FileAccess.Read, FileShare.None)
+                           : null)
                 {
                     var failedDeletion = menu.DeleteSelected.Execute().ToTask();
                     await ((OnBoardingConfirmation)box.Popup!).ConfirmCommand.Execute().ToTask();
@@ -89,6 +96,7 @@ internal static class ProfileMenuChecks
                     Check(menu.Selected.Equals(second) && files.Cache.ContainsKey(second) && !menu.IsLoading,
                         "Failed deletion preserves selection/cache and releases loading state");
                 }
+                if (!OperatingSystem.IsWindows()) File.Move(movedAway, secondPath);
             }
             files.Delete(second);
             using (var required = new FileMenuViewModel<SyncProfile, TestRef>("Required", files, box, NullLogger.Instance))

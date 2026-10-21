@@ -108,13 +108,17 @@ static class DirectoryCopyChecks
             await DirectoryCopy.CopyWithLoadAsync(adaptiveSource, adaptiveTarget, CancellationToken.None,
                 new CallbackProgress(p =>
                 {
-                    var active = Directory.EnumerateFiles(adaptiveTarget, "*.copying").Count();
+                    var files = Directory.GetFiles(adaptiveTarget);
+                    var active = files.Count(x => x.EndsWith(".copying", StringComparison.Ordinal));
                     Interlocked.Exchange(ref adaptivePeak, Math.Max(adaptivePeak, active));
-                    if (p > 0.75 && p < 1) afterPressure.Add(active);
+                    // Once the eight files started at the peak are done, the parked workers must not take new ones.
+                    // Counting finished files instead of a progress window keeps the check independent of disk speed.
+                    if (files.Length - active >= 8 && p < 1) afterPressure.Add(active);
                 }), () => Volatile.Read(ref adaptivePeak) >= 8 ? quiet with { Cpu = 0.95 } : quiet,
                 TimeSpan.FromMilliseconds(10));
             Check(adaptivePeak == 8, "Real copy workers ramp up to eight when the load probe reports headroom");
-            Check(afterPressure.Count > 0 && afterPressure.All(x => x <= 4), "Real workers drain back to four after the load probe reports pressure");
+            Check(afterPressure.Count > 0 && afterPressure.All(x => x <= 4),
+                "Real workers drain back to four after the load probe reports pressure: " + string.Join(",", afterPressure));
             Check(Directory.GetFiles(adaptiveTarget).Length == 16, "Changing worker limits neither drops nor duplicates queued files");
             Console.WriteLine($"Adaptive fixture: reached {adaptivePeak} concurrent files, then drained to four under simulated CPU pressure.");
 
