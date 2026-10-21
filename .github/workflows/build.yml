@@ -53,6 +53,9 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.installer)
     runs-on: windows-latest
     timeout-minutes: 30
+    permissions:
+      # Creating the GitHub release of a "v*" tag.
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
@@ -68,8 +71,26 @@ jobs:
       - name: Compile installer
         run: .tools\InnoSetup6\ISCC.exe build_setup.iss
 
+      # One file name for every version: .../releases/latest/download/Trebuchet-Setup.exe always is the newest.
+      - name: Name the setup
+        shell: pwsh
+        run: Copy-Item (Get-ChildItem Deploy -Filter *.exe | Select-Object -First 1).FullName Deploy/Trebuchet-Setup.exe
+
       - uses: actions/upload-artifact@v4
         with:
           name: trebuchet-setup
-          path: Deploy/*.exe
+          path: Deploy/Trebuchet-Setup.exe
           if-no-files-found: error
+
+      # A "v*" tag publishes the setup as a GitHub release: anyone can download it, without a GitHub login.
+      - name: Publish release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh release create "${{ github.ref_name }}" Deploy/Trebuchet-Setup.exe
+          --repo "${{ github.repository }}"
+          --title "Trebuchet ${{ github.ref_name }}"
+          --notes "Windows setup: download Trebuchet-Setup.exe and run it."
+          --latest
