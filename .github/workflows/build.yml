@@ -1,0 +1,75 @@
+name: Build
+
+# Every push and pull request: build the solution and run both regression harnesses on Windows.
+# Started by hand (Actions tab → Build → Run workflow) or by a "v*" tag it also builds the installer.
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      installer:
+        description: "Also build the installer"
+        type: boolean
+        default: true
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  # Same overrides as in the README: no single-file/self-contained publish for checks.
+  CHECK_PROPS: -c Release -p:SelfContained=false -p:PublishSingleFile=false
+
+jobs:
+  build-and-test:
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build solution
+        run: dotnet build Trebuchet.sln -m:1 ${{ env.CHECK_PROPS }}
+
+      # The harnesses are not part of the solution, dotnet run builds them.
+      - name: Console hotkey, directory copy and server checks
+        run: dotnet run --project Tests/ConsoleHotkeyChecks/ConsoleHotkeyChecks.csproj ${{ env.CHECK_PROPS }}
+
+      - name: Mod list and profile menu checks
+        run: dotnet run --project Tests/ModListDisplayChecks/ModListDisplayChecks.csproj ${{ env.CHECK_PROPS }}
+
+      - name: Server console checks
+        run: dotnet run --project Tests/ModListDisplayChecks/ModListDisplayChecks.csproj ${{ env.CHECK_PROPS }} -- --console-checks
+
+  installer:
+    needs: build-and-test
+    if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.installer)
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Publish Trebuchet and Boulder (win-x64, self-contained)
+        run: |
+          dotnet publish Trebuchet/Trebuchet.csproj -c Release -r win-x64 --self-contained true
+          dotnet publish Boulder/Boulder.csproj -c Release -r win-x64 --self-contained true
+
+      - name: Compile installer
+        run: .tools\InnoSetup6\ISCC.exe build_setup.iss
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: trebuchet-setup
+          path: Deploy/*.exe
+          if-no-files-found: error
