@@ -579,7 +579,29 @@ public class Steam : IDebugListener, IDisposable
         Tools.DeleteIfExists(instance);
         Tools.CreateDir(instance);
 
-        await Tools.DeepCopyAsync(instance0, instance, token);
+        try
+        {
+            await Tools.DeepCopyAsync(instance0, instance, token);
+        }
+        catch
+        {
+            // The build id may already be copied: a half copied instance must not count as current.
+            try { File.Delete(Path.Combine(instance, Constants.FileBuildID)); } catch { /* best effort */ }
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Makes the next server update copy instance 0 to every other instance again ("verify files"): copies are
+    /// otherwise only replaced when their build differs.
+    /// </summary>
+    public void InvalidateInstanceCopies()
+    {
+        for (var i = 1; i < _appSetup.Config.ServerInstanceCount; i++)
+        {
+            try { File.Delete(Path.Combine(_appSetup.GetInstancePath(i), Constants.FileBuildID)); }
+            catch (Exception ex) { _logger.LogWarning(ex, "Could not reset the build id of instance {Instance}", i); }
+        }
     }
         
     /// <summary>

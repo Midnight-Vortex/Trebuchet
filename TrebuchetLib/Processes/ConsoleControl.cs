@@ -18,6 +18,10 @@ public static class ConsoleControl
     private delegate bool ConsoleCtrlHandler(uint ctrlType);
 
     /// <returns>True when the Ctrl+C was delivered to the console of the process.</returns>
+    /// <remarks>
+    /// Ctrl+C reaches every process of that console. When other servers share it (e.g. several started from one
+    /// terminal with Boulder) nothing is sent: it would stop them too.
+    /// </remarks>
     public static bool TrySendCtrlC(int pid)
     {
         if (!OperatingSystem.IsWindows() || pid <= 0) return false;
@@ -33,6 +37,7 @@ public static class ConsoleControl
                 if (!AttachConsole((uint)pid)) return false;
                 try
                 {
+                    if (!IsOnlyServerOfConsole(pid)) return false;
                     return GenerateConsoleCtrlEvent(CtrlCEvent, 0);
                 }
                 finally
@@ -46,6 +51,36 @@ public static class ConsoleControl
             }
         }
     }
+
+    /// <summary>True when no other server process is attached to the console we are attached to.</summary>
+    private static bool IsOnlyServerOfConsole(int pid)
+    {
+        var ids = new uint[64];
+        var count = GetConsoleProcessList(ids, (uint)ids.Length);
+        if (count == 0 || count > ids.Length) return false;
+        var serverName = Path.GetFileNameWithoutExtension(Constants.FileServerBin);
+        var own = Environment.ProcessId;
+        for (var i = 0; i < count; i++)
+        {
+            var id = (int)ids[i];
+            if (id == pid || id == own) continue;
+            try
+            {
+                using var other = System.Diagnostics.Process.GetProcessById(id);
+                if (string.Equals(other.ProcessName, serverName, StringComparison.OrdinalIgnoreCase))
+                    return false;
+            }
+            catch (Exception)
+            {
+                // Gone meanwhile: not a server sharing the console.
+            }
+        }
+        return true;
+    }
+
+    // https://learn.microsoft.com/windows/console/getconsoleprocesslist
+    [DllImport("kernel32.dll", SetLastError = true)]
+    private static extern uint GetConsoleProcessList([Out] uint[] processList, uint processCount);
 
     // https://learn.microsoft.com/windows/console/attachconsole
     [DllImport("kernel32.dll", SetLastError = true)]

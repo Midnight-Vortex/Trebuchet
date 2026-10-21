@@ -1150,7 +1150,10 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         else if (!serversBusy && !await UpdateMods()) return false;
 
         if (serversBusy) return true;
-        if (await CheckServerUpdate() && !_serverUpdate.NeedUpdate && AreInstanceCopiesCurrent()) return true;
+        // Without an answer from Steam the last known state counts: with every instance installed and current a
+        // download attempt could only fail too (it delayed the start by another connection timeout).
+        await CheckServerUpdate();
+        if (!_serverUpdate.NeedUpdate && AreInstanceCopiesCurrent()) return true;
         return await UpdateServers();
     }
 
@@ -1176,6 +1179,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         if (IsAnyServerRunning() || IsClientRunning()) return false;
         _logger.LogInformation(@"Verifying files, clearing caches");
         _steam.ClearSteamCache();
+        _steam.InvalidateInstanceCopies();
         _steam.ClearModDetailsCache();
         
         try
@@ -2145,8 +2149,9 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
 
             // A hung server reported as crashed can still run (its kill is pending or failed): starting another one
             // now ran two servers on the same save, and the process scan attached the hung one again. It is removed
-            // once it is gone.
-            if (!server.Value.Process.HasExitedSafe(server.Value.PId))
+            // once it is gone. (Only crashed ones: a stopped server has exited, its process id may belong to another
+            // process by now.)
+            if (server.Value.State == ProcessState.CRASHED && !server.Value.Process.HasExitedSafe(server.Value.PId))
             {
                 if (_crashedStillRunning.Add(server.Key))
                     _logger.LogWarning("Server {Instance} is reported as {State} but still runs, waiting until it is gone",
