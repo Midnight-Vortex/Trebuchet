@@ -23,6 +23,8 @@ namespace DepotDownloader
         static readonly TimeSpan AuthenticatedConnectTimeout = TimeSpan.FromMinutes(5);
         // How long Disconnect() waits for the pump to handle the resulting DisconnectedCallback.
         static readonly TimeSpan DisconnectTimeout = TimeSpan.FromSeconds(5);
+        // CDN auth tokens are dropped this long before they expire (Expiration is UTC), so they get renewed in time.
+        static readonly TimeSpan CDNAuthTokenExpiryMargin = TimeSpan.FromMinutes(1);
 
         // The callback handlers run on the callback pump thread while callers read these flags from other
         // threads (Steam.IsConnected, Connect(), the download code), hence the volatile backing fields.
@@ -362,25 +364,75 @@ namespace DepotDownloader
         public async Task RequestCDNAuthToken(uint appid, uint depotid, Server server)
         {
             var cdnKey = (depotid, server.Host);
-            var completion = new TaskCompletionSource<SteamContent.CDNAuthToken>();
+            var completion = new TaskCompletionSource<SteamContent.CDNAuthToken>(TaskCreationOptions.RunContinuationsAsynchronously);
 
             if (bAborted || !CDNAuthTokens.TryAdd(cdnKey, completion))
             {
                 return;
             }
 
-            DebugLog.WriteLine(nameof(Steam3Session), $"Requesting CDN auth token for {server.Host}");
-
-            var cdnAuth = await steamContent.GetCDNAuthToken(appid, depotid, server.Host);
-
-            Util.WriteLine($"Got CDN auth token for {server.Host} result: {cdnAuth.Result} (expires {cdnAuth.Expiration})");
-
-            if (cdnAuth.Result != EResult.OK)
+            SteamContent.CDNAuthToken token = null;
+            try
             {
-                return;
+                DebugLog.WriteLine(nameof(Steam3Session), $"Requesting CDN auth token for {server.Host}");
+
+                var cdnAuth = await steamContent.GetCDNAuthToken(appid, depotid, server.Host);
+
+                Util.WriteLine($"Got CDN auth token for {server.Host} result: {cdnAuth.Result} (expires {cdnAuth.Expiration})");
+
+                if (cdnAuth.Result == EResult.OK)
+                {
+                    token = cdnAuth;
+                }
+            }
+            catch (Exception ex)
+            {
+                // e.g. the connection dropped (the job is cancelled) or the request timed out
+                Util.WriteLine($"Failed to get CDN auth token for {server.Host}: {ex.Message}");
+            }
+            finally
+            {
+                // Download loops await this task, so it must always complete: a failed request used to leave it
+                // pending and hung the whole download forever. Failed entries are removed so a later 403 asks again.
+                if (token == null)
+                {
+                    CDNAuthTokens.TryRemove(KeyValuePair.Create(cdnKey, completion));
+                }
+
+                completion.TrySetResult(token);
+            }
+        }
+
+        /// <summary>
+        /// Returns the CDN auth token for this depot and host, or null when there is none, its request failed or did
+        /// not finish within <paramref name="timeout"/>, or it (nearly) expired. Unusable entries are removed so that
+        /// the next 403 requests a new token instead of reusing an expired one forever.
+        /// </summary>
+        public async Task<string> GetCDNAuthTokenAsync(uint depotid, string host, TimeSpan timeout, CancellationToken cancellationToken)
+        {
+            var cdnKey = (depotid, host);
+            if (!CDNAuthTokens.TryGetValue(cdnKey, out var completion))
+            {
+                return null;
             }
 
-            completion.TrySetResult(cdnAuth);
+            SteamContent.CDNAuthToken token;
+            try
+            {
+                token = await completion.Task.WaitAsync(timeout, cancellationToken).ConfigureAwait(false);
+            }
+            catch (TimeoutException)
+            {
+                token = null;
+            }
+
+            if (token != null && token.Expiration > DateTime.UtcNow + CDNAuthTokenExpiryMargin)
+            {
+                return token.Token;
+            }
+
+            CDNAuthTokens.TryRemove(KeyValuePair.Create(cdnKey, completion));
+            return null;
         }
 
         public async Task CheckAppBetaPassword(uint appid, string password)

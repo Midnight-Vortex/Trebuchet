@@ -36,6 +36,20 @@ namespace DepotDownloader
         public const string DEPOT_CONFIG = "depot.config";
         public const string STAGING_DIR = "staging";
 
+        // Manifest and chunk downloads give up after this many attempts instead of retrying forever.
+        private const int MaxDownloadAttempts = 8;
+        // A workshop download stops after this many mods failed in a row: the problem is then not the mod.
+        private const int MaxConsecutiveDepotFailures = 3;
+        private static readonly TimeSpan CDNAuthTokenTimeout = TimeSpan.FromSeconds(30);
+
+        // Exponential backoff between download attempts (0.5 s, 1 s, 2 s, ... at most 30 s), so that a CDN outage or
+        // a 429 is not hammered and the log is not flooded.
+        private static Task DelayBeforeRetryAsync(int retry, CancellationToken token)
+        {
+            var delayMs = Math.Min(30_000L, 500L << Math.Min(retry - 1, 16));
+            return Task.Delay(TimeSpan.FromMilliseconds(delayMs), token);
+        }
+
         private sealed class DepotDownloadInfo(
             uint depotid, uint appId, ulong manifestId, string branch,
             string installDir, byte[] depotKey, ulong publishedFileId = 0)
@@ -751,8 +765,19 @@ namespace DepotDownloader
                     ulong manifestRequestCode = 0;
                     var manifestRequestCodeExpiration = DateTime.MinValue;
 
-                    do
+                    for (var attempt = 1; newManifest == null; attempt++)
                     {
+                        if (attempt > MaxDownloadAttempts)
+                        {
+                            Util.WriteLine("Giving up on depot manifest {0} {1} after {2} attempts.", depot.DepotId, depot.ManifestId, MaxDownloadAttempts);
+                            break;
+                        }
+
+                        if (attempt > 1)
+                        {
+                            await DelayBeforeRetryAsync(attempt - 1, cts.Token);
+                        }
+
                         cts.Token.ThrowIfCancellationRequested();
 
                         Server connection = null;
@@ -761,12 +786,7 @@ namespace DepotDownloader
                         {
                             connection = cdnPool.GetConnection();
 
-                            string cdnToken = null;
-                            if (steam3.CDNAuthTokens.TryGetValue((depot.DepotId, connection.Host), out var authTokenCallbackPromise))
-                            {
-                                var result = await authTokenCallbackPromise.Task;
-                                cdnToken = result.Token;
-                            }
+                            var cdnToken = await steam3.GetCDNAuthTokenAsync(depot.DepotId, connection.Host, CDNAuthTokenTimeout, cts.Token);
 
                             var now = DateTime.Now;
 
@@ -782,10 +802,10 @@ namespace DepotDownloader
                                 // This code will hopefully be valid for one period following the issuing period
                                 manifestRequestCodeExpiration = now.Add(TimeSpan.FromMinutes(5));
 
-                                // If we could not get the manifest code, this is a fatal error
+                                // If we could not get the manifest code, this is a fatal error (handled after the loop)
                                 if (manifestRequestCode == 0)
                                 {
-                                    cts.Cancel();
+                                    break;
                                 }
                             }
 
@@ -805,7 +825,7 @@ namespace DepotDownloader
 
                             cdnPool.ReturnConnection(connection);
                         }
-                        catch (TaskCanceledException)
+                        catch (TaskCanceledException) when (!cts.IsCancellationRequested)
                         {
                             Util.WriteLine("Connection timeout downloading depot manifest {0} {1}. Retrying.", depot.DepotId, depot.ManifestId);
                         }
@@ -846,7 +866,7 @@ namespace DepotDownloader
                             cdnPool.ReturnBrokenConnection(connection);
                             Util.WriteLine("Encountered error downloading manifest for depot {0} {1}: {2}", depot.DepotId, depot.ManifestId, e.Message);
                         }
-                    } while (newManifest == null);
+                    }
 
                     if (newManifest == null)
                     {
@@ -1202,8 +1222,19 @@ namespace DepotDownloader
 
             try
             {
-                do
+                for (var attempt = 1; written == 0; attempt++)
                 {
+                    if (attempt > MaxDownloadAttempts)
+                    {
+                        Util.WriteLine("Giving up on chunk {0} after {1} attempts.", chunkID, MaxDownloadAttempts);
+                        break;
+                    }
+
+                    if (attempt > 1)
+                    {
+                        await DelayBeforeRetryAsync(attempt - 1, cts.Token);
+                    }
+
                     cts.Token.ThrowIfCancellationRequested();
 
                     Server connection = null;
@@ -1212,12 +1243,7 @@ namespace DepotDownloader
                     {
                         connection = cdnPool.GetConnection();
 
-                        string cdnToken = null;
-                        if (steam3.CDNAuthTokens.TryGetValue((depot.DepotId, connection.Host), out var authTokenCallbackPromise))
-                        {
-                            var result = await authTokenCallbackPromise.Task;
-                            cdnToken = result.Token;
-                        }
+                        var cdnToken = await steam3.GetCDNAuthTokenAsync(depot.DepotId, connection.Host, CDNAuthTokenTimeout, cts.Token);
 
                         DebugLog.WriteLine("ContentDownloader", "Downloading chunk {0} from {1} with {2}", chunkID, connection, cdnPool.ProxyServer != null ? cdnPool.ProxyServer : "no proxy");
                         written = await cdnPool.CDNClient.DownloadDepotChunkAsync(
@@ -1233,7 +1259,7 @@ namespace DepotDownloader
 
                         break;
                     }
-                    catch (TaskCanceledException)
+                    catch (TaskCanceledException) when (!cts.IsCancellationRequested)
                     {
                         Util.WriteLine("Connection timeout downloading chunk {0}", chunkID);
                         cdnPool.ReturnBrokenConnection(connection);
@@ -1271,7 +1297,7 @@ namespace DepotDownloader
                         cdnPool.ReturnBrokenConnection(connection);
                         Util.WriteLine("Encountered unexpected error downloading chunk {0}: {1}", chunkID, e.Message);
                     }
-                } while (written == 0);
+                }
 
                 if (written == 0)
                 {
