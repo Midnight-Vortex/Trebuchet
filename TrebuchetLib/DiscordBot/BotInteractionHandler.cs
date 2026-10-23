@@ -44,20 +44,18 @@ public sealed class BotInteractionHandler
     private readonly BotPendingActions _pending;
     private readonly BotAuditLog _audit;
     private readonly IBotSettings _settings;
-    private readonly IBotChannelClient? _channel;
     private readonly Func<DateTime> _clock;
     private readonly ILogger? _logger;
     private readonly BotPostponeBudget _budget = new();
 
     public BotInteractionHandler(IBotActions actions, BotGuard guard, BotPendingActions pending, BotAuditLog audit,
-        IBotSettings settings, IBotChannelClient? channel = null, Func<DateTime>? clock = null, ILogger? logger = null)
+        IBotSettings settings, Func<DateTime>? clock = null, ILogger? logger = null)
     {
         _actions = actions;
         _guard = guard;
         _pending = pending;
         _audit = audit;
         _settings = settings;
-        _channel = channel;
         _clock = clock ?? (() => DateTime.UtcNow);
         _logger = logger;
     }
@@ -134,7 +132,6 @@ public sealed class BotInteractionHandler
                 if (gate.LockedOutNow)
                 {
                     Audit(i, BotAuditResult.LockedOut, ask, "too many refused requests");
-                    await NoteAsync(policy, $"User {UserTag(i)} is locked out after repeated refused requests.").ConfigureAwait(false);
                 }
                 await AnswerAsync(responder, new BotReply(messages.NoPermission), ask.UpdateMessage).ConfigureAwait(false);
                 return;
@@ -191,10 +188,10 @@ public sealed class BotInteractionHandler
                 break;
             case BotCommand.RestartNow or BotCommand.Stop when i.Kind == BotInteractionKind.Button:
                 // The buttons of the status message ask for the warning time first, like the dialog in Trebuchet.
-                await AskDelayAsync(i, ask, allowedPolicy, messages, responder).ConfigureAwait(false);
+                await AskDelayAsync(i, ask, allowedPolicy, messages, responder, token).ConfigureAwait(false);
                 break;
             default:
-                await AskConfirmationAsync(i, ask, allowedPolicy, messages, responder).ConfigureAwait(false);
+                await AskConfirmationAsync(i, ask, allowedPolicy, messages, responder, token).ConfigureAwait(false);
                 break;
         }
     }
@@ -322,7 +319,7 @@ public sealed class BotInteractionHandler
         var embeds = statuses
             .Where(x => policy.IsManaged(x.Instance) && (ask.Instance is null || x.Instance == ask.Instance))
             .Take(MaxEmbeds)
-            .Select(x => BotStatusMessageBuilder.Build(policy.Named(x), texts, now))
+            .Select(x => BotStatusMessageBuilder.Build(x, texts, now))
             .ToList();
         await AnswerAsync(responder, new BotReply(embeds.Count == 0 ? messages.NoServers : messages.StatusTitle, embeds), false).ConfigureAwait(false);
         Audit(i, BotAuditResult.Executed, ask, $"{embeds.Count} servers");
@@ -355,7 +352,7 @@ public sealed class BotInteractionHandler
             new BotReply(messages.PostponePlaceholder, Question: new BotSelectQuestion(nonce, messages.PostponePlaceholder, choices)), false).ConfigureAwait(false);
     }
 
-    private async Task AskDelayAsync(BotInteraction i, Ask ask, BotPolicy policy, BotMessages messages, IBotResponder responder)
+    private async Task AskDelayAsync(BotInteraction i, Ask ask, BotPolicy policy, BotMessages messages, IBotResponder responder, CancellationToken token)
     {
         if (!TryInstance(ask, messages, out var error))
         {
@@ -369,7 +366,7 @@ public sealed class BotInteractionHandler
             .Select(m => new BotChoice(m == 0 ? messages.NowChoice : messages.FormatMinutes(m), m.ToString(CultureInfo.InvariantCulture)))
             .ToList();
         var text = string.Format(CultureInfo.InvariantCulture, command == BotCommand.RestartNow ? messages.AskRestartDelay : messages.AskStopDelay,
-            policy.ServerLabel(instance));
+            await ServerLabelAsync(instance, token).ConfigureAwait(false));
         await AnswerAsync(responder, new BotReply(text, Question: new BotSelectQuestion(nonce, messages.DelayPlaceholder, choices)), false).ConfigureAwait(false);
     }
 
@@ -386,7 +383,7 @@ public sealed class BotInteractionHandler
                 await AnswerAsync(responder, new BotReply(messages.InvalidInput), true).ConfigureAwait(false);
                 return;
             }
-            await AskConfirmationAsync(i, ask, policy, messages, responder, update: true, chosenDelay: delay).ConfigureAwait(false);
+            await AskConfirmationAsync(i, ask, policy, messages, responder, token, update: true, chosenDelay: delay).ConfigureAwait(false);
             return;
         }
         await PostponePickedAsync(i, ask, policy, messages, responder, token).ConfigureAwait(false);
@@ -406,7 +403,7 @@ public sealed class BotInteractionHandler
     }
 
     private async Task AskConfirmationAsync(BotInteraction i, Ask ask, BotPolicy policy, BotMessages messages, IBotResponder responder,
-        bool update = false, int? chosenDelay = null)
+        CancellationToken token, bool update = false, int? chosenDelay = null)
     {
         var command = ask.Command;
         if (!BotCommands.NeedsConfirmation(command))
@@ -446,7 +443,7 @@ public sealed class BotInteractionHandler
             return;
         }
 
-        var server = policy.ServerLabel(instance);
+        var server = instance >= 0 ? await ServerLabelAsync(instance, token).ConfigureAwait(false) : string.Empty;
         var warning = delayMinutes == 0 ? messages.Now : messages.FormatMinutes(delayMinutes);
         var text = command switch
         {
@@ -481,7 +478,6 @@ public sealed class BotInteractionHandler
                 }
                 await _settings.SetAdminChannelAsync(pending.ChannelId).ConfigureAwait(false);
                 Audit(i, BotAuditResult.Executed, ask, "admin channel set");
-                await NoteAsync(policy, $"Admin channel changed by user {UserTag(i)}.").ConfigureAwait(false);
                 await AnswerAsync(responder, new BotReply(messages.DoneChannel), true).ConfigureAwait(false);
                 await RefreshAsync(token).ConfigureAwait(false);
                 return;
@@ -570,12 +566,7 @@ public sealed class BotInteractionHandler
         // Refused (busy, not running, failed): nothing was postponed, so none of the budget is used.
         if (command == BotCommand.Postpone && !result.Success) _budget.Restore(instance, budgetBefore);
         Audit(i, result.Success ? BotAuditResult.Executed : BotAuditResult.Failed, ask, $"{result.Outcome} {result.Detail}".Trim());
-        if (result.Success && BotCommands.IsLimited(command))
-        {
-            var target = instance >= 0 ? $" server {instance.ToString(CultureInfo.InvariantCulture)}" : string.Empty;
-            await NoteAsync(policy, $"{command}{target} by user {UserTag(i)}.").ConfigureAwait(false);
-        }
-        var answer = ResultText(command, policy.ServerLabel(instance), minutes, result, messages);
+        var answer = ResultText(command, instance >= 0 ? await ServerLabelAsync(instance, token).ConfigureAwait(false) : string.Empty, minutes, result, messages);
         if (command == BotCommand.Postpone && result.Success && minutes < requestedMinutes)
             answer = string.Format(CultureInfo.InvariantCulture, messages.PostponedLimited, messages.FormatMinutes(minutes));
         await AnswerAsync(responder, new BotReply(answer), update).ConfigureAwait(false);
@@ -637,6 +628,29 @@ public sealed class BotInteractionHandler
 
     // ---- helpers
 
+    /// <summary>
+    /// How a server is named in the answers: the name of the server (the first field of its save), the name of the save
+    /// when that kept its default, the number when the launcher does not answer.
+    /// </summary>
+    private async Task<string> ServerLabelAsync(int instance, CancellationToken token)
+    {
+        var number = instance.ToString(CultureInfo.InvariantCulture);
+        try
+        {
+            var statuses = await _actions.GetStatusesAsync(token).ConfigureAwait(false);
+            var name = statuses.FirstOrDefault(x => x.Instance == instance)?.Name;
+            return string.IsNullOrWhiteSpace(name) || name == "-" ? number : name;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception)
+        {
+            return number;
+        }
+    }
+
     private async Task RefreshAsync(CancellationToken token)
     {
         var after = AfterAction;
@@ -661,22 +675,6 @@ public sealed class BotInteractionHandler
         catch (Exception ex)
         {
             _logger?.LogWarning(ex, "Writing the Discord audit log failed");
-        }
-    }
-
-    /// <summary>The user as a mention (mentions are off, so nobody is pinged) and the ID. Never the free text name: it could carry links.</summary>
-    private static string UserTag(BotInteraction i) => $"<@{i.UserId.ToString(CultureInfo.InvariantCulture)}> ({i.UserId.ToString(CultureInfo.InvariantCulture)})";
-
-    private async Task NoteAsync(BotPolicy? policy, string text)
-    {
-        if (_channel is null || policy is null || policy.AuditChannelId == 0) return;
-        try
-        {
-            await _channel.PostNoteAsync(policy.AuditChannelId, BotInputRules.SanitizeForLog(text)).WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
-        }
-        catch (Exception ex)
-        {
-            _logger?.LogWarning(ex, "Posting to the audit channel failed");
         }
     }
 

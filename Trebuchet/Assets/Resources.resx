@@ -2092,7 +2092,7 @@ of Server Saves and apply to every profile.
         <value>Audit channel</value>
     </data>
     <data name="DiscordBotAuditChannelText" xml:space="preserve">
-        <value>Optional channel ID. The bot reports critical actions and refused attempts there. Empty: none.</value>
+        <value>Optional channel ID. The bot writes everything it does there: every request with server, user and result, refused attempts, state changes of the servers and its own messages. Empty: none.</value>
     </data>
     <data name="DiscordBotAdminChannel" xml:space="preserve">
         <value>Admin channel</value>
@@ -2538,7 +2538,7 @@ In this channel the bot needs the permissions "View Channel", "Send Messages" an
     <data name="DiscordBotHelpStep7Text" xml:space="preserve">
         <value>Section "Connection": paste the token and save it, then enter the server ID. After saving, the token is never shown again.
 Section "Security": enter your user ID as "Super admin" (required, the entry cannot be removed). Enter the role ID under "Allowed roles". Add the IDs of other people under "Allowed users".
-Section "Servers": tick the servers the bot should manage and, if you like, give each one a name. The bot uses the name in its messages, otherwise it shows the server save. A server that is not ticked does not exist for the bot.
+Section "Servers": tick the servers the bot should manage. The bot shows each server under its "Server name", the first field of its server save (menu "Server Saves"). Change it there if you want another name. A server that is not ticked does not exist for the bot.
 Click "Save" at the top. If something is invalid or missing, the top shows in red exactly what, and nothing is saved.
 Optional: enter the ID of a channel as "Audit channel" where the bot reports critical actions and lock-outs.</value>
     </data>
@@ -2608,7 +2608,7 @@ The bot does not answer in the channel: is the admin channel set, and do you use
         <value>Servers</value>
     </data>
     <data name="DiscordBotServersText" xml:space="preserve">
-        <value>Choose which servers the bot manages and give them a name if you like. The bot shows it in its messages instead of the server save. A server that is not chosen does not appear in the bot at all, not even for the super admin.</value>
+        <value>Choose which servers the bot manages. The bot shows each server under its "Server name" (the first field of its server save), or under the name of the save when that was not changed. A server that is not chosen does not appear in the bot at all, not even for the super admin.</value>
     </data>
     <data name="DiscordBotServersEmpty" xml:space="preserve">
         <value>No servers set up yet.</value>
@@ -2618,8 +2618,5 @@ The bot does not answer in the channel: is the admin channel set, and do you use
     </data>
     <data name="DiscordBotServerManaged" xml:space="preserve">
         <value>Managed by the bot</value>
-    </data>
-    <data name="DiscordBotServerNameWatermark" xml:space="preserve">
-        <value>Name in the bot (empty: server save)</value>
     </data>
 </root>

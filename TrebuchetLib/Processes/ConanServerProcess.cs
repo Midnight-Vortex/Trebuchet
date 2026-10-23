@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using TrebuchetLib.DiscordBot;
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
@@ -104,6 +105,18 @@ internal sealed class ConanServerProcess : IConanServerProcess
     public ILogger? Logger { get; init; }
 
     public int Instance => Infos.Instance;
+
+    /// <summary>How the log names the server: "0", or "0 (Name of the server)" when its save has a name of its own.</summary>
+    private string Label
+    {
+        get
+        {
+            var title = BotInputRules.SanitizeForLog(Infos.Title);
+            return title.Length == 0 || string.Equals(title, ServerProfile.ServerNameDefault, StringComparison.Ordinal)
+                ? Instance.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                : $"{Instance} ({title})";
+        }
+    }
     public int Port => Infos.Port;
     public int QueryPort => Infos.QueryPort;
     public string RConPassword => Infos.RConPassword;
@@ -146,7 +159,7 @@ internal sealed class ConanServerProcess : IConanServerProcess
         {
             _lastResponse = DateTime.UtcNow;
             if (_hangReported)
-                Logger?.LogInformation("Server {Instance} responds again", Instance);
+                Logger?.LogInformation("Server {Server} responds again", Label);
             _hangReported = false;
         }
 
@@ -195,8 +208,8 @@ internal sealed class ConanServerProcess : IConanServerProcess
             // Without the kill a hung server keeps running: reporting it as crashed made Trebuchet start a second
             // server on the same save. It is only reported.
             if (!_hangReported)
-                Logger?.LogWarning("Server {Instance} does not respond for {Seconds} s, it is not killed (kill zombies is off)",
-                    Instance, ZombieCheckSeconds);
+                Logger?.LogWarning("Server {Server} does not respond for {Seconds} s, it is not killed (kill zombies is off)",
+                    Label, ZombieCheckSeconds);
             _hangReported = true;
             return;
         }
@@ -299,12 +312,12 @@ internal sealed class ConanServerProcess : IConanServerProcess
                 case 1:
                     if (!ConsoleControl.IsAvailable) continue;
                     // Logged before it is sent: if anything about this step ever goes wrong, the log shows where.
-                    Logger?.LogInformation("Stopping server {Instance}: sending Ctrl+C to its console", Instance);
+                    Logger?.LogInformation("Stopping server {Server}: sending Ctrl+C to its console", Label);
                     _ = SendCtrlCAsync();
                     return;
                 case 2:
                     if (RCon is null) continue;
-                    Logger?.LogInformation("Stopping server {Instance}: RCon shutdown sent", Instance);
+                    Logger?.LogInformation("Stopping server {Server}: RCon shutdown sent", Label);
                     _ = SendRConShutdown(RCon);
                     return;
                 case 3:
@@ -313,11 +326,11 @@ internal sealed class ConanServerProcess : IConanServerProcess
                         closed = !_disposed && Process.TryCloseMainWindow();
                     // Console servers have no main window: nothing was sent.
                     if (!closed) continue;
-                    Logger?.LogInformation("Stopping server {Instance}: window close sent", Instance);
+                    Logger?.LogInformation("Stopping server {Server}: window close sent", Label);
                     return;
                 default:
                     _shutdownStep = ShutdownStepKill;
-                    Logger?.LogWarning("Stopping server {Instance}: it did not exit, killing it", Instance);
+                    Logger?.LogWarning("Stopping server {Server}: it did not exit, killing it", Label);
                     KillProcess();
                     return;
             }
@@ -334,15 +347,15 @@ internal sealed class ConanServerProcess : IConanServerProcess
         }
         catch (Exception ex)
         {
-            Logger?.LogWarning(ex, "Ctrl+C for server {Instance} failed", Instance);
+            Logger?.LogWarning(ex, "Ctrl+C for server {Server} failed", Label);
         }
         if (sent)
         {
-            Logger?.LogInformation("Stopping server {Instance}: Ctrl+C delivered", Instance);
+            Logger?.LogInformation("Stopping server {Server}: Ctrl+C delivered", Label);
             return;
         }
         // Not delivered: the next refresh goes on with the next way instead of waiting.
-        Logger?.LogInformation("Stopping server {Instance}: Ctrl+C could not be delivered, trying the next way", Instance);
+        Logger?.LogInformation("Stopping server {Server}: Ctrl+C could not be delivered, trying the next way", Label);
         _shutdownStepFailed = true;
     }
 
@@ -352,11 +365,11 @@ internal sealed class ConanServerProcess : IConanServerProcess
         {
             var response = await rcon.Send(@"shutdown", CancellationToken.None);
             if (response.Exception is null) return;
-            Logger?.LogWarning(response.Exception, "RCon shutdown of server {Instance} failed", Instance);
+            Logger?.LogWarning(response.Exception, "RCon shutdown of server {Server} failed", Label);
         }
         catch (Exception ex)
         {
-            Logger?.LogWarning(ex, "RCon shutdown of server {Instance} failed", Instance);
+            Logger?.LogWarning(ex, "RCon shutdown of server {Server} failed", Label);
         }
         // Not delivered: the next refresh goes on with the next way instead of waiting.
         _shutdownStepFailed = true;

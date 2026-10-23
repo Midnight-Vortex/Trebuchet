@@ -183,7 +183,12 @@ Zeit, User-ID, Anzeigename (nur zur Info), Server-/Kanal-ID, Befehl, Parameter, 
 
 - Datei `discord-bot-audit-<Monat>.log` im Logordner, nur anhängen, nie mit Token.
 - Letzte 200 Einträge im Panel.
-- Optional: Audit-Kanal (Kanal-ID), in den der Bot kritische Aktionen und Ablehnungen meldet.
+- Optional: Audit-Kanal (Kanal-ID). Der Bot schreibt dort **alles**, was er tut (jeden Eintrag des Protokolls, Zustandswechsel der
+  Server, Verbindung/Fehler), eine Zeile je Ereignis, in Abständen (Warteschlange mit 100 Zeilen, die ältesten fallen weg), ohne
+  den genauen Ablehnungsgrund und nur mit User-Erwähnung und ID statt freier Namen (`BotAuditChannelFeed`).
+- Servername: kommt aus dem Server-Speicherstand (Feld „Servername“, `ServerProfile.ServerName`), nicht aus den Bot-Einstellungen;
+  unverändert (Standardname) gilt der Name des Speicherstands. Bereinigt (`BotInputRules.SanitizeName`) im Bot, im Log nur
+  ohne Steuerzeichen (`SanitizeForLog`).
 
 ---
 

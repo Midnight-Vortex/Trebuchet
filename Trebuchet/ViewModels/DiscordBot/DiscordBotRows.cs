@@ -57,17 +57,15 @@ public sealed class AuditEntryRow(BotAuditEntry entry)
 }
 
 /// <summary>
-/// A server instance in the list of servers: whether the bot manages it and the name it uses for it in its messages.
-/// The values live in the editor; setting one marks the settings as edited.
+/// A server instance in the list of servers: whether the bot manages it. The name the bot shows is the one of the save
+/// the instance runs (field "Server name" of the server save), it is not set here. The value lives in the editor;
+/// setting it marks the settings as edited.
 /// </summary>
 public sealed class BotInstanceRow(int instance, DiscordBotSettingsEditor editor, int instanceCount, bool canEdit, Action edited) : ReactiveObject
 {
     public int Instance { get; } = instance;
     public bool CanEdit { get; } = canEdit;
     public string Title => string.Format(CultureInfo.CurrentCulture, Resources.DiscordBotServerInstance, Instance);
-    public string Watermark => Resources.DiscordBotServerNameWatermark;
-    public int MaxNameLength => BotInputRules.MaxNameLength;
-
     public bool IsManaged
     {
         get => editor.IsInstanceManaged(Instance);
@@ -75,18 +73,6 @@ public sealed class BotInstanceRow(int instance, DiscordBotSettingsEditor editor
         {
             if (!CanEdit || value == editor.IsInstanceManaged(Instance)) return;
             editor.SetInstanceManaged(Instance, value, instanceCount);
-            this.RaisePropertyChanged();
-            edited();
-        }
-    }
-
-    public string Name
-    {
-        get => editor.GetInstanceName(Instance);
-        set
-        {
-            if (!CanEdit || (value ?? string.Empty).Trim() == editor.GetInstanceName(Instance)) return;
-            editor.SetInstanceName(Instance, value);
             this.RaisePropertyChanged();
             edited();
         }

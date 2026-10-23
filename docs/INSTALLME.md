@@ -56,10 +56,16 @@ Die Rolle `@everyone` ist **nicht erlaubt** (jeder hat sie), Trebuchet lehnt sie
 3. **Super-Admin:** deine User-ID. Sie ist Pflicht und lässt sich nicht entfernen.
 4. **Erlaubte Rollen:** die Rollen-ID.
 5. **Erlaubte User:** die User-IDs weiterer Personen.
-6. **Server:** wähle, welche Server der Bot verwaltet, und gib ihnen auf Wunsch einen **Namen**. Den Namen benutzt der
-   Bot in seinen Meldungen (sonst steht dort der Speicherstand). Ein Server, der nicht angehakt ist, kommt im Bot nicht vor.
-7. **Sicherheit prüfen** drücken. Alle Punkte müssen grün sein.
-8. **Starten**.
+6. **Server:** wähle, welche Server der Bot verwaltet. Ein Server, der nicht angehakt ist, kommt im Bot nicht vor.
+   Den **Namen** stellst du nicht im Bot ein, sondern im **Server-Speicherstand** (erstes Feld „Servername“). Diesen Namen
+   benutzen der Bot (Status, Antworten, Rückfragen), das Protokoll von Trebuchet und der Audit-Kanal. Ist dort nichts
+   geändert, steht der Name des Speicherstands da.
+7. **Audit-Kanal** (optional): trag die ID eines Kanals ein. Dorthin schreibt der Bot **alles, was er tut**: jede Anfrage
+   mit Server, Nutzer und Ergebnis, abgelehnte Versuche, Zustandswechsel der Server („Server Haupt (Instanz 0): Online ->
+   Stoppt“) und seine eigenen Meldungen. Der Grund einer Ablehnung steht nur im Protokoll auf dem Rechner. Nimm einen
+   eigenen Kanal, im Admin-Kanal würden die vielen Zeilen die Status-Meldungen verdrängen.
+8. **Sicherheit prüfen** drücken. Alle Punkte müssen grün sein.
+9. **Starten**.
 
 Der **Super-Admin hat immer alle Rechte**: unter *Befehle* musst du für ihn nichts einschalten. Die Schalter dort gelten
 nur für die anderen Nutzer in der Liste.
@@ -108,7 +114,7 @@ einschaltest; ohne Recht klicken sie ins Leere („Keine Berechtigung“). Start
 - Rechte (User, Rollen, Befehle) änderst du **nur im Launcher**, nie über Discord.
 - Kein RCon, keine Skripte, keine Dateien: der Bot kann nur die Aktionen der Liste.
 - Zu schnelle oder abgelehnte Versuche werden gebremst und gesperrt. Alles steht im Protokoll
-  (`discord-bot-audit-<Jahr><Monat>.log` im Logordner von Trebuchet).
+  (`discord-bot-audit-<Jahr><Monat>.log` im Logordner von Trebuchet), auf Wunsch auch im Audit-Kanal.
 - Der Token liegt verschlüsselt, nicht in Einstellungen, Logs, Exporten oder Crash-Berichten.
 - Ein Token darf nur von **einem** Trebuchet gleichzeitig benutzt werden.
 

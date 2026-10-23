@@ -37,6 +37,7 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
     private readonly SemaphoreSlim _inFlight = new(MaxInteractionsInFlight, MaxInteractionsInFlight);
     private readonly object _stateLock = new();
 
+    private readonly BotAuditChannelFeed _feed;
     private volatile BotInteractionHandler? _handler;
     private volatile BotStatusBoard? _board;
     private CancellationTokenSource? _startCancel;
@@ -66,6 +67,9 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
         _logger = loggerFactory.CreateLogger<DiscordBotService>();
         _channel = new DiscordNetChannelClient(new SocketChannelTransport(() => CurrentSession?.Client), () => VerifiedGuildId, _logger);
         _actions.StatusChanged += OnServerStatusChanged;
+        // Everything the bot does goes to the audit channel (when one is set): the audit entries and what the board notices.
+        _feed = new BotAuditChannelFeed(_audit, _channel, () => Policy, instance => _board?.NameOf(instance), _logger);
+        _feed.Start();
     }
 
     // A server started, went online, is stopping, stopped or crashed (or a countdown began): look at it now. Runs on
@@ -187,7 +191,7 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
         try
         {
             // An action (or the channel command) changed something: show it soon. Refused requests do not wake the loop.
-            _handler ??= new BotInteractionHandler(_actions, _guard, _pending, _audit, this, _channel, logger: _logger)
+            _handler ??= new BotInteractionHandler(_actions, _guard, _pending, _audit, this, logger: _logger)
             {
                 AfterAction = _ =>
                 {
@@ -195,7 +199,7 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
                     return Task.CompletedTask;
                 }
             };
-            _board ??= new BotStatusBoard(_actions, _channel, this, logger: _logger);
+            _board ??= new BotStatusBoard(_actions, _channel, this, logger: _logger) { Notes = _feed.Post };
             session = new Session(new DiscordSocketClient(CreateClientConfig()), tokenLock, guildId);
         }
         catch (Exception)
@@ -293,6 +297,7 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
         }
         _actions.StatusChanged -= OnServerStatusChanged;
         await StopAsync().ConfigureAwait(false);
+        _feed.Dispose();
     }
 
     /// <summary>Ends a connection that must not go on (the server is missing): fail closed.</summary>
@@ -933,6 +938,8 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
     private void Apply(Session? session, BotConnectionEvent e)
     {
         bool changed;
+        DiscordBotState announcedState;
+        DiscordBotProblem announcedProblem;
         lock (_stateLock)
         {
             if (session is not null && !ReferenceEquals(_session, session)) return;
@@ -946,8 +953,17 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
             if (state != DiscordBotState.Connected) _connectedSinceUtc = null;
             _state = state;
             _problem = problem;
+            (announcedState, announcedProblem) = (state, problem);
         }
-        if (changed) RaiseStateChanged();
+        if (changed)
+        {
+            // The audit channel hears of it: connected again, or what is wrong (it can only be told once connected).
+            if (announcedState == DiscordBotState.Connected && announcedProblem == DiscordBotProblem.None)
+                _feed.Post("Discord bot connected.");
+            else if (announcedState == DiscordBotState.Error)
+                _feed.Post($"Discord bot problem: {announcedProblem}");
+            RaiseStateChanged();
+        }
     }
 
     private void RaiseStateChanged()

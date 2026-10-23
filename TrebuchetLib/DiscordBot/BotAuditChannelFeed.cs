@@ -1,0 +1,179 @@
+using System.Globalization;
+using System.Text.RegularExpressions;
+using System.Threading.Channels;
+using Microsoft.Extensions.Logging;
+
+namespace TrebuchetLib.DiscordBot;
+
+/// <summary>
+/// Tells the audit channel (if one is set) everything the bot does: each request that was asked, done, refused, slowed
+/// down or cancelled, who asked and for which server, and what the bot noticed itself (a server that went down, the bot
+/// that connected or lost Discord). Texts are queued and sent one by one with a pause between them, so a burst stays
+/// under the limits of Discord, and what cannot be sent (no connection) is dropped: it is in the audit log anyway. The
+/// exact reason of a refusal stays in the log file, as for the user who was refused. No token and no free text from
+/// Discord can get in: names and texts come cleaned from the audit log.
+/// </summary>
+public sealed partial class BotAuditChannelFeed : IDisposable
+{
+    /// <summary>More than this waiting at once: the oldest are dropped.</summary>
+    public const int QueueLimit = 100;
+    public static readonly TimeSpan DefaultSpacing = TimeSpan.FromMilliseconds(1200);
+    private static readonly TimeSpan PostTimeout = TimeSpan.FromSeconds(10);
+
+    private readonly BotAuditLog _audit;
+    private readonly IBotChannelClient _channel;
+    private readonly Func<BotPolicy?> _policy;
+    private readonly Func<int, string?> _serverName;
+    private readonly ILogger? _logger;
+    private readonly Channel<string> _queue;
+    private readonly CancellationTokenSource _cancel = new();
+    private Task? _sender;
+    private int _disposed;
+    private int _unsent;
+
+    public BotAuditChannelFeed(BotAuditLog audit, IBotChannelClient channel, Func<BotPolicy?> policy, Func<int, string?> serverName,
+        ILogger? logger = null)
+    {
+        _queue = Channel.CreateBounded<string>(
+            new BoundedChannelOptions(QueueLimit) { FullMode = BoundedChannelFullMode.DropOldest, SingleReader = true },
+            _ => Interlocked.Decrement(ref _unsent));
+        _audit = audit;
+        _channel = channel;
+        _policy = policy;
+        _serverName = serverName;
+        _logger = logger;
+    }
+
+    /// <summary>Pause between two messages.</summary>
+    public TimeSpan Spacing { get; init; } = DefaultSpacing;
+
+    public void Start()
+    {
+        if (_sender is not null) return;
+        _audit.EntryWritten += OnEntry;
+        _sender = Task.Run(SendAsync);
+    }
+
+    /// <summary>A line of the bot itself (server state, connection). Dropped at once when there is no audit channel.</summary>
+    public void Post(string text)
+    {
+        try
+        {
+            if (Volatile.Read(ref _disposed) != 0) return;
+            var policy = _policy();
+            if (policy is null || policy.AuditChannelId == 0) return;
+            var clean = BotInputRules.SanitizeForLog(text);
+            if (clean.Length == 0) return;
+            Interlocked.Increment(ref _unsent);
+            if (!_queue.Writer.TryWrite(clean)) Interlocked.Decrement(ref _unsent);
+        }
+        catch (Exception)
+        {
+            // A note is never worth an error in the bot.
+        }
+    }
+
+    private void OnEntry(object? sender, BotAuditEntry entry) => Post(Format(entry));
+
+    /// <summary>One line for the channel: result, command, server by name, parameters, who, outcome.</summary>
+    public string Format(BotAuditEntry entry)
+    {
+        var inv = CultureInfo.InvariantCulture;
+        var result = entry.Result switch
+        {
+            BotAuditResult.Allowed => "Asked",
+            BotAuditResult.Executed => "Done",
+            BotAuditResult.Failed => "Failed",
+            BotAuditResult.Denied => "Refused",
+            BotAuditResult.Throttled => "Slowed down",
+            BotAuditResult.LockedOut => "Locked out",
+            BotAuditResult.Cancelled => "Cancelled",
+            _ => entry.Result.ToString()
+        };
+        var parts = new List<string> { entry.Command?.ToString() ?? "unknown request" };
+        var match = InstancePattern().Match(entry.Parameters);
+        if (match.Success && int.TryParse(match.Groups[1].Value, NumberStyles.None, inv, out var instance))
+        {
+            var name = _serverName(instance);
+            parts.Add(string.IsNullOrWhiteSpace(name) ? $"server {instance}" : $"server {name} (instance {instance})");
+        }
+        var rest = InstancePattern().Replace(entry.Parameters, string.Empty).Trim();
+        var text = $"{result}: {string.Join(" · ", parts)} by <@{entry.UserId.ToString(inv)}> ({entry.UserId.ToString(inv)})";
+        if (rest.Length > 0) text += $" [{rest}]";
+        // The exact reason of a refusal is for the log file only.
+        if (entry.Result != BotAuditResult.Denied && entry.Detail.Length > 0) text += $": {entry.Detail}";
+        return text;
+    }
+
+    /// <summary>Waits until everything queued so far was sent or dropped (the tests, and the end of the bot).</summary>
+    public async Task<bool> FlushAsync(TimeSpan timeout)
+    {
+        var end = DateTime.UtcNow + timeout;
+        while (Volatile.Read(ref _unsent) > 0)
+        {
+            if (DateTime.UtcNow > end) return false;
+            await Task.Delay(5).ConfigureAwait(false);
+        }
+        return true;
+    }
+
+    private async Task SendAsync()
+    {
+        var token = _cancel.Token;
+        try
+        {
+            while (await _queue.Reader.WaitToReadAsync(token).ConfigureAwait(false))
+            {
+                while (_queue.Reader.TryRead(out var text))
+                {
+                    await PostAsync(text, token).ConfigureAwait(false);
+                    Interlocked.Decrement(ref _unsent);
+                    if (Spacing > TimeSpan.Zero) await Task.Delay(Spacing, token).ConfigureAwait(false);
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "The audit channel feed stopped");
+        }
+    }
+
+    private async Task PostAsync(string text, CancellationToken token)
+    {
+        try
+        {
+            var policy = _policy();
+            if (policy is null || policy.AuditChannelId == 0) return;
+            await _channel.PostNoteAsync(policy.AuditChannelId, text).WaitAsync(PostTimeout, token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            // No connection, no permission: dropped, the audit log has it.
+            _logger?.LogDebug(ex, "Posting to the audit channel failed");
+        }
+    }
+
+    public void Dispose()
+    {
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        _audit.EntryWritten -= OnEntry;
+        _queue.Writer.TryComplete();
+        try
+        {
+            _cancel.Cancel();
+        }
+        catch (ObjectDisposedException)
+        {
+        }
+    }
+
+    [GeneratedRegex(@"\binstance=(\d{1,3})\b")]
+    private static partial Regex InstancePattern();
+}

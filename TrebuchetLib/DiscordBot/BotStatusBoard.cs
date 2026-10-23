@@ -18,6 +18,7 @@ public sealed class BotStatusBoard
         public DateTime LastWriteUtc;
         public int Failures;
         public DateTime RetryAfterUtc;
+        public BotServerState? LastState;
     }
 
     private readonly IBotActions _actions;
@@ -39,6 +40,14 @@ public sealed class BotStatusBoard
         _clock = clock ?? (() => DateTime.UtcNow);
         _logger = logger;
     }
+
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<int, string> _names = new();
+
+    /// <summary>The name the board shows for a server (the last one it read), null while it has not seen it.</summary>
+    public string? NameOf(int instance) => _names.TryGetValue(instance, out var name) ? name : null;
+
+    /// <summary>A line about something the board noticed: a server changed its state. Called on the thread of the refresh.</summary>
+    public Action<string>? Notes { get; init; }
 
     /// <summary>Shortest time between two edits of the same message (Discord limits edits).</summary>
     public TimeSpan MinEditInterval { get; init; } = TimeSpan.FromSeconds(5);
@@ -95,7 +104,8 @@ public sealed class BotStatusBoard
             foreach (var status in statuses.Where(x => policy.IsManaged(x.Instance)).Take(25))
             {
                 token.ThrowIfCancellationRequested();
-                var due = await RefreshOneAsync(policy.Named(status), texts, channelId, now, force).ConfigureAwait(false);
+                _names[status.Instance] = status.Name;
+                var due = await RefreshOneAsync(status, texts, channelId, now, force).ConfigureAwait(false);
                 if (due < next) next = due;
             }
             var retired = await RetireUnmanagedAsync(policy, texts, channelId, now).ConfigureAwait(false);
@@ -128,6 +138,10 @@ public sealed class BotStatusBoard
             var signature = Signature(message);
             if (!_entries.TryGetValue(status.Instance, out var entry))
                 _entries[status.Instance] = entry = new Entry();
+            // A state that changed since the last look is told once, with the name of the server.
+            if (entry.LastState is { } before && before != status.State)
+                Notes?.Invoke($"Server {status.Name} (instance {status.Instance}): {before} -> {status.State}");
+            entry.LastState = status.State;
             // A server that is starting or stopping is read more often, a calm one every few minutes.
             var calm = status.State is BotServerState.Starting or BotServerState.Stopping ? BusyInterval : HeartbeatInterval;
 

@@ -2084,7 +2084,7 @@ unten in den Server-Speicherständen und gelten für jedes Profil.
         <value>Audit-Kanal</value>
     </data>
     <data name="DiscordBotAuditChannelText" xml:space="preserve">
-        <value>Optionale Kanal-ID. Dorthin meldet der Bot kritische Aktionen und abgelehnte Versuche. Leer: keiner.</value>
+        <value>Optionale Kanal-ID. Dorthin schreibt der Bot alles, was er tut: jede Anfrage mit Server, Nutzer und Ergebnis, abgelehnte Versuche, Zustandswechsel der Server und seine eigenen Meldungen. Leer: keiner.</value>
     </data>
     <data name="DiscordBotAdminChannel" xml:space="preserve">
         <value>Admin-Kanal</value>
@@ -2530,7 +2530,7 @@ Der Bot braucht in diesem Kanal die Rechte „Kanal ansehen“, „Nachrichten s
     <data name="DiscordBotHelpStep7Text" xml:space="preserve">
         <value>Abschnitt „Verbindung“: Token einfügen und speichern, dann die Server-ID eintragen. Der Token wird nach dem Speichern nie mehr angezeigt.
 Abschnitt „Sicherheit“: bei „Super-Admin“ deine Benutzer-ID eintragen (Pflicht, der Eintrag kann nicht entfernt werden). Bei „Erlaubte Rollen“ die Rollen-ID eintragen. Bei „Erlaubte Nutzer“ die IDs weiterer Personen hinzufügen.
-Abschnitt „Server“: hake die Server an, die der Bot verwalten soll, und gib ihnen auf Wunsch einen Namen. Den Namen benutzt der Bot in seinen Meldungen, sonst zeigt er den Speicherstand. Ein Server, der nicht angehakt ist, existiert für den Bot nicht.
+Abschnitt „Server“: hake die Server an, die der Bot verwalten soll. Der Bot zeigt jeden Server unter seinem „Servernamen“, dem ersten Feld seines Server-Speicherstands (Menü „Server-Speicherstände“). Ändere ihn dort, wenn du einen anderen Namen willst. Ein Server, der nicht angehakt ist, existiert für den Bot nicht.
 Oben auf „Speichern“ klicken. Ist etwas ungültig oder fehlt etwas, steht oben in Rot genau was, und es wird nichts gespeichert.
 Optional: bei „Audit-Kanal“ die ID eines Kanals eintragen, in den der Bot kritische Aktionen und Sperren meldet.</value>
     </data>
@@ -2600,7 +2600,7 @@ Bei „Token bereits in Verwendung“ läuft ein Bot mit demselben Token schon i
         <value>Server</value>
     </data>
     <data name="DiscordBotServersText" xml:space="preserve">
-        <value>Wähle, welche Server der Bot verwaltet, und gib ihnen auf Wunsch einen Namen. Der Bot zeigt ihn in seinen Meldungen statt des Server-Speicherstands. Ein Server, der nicht ausgewählt ist, taucht im Bot nirgends auf, auch nicht für den Super-Admin.</value>
+        <value>Wähle, welche Server der Bot verwaltet. Der Bot zeigt jeden Server unter seinem „Servernamen“ (das erste Feld seines Server-Speicherstands), oder unter dem Namen des Speicherstands, wenn der nicht geändert wurde. Ein Server, der nicht ausgewählt ist, taucht im Bot nirgends auf, auch nicht für den Super-Admin.</value>
     </data>
     <data name="DiscordBotServersEmpty" xml:space="preserve">
         <value>Es sind noch keine Server eingerichtet.</value>
@@ -2610,8 +2610,5 @@ Bei „Token bereits in Verwendung“ läuft ein Bot mit demselben Token schon i
     </data>
     <data name="DiscordBotServerManaged" xml:space="preserve">
         <value>Vom Bot verwalten</value>
-    </data>
-    <data name="DiscordBotServerNameWatermark" xml:space="preserve">
-        <value>Name im Bot (leer: Speicherstand)</value>
     </data>
 </root>

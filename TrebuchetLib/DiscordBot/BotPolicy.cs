@@ -49,11 +49,6 @@ public sealed class BotPolicy
         // Only instances a Discord option or button can name; everything else is left out (never more than was chosen).
         ManagedInstances = config.ManagedInstances?
             .Where(x => x >= 0 && x <= BotInputRules.MaxInstance).ToFrozenSet();
-        InstanceNames = config.InstanceNames
-            .Where(x => x.Key >= 0 && x.Key <= BotInputRules.MaxInstance)
-            .Select(x => (x.Key, Name: BotInputRules.SanitizeName(x.Value)))
-            .Where(x => x.Name.Length > 0)
-            .ToFrozenDictionary(x => x.Key, x => x.Name);
     }
 
     public ulong GuildId { get; }
@@ -77,20 +72,10 @@ public sealed class BotPolicy
     public string Language { get; }
     /// <summary>The instances the bot manages, null: all of them.</summary>
     public IReadOnlySet<int>? ManagedInstances { get; }
-    /// <summary>Cleaned names of server instances for the messages.</summary>
-    public IReadOnlyDictionary<int, string> InstanceNames { get; }
 
     public bool IsCommandEnabled(BotCommand command) => EnabledCommands.Contains(command);
 
     public bool IsManaged(int instance) => ManagedInstances is null || ManagedInstances.Contains(instance);
-
-    /// <summary>The name of the instance in messages: the chosen name, else its number.</summary>
-    public string ServerLabel(int instance) =>
-        InstanceNames.TryGetValue(instance, out var name) ? name : instance.ToString(System.Globalization.CultureInfo.InvariantCulture);
-
-    /// <summary>The status with the chosen name of its instance instead of the save name.</summary>
-    public BotServerStatus Named(BotServerStatus status) =>
-        InstanceNames.TryGetValue(status.Instance, out var name) ? status with { Name = name } : status;
 
     public static BotPolicyResult Create(DiscordBotConfig? config)
     {

@@ -218,7 +218,8 @@ public sealed class LauncherBotActions : IBotActions, IDisposable
             : (BotPendingAction.None, null);
         return new BotServerStatus(
             status.Instance,
-            SafeName(status.SaveName),
+            // The name of the server (first field of its save), the name of the save while that keeps its default.
+            DisplayName(status),
             state,
             online ? Math.Max(0, status.Players) : 0,
             online ? Math.Max(0, status.MaxPlayers) : 0,
@@ -257,6 +258,12 @@ public sealed class LauncherBotActions : IBotActions, IDisposable
         if (status.NextScheduledRestartUtc is { } next && next - utcNow <= ScheduledRestartLookAhead)
             return (BotPendingAction.Restart, next);
         return (BotPendingAction.None, null);
+    }
+
+    private static string DisplayName(LauncherServerStatus status)
+    {
+        var name = BotInputRules.SanitizeName(status.ServerName);
+        return name.Length > 0 ? name : SafeName(status.SaveName);
     }
 
     // A save name is a folder name. Defensive anyway: never a path, one clean line.
@@ -302,12 +309,14 @@ public sealed class LauncherBotActions : IBotActions, IDisposable
         if (instance is { } checkedInstance && (checkedInstance < 0 || checkedInstance >= InstanceCount))
             return Report(action, shown, parameters, Fail("invalid instance"));
 
+        var serverName = string.Empty;
         var run = await DispatchAsync(action, async t =>
         {
             var all = _launcher.GetServerStatuses();
             // The settings may have changed while the work waited for the launcher thread.
             var status = instance is { } i ? all.FirstOrDefault(x => x.Instance == i) : null;
             if (instance is not null && status is null) return Fail("invalid instance");
+            if (status is not null) serverName = DisplayName(status);
             return await act(status ?? new LauncherServerStatus { Instance = -1, SaveName = string.Empty }, all, t);
         }, token);
 
@@ -318,7 +327,7 @@ public sealed class LauncherBotActions : IBotActions, IDisposable
             DispatchEnd.TimedOut => Fail("the launcher did not answer"),
             _ => Fail("error")
         };
-        return Report(action, shown, parameters, result);
+        return Report(action, shown, parameters, result, serverName);
     }
 
     /// <summary>
@@ -363,11 +372,13 @@ public sealed class LauncherBotActions : IBotActions, IDisposable
 
     private static BotActionResult Fail(string detail) => new(BotActionOutcome.Failed, detail);
 
-    private BotActionResult Report(string action, int instance, string parameters, BotActionResult result)
+    private BotActionResult Report(string action, int instance, string parameters, BotActionResult result, string serverName = "")
     {
+        // "0 (Name of the server)": the log names the server, not only its number.
+        var server = instance < 0 ? "-" : serverName.Length > 0 ? $"{instance} ({serverName})" : instance.ToString(System.Globalization.CultureInfo.InvariantCulture);
         _logger.Log(result.Outcome == BotActionOutcome.Failed ? LogLevel.Warning : LogLevel.Information,
-            "Discord bot: {Action} instance {Instance} {Parameters}: {Outcome} {Detail}",
-            action, instance, parameters, result.Outcome, result.Detail);
+            "Discord bot: {Action} server {Server} {Parameters}: {Outcome} {Detail}",
+            action, server, parameters, result.Outcome, result.Detail);
         return result;
     }
 

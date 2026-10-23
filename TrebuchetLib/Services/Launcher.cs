@@ -4,6 +4,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using tot_lib;
 using tot_lib.OsSpecific;
+using TrebuchetLib.DiscordBot;
 using TrebuchetLib.OsSpecific;
 using TrebuchetLib.Processes;
 using TrebuchetLib.Sequences;
@@ -310,7 +311,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to start server {Instance}", instance);
+            _logger.LogError(ex, "Failed to start server {Server}", GetInstanceLabel(instance));
         }
         finally
         {
@@ -324,7 +325,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to retry the start of server {Instance}", instance);
+            _logger.LogError(ex, "Failed to retry the start of server {Server}", GetInstanceLabel(instance));
         }
     }
 
@@ -345,7 +346,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             return;
         }
 
-        _logger.LogWarning("Server {Instance} did not start, next try in {Seconds} s", instance, StartRetryDelay.TotalSeconds);
+        _logger.LogWarning("Server {Server} did not start, next try in {Seconds} s", GetInstanceLabel(instance), StartRetryDelay.TotalSeconds);
         await Task.Delay(StartRetryDelay);
         if (_serverProcesses.ContainsKey(instance) || _launchingInstances.Contains(instance) || StoppedByUser()) return;
         CatapultServerInBackground(instance);
@@ -407,7 +408,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             process.StartInfo.WorkingDirectory,
             instance);
         process.Start();
-        _logger.LogInformation("Server parent process started PID={Pid} (instance {Instance})", process.Id, instance);
+        _logger.LogInformation("Server parent process started PID={Pid} (server {Server})", process.Id, GetInstanceLabel(instance));
 
         var childProcess = await CatchServerChildProcess(process, instance);
         if (childProcess == null)
@@ -442,7 +443,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     /// <param name="reason">Reason for the messages, null for the manual shutdown reason of the settings.</param>
     public async Task CloseServer(int instance, string? reason = null)
     {
-        _logger.LogInformation($"Close Server {instance}");
+        _logger.LogInformation("Close server {Server}", GetInstanceLabel(instance));
         _manualStopsUtc[instance] = DateTime.UtcNow;
         if (_serverProcesses.TryGetValue(instance, out var watcher))
         {
@@ -501,9 +502,9 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     {
         // The reason shows in the log why a server restarted (schedule, server update, mod update, ...).
         if (string.IsNullOrEmpty(_lastRestartReason))
-            _logger.LogInformation("Restarting Server {Instance}", instance);
+            _logger.LogInformation("Restarting server {Server}", GetInstanceLabel(instance));
         else
-            _logger.LogInformation("Restarting Server {Instance}, reason: {Reason}", instance, _lastRestartReason);
+            _logger.LogInformation("Restarting server {Server}, reason: {Reason}", GetInstanceLabel(instance), _lastRestartReason);
         if (_serverProcesses.TryGetValue(instance, out var watcher))
         {
             var uri = _setup.Config.GetInstanceProfile(instance);
@@ -542,8 +543,8 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
 
     private async Task NotifyCrashLoop(int instance, ServerProfile profile)
     {
-        _logger.LogError("Server instance {Instance} crashed {Count} times within {Minutes} minutes, automatic restart paused",
-            instance, CrashRestartLimit, CrashRestartWindow.TotalMinutes);
+        _logger.LogError("Server {Server} crashed {Count} times within {Minutes} minutes, automatic restart paused",
+            GetInstanceLabel(instance), CrashRestartLimit, CrashRestartWindow.TotalMinutes);
         await NotifyDiscordSafe(instance, profile, _setup.Config.NotificationCrashLoop,
             configure: ctx =>
             {
@@ -631,7 +632,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         if (!_serverProcesses.ContainsKey(instance)) return;
         _manualStopsUtc[instance] = DateTime.UtcNow;
         var stopReason = string.IsNullOrWhiteSpace(reason) ? _setup.GetReasonManualShutdown() : reason;
-        _logger.LogInformation("Stopping server {Instance} in {Minutes} min, reason: {Reason}", instance,
+        _logger.LogInformation("Stopping server {Server} in {Minutes} min, reason: {Reason}", GetInstanceLabel(instance),
             (int)Math.Ceiling(Math.Max(0, delay.TotalMinutes)), stopReason);
         if (delay <= TimeSpan.Zero || GetInstanceProfile(instance) is not { } profile)
         {
@@ -655,7 +656,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             || !_countdownInstances.Contains(instance) || _restartCountdownReasons.ContainsKey(instance))
             return false;
         var reason = _serverSequences.TryGetValue(instance, out var runner) ? runner.Arguments.Reason : null;
-        _logger.LogInformation("Stop of instance {Instance} postponed by {Minutes} minutes", instance,
+        _logger.LogInformation("Stop of server {Server} postponed by {Minutes} minutes", GetInstanceLabel(instance),
             (int)Math.Round(delay.TotalMinutes));
         await CloseServerIn(instance, delay, reason);
         return true;
@@ -671,7 +672,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         if (!_serverProcesses.TryGetValue(instance, out var watcher)) return;
         var profile = GetInstanceProfile(instance);
         _lastRestartReason = string.IsNullOrWhiteSpace(reason) ? _setup.GetReasonManualRestart() : reason;
-        _logger.LogInformation("Restarting server {Instance} in {Minutes} min, reason: {Reason}", instance,
+        _logger.LogInformation("Restarting server {Server} in {Minutes} min, reason: {Reason}", GetInstanceLabel(instance),
             (int)Math.Ceiling(Math.Max(0, delay.TotalMinutes)), _lastRestartReason);
         if (delay > TimeSpan.Zero && profile is not null)
         {
@@ -716,7 +717,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         if (pause > TimeSpan.Zero)
         {
             _automaticRestartsPausedUntil[instance] = DateTime.UtcNow + pause;
-            _logger.LogInformation("Automatic restarts of instance {Instance} paused until {Until}", instance,
+            _logger.LogInformation("Automatic restarts of server {Server} paused until {Until}", GetInstanceLabel(instance),
                 DateTime.Now + pause);
             OnServerStatusChanged();
         }
@@ -734,13 +735,13 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         {
             _postponedRestarts[instance] = postponedReason;
             OnServerStatusChanged();
-            _logger.LogInformation("Restart of instance {Instance} postponed by {Minutes} minutes", instance,
+            _logger.LogInformation("Restart of server {Server} postponed by {Minutes} minutes", GetInstanceLabel(instance),
                 (int)Math.Round(pause.TotalMinutes));
             await BroadcastMessage(instance, _setup.Config.NotificationRestartPostponed.Replace("{minutes}",
                 Math.Max(1, (int)Math.Round(pause.TotalMinutes)).ToString(System.Globalization.CultureInfo.InvariantCulture)));
             return;
         }
-        _logger.LogInformation("Countdown of instance {Instance} cancelled", instance);
+        _logger.LogInformation("Countdown of server {Server} cancelled", GetInstanceLabel(instance));
         await BroadcastMessage(instance, _setup.Config.NotificationCountdownCancelled);
     }
 
@@ -749,7 +750,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         // A postponed restart then runs with the next tick.
         if (_automaticRestartsPausedUntil.Remove(instance))
         {
-            _logger.LogInformation("Automatic restarts of instance {Instance} resumed", instance);
+            _logger.LogInformation("Automatic restarts of server {Server} resumed", GetInstanceLabel(instance));
             OnServerStatusChanged();
         }
     }
@@ -759,7 +760,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         if (!_automaticRestartsPausedUntil.TryGetValue(instance, out var until)) return false;
         if (until > DateTime.UtcNow) return true;
         _automaticRestartsPausedUntil.Remove(instance);
-        _logger.LogInformation("Pause of the automatic restarts of instance {Instance} is over", instance);
+        _logger.LogInformation("Pause of the automatic restarts of server {Server} is over", GetInstanceLabel(instance));
         return false;
     }
 
@@ -806,6 +807,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         {
             Instance = instance,
             SaveName = GetInstanceSaveName(instance),
+            ServerName = GetInstanceServerName(instance),
             Installed = instance < installedInstances,
             State = process?.State,
             Players = process?.Players ?? 0,
@@ -827,6 +829,27 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             NextScheduledRestartUtc = process is not null && running ? GetNextScheduledRestartUtc(instance, process, paused) : null,
             PausedUntilUtc = paused
         };
+    }
+
+    // The "Server name" of the save the instance runs, empty while it keeps the default name.
+    private string GetInstanceServerName(int instance)
+    {
+        try
+        {
+            var name = GetInstanceProfile(instance)?.ServerName?.Trim() ?? string.Empty;
+            return string.Equals(name, ServerProfile.ServerNameDefault, StringComparison.Ordinal) ? string.Empty : name;
+        }
+        catch (Exception)
+        {
+            return string.Empty;
+        }
+    }
+
+    /// <summary>How the log names a server: "0", or "0 (Name of the server)" when its save has a name of its own.</summary>
+    public string GetInstanceLabel(int instance)
+    {
+        var name = BotInputRules.SanitizeForLog(GetInstanceServerName(instance));
+        return name.Length == 0 ? instance.ToString(System.Globalization.CultureInfo.InvariantCulture) : $"{instance} ({name})";
     }
 
     // The name of the save selected for the instance (also when its folder is gone), empty when none is selected.
@@ -1188,7 +1211,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         _manualStopsUtc[instance] = DateTime.UtcNow;
         if (_serverProcesses.TryGetValue(instance, out var watcher))
         {
-            _logger.LogInformation($"Kill server {instance}");
+            _logger.LogInformation("Kill server {Server}", GetInstanceLabel(instance));
             try
             {
                 await CancelServerSequence(instance);
@@ -1668,7 +1691,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         }
         catch (OperationCanceledException)
         {
-            _logger.LogInformation("Sequence of instance {Instance} cancelled", instance);
+            _logger.LogInformation("Sequence of server {Server} cancelled", GetInstanceLabel(instance));
             Report(new SequenceProgress(instance, 0, 0));
         }
         catch (Exception ex)
@@ -2481,8 +2504,8 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
                         _setup.GetCrashNotification(process.Infos.Title));
                     return;
                 case ProcessState.ONLINE:
-                    _logger.LogInformation("Server {Instance} online (PID {Pid}, build {Build})",
-                        process.Infos.Instance, process.PId, SafeBuildId(process.Infos.Instance));
+                    _logger.LogInformation("Server {Server} online (PID {Pid}, build {Build})",
+                        GetInstanceLabel(process.Infos.Instance), process.PId, SafeBuildId(process.Infos.Instance));
                     var readyProfile = reference.Get();
                     await NotifyDiscordSafe(process.Infos.Instance, readyProfile,
                         string.IsNullOrWhiteSpace(readyProfile.MessageReady)
@@ -2519,8 +2542,8 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             if (server.Value.State == ProcessState.CRASHED && !server.Value.Process.HasExitedSafe(server.Value.PId))
             {
                 if (_crashedStillRunning.Add(server.Key))
-                    _logger.LogWarning("Server {Instance} is reported as {State} but still runs, waiting until it is gone",
-                        server.Key, server.Value.State);
+                    _logger.LogWarning("Server {Server} is reported as {State} but still runs, waiting until it is gone",
+                        GetInstanceLabel(server.Key), server.Value.State);
                 server.Value.Process.TryKill(server.Value.PId, out _);
                 continue;
             }
@@ -2538,8 +2561,8 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             }
 
             _logger.LogInformation(
-                "Server {instance} stopped (state={State}, exitCode={ExitCode})",
-                server.Key,
+                "Server {Server} stopped (state={State}, exitCode={ExitCode})",
+                GetInstanceLabel(server.Key),
                 server.Value.State,
                 exitCodeText);
             _serverProcesses.Remove(server.Key);
@@ -2589,7 +2612,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to restart server {Instance}", instance);
+            _logger.LogError(ex, "Failed to restart server {Server}", GetInstanceLabel(instance));
         }
         finally
         {
@@ -2608,7 +2631,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             if (_heldStarts.Count == 0) _heldSinceUtc = DateTime.UtcNow;
             _heldStarts.Add(instance);
             OnServerStatusChanged();
-            _logger.LogInformation("Server {Instance} starts once the other servers of the update are stopped", instance);
+            _logger.LogInformation("Server {Server} starts once the other servers of the update are stopped", GetInstanceLabel(instance));
             return;
         }
         _updateRound.Remove(instance);

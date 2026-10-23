@@ -188,45 +188,44 @@ public static class DiscordBotPanelChecks
         editor.SetInstanceManaged(1, true, 3);
         check(editor.IsDirty, "Ticking everything again is still a choice (a new server then stays out until it is chosen)");
         editor.SetInstanceManaged(1, false, 3);
-        editor.SetInstanceName(0, "  Haupt <@123> [Server] {x}  ");
-        editor.SetInstanceName(2, "   ");
-        editor.SetInstanceName(7, "x".PadRight(500, 'y'));
         editor.SetInstanceManaged(100, true, 3);
         editor.SetInstanceManaged(-1, true, 3);
-        check(editor.GetInstanceName(0) == "Haupt <@123> [Server] {x}" && editor.GetInstanceName(2).Length == 0 && editor.GetInstanceName(7).Length <= 80
-              && !editor.IsInstanceManaged(100), "Names are kept as typed (trimmed), out of range instances are ignored");
-        check(editor.Save(config).Count == 0 && config.ManagedInstances!.SequenceEqual([0, 2])
-              && config.InstanceNames[0] == "Haupt 123 Server x" && !config.InstanceNames.ContainsKey(2) && config.InstanceNames[7].Length <= BotInputRules.MaxNameLength,
-            "Saving keeps the chosen servers and the names cleaned of mentions, links, braces and anything too long");
+        check(!editor.IsInstanceManaged(100), "Out of range instances are ignored");
+        check(editor.Save(config).Count == 0 && config.ManagedInstances!.SequenceEqual([0, 2]), "Saving keeps the chosen servers");
         var named = BotPolicy.Create(config).Policy!;
-        check(named.IsManaged(0) && !named.IsManaged(1) && named.ServerLabel(0) == "Haupt 123 Server x" && named.ServerLabel(1) == "1",
-            "The bot uses what was saved");
+        check(named.IsManaged(0) && !named.IsManaged(1) && named.IsManaged(2), "The bot uses what was saved");
         editor.Load(config);
-        check(!editor.IsDirty && editor.GetInstanceName(0) == "Haupt 123 Server x" && !editor.IsInstanceManaged(1), "The saved choice comes back after loading");
-        editor.SetInstanceName(0, "Haupt 123 Server x ");
-        check(!editor.IsDirty, "Spaces at the end of a name are no edit");
-        editor.SetInstanceName(0, "Anderer");
-        check(editor.IsDirty, "Another name is an edit");
+        check(!editor.IsDirty && !editor.IsInstanceManaged(1), "The saved choice comes back after loading");
         editor.Load(config);
         editor.SetInstanceManaged(1, true, 3);
         editor.SetInstanceManaged(2, false, 3);
         check(editor.Save(config).Count == 0 && config.ManagedInstances!.SequenceEqual([0, 1]), "Choosing and un-choosing servers saves a list");
-        check(config.InstanceNames.TryAdd(900, "x") && BotPolicy.Create(config).Policy!.InstanceNames.ContainsKey(900) == false,
-            "A name for an instance a Discord option can not carry is dropped by the bot");
+
+        // Names of the servers are not set here any more: the name of a save profile is used. A file of an older version
+        // that still has bot names loads and saves without them.
+        var legacy = Path.Combine(Path.GetTempPath(), "tb-legacy-" + Guid.NewGuid().ToString("N") + ".json");
+        File.WriteAllText(legacy, "{\"InstanceNames\":{\"0\":\"Alt\"},\"ManagedInstances\":[0]}");
+        try
+        {
+            var legacyConfig = DiscordBotConfig.LoadStrict(legacy);
+            legacyConfig.SaveFile();
+            check(legacyConfig.ManagedInstances!.SequenceEqual([0]) && !File.ReadAllText(legacy).Contains("Alt", StringComparison.Ordinal),
+                "A file with bot names of an older version loads, the names are gone after the next save");
+        }
+        finally
+        {
+            File.Delete(legacy);
+        }
 
         // The rows of the list of servers write into the editor and say that something was edited; locked ones do nothing.
         editor.Load(config);
         var rowEdits = 0;
         var row = new BotInstanceRow(1, editor, 3, true, () => rowEdits++);
         row.IsManaged = false;
-        row.Name = "Zweiter";
-        row.Name = "Zweiter";
-        check(rowEdits == 2 && !row.IsManaged && row.Name == "Zweiter" && editor.GetInstanceName(1) == "Zweiter" && row.Title.Contains('1')
-              && row.MaxNameLength == BotInputRules.MaxNameLength && row.Watermark.Length > 0, "A row of the list of servers edits the settings");
+        check(rowEdits == 1 && !row.IsManaged && !editor.IsInstanceManaged(1) && row.Title.Contains('1'), "A row of the list of servers edits the settings");
         var lockedRow = new BotInstanceRow(0, editor, 3, false, () => rowEdits++);
         lockedRow.IsManaged = false;
-        lockedRow.Name = "Gesperrt";
-        check(rowEdits == 2 && editor.IsInstanceManaged(0) && editor.GetInstanceName(0) != "Gesperrt", "A row of settings that can not be edited does nothing");
+        check(rowEdits == 1 && editor.IsInstanceManaged(0), "A row of settings that can not be edited does nothing");
         editor.Load(config);
 
         // The admin channel: Discord narrows it, only the panel widens it, the panel never undoes a channel set meanwhile.

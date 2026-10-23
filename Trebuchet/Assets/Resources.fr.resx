@@ -1474,7 +1474,7 @@ Losques des séquences sont utilisé, cela n'inclus que la mise en ligne et la d
         <value>Salon d'audit</value>
     </data>
     <data name="DiscordBotAuditChannelText" xml:space="preserve">
-        <value>ID de salon facultatif. Le bot y signale les actions critiques et les tentatives refusées. Vide : aucun.</value>
+        <value>ID de salon facultatif. Le bot y écrit tout ce qu'il fait : chaque demande avec serveur, utilisateur et résultat, les tentatives refusées, les changements d'état des serveurs et ses propres messages. Vide : aucun.</value>
     </data>
     <data name="DiscordBotAdminChannel" xml:space="preserve">
         <value>Salon d'administration</value>
@@ -1920,7 +1920,7 @@ Dans ce salon, le bot a besoin des permissions « Voir le salon », « Envoyer d
     <data name="DiscordBotHelpStep7Text" xml:space="preserve">
         <value>Section « Connexion » : collez le jeton et enregistrez-le, puis saisissez l’ID du serveur. Après l’enregistrement, le jeton n’est plus jamais affiché.
 Section « Sécurité » : saisissez votre ID utilisateur comme « Super administrateur » (obligatoire, l’entrée ne peut pas être supprimée). Saisissez l’ID du rôle sous « Rôles autorisés ». Ajoutez les IDs d’autres personnes sous « Utilisateurs autorisés ».
-Section « Serveurs » : cochez les serveurs que le bot doit gérer et donnez-leur, si vous le souhaitez, un nom. Le bot utilise ce nom dans ses messages, sinon il affiche les données serveur. Un serveur non coché n’existe pas pour le bot.
+Section « Serveurs » : cochez les serveurs que le bot doit gérer. Le bot affiche chaque serveur sous son « nom du serveur », le premier champ de ses données serveur (menu « Données serveur »). Changez-le là si vous voulez un autre nom. Un serveur non coché n’existe pas pour le bot.
 Cliquez sur « Enregistrer » en haut. Si quelque chose est invalide ou manque, le haut indique en rouge exactement quoi, et rien n’est enregistré.
 Facultatif : saisissez l’ID d’un salon comme « Salon d’audit » où le bot signale les actions critiques et les blocages.</value>
     </data>
@@ -1990,7 +1990,7 @@ Le bot ne répond pas dans le salon : le salon d’administration est-il défini
         <value>Serveurs</value>
     </data>
     <data name="DiscordBotServersText" xml:space="preserve">
-        <value>Choisissez les serveurs que le bot gère et donnez-leur un nom si vous le souhaitez. Le bot l'affiche dans ses messages à la place des données serveur. Un serveur non choisi n'apparaît nulle part dans le bot, même pas pour le super administrateur.</value>
+        <value>Choisissez les serveurs que le bot gère. Le bot affiche chaque serveur sous son « nom du serveur » (le premier champ de ses données serveur), ou sous le nom des données serveur s'il n'a pas été changé. Un serveur non choisi n'apparaît nulle part dans le bot, même pas pour le super administrateur.</value>
     </data>
     <data name="DiscordBotServersEmpty" xml:space="preserve">
         <value>Aucun serveur n'est encore configuré.</value>
@@ -2000,8 +2000,5 @@ Le bot ne répond pas dans le salon : le salon d’administration est-il défini
     </data>
     <data name="DiscordBotServerManaged" xml:space="preserve">
         <value>Géré par le bot</value>
-    </data>
-    <data name="DiscordBotServerNameWatermark" xml:space="preserve">
-        <value>Nom dans le bot (vide : données serveur)</value>
     </data>
 </root>

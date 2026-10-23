@@ -430,14 +430,9 @@ static class DiscordBotChecks
             "Server names lose everything Discord would turn into a mention, link or format, and stay one short line");
         var namedConfig = ValidConfig();
         namedConfig.ManagedInstances = [2, -1, 100, 0, 2];
-        namedConfig.InstanceNames = new Dictionary<int, string> { [0] = " Haupt <b>", [1] = "<>", [2] = "Zwei", [200] = "weg", [-3] = "weg" };
         var namedPolicy = PolicyOf(namedConfig);
         Check(namedPolicy.IsManaged(0) && namedPolicy.IsManaged(2) && !namedPolicy.IsManaged(1) && !namedPolicy.IsManaged(100) && !namedPolicy.IsManaged(-1),
             "The policy manages the chosen instances that a Discord option can name, nothing else");
-        Check(namedPolicy.ServerLabel(0) == "Haupt b" && namedPolicy.ServerLabel(1) == "1" && namedPolicy.ServerLabel(2) == "Zwei"
-              && namedPolicy.InstanceNames.Count == 2, "Names are cleaned, empty ones and those of impossible instances are dropped");
-        var shown = namedPolicy.Named(new BotServerStatus(0, "Exiled Lands", BotServerState.Online, 1, 40, null, BotPendingAction.None, null, null));
-        Check(shown.Name == "Haupt b" && namedPolicy.Named(shown with { Instance = 1, Name = "Siptah" }).Name == "Siptah", "The status shows the name instead of the save");
         var noneChosen = ValidConfig();
         noneChosen.ManagedInstances = [];
         Check(PolicyOf(ValidConfig()).ManagedInstances is null && PolicyOf(ValidConfig()).IsManaged(0) && PolicyOf(ValidConfig()).IsManaged(99)
@@ -446,13 +441,14 @@ static class DiscordBotChecks
         var jsonPath = Path.Combine(folder, "servers.json");
         var serversConfig = DiscordBotConfig.CreateConfig(jsonPath);
         serversConfig.ManagedInstances = [1, 3];
-        serversConfig.InstanceNames[1] = "Zwei";
         serversConfig.SaveFile();
         var loadedServers = DiscordBotConfig.LoadStrict(jsonPath);
-        Check(loadedServers.ManagedInstances!.SequenceEqual([1, 3]) && loadedServers.InstanceNames[1] == "Zwei", "The chosen servers and names survive saving");
-        File.WriteAllText(jsonPath, "{ \"ManagedInstances\": null, \"InstanceNames\": null }");
+        Check(loadedServers.ManagedInstances!.SequenceEqual([1, 3]), "The chosen servers survive saving");
+        // A file of an older version still holds the names the bot used to keep: they are ignored, the name of the server
+        // comes from its save now.
+        File.WriteAllText(jsonPath, "{ \"ManagedInstances\": null, \"InstanceNames\": { \"0\": \"Haupt\" } }");
         var nullServers = DiscordBotConfig.LoadStrict(jsonPath);
-        Check(nullServers.ManagedInstances is null && nullServers.InstanceNames.Count == 0, "Nothing written (or null) in the file is not chosen yet and no names");
+        Check(nullServers.ManagedInstances is null, "Nothing written (or null) in the file is not chosen yet, old names are ignored");
 
         // --- IDs of buttons
         foreach (var command in new[] { BotCommand.Start, BotCommand.Stop, BotCommand.RestartNow, BotCommand.Postpone, BotCommand.Resume, BotCommand.CheckUpdates })

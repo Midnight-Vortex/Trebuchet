@@ -9,6 +9,11 @@ public sealed record LauncherServerStatus
     public required int Instance { get; init; }
     /// <summary>Name of the save selected for the instance, empty when none is selected.</summary>
     public required string SaveName { get; init; }
+    /// <summary>
+    /// The "Server name" of the save the instance runs (the first field of the server save). Empty while the save keeps the
+    /// default name, then the name of the save identifies the server.
+    /// </summary>
+    public string ServerName { get; init; } = string.Empty;
     /// <summary>The server files of the instance are installed.</summary>
     public bool Installed { get; init; }
     /// <summary>State of the server process, null when none runs.</summary>

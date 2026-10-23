@@ -55,7 +55,6 @@ public sealed class DiscordBotSettingsEditor
     // The servers the bot manages. Not chosen yet (null in the settings): all of them.
     private readonly HashSet<int> _managed = [];
     private bool _managedChosen;
-    private readonly SortedDictionary<int, string> _names = [];
     private List<ulong> _adminChannels = [];
     private Snapshot _loaded;
     private string _guildIdText = string.Empty;
@@ -115,9 +114,6 @@ public sealed class DiscordBotSettingsEditor
         _managedChosen = config.ManagedInstances is not null;
         foreach (var instance in config.ManagedInstances ?? [])
             _managed.Add(instance);
-        _names.Clear();
-        foreach (var (instance, name) in config.InstanceNames)
-            _names[instance] = name;
         CooldownSeconds = config.CooldownSeconds;
         CriticalLimit = config.CriticalLimit;
         CriticalWindowMinutes = config.CriticalWindowMinutes;
@@ -168,18 +164,6 @@ public sealed class DiscordBotSettingsEditor
         }
         if (managed) _managed.Add(instance);
         else _managed.Remove(instance);
-    }
-
-    /// <summary>The name of the instance as typed. Empty: the bot shows the server save.</summary>
-    public string GetInstanceName(int instance) => _names.TryGetValue(instance, out var name) ? name : string.Empty;
-
-    public void SetInstanceName(int instance, string? name)
-    {
-        if (instance < 0 || instance > BotInputRules.MaxInstance) return;
-        // Typed text is kept as it is (the field must not jump while typing); the bot cleans it when it uses it.
-        var typed = (name ?? string.Empty).Trim();
-        if (typed.Length == 0) _names.Remove(instance);
-        else _names[instance] = typed.Length > BotInputRules.MaxNameLength * 2 ? typed[..(BotInputRules.MaxNameLength * 2)] : typed;
     }
 
     /// <summary>Back to every channel. Discord commands can only narrow the channels, this is the only way back.</summary>
@@ -278,7 +262,6 @@ public sealed class DiscordBotSettingsEditor
         candidate.AllowedRoleIds = _roles.ToList();
         candidate.EnabledCommands = Enum.GetValues<BotCommand>().Where(_commands.Contains).Select(x => x.ToString()).ToList();
         candidate.ManagedInstances = _managedChosen ? _managed.Order().ToList() : null;
-        candidate.InstanceNames = CleanNames();
         candidate.CooldownSeconds = CooldownSeconds;
         candidate.CriticalLimit = CriticalLimit;
         candidate.CriticalWindowMinutes = CriticalWindowMinutes;
@@ -355,7 +338,6 @@ public sealed class DiscordBotSettingsEditor
         to.AllowedRoleIds = from.AllowedRoleIds.ToList();
         to.EnabledCommands = from.EnabledCommands.ToList();
         to.ManagedInstances = from.ManagedInstances?.ToList();
-        to.InstanceNames = new Dictionary<int, string>(from.InstanceNames);
         to.CooldownSeconds = from.CooldownSeconds;
         to.CriticalLimit = from.CriticalLimit;
         to.CriticalWindowMinutes = from.CriticalWindowMinutes;
@@ -378,12 +360,6 @@ public sealed class DiscordBotSettingsEditor
                ?? throw new InvalidOperationException(@"The bot settings could not be copied");
     }
 
-    // What the bot would show: cleaned of everything Discord would turn into a mention, link or formatting.
-    private Dictionary<int, string> CleanNames() => _names
-        .Select(x => (x.Key, Name: BotInputRules.SanitizeName(x.Value)))
-        .Where(x => x.Name.Length > 0)
-        .ToDictionary(x => x.Key, x => x.Name);
-
     private static bool SetIdText(ref string field, string? text)
     {
         if (BotToken.TryNormalize(text?.Trim(), out _))
@@ -402,7 +378,6 @@ public sealed class DiscordBotSettingsEditor
         string.Join(',', _users), string.Join(',', _roles),
         string.Join(',', _commands.Order()),
         _managedChosen ? string.Join(',', _managed.Order()) : "*",
-        string.Join('|', _names.Select(x => x.Key + ":" + x.Value)),
         CooldownSeconds, CriticalLimit, CriticalWindowMinutes, LockoutAttempts, LockoutMinutes, MaxPauseMinutes,
         ActionDelayMinutes, NormalizeChoices(PostponeChoicesText), ClearAdminChannelPending);
 
@@ -412,7 +387,7 @@ public sealed class DiscordBotSettingsEditor
     // Lists as text: records compare them by value then.
     private sealed record Snapshot(
         bool AutoStart, string Language, string Guild, ulong SuperAdmin, string AuditChannel,
-        string Users, string Roles, string Commands, string Managed, string Names,
+        string Users, string Roles, string Commands, string Managed,
         int Cooldown, int CriticalLimit, int CriticalWindow, int LockoutAttempts, int LockoutMinutes, int MaxPause,
         int ActionDelay, string Choices, bool ClearChannel);
 }

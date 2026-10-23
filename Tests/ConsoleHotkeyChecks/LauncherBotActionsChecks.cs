@@ -38,6 +38,14 @@ static class LauncherBotActionsChecks
         };
         BotServerStatus Show(LauncherServerStatus status) => LauncherBotActions.ToBotStatus(status, now);
 
+        // The name of the server is the one of its save ("Server name", the first field); the name of the save while that
+        // kept its default; never a path or something Discord would format.
+        check(Show(Process(ProcessState.ONLINE) with { ServerName = "SuL <@123> [Dev]" }).Name == "SuL 123 Dev"
+              && Show(Process(ProcessState.ONLINE) with { ServerName = "Haupt/Server" }).Name == "Haupt/Server"
+              && Show(Process(ProcessState.ONLINE) with { ServerName = "" }).Name == "Exiles"
+              && Show(Process(ProcessState.ONLINE) with { ServerName = "<>@" }).Name == "Exiles",
+            "A server is shown under the name of its save profile, else the name of the save");
+
         var online = Show(Process(ProcessState.ONLINE) with { PausedUntilUtc = now.AddMinutes(30) });
         check(online is { Instance: 1, Name: "Exiles", State: BotServerState.Online, Players: 7, MaxPlayers: 40, Pending: BotPendingAction.None }
               && online.StartedUtc == started && online.PausedUntilUtc == now.AddMinutes(30),
@@ -351,6 +359,14 @@ static class LauncherBotActionsChecks
             check(warned?.PendingAtUtc - scheduled?.PendingAtUtc == TimeSpan.FromMinutes(5),
                 "The restart warnings of the save count to the time of the restart: " + warned);
 
+            // The "Server name" of the save is the name of the server: in the status, and in the log lines of the launcher.
+            await ui.InvokeAsync(() => Task.FromResult(files.Server.Get(saveA).ServerName = "Test <Server>"));
+            check((await StatusOf(0))?.Name == "Test Server" && await OnLauncher(() => launcher.GetInstanceLabel(0)) == "0 (Test <Server>)",
+                "The name of the server comes from its save: " + await OnLauncher(() => launcher.GetInstanceLabel(0)));
+            await ui.InvokeAsync(() => Task.FromResult(files.Server.Get(saveA).ServerName = ServerProfile.ServerNameDefault));
+            check((await StatusOf(0))?.Name == saveA.Name && await OnLauncher(() => launcher.GetInstanceLabel(0)) == "0",
+                "While the save keeps the default name the save is shown, and the log shows the number");
+
             var stop = await actions.StopAsync(0, TimeSpan.FromMinutes(30), "Wartung {x}", none);
             var stopPending = await WaitFor(0, x => x?.Pending == BotPendingAction.Stop);
             check(stop.Success && await OnLauncher(() => launcher.IsCountdownRunning(0))
@@ -378,7 +394,7 @@ static class LauncherBotActionsChecks
             check(postponed.Success && !await OnLauncher(() => launcher.IsCountdownRunning(0))
                                     && afterPostpone is { Pending: BotPendingAction.Restart, PausedUntilUtc: { } pausedUntil }
                                     && afterPostpone.PendingAtUtc == pausedUntil && Near(pausedUntil, DateTime.UtcNow.AddMinutes(45))
-                                    && launcherLog.Contains("Restart of instance 0 postponed by 45 minutes"),
+                                    && launcherLog.Contains("Restart of server 0 postponed by 45 minutes"),
                 "Postponing a restart countdown cancels it, the restart follows the pause: " + afterPostpone);
             check((await actions.ResumeAsync(0, none)).Success
                   && await StatusOf(0) is { Pending: BotPendingAction.Restart, PendingAtUtc: null, PausedUntilUtc: null },

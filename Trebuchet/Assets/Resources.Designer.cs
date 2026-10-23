@@ -7429,7 +7429,7 @@ namespace Trebuchet.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Choose which servers the bot manages and give them a name if you like. The bot shows it in its messages instead of the server save. A server that is not chosen does not appear in the bot at all, not even for the super admin..
+        ///   Looks up a localized string similar to Choose which servers the bot manages. The bot shows each server under its "Server name" (the first field of its server save), or under the name of the save when that was not changed. A server that is not chosen does not appear in the bot at all, not even for the super admin..
         /// </summary>
         public static string DiscordBotServersText {
             get {
@@ -7461,15 +7461,6 @@ namespace Trebuchet.Assets {
         public static string DiscordBotServerManaged {
             get {
                 return ResourceManager.GetString("DiscordBotServerManaged", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Name in the bot (empty: server save).
-        /// </summary>
-        public static string DiscordBotServerNameWatermark {
-            get {
-                return ResourceManager.GetString("DiscordBotServerNameWatermark", resourceCulture);
             }
         }
         
