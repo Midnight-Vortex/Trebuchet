@@ -736,8 +736,9 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
     }
 
     /// <summary>
-    /// The admin channel and the status messages belong to the old server: kept, every command on the new one would be
-    /// refused for the wrong channel and the board would try to write to a channel it can not find.
+    /// The status messages belong to the old server. The admin channel stays: an empty list would mean "every channel",
+    /// so the restriction must not disappear by itself (fail closed). Until the super admin runs the channel command
+    /// on the new server, or clears the channel in the panel, commands are refused for the wrong channel.
     /// </summary>
     private void ForgetChannelsOfOldGuild()
     {
@@ -745,7 +746,6 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
         {
             lock (_config)
             {
-                _config.AllowedChannelIds = [];
                 _config.StatusMessageIds = [];
                 _config.SaveFile();
             }
@@ -753,7 +753,7 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
         }
         catch (Exception ex)
         {
-            _logger.LogError("Discord bot: could not reset the admin channel for the new server: {Error}", DiscordNetLog.Describe(ex));
+            _logger.LogError("Discord bot: could not reset the status messages for the new server: {Error}", DiscordNetLog.Describe(ex));
         }
     }
 
@@ -918,6 +918,9 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
             if (session is not null && !ReferenceEquals(_session, session)) return;
             var verified = _session is { Verified: true };
             var (state, problem) = BotConnectionStateMachine.Next(_state, _problem, e, verified, _policy is not null);
+            // Connected without the slash commands stays a problem, also after a lost connection and resume.
+            if (state == DiscordBotState.Connected && problem == DiscordBotProblem.None && _session is { Verified: true, CommandsRegistered: false })
+                problem = DiscordBotProblem.CommandsNotRegistered;
             changed = state != _state || problem != _problem;
             if (state == DiscordBotState.Connected && _state != DiscordBotState.Connected) _connectedSinceUtc = DateTime.UtcNow;
             if (state != DiscordBotState.Connected) _connectedSinceUtc = null;

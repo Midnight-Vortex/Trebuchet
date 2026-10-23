@@ -58,6 +58,8 @@ public sealed record BotHostTimings
     public TimeSpan RetryFirst { get; init; } = TimeSpan.FromSeconds(30);
     public TimeSpan RetryMax { get; init; } = TimeSpan.FromMinutes(5);
     public TimeSpan StatePoll { get; init; } = TimeSpan.FromSeconds(1);
+    /// <summary>How often a bot that is down for good is mentioned in the log.</summary>
+    public TimeSpan ReminderEvery { get; init; } = TimeSpan.FromMinutes(10);
     /// <summary>Longest wait for one step of the shutdown.</summary>
     public TimeSpan StopLimit { get; init; } = TimeSpan.FromMinutes(1);
 }
@@ -316,6 +318,7 @@ public sealed class BotHost(IBotHostParts parts, ILogger logger, BotHostTimings?
     {
         var delay = _timings.RetryFirst;
         DateTime? retryAt = null;
+        var lastReminder = DateTime.UtcNow;
         while (true)
         {
             try
@@ -344,6 +347,13 @@ public sealed class BotHost(IBotHostParts parts, ILogger logger, BotHostTimings?
             {
                 retryAt = null;
                 if (bot.State == DiscordBotState.Connected) delay = _timings.RetryFirst;
+                // A problem that does not heal by itself (token reset, settings invalid): the launcher keeps managing the
+                // servers, but this must not stay unnoticed in a log nobody reads.
+                else if (bot.State == DiscordBotState.Error && DateTime.UtcNow - lastReminder >= _timings.ReminderEvery)
+                {
+                    lastReminder = DateTime.UtcNow;
+                    logger.LogWarning("The Discord bot is not running ({Problem}). The servers are still managed. Fix it in the Trebuchet window or end \"boulder bot\" and start it again.", bot.Problem);
+                }
             }
         }
     }

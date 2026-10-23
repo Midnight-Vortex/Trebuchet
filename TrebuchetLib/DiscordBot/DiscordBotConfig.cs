@@ -124,24 +124,6 @@ public sealed class DiscordBotConfig : ConfigFile<DiscordBotConfig>
         return LoadConfig(path);
     }
 
-    private static bool IsWellFormedJson(string json)
-    {
-        if (string.IsNullOrWhiteSpace(json)) return false;
-        try
-        {
-            using var document = System.Text.Json.JsonDocument.Parse(json, new System.Text.Json.JsonDocumentOptions
-            {
-                CommentHandling = System.Text.Json.JsonCommentHandling.Skip,
-                AllowTrailingCommas = true
-            });
-            return document.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object;
-        }
-        catch (System.Text.Json.JsonException)
-        {
-            return false;
-        }
-    }
-
     public bool IsEnabled(BotCommand command) => EnabledCommands.Contains(command.ToString(), StringComparer.Ordinal);
 
     public void SetEnabled(BotCommand command, bool enabled)
@@ -155,9 +137,12 @@ public sealed class DiscordBotConfig : ConfigFile<DiscordBotConfig>
     public void SetAdminChannel(ulong channelId)
     {
         if (!BotId.IsValid(channelId)) throw new ArgumentException("Not a Discord channel ID", nameof(channelId));
+        // The status messages sit in the first admin channel. Set again for that very channel they stay: dropped, a second
+        // set would be posted next to the old messages, whose buttons still work.
+        var sameChannel = AllowedChannelIds.FirstOrDefault() == channelId;
         AllowedChannelIds = [channelId];
-        // The status messages belong to the old channel.
-        StatusMessageIds = [];
+        // Otherwise the status messages belong to the old channel.
+        if (!sameChannel) StatusMessageIds = [];
     }
 
     public bool AddUser(ulong id) => AddId(AllowedUserIds, id);

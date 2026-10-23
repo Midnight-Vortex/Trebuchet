@@ -148,7 +148,9 @@ public sealed class BotInteractionHandler
 
         if (ask.Unknown || ask.Expired)
         {
-            await AnswerAsync(responder, new BotReply(ask.Expired ? messages.Expired : messages.UnknownRequest), ask.UpdateMessage).ConfigureAwait(false);
+            // An expired question (often the second click of a double click) is answered as a new message: replacing the
+            // private message would overwrite the result the first click showed.
+            await AnswerAsync(responder, new BotReply(ask.Expired ? messages.Expired : messages.UnknownRequest), ask.UpdateMessage && !ask.Expired).ConfigureAwait(false);
             return;
         }
 
@@ -460,6 +462,8 @@ public sealed class BotInteractionHandler
             var granted = await ReservePostponeAsync(instance, minutes, policy, token).ConfigureAwait(false);
             if (granted == 0)
             {
+                // Nothing is postponed: what the reservation touched goes back.
+                _budget.Restore(instance, budgetBefore);
                 Audit(i, BotAuditResult.Throttled, ask, "PostponeLimit");
                 await AnswerAsync(responder, new BotReply(messages.PostponeLimit), update).ConfigureAwait(false);
                 return;
@@ -524,8 +528,15 @@ public sealed class BotInteractionHandler
     {
         var statuses = await _actions.GetStatusesAsync(token).ConfigureAwait(false);
         var status = statuses.FirstOrDefault(x => x.Instance == instance);
-        // Not running or unknown: the action says so itself, the budget has nothing to count.
-        return status is null ? minutes : _budget.Reserve(instance, status.StartedUtc, minutes, policy.MaxPause, _clock());
+        var now = _clock();
+        // A pending stop is moved back from its end (the action adds the minutes to the time that is left), not from now:
+        // the time left counts against the chain like the minutes do, or postponing a stop again and again adds up for ever.
+        var left = status is { Pending: BotPendingAction.Stop, PendingAtUtc: { } end } && end > now
+            ? (int)Math.Ceiling((end - now).TotalMinutes)
+            : 0;
+        // A server that is not running or not known is refused by the action, which gives the reservation back.
+        var granted = _budget.Reserve(instance, status?.StartedUtc, minutes + left, policy.MaxPause, now);
+        return Math.Max(0, granted - left);
     }
 
     private void LogLate(BotInteraction i, Ask ask, Task<BotActionResult> task)

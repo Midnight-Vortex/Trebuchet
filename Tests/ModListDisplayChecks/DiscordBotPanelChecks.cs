@@ -297,7 +297,7 @@ public static class DiscordBotPanelChecks
         check(nulls.IsLoaded && !BotPolicy.Create(nulls.Config).IsValid && !nulls.Config.IsEnabled(BotCommand.Status) && nulls.Config.Language == "de",
             "Null lists in the settings file allow nothing and do not crash");
 
-        // Another server: the admin channel and status messages of the old one are dropped with the save.
+        // Another server: the status messages of the old one are dropped, the admin channel stays (an empty list would allow every channel).
         var movePath = Path.Combine(root, "move.json");
         var moved = ValidConfig(movePath);
         moved.SetAdminChannel(Channel);
@@ -306,8 +306,8 @@ public static class DiscordBotPanelChecks
         var moveEditor = new DiscordBotSettingsEditor();
         moveEditor.Load(moved);
         moveEditor.SetGuildIdText("100000000000000009");
-        check(moveEditor.Save(moved).Count == 0 && moved.GuildId == 100000000000000009UL && moved.AllowedChannelIds.Count == 0 && moved.StatusMessageIds.Count == 0,
-            "Saving another server drops the admin channel and the status messages of the old one");
+        check(moveEditor.Save(moved).Count == 0 && moved.GuildId == 100000000000000009UL && moved.AllowedChannelIds.SequenceEqual([Channel]) && moved.StatusMessageIds.Count == 0,
+            "Saving another server drops the status messages of the old one but keeps the admin channel (fail closed)");
     }
 
     private static void TextChecks(Action<bool, string> check)

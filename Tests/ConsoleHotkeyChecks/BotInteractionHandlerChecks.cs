@@ -95,9 +95,13 @@ static class BotInteractionHandlerChecks
         public List<(ulong Channel, string Text)> Notes { get; } = [];
         public HashSet<(ulong Channel, ulong Id)> Existing { get; } = [];
         public bool ThrowOnPost { get; set; }
+        public bool RefusePosts { get; set; }
+        public int PostAttempts { get; private set; }
 
         public Task<ulong?> PostStatusAsync(ulong channelId, BotStatusMessage message)
         {
+            PostAttempts++;
+            if (RefusePosts) return Task.FromResult<ulong?>(null);
             if (ThrowOnPost) throw new InvalidOperationException("post failed");
             var id = ++_next;
             Posts.Add((channelId, id, message));
@@ -336,7 +340,9 @@ static class BotInteractionHandlerChecks
             Check(rig.Actions.Calls.Last() == "stop 0 5 Discord" && done.Replies[0].Update && done.Last.Text == "Stopp von Server 0 gestartet.",
                 "The confirmation stops with the default warning time");
             Check(rig.Client.Notes.Any(x => x.Channel == AuditChannel && x.Text.Contains("Stop server 0")), "Critical actions are reported to the audit channel");
-            Check((await rig.Do(rig.Click(confirm, true))).Last.Text == BotMessages.German.Expired && rig.Actions.Executed == 1, "A confirmation works once");
+            var secondClick = await rig.Do(rig.Click(confirm, true));
+            Check(secondClick.Last.Text == BotMessages.German.Expired && !secondClick.Replies[0].Update && rig.Actions.Executed == 1,
+                "A confirmation works once, the second click is answered as a new message (it does not overwrite the result)");
 
             confirm = (await rig.Do(rig.Slash("stop", numbers: Rig.N(0)))).Last.Question as BotConfirmQuestion;
             var cancelled = await rig.Do(rig.Click(confirm!, false));
@@ -419,6 +425,19 @@ static class BotInteractionHandlerChecks
             rig.Actions.Statuses[0] = rig.Actions.Statuses[0] with { StartedUtc = new DateTime(2026, 10, 24, 1, 0, 0, DateTimeKind.Utc) };
             Check((await rig.Do(rig.Slash("restart postpone", numbers: Rig.N(0, 360)))).Last.Text == "Verschoben um 6 Std.", "After the restart a new chain starts");
             Check((await rig.Do(rig.Slash("restart postpone", numbers: Rig.N(1, 360)))).Last.Text == "Verschoben um 6 Std.", "Every server has its own budget");
+
+            // A pending stop moves back from its end: the time that is left counts against the chain too, or postponing a
+            // stop again and again would add up for ever.
+            rig = new Rig(folder, Config());
+            var stopEnd = rig.Clock.Now.AddMinutes(30);
+            rig.Actions.Statuses[0] = rig.Actions.Statuses[0] with { Pending = BotPendingAction.Stop, PendingAtUtc = stopEnd };
+            var stopMoved = await rig.Do(rig.Slash("restart postpone", numbers: Rig.N(0, 360)));
+            Check(rig.Actions.Done.Last().StartsWith("postpone 0 330", StringComparison.Ordinal) && stopMoved.Last.Text.StartsWith("Verschoben um 5 Std 30 Min", StringComparison.Ordinal),
+                "The time left of a pending stop is taken from the minutes that may be postponed");
+            rig.Actions.Statuses[0] = rig.Actions.Statuses[0] with { PendingAtUtc = stopEnd.AddMinutes(330) };
+            var stopAgain = await rig.Do(rig.Slash("restart postpone", numbers: Rig.N(0, 30)));
+            Check(stopAgain.Last.Text == BotMessages.German.PostponeLimit && rig.Actions.Done.Last().StartsWith("postpone 0 330", StringComparison.Ordinal),
+                "A stop that already reaches the end of the chain can not be moved back again");
 
             // A postponement the launcher refused (busy) used none of the budget.
             rig = new Rig(folder, Config());
@@ -598,7 +617,20 @@ static class BotInteractionHandlerChecks
         await failingBoard.RefreshAsync(CancellationToken.None);
         failing.ThrowOnPost = false;
         await failingBoard.RefreshAsync(CancellationToken.None);
-        check(failing.Posts.Count == 2, "A failing client does not throw and is retried");
+        check(failing.Posts.Count == 0, "After a failure the board waits before it tries again");
+        clock.Now = clock.Now.AddSeconds(40);
+        await failingBoard.RefreshAsync(CancellationToken.None);
+        check(failing.Posts.Count == 2, "A failing client does not throw and is retried after a pause");
+
+        // A post that keeps failing is tried less and less often: a request now and then, not every refresh.
+        var denied = new FakeChannel { RefusePosts = true };
+        var deniedBoard = new BotStatusBoard(actions, denied, new FakeSettings { Policy = PolicyOf(Config()), AdminChannelId = Channel }, () => clock.Now);
+        for (var n = 0; n < 12; n++)
+        {
+            clock.Now = clock.Now.AddSeconds(10);
+            await deniedBoard.RefreshAsync(CancellationToken.None);
+        }
+        check(denied.PostAttempts is >= 2 and <= 8, $"A refused post is not retried every refresh ({denied.PostAttempts} attempts for 12 refreshes of 2 servers)");
 
         using var cancelled = new CancellationTokenSource();
         cancelled.Cancel();

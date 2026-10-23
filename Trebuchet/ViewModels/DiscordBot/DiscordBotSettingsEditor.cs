@@ -271,15 +271,15 @@ public sealed class DiscordBotSettingsEditor
             var check = Validate(current);
             if (check.Issues.Count > 0) return check.Issues;
 
-            // The admin channel and the status messages belong to the old server: on another server they only refuse
-            // every command for the wrong channel.
+            // The status messages belong to the old server. The admin channel stays (an empty list would mean "every
+            // channel"): commands are refused for the wrong channel until the channel command is run on the new server
+            // or the channel is cleared here.
             var guildChanged = current.GuildId != 0 && check.Candidate.GuildId != current.GuildId;
-            if (guildChanged) check.Candidate.AllowedChannelIds = [];
 
             var before = Clone(current);
             try
             {
-                CopyEditable(check.Candidate, current, ClearAdminChannelPending || guildChanged);
+                CopyEditable(check.Candidate, current, ClearAdminChannelPending);
                 if (guildChanged) current.StatusMessageIds = [];
                 // The bot may have changed the settings since the check (admin channel): check what is really saved.
                 var final = BotPolicy.Create(current);

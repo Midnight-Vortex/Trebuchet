@@ -380,6 +380,10 @@ Rückfragen zählen nicht als Ablehnung, Notizen enthalten keine freien Namen, d
 - Die Umgebungsvariable `TREBUCHET_DISCORD_TOKEN` wird an Kindprozesse vererbt. Unter Windows besser den verschlüsselten Token
   im Panel speichern.
 - Verschiebt man einen Server mitten in einer gemeinsamen Update-Runde, können die anderen zweimal neu starten.
+- Die Anzeige „Update-Neustart steht an“ ist eine Näherung der echten Entscheidung des Launchers (Mods anderer Server, laufender
+  Client, gemeinsame Runde): der Verschieben-Button kann gelegentlich fehlen oder zu viel erscheinen.
+- Nach einem Wechsel der Server-ID bleibt der Admin-Kanal eingetragen (leer hieße „alle Kanäle“): Befehle werden abgelehnt, bis
+  der Super-Admin auf dem neuen Server `/bot channel set` ausführt oder den Kanal im Panel löscht.
 - Buttons von Befehlen, die ein Nutzer nicht darf, zählen beim Klick als Ablehnung für dessen Sperre.
 - Jede Interaktion wird zuerst bestätigt und dann geprüft. Ein Unberechtigter, der viele Befehle schickt, kostet den Bot
   also je zwei Anfragen an Discord, und ab 32 gleichzeitigen Interaktionen werden weitere ohne Antwort verworfen.

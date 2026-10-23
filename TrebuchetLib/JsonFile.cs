@@ -262,7 +262,7 @@ namespace TrebuchetLib
             return file;
         }
 
-        private static bool IsWellFormedJson(string json)
+        protected static bool IsWellFormedJson(string json)
         {
             if (string.IsNullOrWhiteSpace(json)) return false;
             try

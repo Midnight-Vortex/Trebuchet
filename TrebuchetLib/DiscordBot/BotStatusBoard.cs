@@ -13,6 +13,8 @@ public sealed class BotStatusBoard
     {
         public string Signature = string.Empty;
         public DateTime LastWriteUtc;
+        public int Failures;
+        public DateTime RetryAfterUtc;
     }
 
     private readonly IBotActions _actions;
@@ -102,6 +104,9 @@ public sealed class BotStatusBoard
             if (!_entries.TryGetValue(status.Instance, out var entry))
                 _entries[status.Instance] = entry = new Entry();
 
+            // A message that keeps failing (no permission, deleted channel) is not tried again every refresh.
+            if (!force && now < entry.RetryAfterUtc) return;
+
             var messageId = _settings.GetStatusMessageId(status.Instance);
             var unchanged = entry.Signature == signature && messageId != 0;
             if (unchanged && !force) return;
@@ -115,17 +120,27 @@ public sealed class BotStatusBoard
             {
                 var edit = await _channel.EditStatusAsync(channelId, messageId, message).ConfigureAwait(false);
                 // A failure that is not "the message is gone" (rate limit, network) must not post a duplicate: try again.
-                if (edit == BotEditResult.Failed) return;
+                if (edit == BotEditResult.Failed)
+                {
+                    BackOff(entry, now);
+                    return;
+                }
                 if (edit == BotEditResult.Gone) messageId = 0;
             }
             if (messageId == 0)
             {
                 var posted = await _channel.PostStatusAsync(channelId, message).ConfigureAwait(false);
-                if (posted is not { } newId) return;
+                if (posted is not { } newId)
+                {
+                    BackOff(entry, now);
+                    return;
+                }
                 _settings.SetStatusMessageId(status.Instance, newId);
             }
             entry.Signature = signature;
             entry.LastWriteUtc = now;
+            entry.Failures = 0;
+            entry.RetryAfterUtc = default;
         }
         catch (OperationCanceledException)
         {
@@ -133,8 +148,17 @@ public sealed class BotStatusBoard
         }
         catch (Exception ex)
         {
+            if (_entries.TryGetValue(status.Instance, out var failed)) BackOff(failed, now);
             _logger?.LogWarning(ex, "Updating the Discord status message of instance {Instance} failed", status.Instance);
         }
+    }
+
+    /// <summary>30 seconds, doubling up to 10 minutes: a lasting problem costs a request now and then, not every refresh.</summary>
+    private static void BackOff(Entry entry, DateTime now)
+    {
+        entry.Failures++;
+        var seconds = Math.Min(600, 30 * Math.Pow(2, Math.Min(entry.Failures - 1, 5)));
+        entry.RetryAfterUtc = now + TimeSpan.FromSeconds(seconds);
     }
 
     private static string Signature(BotStatusMessage message) => string.Join('\u001f',

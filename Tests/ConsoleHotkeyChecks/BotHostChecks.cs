@@ -25,6 +25,7 @@ static class BotHostChecks
         RetryFirst = TimeSpan.FromMilliseconds(20),
         RetryMax = TimeSpan.FromMilliseconds(80),
         StatePoll = TimeSpan.FromMilliseconds(5),
+        ReminderEvery = TimeSpan.FromMilliseconds(50),
         StopLimit = TimeSpan.FromSeconds(5)
     };
 
@@ -535,6 +536,7 @@ static class BotHostChecks
             await Task.Delay(200);
             check(parts.Bot.Starts == 2 && parts.Ticks > ticks && !run.IsCompleted, "A refused token is not tried again, the tick goes on");
             check(log.Contains("Discord refused the token"), "It says why");
+            check(await WaitUntil(() => log.Contains("The Discord bot is not running"), 5_000), "A bot that is down for good is mentioned again in the log");
             await stop.CancelAsync();
             check(await Within(run, 10_000) && run.Result == 0, "And ends with 0");
         }

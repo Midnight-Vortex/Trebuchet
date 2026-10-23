@@ -202,6 +202,10 @@ static class DiscordBotChecks
         rules.StatusMessageIds[0] = 123456789012345678UL;
         rules.SetAdminChannel(Channel);
         Check(rules.AllowedChannelIds.SequenceEqual([Channel]) && rules.StatusMessageIds.Count == 0, "The channel command replaces the channel and drops old status messages");
+        rules.StatusMessageIds[0] = 123456789012345678UL;
+        rules.SetAdminChannel(Channel);
+        Check(rules.AllowedChannelIds.SequenceEqual([Channel]) && rules.StatusMessageIds.Count == 1,
+            "Setting the channel it already is keeps its status messages (no second set next to the old one)");
         var threw = false;
         try { rules.SetAdminChannel(12); } catch (ArgumentException) { threw = true; }
         Check(threw, "A channel that is no ID can not be set");
