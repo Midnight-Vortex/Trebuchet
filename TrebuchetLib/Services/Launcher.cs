@@ -63,6 +63,10 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     private readonly HashSet<int> _countdownInstances = [];
     // Reason of the restart a running countdown leads to (stop countdowns are not in it).
     private readonly Dictionary<int, string> _restartCountdownReasons = [];
+    // When the running countdown of an instance ends (its restart or stop), for GetServerStatuses.
+    private readonly Dictionary<int, DateTime> _countdownEndsUtc = [];
+    // Instances whose last server process crashed and no new one runs yet, for GetServerStatuses.
+    private readonly HashSet<int> _crashedInstances = [];
     // Restarts whose countdown was cancelled by a pause: they run when the pause is over.
     private readonly Dictionary<int, string> _postponedRestarts = [];
     // Automatic restarts (schedule, updates, RequiresRestart.txt) paused per instance, e.g. during an RP event.
@@ -263,6 +267,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
                 return;
             }
             serverProcess.StateChanged += OnServerStateChanged;
+            _crashedInstances.Remove(instance);
             OnStateChanged();
         }
         finally
@@ -420,7 +425,8 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     ///     Ask a particular server instance to close. If the process is borked, this will not work.
     /// </summary>
     /// <param name="instance"></param>
-    public async Task CloseServer(int instance)
+    /// <param name="reason">Reason for the messages, null for the manual shutdown reason of the settings.</param>
+    public async Task CloseServer(int instance, string? reason = null)
     {
         _logger.LogInformation($"Close Server {instance}");
         _manualStopsUtc[instance] = DateTime.UtcNow;
@@ -438,19 +444,20 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
                 if (reference is not null && !_serverSequences.ContainsKey(instance))
                 {
                     var profile = reference.Get();
-                    var reason = string.IsNullOrEmpty(_lastRestartReason) ? _setup.GetReasonManualShutdown() : _lastRestartReason;
+                    var stopReason = !string.IsNullOrWhiteSpace(reason) ? reason
+                        : string.IsNullOrEmpty(_lastRestartReason) ? _setup.GetReasonManualShutdown() : _lastRestartReason;
                     // DSL: the shutdown message only goes to Discord (players are being disconnected anyway).
                     var message = string.IsNullOrWhiteSpace(profile.MessageShutdown)
-                        ? _setup.GetServerShutdownNotification(reason)
+                        ? _setup.GetServerShutdownNotification(stopReason)
                         : profile.MessageShutdown;
-                    await NotifyDiscordSafe(instance, profile, message, reason);
+                    await NotifyDiscordSafe(instance, profile, message, stopReason);
                     _lastRestartReason = string.Empty;
                 }
                 await watcher.StopAsync();
                 return;
             }
 
-            _lastRestartReason = _setup.GetReasonManualShutdown();
+            _lastRestartReason = string.IsNullOrWhiteSpace(reason) ? _setup.GetReasonManualShutdown() : reason;
             await StopServerWithSequence(instance, reference.Get());
         }
     }
@@ -604,29 +611,54 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     /// Stop chosen by the user with a delay. During the delay players are warned with the message method of the save:
     /// when the countdown starts and at the warning times of the save that fit into the delay. Zero stops now.
     /// </summary>
-    public async Task CloseServerIn(int instance, TimeSpan delay)
+    /// <param name="reason">Reason for the warnings and messages, null for the manual shutdown reason of the settings.</param>
+    public async Task CloseServerIn(int instance, TimeSpan delay, string? reason = null)
     {
         if (!_serverProcesses.ContainsKey(instance)) return;
         _manualStopsUtc[instance] = DateTime.UtcNow;
+        var stopReason = string.IsNullOrWhiteSpace(reason) ? _setup.GetReasonManualShutdown() : reason;
+        _logger.LogInformation("Stopping server {Instance} in {Minutes} min, reason: {Reason}", instance,
+            (int)Math.Ceiling(Math.Max(0, delay.TotalMinutes)), stopReason);
         if (delay <= TimeSpan.Zero || GetInstanceProfile(instance) is not { } profile)
         {
-            await CloseServer(instance);
+            await CloseServer(instance, reason);
             return;
         }
-        _lastRestartReason = _setup.GetReasonManualShutdown();
+        _lastRestartReason = stopReason;
         // The main action stops directly: CloseServer would cancel this countdown.
-        await RunSequence(instance, BuildTimedCountdown(profile, delay, restart: false), () => StopServerNow(instance), isCountdown: true);
+        await RunSequence(instance, BuildTimedCountdown(profile, delay, restart: false), () => StopServerNow(instance, stopReason), isCountdown: true);
+    }
+
+    /// <summary>
+    /// Moves the stop a running stop countdown leads to: the countdown is replaced by one that stops the server in
+    /// <paramref name="delay"/>, with the reason of the stop (its first warning tells the players the new time).
+    /// </summary>
+    /// <returns>False at once when no stop countdown runs. Otherwise the task runs the new countdown like
+    /// <see cref="CloseServerIn"/>.</returns>
+    public async Task<bool> PostponeStop(int instance, TimeSpan delay)
+    {
+        if (delay <= TimeSpan.Zero || !_serverProcesses.ContainsKey(instance)
+            || !_countdownInstances.Contains(instance) || _restartCountdownReasons.ContainsKey(instance))
+            return false;
+        var reason = _serverSequences.TryGetValue(instance, out var runner) ? runner.Arguments.Reason : null;
+        _logger.LogInformation("Stop of instance {Instance} postponed by {Minutes} minutes", instance,
+            (int)Math.Round(delay.TotalMinutes));
+        await CloseServerIn(instance, delay, reason);
+        return true;
     }
 
     /// <summary>
     /// Restart chosen by the user with a delay, warned like <see cref="CloseServerIn"/>. Zero restarts now, without the
     /// warnings (a custom stopping sequence of the save still runs).
     /// </summary>
-    public async Task RestartServerIn(int instance, TimeSpan delay)
+    /// <param name="reason">Reason for the warnings and messages, null for the manual restart reason of the settings.</param>
+    public async Task RestartServerIn(int instance, TimeSpan delay, string? reason = null)
     {
         if (!_serverProcesses.TryGetValue(instance, out var watcher)) return;
         var profile = GetInstanceProfile(instance);
-        _lastRestartReason = _setup.GetReasonManualRestart();
+        _lastRestartReason = string.IsNullOrWhiteSpace(reason) ? _setup.GetReasonManualRestart() : reason;
+        _logger.LogInformation("Restarting server {Instance} in {Minutes} min, reason: {Reason}", instance,
+            (int)Math.Ceiling(Math.Max(0, delay.TotalMinutes)), _lastRestartReason);
         if (delay > TimeSpan.Zero && profile is not null)
         {
             // Inside the countdown RestartServerAsync restarts directly.
@@ -712,17 +744,186 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         return false;
     }
 
+    /// <summary>
+    /// A read-only picture of every server instance (0 to ServerInstanceCount - 1) for remote control: state, players
+    /// and what is about to happen. Plain values only: nothing in it reaches back into the launcher, no paths, addresses
+    /// or passwords. Like every other member, call it on the thread the launcher is used on.
+    /// </summary>
+    public IReadOnlyList<LauncherServerStatus> GetServerStatuses()
+    {
+        var count = Math.Max(0, _setup.Config.ServerInstanceCount);
+        int installed;
+        try
+        {
+            installed = _steam.GetInstalledInstances();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Could not count the installed server instances");
+            installed = 0;
+        }
+        var statuses = new List<LauncherServerStatus>(count);
+        for (var instance = 0; instance < count; instance++)
+            statuses.Add(GetServerStatus(instance, installed));
+        return statuses;
+    }
+
+    private LauncherServerStatus GetServerStatus(int instance, int installedInstances)
+    {
+        _serverProcesses.TryGetValue(instance, out var process);
+        var running = process is not null && process.State.IsRunning() && !process.State.IsStopping();
+        var countdown = _countdownInstances.Contains(instance);
+        var paused = GetAutomaticRestartsPause(instance);
+        return new LauncherServerStatus
+        {
+            Instance = instance,
+            SaveName = GetInstanceSaveName(instance),
+            Installed = instance < installedInstances,
+            State = process?.State,
+            Players = process?.Players ?? 0,
+            MaxPlayers = process?.MaxPlayers ?? 0,
+            StartedUtc = process?.StartUtc,
+            // Starting sequence, launch, or a start held for an update round: a server process follows.
+            Starting = process is null && (_launchingInstances.Contains(instance) || _backgroundStarts.Contains(instance)
+                                           || _heldStarts.Contains(instance) || _serverSequences.ContainsKey(instance)),
+            ShuttingDown = process is null && _shutdownTasks.ContainsKey(instance),
+            Crashed = process is null && _crashedInstances.Contains(instance),
+            SequenceRunning = _serverSequences.ContainsKey(instance),
+            CountdownRunning = countdown,
+            CountdownRestarts = countdown && _restartCountdownReasons.ContainsKey(instance),
+            CountdownEndsUtc = countdown && _countdownEndsUtc.TryGetValue(instance, out var end) ? end : null,
+            RestartRequested = _restartsPending.Contains(instance),
+            RestartPostponed = _postponedRestarts.ContainsKey(instance),
+            InUpdateRound = _updateRound.Contains(instance),
+            UpdatePending = process is not null && running && IsUpdatePending(instance, process),
+            NextScheduledRestartUtc = process is not null && running ? GetNextScheduledRestartUtc(instance, process, paused) : null,
+            PausedUntilUtc = paused
+        };
+    }
+
+    // The name of the save selected for the instance (also when its folder is gone), empty when none is selected.
+    private string GetInstanceSaveName(int instance)
+    {
+        var selected = _setup.Config.GetInstanceProfile(instance);
+        if (string.IsNullOrWhiteSpace(selected)) return string.Empty;
+        return _appFiles.TryParse<ServerProfile, ServerProfileRef>(selected, out var reference) ? reference.Name : string.Empty;
+    }
+
+    // The decision of PerformPeriodicUpdateCheck: one of the next checks restarts the server for an update.
+    private bool IsUpdatePending(int instance, IConanServerProcess process)
+    {
+        if (_lastUpdateCheckFailed || _setup.Config.AutoUpdateStatus != AutoUpdateStatus.CheckForUpdates) return false;
+        if (_serverUpdate.ShouldRestart(process.StartUtc)) return true;
+        if (_modNeedUpdate.Count == 0) return false;
+        try
+        {
+            var mods = _appFiles.ResolveModList(_setup.Config.GetInstanceModlist(instance)).GetModsFromList().ToHashSet();
+            return _modNeedUpdate.Any(x => mods.Contains(x.PublishedFileId) && !_failedModUpdates.Contains(x.PublishedFileId));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Could not read the mods of instance {Instance}", instance);
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// When the schedule of the save restarts the running server next (the decision of PerformAutomaticRestarts), the
+    /// warnings of the save included. Null when it does not within a day.
+    /// </summary>
+    private DateTime? GetNextScheduledRestartUtc(int instance, IConanServerProcess process, DateTime? pausedUntilUtc)
+    {
+        try
+        {
+            if (GetInstanceProfile(instance) is not { AutoRestart: true } profile) return null;
+            var notBeforeUtc = process.StartUtc + GetAutoRestartMinUptime(profile);
+            if (pausedUntilUtc is { } paused && paused > notBeforeUtc) notBeforeUtc = paused;
+            var todayFull = profile.AutoRestartMaxPerDay > 0 && StartDateCountToday(instance) >= profile.AutoRestartMaxPerDay;
+            if (GetNextDailyRestart(profile.AutoRestartDailyTime, DateTime.Now, notBeforeUtc.ToLocalTime(), todayFull) is not { } next)
+                return null;
+            return DateTime.SpecifyKind(next, DateTimeKind.Local).ToUniversalTime() + GetRestartWarningLead(profile);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Could not work out the next scheduled restart of instance {Instance}", instance);
+            return null;
+        }
+    }
+
+    // After a daily restart time the tick still starts the restart during this window.
+    private static readonly TimeSpan DailyRestartWindow = TimeSpan.FromMinutes(5);
+
+    private static TimeSpan GetAutoRestartMinUptime(ServerProfile profile) =>
+        profile.AutoRestartMinUptime.TotalMinutes < 10 ? TimeSpan.FromMinutes(10) : profile.AutoRestartMinUptime;
+
+    // The countdown a scheduled restart begins with (RestartServerAsync). A custom stopping sequence has no known length.
+    private static TimeSpan GetRestartWarningLead(ServerProfile profile)
+    {
+        if (profile.StoppingSequence.Actions.Count > 0 || !profile.UseRestartWarnings) return TimeSpan.Zero;
+        return profile.RestartWarnings.Where(x => x.Before > TimeSpan.Zero).Select(x => x.Before).DefaultIfEmpty().Max();
+    }
+
+    /// <summary>
+    /// When daily restart times start the next automatic restart, as the tick checks them: the first moment from
+    /// <paramref name="nowLocal"/> on that lies in the 5 minute window after a restart time and not before
+    /// <paramref name="notBeforeLocal"/> (minimum uptime, pause). Looks at today and tomorrow. All times are local.
+    /// </summary>
+    /// <param name="todayFull">The restarts allowed per day are used up today.</param>
+    public static DateTime? GetNextDailyRestart(IEnumerable<TimeSpan> dailyTimes, DateTime nowLocal, DateTime notBeforeLocal,
+        bool todayFull)
+    {
+        DateTime? next = null;
+        var earliest = notBeforeLocal > nowLocal ? notBeforeLocal : nowLocal;
+        for (var day = todayFull ? 1 : 0; day <= 1; day++)
+        {
+            var date = nowLocal.Date.AddDays(day);
+            foreach (var time in dailyTimes)
+            {
+                if (time < TimeSpan.Zero || time >= TimeSpan.FromDays(1)) continue;
+                var windowStart = date + time;
+                // The tick compares the time of day: the window ends at midnight.
+                var windowEnd = windowStart + DailyRestartWindow;
+                if (windowEnd >= date.AddDays(1)) windowEnd = date.AddDays(1).AddTicks(-1);
+                var at = earliest > windowStart ? earliest : windowStart;
+                if (at <= windowEnd && (next is null || at < next)) next = at;
+            }
+        }
+        return next;
+    }
+
+    /// <summary>
+    /// <see cref="PerformCatapultUpdates"/> for remote control, only while nothing else works on the files: no server
+    /// is being started and no other update or Steam download runs. Running servers keep running, the update check of
+    /// the tick restarts them for what they need.
+    /// </summary>
+    /// <returns>Null when busy, otherwise the result of the update.</returns>
+    public async Task<bool?> PerformUpdatesIfIdle()
+    {
+        if (_launchingInstances.Count > 0 || _backgroundStarts.Count > 0 || _heldStarts.Count > 0
+            || _serverSequences.Keys.Any(x => !_serverProcesses.ContainsKey(x))
+            || _steam.Status != SteamStatus.StandBy)
+            return null;
+        if (!await _prelaunchUpdateGate.WaitAsync(0)) return null;
+        try
+        {
+            return await PerformCatapultUpdates();
+        }
+        finally
+        {
+            _prelaunchUpdateGate.Release();
+        }
+    }
+
     private ServerProfile? GetInstanceProfile(int instance)
     {
         return _appFiles.Server.TryResolve(_setup.Config.GetInstanceProfile(instance), out var reference) ? reference.Get() : null;
     }
 
-    private async Task StopServerNow(int instance)
+    private async Task StopServerNow(int instance, string reason)
     {
         if (!_serverProcesses.TryGetValue(instance, out var watcher)) return;
         if (GetInstanceProfile(instance) is { } profile)
         {
-            var reason = _setup.GetReasonManualShutdown();
             var message = string.IsNullOrWhiteSpace(profile.MessageShutdown)
                 ? _setup.GetServerShutdownNotification(reason)
                 : profile.MessageShutdown;
@@ -1386,6 +1587,9 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         var reason = _lastRestartReason;
         if (isCountdown) _countdownInstances.Add(instance);
         if (isCountdown && isRestart) _restartCountdownReasons[instance] = reason;
+        if (isCountdown)
+            _countdownEndsUtc[instance] = DateTime.UtcNow
+                + (sequence.Actions.OfType<SequenceActionRestartCountdown>().FirstOrDefault()?.Length ?? TimeSpan.Zero);
 
         var args = new SequenceArgs()
         {
@@ -1429,6 +1633,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
                 _serverSequences.Remove(instance);
                 _countdownInstances.Remove(instance);
                 _restartCountdownReasons.Remove(instance);
+                _countdownEndsUtc.Remove(instance);
             }
         }
     }
@@ -1441,6 +1646,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             _serverSequences.Remove(instance);
             _countdownInstances.Remove(instance);
             _restartCountdownReasons.Remove(instance);
+            _countdownEndsUtc.Remove(instance);
         }
     }
 
@@ -1467,17 +1673,15 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             
             if(!serverProfile.AutoRestart) continue;
             
-            var minUptime = serverProfile.AutoRestartMinUptime.TotalMinutes < 10
-                ? TimeSpan.FromMinutes(10)
-                : serverProfile.AutoRestartMinUptime;
+            var minUptime = GetAutoRestartMinUptime(serverProfile);
             if((DateTime.UtcNow - instance.StartUtc ) < minUptime) continue;
-            
+
             if(StartDateCountToday(instance.Infos.Instance) >= serverProfile.AutoRestartMaxPerDay
                && serverProfile.AutoRestartMaxPerDay > 0) continue;
 
             var time = DateTime.Now.TimeOfDay;
             if(serverProfile.AutoRestartDailyTime
-               .All(x => time < x || time > x + TimeSpan.FromMinutes(5))) continue;
+               .All(x => time < x || time > x + DailyRestartWindow)) continue;
 
             _lastRestartReason = _setup.GetReasonAutomatedRestart();
             RestartServer(instance.Infos.Instance);
@@ -2123,6 +2327,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
                 continue;
             }
             serverProcess.StateChanged += OnServerStateChanged;
+            _crashedInstances.Remove(process.Instance);
             OnStateChanged();
         }
     }
@@ -2204,6 +2409,8 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
                 exitCodeText);
             _serverProcesses.Remove(server.Key);
             _postponedRestarts.Remove(server.Key);
+            if (server.Value.State == ProcessState.CRASHED) _crashedInstances.Add(server.Key);
+            else _crashedInstances.Remove(server.Key);
             server.Value.StateChanged -= OnServerStateChanged;
             OnStateChanged();
             // Backup, scripts and the restart run outside the tick: a long backup froze the monitoring of every other

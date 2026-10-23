@@ -31,6 +31,9 @@ public class SequenceActionBroadcast : ISequenceAction
 /// </summary>
 internal sealed class SequenceActionRestartCountdown(IReadOnlyList<RestartWarning> warnings, bool earlyWhenEmpty) : ISequenceAction
 {
+    /// <summary>How long the countdown runs when the server does not empty before (its first warning).</summary>
+    public TimeSpan Length => warnings.Where(x => x.Before > TimeSpan.Zero).Select(x => x.Before).DefaultIfEmpty().Max();
+
     public async Task Execute(SequenceArgs args)
     {
         var ordered = warnings.Where(x => x.Before > TimeSpan.Zero)
