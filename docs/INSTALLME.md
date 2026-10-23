@@ -1,8 +1,9 @@
 # Discord-Bot einrichten
 
-> **Stand:** Der Sicherheitskern des Bots ist fertig und getestet. Die Verbindung zu Discord und der Menüpunkt
-> „Discord Bot“ im Launcher kommen in den nächsten Schritten, siehe `docs/plan-discord-bot.md`. Die Schritte 1 bis 4
-> kannst du schon jetzt vorbereiten, ab Schritt 5 gilt die Anleitung, sobald der Menüpunkt da ist.
+> **Stand:** Der Bot ist fertig gebaut: Sicherheitskern, Befehle, Status-Meldung mit Buttons, Verbindung zu Discord
+> und der Menüpunkt „Discord Bot“ im Launcher. Die Verbindung zu einem echten Discord-Server ist noch **nicht** an
+> einem Live-Server getestet (siehe `docs/plan-discord-bot.md`, Abschnitt 8). Bitte zuerst mit einem Test-Server und
+> einem Test-Server-Save ausprobieren.
 
 Der Bot läuft **in Trebuchet**. Er öffnet keinen Port, er verbindet sich nur ausgehend mit Discord. Zugriff hat nur,
 wer **die Discord-User-ID in der Liste hat UND eine der erlaubten Rollen**. Fehlt eins von beiden, passiert nichts.
@@ -48,7 +49,7 @@ Die Rolle `@everyone` ist **nicht erlaubt** (jeder hat sie), Trebuchet lehnt sie
 2. Einen **privaten Kanal** anlegen, den nur diese Rolle sieht, z. B. `#server-admin`.
 3. Der Bot muss in diesem Kanal **Nachrichten sehen und senden** dürfen.
 
-## 5. In Trebuchet eintragen (Menüpunkt „Discord Bot“)
+## 5. In Trebuchet eintragen (Menüpunkt „Discord Bot“, direkt unter Dashboard)
 
 1. **Bot-Token** einfügen. Er wird verschlüsselt (Windows-Benutzer) gespeichert und danach nie wieder angezeigt.
 2. **Server-ID** eintragen.

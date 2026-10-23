@@ -332,9 +332,9 @@ Trebuchet/ViewModels/SettingFields/SecretField.cs
 | Phase | Inhalt | Ergebnis |
 |---|---|---|
 | 1 | **Erledigt.** Konfiguration, Token-Schutz, `BotAuthorizer`, Eingabeprüfung, Limits, Protokoll, Button-IDs, Bestätigungen, Aufbau der Status-Meldung, Tests | Sicherheitskern ohne Discord, komplett getestet |
-| 2 | `BotActions`, Launcher-Lese-Abbild (mit „was steht an“), Verbindung, Status-Meldung mit Verschieben-Button und Auswahl, `/status`, `/restart resume`, `/bot channel set` | Der Hauptanwendungsfall |
-| 3 | Panel mit Status, Sicherheit, Verbindung, Befehle, Protokoll, Sprachen | Bedienung im Launcher |
-| 4 | Buttons Neustart, Stoppen, Starten mit Bestätigung, Audit-Kanal | Neustart jetzt, Stopp, Start |
+| 2 | **Erledigt.** `LauncherBotActions`, Launcher-Lese-Abbild (mit „was steht an“), Verbindung, Status-Meldung mit Verschieben-Button und Auswahl, `/status`, `/restart resume`, `/bot channel set` | Der Hauptanwendungsfall |
+| 3 | **Erledigt.** Panel mit Status, Sicherheit, Verbindung, Befehle, Protokoll, Sprachen | Bedienung im Launcher |
+| 4 | **Erledigt.** Buttons Neustart, Stoppen, Starten mit Bestätigung, Audit-Kanal | Neustart jetzt, Stopp, Start |
 | 5 (optional) | Boulder-Befehl `bot` ohne Oberfläche | Betrieb ohne GUI |
 
 Erst nach Phase 1 und der Prüfung durch mich selbst und die Review-Agenten kommt Phase 2. Der Bot wird nie
