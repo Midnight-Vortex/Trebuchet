@@ -72,6 +72,19 @@ public sealed class BotPolicy
 
     public static BotPolicyResult Create(DiscordBotConfig? config)
     {
+        try
+        {
+            return CreateCore(config);
+        }
+        catch (Exception ex)
+        {
+            // Settings that can not even be read are settings that allow nothing.
+            return new BotPolicyResult(null, [new BotConfigIssue(BotConfigIssueKind.InvalidId, "settings can not be read: " + ex.GetType().Name)]);
+        }
+    }
+
+    private static BotPolicyResult CreateCore(DiscordBotConfig? config)
+    {
         if (config is null) return new BotPolicyResult(null, [new BotConfigIssue(BotConfigIssueKind.GuildMissing)]);
         var issues = new List<BotConfigIssue>();
 

@@ -336,12 +336,12 @@ static class LauncherBotActionsChecks
             check(launcherLog.Contains("Stopping server 0 in 30 min, reason: Wartung x"), "The reason of the stop reaches the launcher");
 
             var moved = await actions.PostponeAsync(0, 15, "Event", none);
-            var movedStatus = await WaitFor(0, x => x?.PendingAtUtc is { } t && t < DateTime.UtcNow.AddMinutes(20));
+            var movedStatus = await WaitFor(0, x => x?.PendingAtUtc is { } t && t > DateTime.UtcNow.AddMinutes(40));
             check(moved.Success && movedStatus is { Pending: BotPendingAction.Stop, PendingAtUtc: { } movedAt }
-                                && Near(movedAt, DateTime.UtcNow.AddMinutes(15))
+                                && Near(movedAt, DateTime.UtcNow.AddMinutes(45))
                                 && await OnLauncher(() => launcher.GetAutomaticRestartsPause(0)) is null,
-                "Postponing a pending stop plans it anew in the minutes, nothing is paused: " + moved + " " + movedStatus);
-            check(launcherLog.Contains("Stopping server 0 in 15 min, reason: Wartung x"), "The postponed stop keeps its reason");
+                "Postponing a pending stop moves its end back by the minutes (30 + 15), nothing is paused: " + moved + " " + movedStatus);
+            check(launcherLog.Contains("Stopping server 0 in 45 min, reason: Wartung x"), "The postponed stop keeps its reason and never ends sooner than before");
 
             var restart = await actions.RestartAsync(0, TimeSpan.FromMinutes(20), "Patch", none);
             var restartPending = await WaitFor(0, x => x?.Pending == BotPendingAction.Restart);

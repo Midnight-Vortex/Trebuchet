@@ -25,6 +25,8 @@ internal interface IBotChannelTransport
 /// </summary>
 internal sealed class DiscordNetChannelClient(IBotChannelTransport transport, Func<ulong> guildId, ILogger logger) : IBotChannelClient
 {
+    private readonly HashSet<ulong> _refused = [];
+
     public async Task<ulong?> PostStatusAsync(ulong channelId, BotStatusMessage message)
     {
         if (!IsAllowed(channelId)) return null;
@@ -85,8 +87,16 @@ internal sealed class DiscordNetChannelClient(IBotChannelTransport transport, Fu
         {
             channelGuild = null;
         }
-        if (IsAllowedChannel(channelGuild, guildId())) return true;
-        logger.LogWarning("Discord bot: refused to write to channel {Channel}, it is not a known channel of the configured server", channelId);
+        if (IsAllowedChannel(channelGuild, guildId()))
+        {
+            lock (_refused) _refused.Remove(channelId);
+            return true;
+        }
+        // Once per channel, not every 10 seconds for every server: a deleted channel would fill the log.
+        bool first;
+        lock (_refused) first = _refused.Add(channelId);
+        if (first)
+            logger.LogWarning("Discord bot: refused to write to channel {Channel}, it is not a known channel of the configured server", channelId);
         return false;
     }
 }

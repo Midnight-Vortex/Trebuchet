@@ -264,29 +264,42 @@ public sealed class DiscordBotSettingsEditor
     /// <returns>The issues that prevented the save; empty when it was saved.</returns>
     public IReadOnlyList<BotConfigIssue> Save(DiscordBotConfig current)
     {
-        var check = Validate(current);
-        if (check.Issues.Count > 0) return check.Issues;
-
-        var before = Clone(current);
-        try
+        // The bot changes and saves the same settings object from its own threads (admin channel, status messages) under
+        // this lock: a check, copy and save here must not interleave with it.
+        lock (current)
         {
-            CopyEditable(check.Candidate, current, ClearAdminChannelPending);
-            // The bot may have changed the settings since the check (admin channel): check what is really saved.
-            var final = BotPolicy.Create(current);
-            if (!final.IsValid)
+            var check = Validate(current);
+            if (check.Issues.Count > 0) return check.Issues;
+
+            // The admin channel and the status messages belong to the old server: on another server they only refuse
+            // every command for the wrong channel.
+            var guildChanged = current.GuildId != 0 && check.Candidate.GuildId != current.GuildId;
+            if (guildChanged) check.Candidate.AllowedChannelIds = [];
+
+            var before = Clone(current);
+            try
+            {
+                CopyEditable(check.Candidate, current, ClearAdminChannelPending || guildChanged);
+                if (guildChanged) current.StatusMessageIds = [];
+                // The bot may have changed the settings since the check (admin channel): check what is really saved.
+                var final = BotPolicy.Create(current);
+                if (!final.IsValid)
+                {
+                    CopyEditable(before, current, true);
+                    current.StatusMessageIds = before.StatusMessageIds;
+                    return final.Issues;
+                }
+                current.SaveFile();
+            }
+            catch
             {
                 CopyEditable(before, current, true);
-                return final.Issues;
+                current.StatusMessageIds = before.StatusMessageIds;
+                throw;
             }
-            current.SaveFile();
+            Load(current);
+            return [];
         }
-        catch
-        {
-            CopyEditable(before, current, true);
-            throw;
-        }
-        Load(current);
-        return [];
     }
 
     private static void CopyEditable(DiscordBotConfig from, DiscordBotConfig to, bool channels)

@@ -16,10 +16,23 @@ public sealed class DiscordBotConfig : ConfigFile<DiscordBotConfig>
     // IDs are written as text: JSON editors and scripts lose digits of numbers above 2^53. Both forms are read.
     private const JsonNumberHandling IdHandling = JsonNumberHandling.AllowReadingFromString | JsonNumberHandling.WriteAsString;
 
+    // A hand edited file may say null: that means "nothing", never a crash and never a default that allows more.
+    private List<ulong> _allowedUserIds = [];
+    private List<ulong> _allowedRoleIds = [];
+    private List<ulong> _allowedChannelIds = [];
+    private List<int> _postponeChoices = [15, 30, 60, 120, 180, 360];
+    private Dictionary<int, ulong> _statusMessageIds = [];
+    private List<string> _enabledCommands = BotCommands.EnabledByDefault.Select(x => x.ToString()).ToList();
+    private string _language = "de";
+
     /// <summary>Start the bot together with Trebuchet. Off until someone switches it on.</summary>
     public bool AutoStart { get; set; }
     /// <summary>Language of the messages of the bot: "de" or "en".</summary>
-    public string Language { get; set; } = "de";
+    public string Language
+    {
+        get => _language;
+        set => _language = string.IsNullOrWhiteSpace(value) ? "de" : value;
+    }
 
     /// <summary>The only Discord server (guild) the bot works for. It leaves every other one.</summary>
     [JsonNumberHandling(IdHandling)]
@@ -32,19 +45,35 @@ public sealed class DiscordBotConfig : ConfigFile<DiscordBotConfig>
     public ulong SuperAdminUserId { get; set; }
     /// <summary>More users who may use the bot. They also need one of the allowed roles.</summary>
     [JsonNumberHandling(IdHandling)]
-    public List<ulong> AllowedUserIds { get; set; } = [];
+    public List<ulong> AllowedUserIds
+    {
+        get => _allowedUserIds;
+        set => _allowedUserIds = value ?? [];
+    }
     /// <summary>Roles that may use the bot. A user needs one of them and has to be on the list of users.</summary>
     [JsonNumberHandling(IdHandling)]
-    public List<ulong> AllowedRoleIds { get; set; } = [];
+    public List<ulong> AllowedRoleIds
+    {
+        get => _allowedRoleIds;
+        set => _allowedRoleIds = value ?? [];
+    }
     /// <summary>Channels the bot answers in. Empty: every channel. Set with the channel command from the channel itself.</summary>
     [JsonNumberHandling(IdHandling)]
-    public List<ulong> AllowedChannelIds { get; set; } = [];
+    public List<ulong> AllowedChannelIds
+    {
+        get => _allowedChannelIds;
+        set => _allowedChannelIds = value ?? [];
+    }
     /// <summary>Optional channel for critical actions and refused attempts. 0: none.</summary>
     [JsonNumberHandling(IdHandling)]
     public ulong AuditChannelId { get; set; }
 
     /// <summary>Names of the commands that are switched on. A command missing here is off.</summary>
-    public List<string> EnabledCommands { get; set; } = BotCommands.EnabledByDefault.Select(x => x.ToString()).ToList();
+    public List<string> EnabledCommands
+    {
+        get => _enabledCommands;
+        set => _enabledCommands = value ?? [];
+    }
 
     /// <summary>Seconds a user has to wait between two commands.</summary>
     public int CooldownSeconds { get; set; } = 3;
@@ -59,11 +88,19 @@ public sealed class DiscordBotConfig : ConfigFile<DiscordBotConfig>
     /// <summary>Warning time in minutes before a restart or stop started from Discord (0: at once). Players are warned like for a scheduled restart.</summary>
     public int ActionDelayMinutes { get; set; } = 5;
     /// <summary>The minutes offered in the selection when a restart, stop or update is postponed.</summary>
-    public List<int> PostponeChoices { get; set; } = [15, 30, 60, 120, 180, 360];
+    public List<int> PostponeChoices
+    {
+        get => _postponeChoices;
+        set => _postponeChoices = value ?? [];
+    }
 
     /// <summary>Message of the status embed per server instance, so the bot edits it instead of posting a new one.</summary>
     [JsonNumberHandling(IdHandling)]
-    public Dictionary<int, ulong> StatusMessageIds { get; set; } = [];
+    public Dictionary<int, ulong> StatusMessageIds
+    {
+        get => _statusMessageIds;
+        set => _statusMessageIds = value ?? [];
+    }
 
     public static string GetPath(GameEdition edition)
     {

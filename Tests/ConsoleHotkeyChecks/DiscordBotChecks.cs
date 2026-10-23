@@ -230,6 +230,11 @@ static class DiscordBotChecks
             }));
             var numbers = DiscordBotConfig.LoadConfig(path);
             Check(numbers.GuildId == Guild && numbers.AllowedRoleIds.SequenceEqual([Role]), "IDs written as numbers are read too");
+            File.WriteAllText(path, "{ \"GuildId\": \"" + Guild + "\", \"AllowedUserIds\": null, \"AllowedRoleIds\": null, \"AllowedChannelIds\": null, \"EnabledCommands\": null,"
+                                    + " \"PostponeChoices\": null, \"StatusMessageIds\": null, \"Language\": null }");
+            var withNulls = DiscordBotConfig.LoadConfig(path);
+            Check(withNulls.AllowedUserIds.Count == 0 && withNulls.StatusMessageIds.Count == 0 && withNulls.Language == "de" && !withNulls.IsEnabled(BotCommand.Status)
+                  && !BotPolicy.Create(withNulls).IsValid, "Null lists in a hand edited file mean nothing and never throw");
             File.WriteAllText(path, "{ this is not json");
             var damaged = DiscordBotConfig.LoadConfig(path);
             Check(!BotPolicy.Create(damaged).IsValid, "Damaged settings give defaults that allow nobody");

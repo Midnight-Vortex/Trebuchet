@@ -82,9 +82,19 @@ public sealed class DiscordBotPanel : ReactiveObject, IBottomPanel, ITickingPane
         _audit = audit;
         _box = box;
         _logger = logger;
-        _editor.Load(settings.Config);
-        CanEdit = settings.IsLoaded;
-        LoadError = settings.LoadError is { } error
+        var loadError = settings.LoadError;
+        try
+        {
+            _editor.Load(settings.Config);
+        }
+        catch (Exception ex)
+        {
+            // Settings that can not even be shown must not stop Trebuchet: the bot stays off and nothing is saved.
+            logger.LogError(ex, @"The Discord bot settings could not be shown");
+            loadError ??= ex.GetBaseException().Message;
+        }
+        CanEdit = loadError is null;
+        LoadError = loadError is { } error
             ? string.Format(Resources.DiscordBotLoadError, error, settings.Path)
             : string.Empty;
 

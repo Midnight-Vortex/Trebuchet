@@ -271,6 +271,43 @@ public static class DiscordBotPanelChecks
         check(unreadable.Config.FilePath != newer && unreadable.Config.FilePath.EndsWith(".unreadable", StringComparison.Ordinal),
             "The defaults would never be saved over the unreadable file");
         check(File.ReadAllText(newer) == newerJson, "The unreadable file stays untouched");
+
+        // A damaged file is NOT repaired from its backup: the backup may hold users that were removed on purpose.
+        var damagedPath = Path.Combine(root, "damaged.json");
+        var good = ValidConfig(damagedPath);
+        good.AutoStart = true;
+        good.SaveFile();
+        File.WriteAllText(damagedPath + ".bak", File.ReadAllText(damagedPath));
+        foreach (var broken in new[] { "{ \"GuildId\": ", "   ", "[]" })
+        {
+            File.WriteAllText(damagedPath, broken);
+            var damaged = DiscordBotSettingsFile.Load(damagedPath, Path.Combine(root, "damaged.token"), NullLogger.Instance);
+            check(!damaged.IsLoaded && !damaged.Config.AutoStart && !BotPolicy.Create(damaged.Config).IsValid
+                  && File.ReadAllText(damagedPath) == broken && !Directory.GetFiles(root, "damaged.json.corrupt-*").Any(),
+                $"A damaged settings file ('{broken.Trim()}') is not repaired from the backup: the bot stays off and the file stays as it is");
+        }
+
+        // Null lists from a hand edited file are "nothing", not a crash.
+        var nullsPath = Path.Combine(root, "nulls.json");
+        File.WriteAllText(nullsPath, "{ \"GuildId\": \"" + Guild + "\", \"AllowedUserIds\": null, \"AllowedRoleIds\": null, \"AllowedChannelIds\": null,"
+                                     + " \"EnabledCommands\": null, \"PostponeChoices\": null, \"StatusMessageIds\": null, \"Language\": null }");
+        var nulls = DiscordBotSettingsFile.Load(nullsPath, Path.Combine(root, "nulls.token"), NullLogger.Instance);
+        var nullEditor = new DiscordBotSettingsEditor();
+        nullEditor.Load(nulls.Config);
+        check(nulls.IsLoaded && !BotPolicy.Create(nulls.Config).IsValid && !nulls.Config.IsEnabled(BotCommand.Status) && nulls.Config.Language == "de",
+            "Null lists in the settings file allow nothing and do not crash");
+
+        // Another server: the admin channel and status messages of the old one are dropped with the save.
+        var movePath = Path.Combine(root, "move.json");
+        var moved = ValidConfig(movePath);
+        moved.SetAdminChannel(Channel);
+        moved.StatusMessageIds[0] = 123456789012345678UL;
+        moved.SaveFile();
+        var moveEditor = new DiscordBotSettingsEditor();
+        moveEditor.Load(moved);
+        moveEditor.SetGuildIdText("100000000000000009");
+        check(moveEditor.Save(moved).Count == 0 && moved.GuildId == 100000000000000009UL && moved.AllowedChannelIds.Count == 0 && moved.StatusMessageIds.Count == 0,
+            "Saving another server drops the admin channel and the status messages of the old one");
     }
 
     private static void TextChecks(Action<bool, string> check)

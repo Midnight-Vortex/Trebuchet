@@ -169,8 +169,16 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
         Session session;
         try
         {
-            _handler ??= new BotInteractionHandler(_actions, _guard, _pending, _audit, this, _channel);
-            _board ??= new BotStatusBoard(_actions, _channel, this);
+            // An action (or the channel command) changed something: show it soon. Refused requests do not wake the loop.
+            _handler ??= new BotInteractionHandler(_actions, _guard, _pending, _audit, this, _channel, logger: _logger)
+            {
+                AfterAction = _ =>
+                {
+                    Wake(CurrentSession);
+                    return Task.CompletedTask;
+                }
+            };
+            _board ??= new BotStatusBoard(_actions, _channel, this, logger: _logger);
             session = new Session(new DiscordSocketClient(CreateClientConfig()), tokenLock, guildId);
         }
         catch (Exception)
@@ -566,8 +574,6 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
                 await responder.ReplyAsync(new BotReply(BotDecision.PublicMessage)).ConfigureAwait(false);
             }
             await responder.FinishAsync().ConfigureAwait(false);
-            // An action may have changed a server: show it soon.
-            Wake(session);
         }
         catch (Exception ex)
         {
@@ -698,6 +704,7 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
             {
                 // Another server needs a new connection: its commands, its check, leaving the old one.
                 _logger.LogInformation("Discord bot: the server changed, reconnecting");
+                ForgetChannelsOfOldGuild();
                 _ = Task.Run(async () =>
                 {
                     await StopAsync().ConfigureAwait(false);
@@ -715,13 +722,39 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
         }
     }
 
+    /// <summary>
+    /// The admin channel and the status messages belong to the old server: kept, every command on the new one would be
+    /// refused for the wrong channel and the board would try to write to a channel it can not find.
+    /// </summary>
+    private void ForgetChannelsOfOldGuild()
+    {
+        try
+        {
+            lock (_config)
+            {
+                _config.AllowedChannelIds = [];
+                _config.StatusMessageIds = [];
+                _config.SaveFile();
+            }
+            RebuildPolicy();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError("Discord bot: could not reset the admin channel for the new server: {Error}", DiscordNetLog.Describe(ex));
+        }
+    }
+
     public async Task SetAdminChannelAsync(ulong channelId)
     {
         if (!BotId.IsValid(channelId)) throw new ArgumentException("Not a Discord channel ID", nameof(channelId));
+        ulong previousChannel;
+        Dictionary<int, ulong> previousMessages;
         lock (_config)
         {
             var oldChannels = _config.AllowedChannelIds.ToList();
             var oldMessages = new Dictionary<int, ulong>(_config.StatusMessageIds);
+            previousChannel = oldChannels.FirstOrDefault();
+            previousMessages = oldMessages;
             _config.SetAdminChannel(channelId);
             try
             {
@@ -742,6 +775,27 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
         var session = CurrentSession;
         if (session is not null) Interlocked.Exchange(ref session.ForceRefresh, 1);
         Wake(session);
+        if (previousChannel != 0 && previousChannel != channelId)
+            _ = Task.Run(() => RetireOldStatusMessagesAsync(previousChannel, previousMessages));
+    }
+
+    /// <summary>
+    /// The status messages of the old admin channel would keep their buttons: clicking them can only be refused. They
+    /// are replaced by a short note without buttons. Best effort, a failure is only logged.
+    /// </summary>
+    private async Task RetireOldStatusMessagesAsync(ulong channelId, Dictionary<int, ulong> messages)
+    {
+        try
+        {
+            var texts = BotTexts.For(Policy?.Language);
+            var note = new BotStatusMessage(texts.MovedTitle, 0x95A5A6, [], [], texts.UpdatedFooter);
+            foreach (var id in messages.Values.Where(x => x != 0).Distinct())
+                await _channel.EditStatusAsync(channelId, id, note).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning("Discord bot: could not retire the status messages of the old admin channel: {Error}", DiscordNetLog.Describe(ex));
+        }
     }
 
     public ulong GetStatusMessageId(int instance)

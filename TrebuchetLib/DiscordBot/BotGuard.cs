@@ -33,7 +33,8 @@ public sealed class BotGuard(BotRateLimiter limiter, Func<DateTime>? clock = nul
 
     /// <param name="instance">The server instance the request is about, for the limit of critical actions.</param>
     /// <param name="followUp">The click on a confirmation or selection the bot offered itself.</param>
-    public BotGuardResult Evaluate(BotPolicy? policy, BotRequest request, int? instance, bool followUp = false)
+    /// <param name="countDenial">False for a cancel or an expired question: a refusal there does not count toward the lock out.</param>
+    public BotGuardResult Evaluate(BotPolicy? policy, BotRequest request, int? instance, bool followUp = false, bool countDenial = true)
     {
         try
         {
@@ -49,7 +50,7 @@ public sealed class BotGuard(BotRateLimiter limiter, Func<DateTime>? clock = nul
             var decision = BotAuthorizer.Authorize(policy, request);
             if (!decision.Allowed)
             {
-                var lockedOut = Limiter.RegisterDenied(request.UserId, now, policy);
+                var lockedOut = countDenial && Limiter.RegisterDenied(request.UserId, now, policy);
                 return new BotGuardResult(BotGuardOutcome.Denied, decision.Reason, LockedOutNow: lockedOut);
             }
 

@@ -68,7 +68,10 @@ public sealed class LauncherBotActions : IBotActions
             // A pending stop is planned anew: its countdown is replaced by one that ends in the chosen time.
             if (status.CountdownRunning && !status.CountdownRestarts)
             {
-                var replan = _launcher.PostponeStop(instance, pause);
+                // The new end is the old end plus the minutes: postponing must never bring the stop forward.
+                var now = DateTime.UtcNow;
+                var remaining = status.CountdownEndsUtc is { } end && end > now ? end - now : TimeSpan.Zero;
+                var replan = _launcher.PostponeStop(instance, remaining + pause);
                 if (replan.IsCompletedSuccessfully && !await replan) return new BotActionResult(BotActionOutcome.NothingPending);
                 return await FinishAsync(replan, "postpone stop", instance, wait: false, t);
             }

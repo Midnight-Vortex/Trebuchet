@@ -25,6 +25,9 @@ public sealed record BotMessages
     public required string Cancel { get; init; }
     /// <summary>{0} minutes.</summary>
     public required string Postponed { get; init; }
+    /// <summary>{0} minutes. Less than asked for: the longest postponement is reached.</summary>
+    public required string PostponedLimited { get; init; }
+    public required string PostponeLimit { get; init; }
     /// <summary>{0} server, {1} warning time text.</summary>
     public required string AskRestart { get; init; }
     public required string AskStop { get; init; }
@@ -68,6 +71,8 @@ public sealed record BotMessages
         Confirm = "Bestätigen",
         Cancel = "Abbrechen",
         Postponed = "Verschoben um {0}.",
+        PostponedLimited = "Verschoben um {0}. Das ist die längste Verschiebung, weiter geht es erst nach dem Neustart.",
+        PostponeLimit = "Die längste Verschiebung ist ausgeschöpft. Es kann erst nach dem Neustart wieder verschoben werden.",
         AskRestart = "Server {0} neu starten? Die Spieler werden {1} vorher gewarnt.",
         AskStop = "Server {0} stoppen? Die Spieler werden {1} vorher gewarnt.",
         AskStart = "Server {0} starten?",
@@ -107,6 +112,8 @@ public sealed record BotMessages
         Confirm = "Confirm",
         Cancel = "Cancel",
         Postponed = "Postponed by {0}.",
+        PostponedLimited = "Postponed by {0}. That is the longest postponement, it can only go on after the restart.",
+        PostponeLimit = "The longest postponement is used up. It can only be postponed again after the restart.",
         AskRestart = "Restart server {0}? Players are warned {1} before.",
         AskStop = "Stop server {0}? Players are warned {1} before.",
         AskStart = "Start server {0}?",

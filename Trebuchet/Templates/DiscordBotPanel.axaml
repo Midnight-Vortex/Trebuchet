@@ -40,7 +40,7 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
                 <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding IsEnabled}">
-                    <TextBox Width="260" Height="25" VerticalContentAlignment="Center" MaxLength="40"
+                    <TextBox Width="260" Height="25" VerticalContentAlignment="Center" MaxLength="20"
                              PlaceholderText="{x:Static a:Resources.DiscordBotIdWatermark}"
                              Text="{Binding Input, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                     <Button Command="{Binding Add}" Classes="Base Green" VerticalAlignment="Center">
@@ -222,7 +222,7 @@
                                 </Button>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding IsEditingSuperAdmin}">
-                                <TextBox Width="260" Height="25" VerticalContentAlignment="Center" MaxLength="40"
+                                <TextBox Width="260" Height="25" VerticalContentAlignment="Center" MaxLength="20"
                                          PlaceholderText="{x:Static a:Resources.DiscordBotIdWatermark}"
                                          Text="{Binding SuperAdminInput, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
                                 <Button Command="{Binding ApplySuperAdminCommand}" Classes="Base Green" VerticalAlignment="Center">

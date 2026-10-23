@@ -44,6 +44,7 @@ static class BotInteractionHandlerChecks
         public Task<BotActionResult> StartAsync(int instance, CancellationToken token) => Answer($"start {instance}");
         public Task<BotActionResult> UpdateAsync(CancellationToken token) => Answer("update");
         public int Executed => Calls.Count(x => x != "statuses");
+        public List<string> Done => Calls.Where(x => x != "statuses").ToList();
     }
 
     private sealed class FakeResponder : IBotResponder
@@ -269,7 +270,7 @@ static class BotInteractionHandlerChecks
             rig = new Rig(folder, Config());
             var postponed = await rig.Do(rig.Slash("restart postpone", numbers: Rig.N(0, 30),
                 texts: new Dictionary<string, string> { ["reason"] = "Event {servername}\r\nnow" }));
-            Check(rig.Actions.Calls.SequenceEqual(["postpone 0 30 Discord: Event servername now"]), "Postpone calls the action with a cleaned reason");
+            Check(rig.Actions.Done.SequenceEqual(["postpone 0 30 Discord: Event servername now"]), "Postpone calls the action with a cleaned reason");
             Check(postponed.Last.Text == "Verschoben um 30 Min." && rig.AfterActions == 1, "The answer tells how long, the status messages are refreshed");
             Check(rig.Audit.Recent.Any(x => x.Result == BotAuditResult.Executed && x.Command == BotCommand.Postpone && x.Parameters.Contains("minutes=30")), "Postponing is in the audit log");
             foreach (var minutes in new long[] { 0, 361, -5 })
@@ -279,7 +280,7 @@ static class BotInteractionHandlerChecks
             }
             Check((await rig.Do(rig.Slash("restart postpone", numbers: Rig.N(0)))).Last.Text == BotMessages.German.InvalidInput, "Minutes are required");
             Check((await rig.Do(rig.Slash("restart postpone", numbers: Rig.N(9, 30)))).Last.Text == BotMessages.German.UnknownServer, "Postponing an unknown server is refused");
-            Check(rig.Actions.Calls.Count == 1, "Nothing was done for refused inputs");
+            Check(rig.Actions.Executed == 1, "Nothing was done for refused inputs");
 
             rig.Actions.Result = new BotActionResult(BotActionOutcome.NothingPending);
             Check((await rig.Do(rig.Slash("restart postpone", numbers: Rig.N(0, 30)))).Last.Text == BotMessages.German.NothingPending, "Nothing pending is said so");
@@ -299,27 +300,27 @@ static class BotInteractionHandlerChecks
                   && select.Choices.Select(c => c.Label).SequenceEqual(["15 Min", "30 Min", "1 Std", "2 Std", "3 Std", "6 Std"]),
                 "The postpone button offers the minutes of the settings");
             var pickedBy = await rig.Do(rig.Select(BotCustomId.ForPostponeSelect(select!.Nonce), "60"));
-            Check(rig.Actions.Calls.SequenceEqual(["postpone 1 60 Discord"]) && pickedBy.Replies[0].Update && pickedBy.Last.Text == "Verschoben um 1 Std.",
+            Check(rig.Actions.Done.SequenceEqual(["postpone 1 60 Discord"]) && pickedBy.Replies[0].Update && pickedBy.Last.Text == "Verschoben um 1 Std.",
                 "Picking minutes postpones and replaces the question");
-            Check((await rig.Do(rig.Select(BotCustomId.ForPostponeSelect(select.Nonce), "60"))).Last.Text == BotMessages.German.Expired && rig.Actions.Calls.Count == 1,
+            Check((await rig.Do(rig.Select(BotCustomId.ForPostponeSelect(select.Nonce), "60"))).Last.Text == BotMessages.German.Expired && rig.Actions.Executed == 1,
                 "A menu works once");
 
             select = (await rig.Do(rig.Button(BotCustomId.ForAction(BotCommand.Postpone, 1)))).Last.Question as BotSelectQuestion;
-            Check((await rig.Do(rig.Select(BotCustomId.ForPostponeSelect(select!.Nonce), "61"))).Last.Text == BotMessages.German.InvalidInput && rig.Actions.Calls.Count == 1,
+            Check((await rig.Do(rig.Select(BotCustomId.ForPostponeSelect(select!.Nonce), "61"))).Last.Text == BotMessages.German.InvalidInput && rig.Actions.Executed == 1,
                 "Only the offered minutes can be picked");
             select = (await rig.Do(rig.Button(BotCustomId.ForAction(BotCommand.Postpone, 1)))).Last.Question as BotSelectQuestion;
-            Check((await rig.Do(rig.Select(BotCustomId.ForPostponeSelect(select!.Nonce), "30", Stranger))).Last.Text == BotDecision.PublicMessage && rig.Actions.Calls.Count == 1,
+            Check((await rig.Do(rig.Select(BotCustomId.ForPostponeSelect(select!.Nonce), "30", Stranger))).Last.Text == BotDecision.PublicMessage && rig.Actions.Executed == 1,
                 "A stranger can not use the menu");
-            Check((await rig.Do(rig.Select(BotCustomId.ForPostponeSelect(select.Nonce), "30", SuperAdmin))).Last.Text == BotMessages.German.Expired && rig.Actions.Calls.Count == 1,
+            Check((await rig.Do(rig.Select(BotCustomId.ForPostponeSelect(select.Nonce), "30", SuperAdmin))).Last.Text == BotMessages.German.Expired && rig.Actions.Executed == 1,
                 "Another allowed user can not answer someone else's menu");
             select = (await rig.Do(rig.Button(BotCustomId.ForAction(BotCommand.Postpone, 1)))).Last.Question as BotSelectQuestion;
-            Check((await rig.Do(rig.Select(BotCustomId.ForPostponeSelect(select!.Nonce), "30"), advanceSeconds: 200)).Last.Text == BotMessages.German.Expired && rig.Actions.Calls.Count == 1,
+            Check((await rig.Do(rig.Select(BotCustomId.ForPostponeSelect(select!.Nonce), "30"), advanceSeconds: 200)).Last.Text == BotMessages.German.Expired && rig.Actions.Executed == 1,
                 "A menu runs out after two minutes");
             Check((await rig.Do(rig.Button(BotCustomId.ForAction(BotCommand.Postpone, 1), Stranger))).Last.Text == BotDecision.PublicMessage, "A stranger can not click the postpone button");
             Check((await rig.Do(rig.Button("tb1:a:postpone:5"))).Last.Text == BotMessages.German.UnknownRequest, "A button of a server that does not exist is unknown");
             Check((await rig.Do(rig.Button("tb1:a:postpone:5", Stranger))).Last.Text == BotDecision.PublicMessage, "...and still neutral for strangers");
             var resume = await rig.Do(rig.Button(BotCustomId.ForAction(BotCommand.Resume, 0)));
-            Check(rig.Actions.Calls.Last() == "resume 0" && resume.Last.Text == BotMessages.German.Resumed, "The release button works at once");
+            Check(rig.Actions.Done.Last() == "resume 0" && resume.Last.Text == BotMessages.German.Resumed, "The release button works at once");
 
             // --- critical actions: off by default, then with a confirmation
             rig = new Rig(folder, Config());
@@ -404,6 +405,63 @@ static class BotInteractionHandlerChecks
             Check(rig.Settings.SetChannels.SequenceEqual([OtherChannel]) && channelDone.Last.Text == BotMessages.German.DoneChannel
                   && rig.Client.Notes.Any(x => x.Text.Contains("Admin channel changed")), "The channel of the command becomes the admin channel, reported to the audit channel");
             Check(rig.Audit.Recent.Any(x => x.Command == BotCommand.SetChannel && x.Result == BotAuditResult.Executed), "...and is in the audit log");
+
+            // --- the longest postponement: asking again and again can not put a restart off for ever
+            rig = new Rig(folder, Config());
+            Check((await rig.Do(rig.Slash("restart postpone", numbers: Rig.N(0, 360)))).Last.Text == "Verschoben um 6 Std.", "A postponement of the longest allowed time is granted");
+            var shorter = await rig.Do(rig.Slash("restart postpone", numbers: Rig.N(0, 360)));
+            Check(shorter.Last.Text.StartsWith("Verschoben um 5 Std 59 Min", StringComparison.Ordinal) && rig.Actions.Done.Last().StartsWith("postpone 0 359", StringComparison.Ordinal),
+                "Asking again only reaches as far as the start of the chain plus the longest time");
+            await rig.Do(rig.Slash("restart resume", numbers: Rig.N(0)));
+            var used = await rig.Do(rig.Slash("restart postpone", numbers: Rig.N(0, 30)), advanceSeconds: 359 * 60 + 30);
+            Check(used.Last.Text == BotMessages.German.PostponeLimit && !rig.Actions.Done.Last().StartsWith("postpone 0 30", StringComparison.Ordinal),
+                "Releasing and postponing again does not give a new budget");
+            rig.Actions.Statuses[0] = rig.Actions.Statuses[0] with { StartedUtc = new DateTime(2026, 10, 24, 1, 0, 0, DateTimeKind.Utc) };
+            Check((await rig.Do(rig.Slash("restart postpone", numbers: Rig.N(0, 360)))).Last.Text == "Verschoben um 6 Std.", "After the restart a new chain starts");
+            Check((await rig.Do(rig.Slash("restart postpone", numbers: Rig.N(1, 360)))).Last.Text == "Verschoben um 6 Std.", "Every server has its own budget");
+
+            rig = new Rig(folder, Config());
+            await rig.Do(rig.Slash("restart postpone", numbers: Rig.N(0, 60)));
+            Check((await rig.Do(rig.Slash("restart postpone", numbers: Rig.N(0, 360)), advanceSeconds: 91 * 60)).Last.Text == "Verschoben um 6 Std.",
+                "A chain that was idle for half an hour starts again");
+
+            var budget = new BotPostponeBudget();
+            var t = new DateTime(2026, 10, 23, 12, 0, 0, DateTimeKind.Utc);
+            var started = (DateTime?)t.AddHours(-1);
+            Check(budget.Reserve(0, started, 90, TimeSpan.FromMinutes(100), t) == 90
+                  && budget.Reserve(0, started, 90, TimeSpan.FromMinutes(100), t.AddMinutes(1)) == 90
+                  && budget.Reserve(0, started, 90, TimeSpan.FromMinutes(100), t.AddMinutes(50)) == 50
+                  && budget.Reserve(0, started, 30, TimeSpan.FromMinutes(100), t.AddSeconds(99.5 * 60)) == 0, "The budget grants less and less until the chain is used up");
+            Check(budget.Reserve(0, started, 0, TimeSpan.FromMinutes(100), t) == 0 && budget.Reserve(0, started, -3, TimeSpan.FromMinutes(100), t) == 0, "No minutes, nothing granted");
+
+            // --- cancelling or an expired question is no refusal, even from outside the admin channel
+            rig = new Rig(folder, Config());
+            var cancelledAll = true;
+            for (var n = 0; n < 7; n++)
+            {
+                var channelQuestion = (await rig.Do(rig.Slash("bot channel set", SuperAdmin, channel: OtherChannel))).Last.Question as BotConfirmQuestion;
+                var cancel = await rig.Do(rig.Click(channelQuestion!, false, SuperAdmin, channel: OtherChannel));
+                cancelledAll &= cancel.Last.Text == BotMessages.German.Cancelled;
+            }
+            Check(cancelledAll && !rig.Audit.Recent.Any(x => x.Result == BotAuditResult.LockedOut), "Cancelling the channel command from the new channel never locks the super admin out");
+            Check((await rig.Do(rig.Slash("status", SuperAdmin))).Last.Embeds is { Count: 2 }, "...and the super admin still works");
+            var stale = true;
+            for (var n = 0; n < 8; n++)
+            {
+                var expired = await rig.Do(rig.Button(BotCustomId.ForConfirm("AAAAAAAAAAAAAAAAAAAAAA"), Stranger));
+                stale &= expired.Replies.Count == 1 && expired.Last.Text == BotDecision.PublicMessage;
+            }
+            Check(stale && !rig.Audit.Recent.Any(x => x.Result == BotAuditResult.LockedOut && x.UserId == Stranger), "Old buttons are refused neutrally and do not lock anyone out");
+
+            // --- notes carry no free text names
+            Check(locked.Client.Notes[0].Text.Contains("<@200000000000000003>") && !locked.Client.Notes[0].Text.Contains("(User"),
+                "The audit channel note names the user by mention and ID, never by the free text name");
+
+            // --- the minutes menu only works in the channel it was shown in
+            rig = new Rig(folder, Config(c => c.AllowedChannelIds = []));
+            var menu = (await rig.Do(rig.Button(BotCustomId.ForAction(BotCommand.Postpone, 1), channel: Channel))).Last.Question as BotSelectQuestion;
+            var elsewhere = await rig.Do(rig.Select(BotCustomId.ForPostponeSelect(menu!.Nonce), "30", channel: OtherChannel));
+            Check(elsewhere.Last.Text == BotMessages.German.InvalidInput && rig.Actions.Executed == 0, "A menu answered from another channel does nothing");
 
             // --- English
             rig = new Rig(folder, Config(c => c.Language = "en"));

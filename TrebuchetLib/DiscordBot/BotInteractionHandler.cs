@@ -47,6 +47,7 @@ public sealed class BotInteractionHandler
     private readonly IBotChannelClient? _channel;
     private readonly Func<DateTime> _clock;
     private readonly ILogger? _logger;
+    private readonly BotPostponeBudget _budget = new();
 
     public BotInteractionHandler(IBotActions actions, BotGuard guard, BotPendingActions pending, BotAuditLog audit,
         IBotSettings settings, IBotChannelClient? channel = null, Func<DateTime>? clock = null, ILogger? logger = null)
@@ -120,7 +121,7 @@ public sealed class BotInteractionHandler
 
         // 2. The gate: nothing below runs for anyone it does not let through.
         var request = new BotRequest(i.UserId, i.GuildId, i.ChannelId, i.RoleIds ?? [], i.IsHuman, ask.GuardCommand, i.InteractionId);
-        var gate = _guard.Evaluate(policy, request, ask.Instance, ask.FollowUp);
+        var gate = _guard.Evaluate(policy, request, ask.Instance, ask.FollowUp, ask.CountDenial);
         switch (gate.Outcome)
         {
             case BotGuardOutcome.Ignored:
@@ -130,7 +131,7 @@ public sealed class BotInteractionHandler
                 if (gate.LockedOutNow)
                 {
                     Audit(i, BotAuditResult.LockedOut, ask, "too many refused requests");
-                    await NoteAsync(policy, $"User {i.UserId} ({BotInputRules.SanitizeForLog(i.UserName)}) is locked out after repeated refused requests.").ConfigureAwait(false);
+                    await NoteAsync(policy, $"User {UserTag(i)} is locked out after repeated refused requests.").ConfigureAwait(false);
                 }
                 await AnswerAsync(responder, new BotReply(messages.NoPermission), ask.UpdateMessage).ConfigureAwait(false);
                 return;
@@ -192,7 +193,11 @@ public sealed class BotInteractionHandler
 
     private sealed record Ask(
         BotCommand Command, BotCommand GuardCommand, Step Kind, int? Instance, bool FollowUp, bool Unknown, bool Expired, bool UpdateMessage,
-        BotPending? Pending, long? RawInstance, long? RawMinutes, long? RawDelay, string? Reason, string Parameters);
+        BotPending? Pending, long? RawInstance, long? RawMinutes, long? RawDelay, string? Reason, string Parameters)
+    {
+        /// <summary>False for a cancel or an expired question: a refusal there does not count toward the lock out.</summary>
+        public bool CountDenial { get; init; } = true;
+    }
 
     private Ask Read(BotInteraction i, DateTime now)
     {
@@ -235,13 +240,22 @@ public sealed class BotInteractionHandler
                 if (!_pending.TryTake(nonce, i.UserId, now, out var pending))
                 {
                     // Expired, used before, or not this user's: the user is still checked as a user of the bot.
-                    return new Ask(BotCommand.Status, BotCommand.Status, step, null, true, false, true, true, null, null, null, null, null, $"code={kind}");
+                    return new Ask(BotCommand.Status, BotCommand.Status, step, null, true, false, true, true, null, null, null, null, null, $"code={kind}")
+                    {
+                        CountDenial = false
+                    };
                 }
-                // A cancel is no action: it must not use up a limit of the command it cancels.
-                var guardCommand = step == Step.Cancel ? BotCommand.Status : pending.Command;
+                // A cancel is no action: it must not use up a limit of the command it cancels. Cancelling the channel
+                // command is checked as that command: it works from outside the current admin channel too.
+                var guardCommand = step == Step.Cancel
+                    ? (pending.Command == BotCommand.SetChannel ? BotCommand.SetChannel : BotCommand.Status)
+                    : pending.Command;
                 int? instance = pending.Instance >= 0 && pending.Instance < count ? pending.Instance : null;
                 return new Ask(pending.Command, guardCommand, step, instance, true, false, false, true, pending, pending.Instance, pending.Minutes, null, null,
-                    Describe(pending.Command, pending.Instance, pending.Minutes, null, string.Empty) + $" step={step}");
+                    Describe(pending.Command, pending.Instance, pending.Minutes, null, string.Empty) + $" step={step}")
+                {
+                    CountDenial = step != Step.Cancel
+                };
             }
         }
     }
@@ -326,6 +340,7 @@ public sealed class BotInteractionHandler
     {
         if (ask.Command != BotCommand.Postpone || ask.Instance is not { } instance
             || i.Kind != BotInteractionKind.Select
+            || (ask.Pending is { ChannelId: not 0 } asked && i.ChannelId != asked.ChannelId)
             || i.Values is not { Count: 1 } values || !BotInputRules.TryParsePostponeChoice(values[0], policy, out var minutes))
         {
             await AnswerAsync(responder, new BotReply(messages.InvalidInput), true).ConfigureAwait(false);
@@ -407,7 +422,7 @@ public sealed class BotInteractionHandler
                 }
                 await _settings.SetAdminChannelAsync(pending.ChannelId).ConfigureAwait(false);
                 Audit(i, BotAuditResult.Executed, ask, "admin channel set");
-                await NoteAsync(policy, $"Admin channel changed by user {i.UserId} ({BotInputRules.SanitizeForLog(i.UserName)}).").ConfigureAwait(false);
+                await NoteAsync(policy, $"Admin channel changed by user {UserTag(i)}.").ConfigureAwait(false);
                 await AnswerAsync(responder, new BotReply(messages.DoneChannel), true).ConfigureAwait(false);
                 await RefreshAsync(token).ConfigureAwait(false);
                 return;
@@ -436,6 +451,19 @@ public sealed class BotInteractionHandler
         IBotResponder responder, bool update, CancellationToken token, string? reason = null)
     {
         var text = string.IsNullOrWhiteSpace(reason) ? "Discord" : "Discord: " + reason;
+        var requestedMinutes = minutes;
+        if (command == BotCommand.Postpone)
+        {
+            // Postponing can not go on for ever: a chain of postponements ends at the longest one of the settings.
+            var granted = await ReservePostponeAsync(instance, minutes, policy, token).ConfigureAwait(false);
+            if (granted == 0)
+            {
+                Audit(i, BotAuditResult.Throttled, ask, "PostponeLimit");
+                await AnswerAsync(responder, new BotReply(messages.PostponeLimit), update).ConfigureAwait(false);
+                return;
+            }
+            minutes = granted;
+        }
         var delay = TimeSpan.FromMinutes(minutes);
 
         BotActionResult result;
@@ -479,10 +507,21 @@ public sealed class BotInteractionHandler
         if (result.Success && BotCommands.IsLimited(command))
         {
             var target = instance >= 0 ? $" server {instance.ToString(CultureInfo.InvariantCulture)}" : string.Empty;
-            await NoteAsync(policy, $"{command}{target} by user {i.UserId} ({BotInputRules.SanitizeForLog(i.UserName)}).").ConfigureAwait(false);
+            await NoteAsync(policy, $"{command}{target} by user {UserTag(i)}.").ConfigureAwait(false);
         }
-        await AnswerAsync(responder, new BotReply(ResultText(command, instance, minutes, result, messages)), update).ConfigureAwait(false);
+        var answer = ResultText(command, instance, minutes, result, messages);
+        if (command == BotCommand.Postpone && result.Success && minutes < requestedMinutes)
+            answer = string.Format(CultureInfo.InvariantCulture, messages.PostponedLimited, messages.FormatMinutes(minutes));
+        await AnswerAsync(responder, new BotReply(answer), update).ConfigureAwait(false);
         if (result.Success) await RefreshAsync(token).ConfigureAwait(false);
+    }
+
+    private async Task<int> ReservePostponeAsync(int instance, int minutes, BotPolicy policy, CancellationToken token)
+    {
+        var statuses = await _actions.GetStatusesAsync(token).ConfigureAwait(false);
+        var status = statuses.FirstOrDefault(x => x.Instance == instance);
+        // Not running or unknown: the action says so itself, the budget has nothing to count.
+        return status is null ? minutes : _budget.Reserve(instance, status.StartedUtc, minutes, policy.MaxPause, _clock());
     }
 
     private void LogLate(BotInteraction i, Ask ask, Task<BotActionResult> task)
@@ -550,6 +589,9 @@ public sealed class BotInteractionHandler
             _logger?.LogWarning(ex, "Writing the Discord audit log failed");
         }
     }
+
+    /// <summary>The user as a mention (mentions are off, so nobody is pinged) and the ID. Never the free text name: it could carry links.</summary>
+    private static string UserTag(BotInteraction i) => $"<@{i.UserId.ToString(CultureInfo.InvariantCulture)}> ({i.UserId.ToString(CultureInfo.InvariantCulture)})";
 
     private async Task NoteAsync(BotPolicy? policy, string text)
     {

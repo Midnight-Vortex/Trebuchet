@@ -25,6 +25,8 @@ public sealed record BotTexts
     public required string PostponeUpdate { get; init; }
     public required string Resume { get; init; }
     public required string UpdatedFooter { get; init; }
+    /// <summary>Title of an old status message after the admin channel moved: no buttons, no state.</summary>
+    public required string MovedTitle { get; init; }
 
     public static BotTexts German { get; } = new()
     {
@@ -49,7 +51,8 @@ public sealed record BotTexts
         PostponeStop = "Stopp verschieben",
         PostponeUpdate = "Update verschieben",
         Resume = "Wieder freigeben",
-        UpdatedFooter = "Aktualisiert"
+        UpdatedFooter = "Aktualisiert",
+        MovedTitle = "Der Admin-Kanal wurde gewechselt. Diese Meldung gilt nicht mehr."
     };
 
     public static BotTexts English { get; } = new()
@@ -75,7 +78,8 @@ public sealed record BotTexts
         PostponeStop = "Postpone stop",
         PostponeUpdate = "Postpone update",
         Resume = "Release again",
-        UpdatedFooter = "Updated"
+        UpdatedFooter = "Updated",
+        MovedTitle = "The admin channel was changed. This message is no longer used."
     };
 
     public static BotTexts For(string? language) =>
