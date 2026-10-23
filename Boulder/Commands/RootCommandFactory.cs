@@ -6,11 +6,18 @@ namespace Boulder.Commands;
 
 public static class RootCommandFactory
 {
-    public static RootCommand Create()
+    // One root per process. The subcommands are static: a second root shares them, and their recursive edition flags
+    // resolve through their first parent, so the edition check of the second root saw no flags (--live --ptc passed).
+    private static readonly Lazy<RootCommand> Root = new(Build);
+
+    public static RootCommand Create() => Root.Value;
+
+    private static RootCommand Build()
     {
         var command = new RootCommand("Boulder - Trebuchet's CLI");
         command.Add(LambCommand.Command);
         command.Add(KillCommand.Command);
+        command.Add(BotHostCommand.Command);
         foreach (var flag in new[]
                  {
                      Constants.argLive, Constants.argEnhanced,

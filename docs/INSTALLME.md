@@ -96,3 +96,27 @@ Die Status-Meldung zeigt den Zustand (grün online, gelb es steht etwas an, blau
   (`discord-bot-audit-<Jahr><Monat>.log` im Logordner von Trebuchet).
 - Der Token liegt verschlüsselt, nicht in Einstellungen, Logs, Exporten oder Crash-Berichten.
 - Ein Token darf nur von **einem** Trebuchet gleichzeitig benutzt werden.
+
+## 9. Ohne Oberfläche (Boulder)
+
+Der Bot läuft auch ohne Fenster, z. B. auf einem Server, an dem niemand angemeldet bleibt:
+
+```
+boulder bot --enhanced
+```
+
+- Die Edition wählst du wie bei den anderen Boulder-Befehlen mit `--live`, `--enhanced`, `--ptc` (ohne Angabe: Legacy).
+- `boulder bot` **ersetzt das Fenster** für diese Installation: es überwacht die Server, macht die automatischen
+  Neustarts und Updates und betreibt den Bot. Läuft das Fenster, startet es **nicht**. Umgekehrt öffnet sich das
+  Fenster nicht, solange `boulder bot` läuft.
+- Eingerichtet wird im Fenster (Schritt 5). Danach das Fenster schließen und `boulder bot` starten. Fehlen
+  Einstellungen oder Token, startet nichts und es steht da, was fehlt. Den Admin-Kanal (Schritt 6) setzt du wie
+  gewohnt in Discord, auch während `boulder bot` läuft.
+- **Token:** Unter Windows nimmt es den im Fenster gespeicherten Token (gleicher Windows-Benutzer) oder die
+  Umgebungsvariable `TREBUCHET_DISCORD_TOKEN`. Ohne Windows geht es **nur** über diese Umgebungsvariable. Den Token nie
+  in die Befehlszeile schreiben, die können andere Benutzer sehen.
+- **Beenden mit Strg+C.** Die Server laufen weiter, wie beim Schließen des Fensters.
+- Rückgabewerte für Skripte: `0` beendet, `1` Trebuchet läuft schon, `2` Einstellungen fehlen oder sind ungültig,
+  `3` kein Token, `4` der Token wird schon von einem anderen Trebuchet benutzt, `5` Discord lehnt den Token ab oder
+  der Bot ist nicht auf dem Server.
+- Das Protokoll steht wie beim Fenster im Logordner (`boulder.log` und `discord-bot-audit-<Jahr><Monat>.log`).

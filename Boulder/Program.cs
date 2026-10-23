@@ -33,7 +33,11 @@ class Program
         _experiment = args.Contains(Constants.argExperiment);
         try
         {
-            return await result.InvokeAsync();
+            // The bot host handles Ctrl+C and SIGTERM itself: System.CommandLine would return 2 s after the signal and the
+            // services below would be disposed while the bot still logs out of Discord.
+            return result.CommandResult.Command == BotHostCommand.Command
+                ? await result.InvokeAsync(new InvocationConfiguration { ProcessTerminationTimeout = null })
+                : await result.InvokeAsync();
         }
         finally
         {
@@ -62,6 +66,7 @@ class Program
         collection.AddSingleton<ConanProcessFactory>();
         collection.AddSingleton<AppFiles>();
         collection.AddSingleton<Launcher>();
+        BotHostCommand.AddServices(collection);
     }
 
     static ILogger GetLogger()
