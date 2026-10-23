@@ -221,6 +221,41 @@ public static class DiscordBotPanelChecks
         var threw = false;
         try { editor.Save(detached); } catch (Exception) { threw = true; }
         check(threw && Json(detached) == detachedBefore, "When the file can not be written the settings in memory are restored");
+
+        // The panel checks every edit (UI thread) while the bot keeps its status messages in the same settings object,
+        // in place and under the lock of that object. A check that read them unlocked threw "collection was modified".
+        var shared = ValidConfig(string.Empty);
+        var checking = new DiscordBotSettingsEditor();
+        checking.Load(shared);
+        var botDone = 0;
+        var bot = new Thread(() =>
+        {
+            for (var n = 0; Volatile.Read(ref botDone) == 0; n++)
+            {
+                lock (shared)
+                {
+                    if (n % 3 == 0) shared.StatusMessageIds.Remove(n % 25);
+                    else shared.StatusMessageIds[n % 25] = 900000000000000000UL + (ulong)n;
+                }
+                Thread.SpinWait(20);
+            }
+        }) { IsBackground = true };
+        bot.Start();
+        var torn = 0;
+        try
+        {
+            for (var n = 0; n < 2000; n++)
+            {
+                try { checking.Validate(shared); }
+                catch (InvalidOperationException) { torn++; }
+            }
+        }
+        finally
+        {
+            Volatile.Write(ref botDone, 1);
+            bot.Join();
+        }
+        check(torn == 0, $"Checking edits while the bot saves its status messages never reads the settings halfway ({torn} failed)");
     }
 
     private static void LimitChecks(Action<bool, string> check)
