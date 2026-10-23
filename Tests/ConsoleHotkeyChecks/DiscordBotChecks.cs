@@ -99,7 +99,7 @@ static class DiscordBotChecks
         foreach (var mutate in new Action<DiscordBotConfig>[]
                  {
                      c => c.CooldownSeconds = 0, c => c.CriticalLimit = 0, c => c.CriticalWindowMinutes = 0, c => c.LockoutAttempts = 0,
-                     c => c.LockoutMinutes = 0, c => c.MaxPauseMinutes = 0, c => c.MaxPauseMinutes = DiscordBotConfig.HardMaxPauseMinutes + 1,
+                     c => c.LockoutMinutes = 0, c => c.MaxPauseMinutes = 0, c => c.MaxPauseMinutes = DiscordBotConfig.HardMaxPauseMinutes + 1, c => c.ActionDelayMinutes = -1, c => c.ActionDelayMinutes = 61,
                      c => c.PostponeChoices = [], c => c.PostponeChoices = [0], c => c.PostponeChoices = [361],
                      c => c.PostponeChoices = Enumerable.Range(1, 26).ToList(), c => c.EnabledCommands.Add("FormatDisk"),
                      c => c.EnabledCommands.Add("status")
@@ -118,6 +118,7 @@ static class DiscordBotChecks
               && !policy.IsCommandEnabled(BotCommand.Start) && !policy.IsCommandEnabled(BotCommand.Update), "Critical and super admin commands are off by default");
         Check(policy.UserIds.Contains(SuperAdmin) && policy.UserIds.Contains(Operator), "The super admin is always among the users");
         Check(policy.PostponeChoices.SequenceEqual([15, 30, 60, 120, 180, 360]), "Default postponement choices");
+        Check(policy.ActionDelay == TimeSpan.FromMinutes(5), "Default warning time of restarts and stops from Discord");
 
         // --- the double check
         Check(BotAuthorizer.Authorize(policy, Request()).Allowed, "Listed user with an allowed role is allowed");

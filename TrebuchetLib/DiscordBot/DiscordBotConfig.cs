@@ -56,6 +56,8 @@ public sealed class DiscordBotConfig : ConfigFile<DiscordBotConfig>
     public int LockoutMinutes { get; set; } = 10;
     /// <summary>The longest postponement in minutes. The hard limit is <see cref="HardMaxPauseMinutes"/>.</summary>
     public int MaxPauseMinutes { get; set; } = 360;
+    /// <summary>Warning time in minutes before a restart or stop started from Discord (0: at once). Players are warned like for a scheduled restart.</summary>
+    public int ActionDelayMinutes { get; set; } = 5;
     /// <summary>The minutes offered in the selection when a restart, stop or update is postponed.</summary>
     public List<int> PostponeChoices { get; set; } = [15, 30, 60, 120, 180, 360];
 

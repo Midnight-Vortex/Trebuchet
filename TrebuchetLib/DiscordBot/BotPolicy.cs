@@ -43,6 +43,7 @@ public sealed class BotPolicy
         LockoutAttempts = config.LockoutAttempts;
         LockoutDuration = TimeSpan.FromMinutes(config.LockoutMinutes);
         MaxPause = TimeSpan.FromMinutes(config.MaxPauseMinutes);
+        ActionDelay = TimeSpan.FromMinutes(config.ActionDelayMinutes);
         PostponeChoices = postponeChoices;
         Language = config.Language;
     }
@@ -62,6 +63,8 @@ public sealed class BotPolicy
     public int LockoutAttempts { get; }
     public TimeSpan LockoutDuration { get; }
     public TimeSpan MaxPause { get; }
+    /// <summary>Warning time before a restart or stop started from Discord.</summary>
+    public TimeSpan ActionDelay { get; }
     public IReadOnlyList<int> PostponeChoices { get; }
     public string Language { get; }
 
@@ -95,6 +98,7 @@ public sealed class BotPolicy
         CheckLimit(issues, nameof(config.CriticalWindowMinutes), config.CriticalWindowMinutes, 1, 120);
         CheckLimit(issues, nameof(config.LockoutAttempts), config.LockoutAttempts, 1, 50);
         CheckLimit(issues, nameof(config.LockoutMinutes), config.LockoutMinutes, 1, DiscordBotConfig.HardMaxPauseMinutes);
+        CheckLimit(issues, nameof(config.ActionDelayMinutes), config.ActionDelayMinutes, 0, 60);
         CheckLimit(issues, nameof(config.MaxPauseMinutes), config.MaxPauseMinutes, 1, DiscordBotConfig.HardMaxPauseMinutes);
 
         var choices = config.PostponeChoices.Distinct().Order().ToList();
