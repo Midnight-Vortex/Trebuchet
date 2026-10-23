@@ -34,15 +34,20 @@ namespace tot_gui_lib.Controls
         public static readonly StyledProperty<bool> IsMaximizedProperty
             = AvaloniaProperty.Register<WindowTitlebar, bool>(nameof(IsMaximized));
 
-        public WindowTitlebar()
+        // Registered once: in the instance constructor every window opened (console pop-out, sequence editor,
+        // workshop search, ...) added five more handlers for all title bars, never removed.
+        static WindowTitlebar()
         {
             DisableCloseProperty.Changed.AddClassHandler<WindowTitlebar>(OnDisableChanged);
             DisableMaximizeProperty.Changed.AddClassHandler<WindowTitlebar>(OnDisableChanged);
             DisableMinimizeProperty.Changed.AddClassHandler<WindowTitlebar>(OnDisableChanged);
             TitleProperty.Changed.AddClassHandler<WindowTitlebar>(OnTitleChanged);
             SubTitleProperty.Changed.AddClassHandler<WindowTitlebar>(OnSubTitleChanged);
-            InitializeComponent();
+        }
 
+        public WindowTitlebar()
+        {
+            InitializeComponent();
         }
 
         protected override void OnLoaded(RoutedEventArgs e)

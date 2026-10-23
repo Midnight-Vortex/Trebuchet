@@ -247,10 +247,11 @@ public class Operations : IDisposable
         await _dialogueBox.OpenAsync(confirm);
         if (!confirm.Result) return true;
 
+        OnBoardingProgress<long>? progress = null;
         try
         {
             _logger.LogInformation(@"Updating");
-            var progress = new OnBoardingProgress<long>(title, string.Empty, 0, _updater.Size);
+            progress = new OnBoardingProgress<long>(title, string.Empty, 0, _updater.Size);
             _dialogueBox.Show(progress);
             var file = await _updater.DownloadUpdate(progress);
             progress.Report(0);
@@ -270,6 +271,9 @@ public class Operations : IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, @"Update failed");
+            // Trebuchet goes on without the update: the progress overlay (no close button) blocked the whole window.
+            if (progress is not null && ReferenceEquals(_dialogueBox.Popup, progress))
+                progress.Close();
             return true;
         }
     }
@@ -371,12 +375,21 @@ public class Operations : IDisposable
     {
         var progress = new OnBoardingProgress<double>(Resources.UpdateServersLabel, string.Empty, 0.0, 1.0);
         _dialogueBox.Show(progress);
-        var progressConverter = new ProgressConverter(progress);
-        using var downProgress = SetDownloaderProgress(progressConverter);
-        await _steam.UpdateServerInstances();
-        progress.Progress = 1.0;
-        progress.Close();
-        return true;
+        try
+        {
+            var progressConverter = new ProgressConverter(progress);
+            using var downProgress = SetDownloaderProgress(progressConverter);
+            await _steam.UpdateServerInstances();
+            progress.Progress = 1.0;
+            return true;
+        }
+        finally
+        {
+            // Also on failure: Steam busy or cancelled throws OperationCanceledException, which the settings field
+            // ignores, and the progress overlay without a close button blocked the whole window until a restart.
+            if (ReferenceEquals(_dialogueBox.Popup, progress))
+                progress.Close();
+        }
     }
 
     public async Task<bool> OnBoardingFindConanExile(bool force = false)
