@@ -134,6 +134,7 @@ checks += await BotInteractionHandlerChecks.Run();
 checks += await LauncherBotActionsChecks.Run();
 checks += await DiscordNetLayerChecks.Run();
 checks += await BotHostChecks.Run();
+checks += await CrashBotChecks.Run();
 checks += await CrashLauncherChecks.Run();
 checks += CrashLeadChecks.Run();
 checks += await CrashDataChecks.Run();

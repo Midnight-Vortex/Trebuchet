@@ -324,21 +324,29 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
             _connectedSinceUtc = null;
         }
         session.Verified = false;
-        try { session.Cancel.Cancel(); } catch (Exception) { /* already gone */ }
-        if (session.Loop is { } loop)
-            await Quietly(loop.WaitAsync(TimeSpan.FromSeconds(5)), "refresh loop").ConfigureAwait(false);
-        await Quietly(session.Client.StopAsync().WaitAsync(ShutdownTimeout), "stop").ConfigureAwait(false);
-        await Quietly(session.Client.LogoutAsync().WaitAsync(ShutdownTimeout), "logout").ConfigureAwait(false);
-        await Quietly(session.Client.DisposeAsync().AsTask().WaitAsync(ShutdownTimeout), "dispose").ConfigureAwait(false);
-        // Only now another Trebuchet may use the token.
-        session.TokenLock.Dispose();
+        try
+        {
+            try { session.Cancel.Cancel(); } catch (Exception) { /* already gone */ }
+            // Every step is started inside Quietly: a call that throws before it returns a task (Discord.Net's StopAsync
+            // is not async) is caught like one that fails later, and the next steps still run.
+            if (session.Loop is { } loop)
+                await Quietly(() => loop.WaitAsync(TimeSpan.FromSeconds(5)), "refresh loop").ConfigureAwait(false);
+            await Quietly(() => session.Client.StopAsync().WaitAsync(ShutdownTimeout), "stop").ConfigureAwait(false);
+            await Quietly(() => session.Client.LogoutAsync().WaitAsync(ShutdownTimeout), "logout").ConfigureAwait(false);
+            await Quietly(() => session.Client.DisposeAsync().AsTask().WaitAsync(ShutdownTimeout), "dispose").ConfigureAwait(false);
+        }
+        finally
+        {
+            // Only now another Trebuchet may use the token, and whatever went wrong above it is free again.
+            session.TokenLock.Dispose();
+        }
     }
 
-    private async Task Quietly(Task task, string step)
+    private async Task Quietly(Func<Task> work, string step)
     {
         try
         {
-            await task.ConfigureAwait(false);
+            await work().ConfigureAwait(false);
         }
         catch (Exception ex)
         {
