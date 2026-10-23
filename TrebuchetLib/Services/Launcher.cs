@@ -1763,6 +1763,9 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         var frequency = _setup.Config.UpdateCheckFrequency;
         if (frequency < TimeSpan.FromMinutes(1))
             frequency = TimeSpan.FromMinutes(1);
+        // The settings field takes huge numbers of days: DateTime.UtcNow + frequency would overflow on every tick.
+        if (frequency > TimeSpan.FromDays(365))
+            frequency = TimeSpan.FromDays(365);
         if (DateTime.UtcNow >= _nextUpdateCheckUtc)
         {
             var checkedOk = await CheckModUpdates() && await CheckServerUpdate();

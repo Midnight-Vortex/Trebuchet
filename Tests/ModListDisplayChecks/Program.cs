@@ -16,6 +16,7 @@ RxAppBuilder.CreateReactiveUIBuilder().WithCoreServices().BuildApp();
 if (args.Contains("--console-checks"))
 {
     AppBuilder.Configure<Application>().UsePlatformDetect().SetupWithoutStarting();
+    Console.WriteLine($"Passed {CrashUiChecks.RunUi()} crash UI checks.");
     var consoleChecks = ConsoleChecks.RunUi();
     SynchronizationContext.SetSynchronizationContext(null);
     consoleChecks += await ConsoleChecks.RunIo();
@@ -308,6 +309,7 @@ checks += await ProfileMenuChecks.Run();
         "New server saves start with the voice log filter");
 }
 checks += DiscordBotPanelChecks.Run();
+checks += CrashUiChecks.Run();
 Console.WriteLine($"Passed {checks} mod list and profile menu checks.");
 
 sealed class ExampleServerFiles(string root) : IAppFileHandler<ServerProfile, ServerProfileRef>
