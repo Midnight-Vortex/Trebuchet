@@ -249,6 +249,7 @@ static class DiscordBotChecks
             var logFile = Path.Combine(auditFolder, BotAuditLog.GetFileName(t0));
             var lines = File.ReadAllLines(logFile);
             Check(lines.Length == 1 && lines[0].Contains("DENIED") && lines[0].Contains($"user={Stranger}"), "One line per entry");
+            Check(!lines[0].Contains("| ALLOWED |"), "A display name can not fake the fields of an entry");
             Check(!File.ReadAllText(logFile).Contains(SampleToken) && lines[0].Contains(BotLogRedactor.Replacement), "A token never reaches the audit log");
             Check(raised == 1, "The audit log reports new entries");
             for (var i = 0; i < 5; i++)
@@ -396,7 +397,7 @@ static class DiscordBotChecks
             }
         Check(!BotCustomId.TryParse(BotCustomId.ForAction(BotCommand.Stop, 5), 5, out _, out _, out _, out _), "An instance that does not exist is refused");
         foreach (var bad in new[] { null, "", "tb1", "tb2:a:stop:0", "TB1:a:stop:0", "tb1:a:Stop:0", "tb1:a:format:0", "tb1:a:stop:-1", "tb1:a:stop:0;x",
-                     "tb1:a:stop:0 ", "tb1:a:stop:", "tb1:a:stop:1000", "tb1:ok:short", "tb1:ok:" + new string('a', 23), "tb1:xx:" + new string('a', 22),
+                     "tb1:a:stop:0 ", "tb1:a:stop:0\n", "tb1:ok:" + new string('a', 22) + "\n", "tb1:a:stop:", "tb1:a:stop:1000", "tb1:ok:short", "tb1:ok:" + new string('a', 23), "tb1:xx:" + new string('a', 22),
                      "tb1:a:status:0", "tb1:a:update:0", new string('a', 101) })
             Check(!BotCustomId.TryParse(bad, 10, out _, out _, out _, out _), $"'{bad}' is no button ID");
         var code = pending.Create(Operator, BotCommand.Stop, 0, t0);

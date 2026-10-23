@@ -251,7 +251,7 @@ public sealed class BotHost(IBotHostParts parts, ILogger logger, BotHostTimings?
             // Its error is read here when the host does not wait for it any more.
             _ = attach.ContinueWith(static t => _ = t.Exception, CancellationToken.None,
                 TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
-            if (await EndsWithinAsync(attach, _timings.TickTimeout, stop))
+            if (await LauncherTickLoop.EndsWithinAsync(attach, _timings.TickTimeout, stop))
                 await attach;
             else if (!stop.IsCancellationRequested)
                 logger.LogError("Attaching the running servers did not complete within {Timeout}, the tick waits for it", _timings.TickTimeout);
@@ -327,7 +327,10 @@ public sealed class BotHost(IBotHostParts parts, ILogger logger, BotHostTimings?
                 return BotHostExitCode.Stopped;
             }
 
-            if (bot.State == DiscordBotState.Error && bot.Problem is DiscordBotProblem.ConnectionLost or DiscordBotProblem.Unknown)
+            // GuildNotFound after a start that worked: Discord reported the server as not there (an outage, the bot was
+            // removed and invited again). Nothing else ends this, the host would run on without a bot for ever.
+            if (bot.State == DiscordBotState.Error
+                && bot.Problem is DiscordBotProblem.ConnectionLost or DiscordBotProblem.GuildNotFound or DiscordBotProblem.Unknown)
             {
                 var now = DateTime.UtcNow;
                 retryAt ??= now + delay;
@@ -420,14 +423,5 @@ public sealed class BotHost(IBotHostParts parts, ILogger logger, BotHostTimings?
         {
             logger.LogWarning("{Step} failed: {Error}", what, BotLogRedactor.Redact(ex.Message));
         }
-    }
-
-    private static async Task<bool> EndsWithinAsync(Task task, TimeSpan limit, CancellationToken token)
-    {
-        if (task.IsCompleted) return true;
-        using var cancel = CancellationTokenSource.CreateLinkedTokenSource(token);
-        var first = await Task.WhenAny(task, Task.Delay(limit, cancel.Token));
-        await cancel.CancelAsync();
-        return first == task;
     }
 }

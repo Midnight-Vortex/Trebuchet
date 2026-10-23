@@ -13,7 +13,6 @@ public sealed class BotStatusBoard
     {
         public string Signature = string.Empty;
         public DateTime LastWriteUtc;
-        public bool Dirty;
     }
 
     private readonly IBotActions _actions;
@@ -108,8 +107,7 @@ public sealed class BotStatusBoard
             if (unchanged && !force) return;
             if (!force && messageId != 0 && now - entry.LastWriteUtc < MinEditInterval)
             {
-                // Edited a moment ago: the next refresh writes it.
-                entry.Dirty = true;
+                // Edited a moment ago: the signature still differs, so the next refresh writes it.
                 return;
             }
 
@@ -128,7 +126,6 @@ public sealed class BotStatusBoard
             }
             entry.Signature = signature;
             entry.LastWriteUtc = now;
-            entry.Dirty = false;
         }
         catch (OperationCanceledException)
         {

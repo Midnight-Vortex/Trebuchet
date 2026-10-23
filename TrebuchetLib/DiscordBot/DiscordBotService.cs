@@ -33,8 +33,6 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
     private readonly DiscordNetChannelClient _channel;
     // Start, stop and the fail-closed teardown, one at a time.
     private readonly SemaphoreSlim _lifecycle = new(1, 1);
-    // The status board is refreshed by the loop and reset by settings changes, never both at once.
-    private readonly SemaphoreSlim _boardLock = new(1, 1);
     private readonly SemaphoreSlim _inFlight = new(MaxInteractionsInFlight, MaxInteractionsInFlight);
     private readonly object _stateLock = new();
 
@@ -100,9 +98,22 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
         }
         try
         {
-            bool running;
-            lock (_stateLock) running = _disposed || _session is not null;
-            if (running) return;
+            bool disposed;
+            Session? existing;
+            lock (_stateLock)
+            {
+                disposed = _disposed;
+                existing = _session;
+            }
+            if (disposed) return;
+            if (existing is not null)
+            {
+                // Connected or still connecting: nothing to start. A connection that was lost (the gateway gave up, the
+                // deadline passed) is ended and started anew: "start" of the panel and the retry of the headless host
+                // must not be silent no-ops while the state says error.
+                if (State != DiscordBotState.Error) return;
+                await TearDownAsync(existing).ConfigureAwait(false);
+            }
             using var startCancel = CancellationTokenSource.CreateLinkedTokenSource(token);
             lock (_stateLock) _startCancel = startCancel;
             try
@@ -619,15 +630,7 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
                 if (session.Verified && State == DiscordBotState.Connected && _board is { } board)
                 {
                     var force = Interlocked.Exchange(ref session.ForceRefresh, 0) == 1;
-                    await _boardLock.WaitAsync(token).ConfigureAwait(false);
-                    try
-                    {
-                        await board.RefreshAsync(token, force).ConfigureAwait(false);
-                    }
-                    finally
-                    {
-                        _boardLock.Release();
-                    }
+                    await board.RefreshAsync(token, force).ConfigureAwait(false);
                 }
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
@@ -666,21 +669,16 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
         }
     }
 
-    private async Task ResetBoardAsync()
+    /// <summary>The board forgets its messages with its next refresh (it serializes that itself, no lock needed here).</summary>
+    private void ResetBoard()
     {
-        if (_board is not { } board) return;
-        await _boardLock.WaitAsync().ConfigureAwait(false);
         try
         {
-            board.Reset();
+            _board?.Reset();
         }
         catch (Exception ex)
         {
             _logger.LogWarning("Discord bot: status board reset failed: {Error}", DiscordNetLog.Describe(ex));
-        }
-        finally
-        {
-            _boardLock.Release();
         }
     }
 
@@ -688,7 +686,7 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
 
     #region Settings
 
-    public async Task ApplySettingsAsync()
+    public Task ApplySettingsAsync()
     {
         try
         {
@@ -710,9 +708,9 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
                     await StopAsync().ConfigureAwait(false);
                     await StartAsync(CancellationToken.None).ConfigureAwait(false);
                 });
-                return;
+                return Task.CompletedTask;
             }
-            if (AdminChannelId != oldChannel) await ResetBoardAsync().ConfigureAwait(false);
+            if (AdminChannelId != oldChannel) ResetBoard();
             if (session is not null) Interlocked.Exchange(ref session.ForceRefresh, 1);
             Wake(session);
         }
@@ -720,6 +718,7 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
         {
             _logger.LogError("Discord bot: applying the settings failed: {Error}", DiscordNetLog.Describe(ex));
         }
+        return Task.CompletedTask;
     }
 
     /// <summary>
@@ -770,7 +769,7 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
             }
         }
         RebuildPolicy();
-        await ResetBoardAsync().ConfigureAwait(false);
+        ResetBoard();
         RaiseStateChanged();
         var session = CurrentSession;
         if (session is not null) Interlocked.Exchange(ref session.ForceRefresh, 1);

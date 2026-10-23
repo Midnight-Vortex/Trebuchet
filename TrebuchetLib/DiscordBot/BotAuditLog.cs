@@ -51,9 +51,9 @@ public sealed class BotAuditLog(string directory, int memoryEntries = 200)
     {
         var clean = entry with
         {
-            UserName = BotInputRules.SanitizeForLog(entry.UserName),
-            Parameters = BotInputRules.SanitizeForLog(BotLogRedactor.Redact(entry.Parameters)),
-            Detail = BotInputRules.SanitizeForLog(BotLogRedactor.Redact(entry.Detail))
+            UserName = Field(entry.UserName),
+            Parameters = Field(BotLogRedactor.Redact(entry.Parameters)),
+            Detail = Field(BotLogRedactor.Redact(entry.Detail))
         };
         lock (_lock)
         {
@@ -71,6 +71,9 @@ public sealed class BotAuditLog(string directory, int memoryEntries = 200)
         }
         EntryWritten?.Invoke(this, clean);
     }
+
+    // One line, and no "|": the display name comes from Discord and could otherwise fake the fields that follow it.
+    private static string Field(string? text) => BotInputRules.SanitizeForLog(text).Replace('|', '/');
 
     public static string Format(BotAuditEntry entry) => string.Join(" | ",
         entry.UtcTime.ToString("yyyy-MM-dd HH:mm:ss'Z'", CultureInfo.InvariantCulture),

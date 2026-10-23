@@ -75,9 +75,10 @@ public static partial class BotCustomId
         return true;
     }
 
-    [GeneratedRegex("^tb1:a:([a-z]{4,10}):([0-9]{1,3})$")]
+    // \z, not $: $ also matches in front of a final line break.
+    [GeneratedRegex("^tb1:a:([a-z]{4,10}):([0-9]{1,3})\\z")]
     private static partial Regex ActionPattern();
 
-    [GeneratedRegex("^tb1:(ok|no|pp):([A-Za-z0-9_-]{22})$")]
+    [GeneratedRegex("^tb1:(ok|no|pp):([A-Za-z0-9_-]{22})\\z")]
     private static partial Regex QuestionPattern();
 }

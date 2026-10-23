@@ -360,6 +360,17 @@ static class BotHostChecks
             saved.SaveFile();
             check(BotHostCommand.LoadSettingsFile(path)?.GuildId == 100000000000000001UL, "Saved settings are read");
 
+            // A damaged file is not repaired from its backup: the backup may hold users or roles that were removed on purpose.
+            saved.GuildId = 100000000000000002UL;
+            saved.SaveFile();
+            File.WriteAllText(path, "{ \"GuildId\": \"1000");
+            var damaged = File.ReadAllText(path);
+            var refused = false;
+            try { BotHostCommand.LoadSettingsFile(path); }
+            catch (FormatException) { refused = true; }
+            check(refused && File.ReadAllText(path) == damaged && !Directory.EnumerateFiles(root, "*.corrupt-*").Any(),
+                "Damaged settings are refused and left as they are, not restored from the backup");
+
             // The token: environment or protected file, never printed.
             var tokenPath = Path.Combine(root, "discord-bot.legacy.token");
             string? variable = null;
@@ -524,6 +535,19 @@ static class BotHostChecks
             await Task.Delay(200);
             check(parts.Bot.Starts == 2 && parts.Ticks > ticks && !run.IsCompleted, "A refused token is not tried again, the tick goes on");
             check(log.Contains("Discord refused the token"), "It says why");
+            await stop.CancelAsync();
+            check(await Within(run, 10_000) && run.Result == 0, "And ends with 0");
+        }
+        // The server reported missing after a good start (a Discord outage, the bot removed and invited again): tried again.
+        parts = new FakeParts();
+        using (var stop = new CancellationTokenSource())
+        {
+            log = new ListLogger();
+            var run = new BotHost(parts, log, Fast).RunAsync(stop.Token);
+            check(await WaitUntil(() => parts.Bot.State == DiscordBotState.Connected, 5_000), "Connected");
+            parts.Bot.Set(DiscordBotState.Error, DiscordBotProblem.GuildNotFound);
+            check(await WaitUntil(() => parts.Bot.Starts == 2 && parts.Bot.State == DiscordBotState.Connected, 5_000) && !run.IsCompleted,
+                "A server that went missing after a good start is looked for again, the host does not run on without a bot");
             await stop.CancelAsync();
             check(await Within(run, 10_000) && run.Result == 0, "And ends with 0");
         }

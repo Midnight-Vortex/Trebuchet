@@ -39,7 +39,8 @@ public class BotHostCommand(IServiceProvider services, AppSetup setup, ILogger<B
         // One launcher thread for the tick and for the bot (the IBotDispatcher of LauncherBotActions).
         collection.AddSingleton(services => new SerialBotDispatcher(services.GetRequiredService<ILogger<SerialBotDispatcher>>()));
         collection.AddSingleton<IBotDispatcher>(services => services.GetRequiredService<SerialBotDispatcher>());
-        collection.AddSingleton(services => DiscordBotConfig.LoadConfig(DiscordBotConfig.GetPath(services.GetRequiredService<AppSetup>().Edition)));
+        // Strict: a damaged file is never repaired from its backup (that could bring back users or roles removed on purpose).
+        collection.AddSingleton(services => DiscordBotConfig.LoadStrict(DiscordBotConfig.GetPath(services.GetRequiredService<AppSetup>().Edition)));
         collection.AddSingleton(services => new BotTokenStore(DiscordBotConfig.GetTokenPath(services.GetRequiredService<AppSetup>().Edition)));
         // In the log folder, next to the logs of the window.
         collection.AddSingleton(_ => new BotAuditLog(Constants.GetLoggingDirectory().FullName));
@@ -70,7 +71,8 @@ public class BotHostCommand(IServiceProvider services, AppSetup setup, ILogger<B
     }
 
     /// <returns>The settings, or null when there is no settings file. Nothing is created.</returns>
-    public static DiscordBotConfig? LoadSettingsFile(string path) => File.Exists(path) ? DiscordBotConfig.LoadConfig(path) : null;
+    /// <exception cref="FormatException">The file is damaged: it is left as it is and not repaired from its backup.</exception>
+    public static DiscordBotConfig? LoadSettingsFile(string path) => File.Exists(path) ? DiscordBotConfig.LoadStrict(path) : null;
 
     public static BotHostTokenCheck CheckToken(BotTokenStore store, Func<string, string?> environment)
     {

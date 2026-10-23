@@ -104,7 +104,8 @@ public sealed class LauncherTickLoop(Func<Task> tick, ILogger logger)
         return failuresInARow;
     }
 
-    private static async Task<bool> EndsWithinAsync(Task task, TimeSpan limit, CancellationToken token)
+    /// <returns>True when the task ended within the limit (or <paramref name="token"/> was cancelled first: then false).</returns>
+    public static async Task<bool> EndsWithinAsync(Task task, TimeSpan limit, CancellationToken token)
     {
         if (task.IsCompleted) return true;
         using var cancel = CancellationTokenSource.CreateLinkedTokenSource(token);

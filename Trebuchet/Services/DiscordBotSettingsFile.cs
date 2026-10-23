@@ -55,9 +55,7 @@ public sealed class DiscordBotSettingsFile
         {
             // A damaged file is NOT repaired from its backup here (what JsonFile does for other settings): the backup may
             // still hold users or roles that were removed on purpose. The bot stays off until someone looks at the file.
-            if (System.IO.File.Exists(path) && !IsWellFormedJson(System.IO.File.ReadAllText(path)))
-                throw new FormatException(@"The file is damaged (no valid JSON). It was left as it is, a backup may exist next to it.");
-            return new DiscordBotSettingsFile(DiscordBotConfig.LoadConfig(path), path, tokenPath, null);
+            return new DiscordBotSettingsFile(DiscordBotConfig.LoadStrict(path), path, tokenPath, null);
         }
         catch (Exception ex)
         {
@@ -67,24 +65,6 @@ public sealed class DiscordBotSettingsFile
             // Should anything save these defaults, they go next to the real file, never over it.
             var fallback = DiscordBotConfig.CreateConfig(path + @".unreadable");
             return new DiscordBotSettingsFile(fallback, path, tokenPath, ex.GetBaseException().Message);
-        }
-    }
-
-    private static bool IsWellFormedJson(string json)
-    {
-        if (string.IsNullOrWhiteSpace(json)) return false;
-        try
-        {
-            using var document = System.Text.Json.JsonDocument.Parse(json, new System.Text.Json.JsonDocumentOptions
-            {
-                CommentHandling = System.Text.Json.JsonCommentHandling.Skip,
-                AllowTrailingCommas = true
-            });
-            return document.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object;
-        }
-        catch (System.Text.Json.JsonException)
-        {
-            return false;
         }
     }
 }

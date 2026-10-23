@@ -111,6 +111,37 @@ public sealed class DiscordBotConfig : ConfigFile<DiscordBotConfig>
 
     public static string GetTokenPath(GameEdition edition) => Path.ChangeExtension(GetPath(edition), ".token");
 
+    /// <summary>
+    /// Loads the settings the way the bot needs them. <see cref="ConfigFile{T}.LoadConfig"/> repairs a damaged file from its
+    /// backup, and the backup may still hold users or roles that were removed on purpose: the bot would run with an old list
+    /// of who may use it. Here a damaged file is an error and stays as it is. A missing file gives settings that allow nothing.
+    /// </summary>
+    /// <exception cref="FormatException">The file is not valid JSON.</exception>
+    public static DiscordBotConfig LoadStrict(string path)
+    {
+        if (File.Exists(path) && !IsWellFormedJson(File.ReadAllText(path)))
+            throw new FormatException("The file is damaged (no valid JSON). It was left as it is, a backup may exist next to it.");
+        return LoadConfig(path);
+    }
+
+    private static bool IsWellFormedJson(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json)) return false;
+        try
+        {
+            using var document = System.Text.Json.JsonDocument.Parse(json, new System.Text.Json.JsonDocumentOptions
+            {
+                CommentHandling = System.Text.Json.JsonCommentHandling.Skip,
+                AllowTrailingCommas = true
+            });
+            return document.RootElement.ValueKind == System.Text.Json.JsonValueKind.Object;
+        }
+        catch (System.Text.Json.JsonException)
+        {
+            return false;
+        }
+    }
+
     public bool IsEnabled(BotCommand command) => EnabledCommands.Contains(command.ToString(), StringComparer.Ordinal);
 
     public void SetEnabled(BotCommand command, bool enabled)
