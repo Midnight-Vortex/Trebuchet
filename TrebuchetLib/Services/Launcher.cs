@@ -2522,10 +2522,14 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         _updateRound.Remove(instance);
     }
 
+    // A game whose Saved folder is no junction (a real folder, a link Trebuchet did not make) uses no save of Trebuchet.
+    // Path.GetFullPath("") threw for it: while such a server ran, every start of another instance failed.
     private bool IsClientProfileLocked(ClientProfileRef profileRef)
     {
         if (_conanClientProcess == null) return false;
-        var junction = Path.GetFullPath(GetCurrentClientJunction());
+        var target = GetCurrentClientJunction();
+        if (string.IsNullOrEmpty(target)) return false;
+        var junction = Path.GetFullPath(target);
         var profilePath = Path.GetFullPath(_appFiles.Client.GetDirectory(profileRef));
         return string.Equals(junction, profilePath, StringComparison.Ordinal);
     }
@@ -2536,7 +2540,9 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         foreach (var s in _serverProcesses.Values)
         {
             var instance = s.Infos.Instance;
-            var junction = Path.GetFullPath(GetCurrentServerJunction(instance));
+            var target = GetCurrentServerJunction(instance);
+            if (string.IsNullOrEmpty(target)) continue;
+            var junction = Path.GetFullPath(target);
             if (string.Equals(junction, profilePath, StringComparison.Ordinal))
                 return true;
         }

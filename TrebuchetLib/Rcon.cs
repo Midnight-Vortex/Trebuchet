@@ -201,7 +201,7 @@ namespace TrebuchetLib
 
                     var id = br.ReadInt32();
                     _ = (RconPacketType)br.ReadInt32();
-                    var response = br.ReadNullTerminatedString();
+                    var response = br.ReadNullTerminatedUtf8();
                     var code = br.ReadByte();
                     if (code != 0)
                         throw new Exception($"Invalid packet received ({code})");
@@ -209,7 +209,7 @@ namespace TrebuchetLib
                     if (id == -1)
                         throw new Exception("Authentication failed.");
 
-                    return new RConResponse(id, response ?? string.Empty);
+                    return new RConResponse(id, response);
                 }
                 catch(Exception ex)
                 {
