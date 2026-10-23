@@ -100,6 +100,12 @@
                             <TextBlock Text="{x:Static a:Resources.DiscordBotRevert}" />
                         </StackPanel>
                     </Button>
+                    <Button Command="{Binding OpenSetupHelpCommand}" Classes="Base Blue" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <i:Icon Value="mdi-help-circle-outline" Classes="Normal" />
+                            <TextBlock Text="{x:Static a:Resources.DiscordBotHelpButton}" />
+                        </StackPanel>
+                    </Button>
                     <StackPanel Orientation="Horizontal" Spacing="6" Margin="12,0,0,0" VerticalAlignment="Center"
                                 IsVisible="{Binding IsDirty}">
                         <i:Icon Value="mdi-pencil" Classes="Normal Warning" />
@@ -369,30 +375,6 @@
                                     </ItemsControl>
                                 </ScrollViewer>
                             </Border>
-                        </StackPanel>
-                    </Border>
-
-                    <!-- (f) Setup help -->
-                    <TextBlock Classes="Title Section" Text="{x:Static a:Resources.DiscordBotSectionSetup}" />
-                    <Border Classes="HSeparator" />
-                    <Border Classes="Panel Shadowed" Padding="12" Margin="0,0,0,12">
-                        <StackPanel Spacing="6">
-                            <ItemsControl ItemsSource="{Binding SetupSteps}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="sys:String">
-                                        <DockPanel Margin="0,2">
-                                            <i:Icon DockPanel.Dock="Left" Value="mdi-chevron-right" Classes="Normal SubText" Margin="0,0,6,0" VerticalAlignment="Top" />
-                                            <TextBlock Text="{Binding}" TextWrapping="Wrap" VerticalAlignment="Center" />
-                                        </DockPanel>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                            <Button Command="{Binding OpenSetupGuideCommand}" Classes="Base Blue" HorizontalAlignment="Left" Margin="0,6,0,0">
-                                <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <i:Icon Value="mdi-open-in-new" Classes="Normal" />
-                                    <TextBlock Text="{x:Static a:Resources.DiscordBotSetupOpenGuide}" />
-                                </StackPanel>
-                            </Button>
                         </StackPanel>
                     </Border>
                 </StackPanel>

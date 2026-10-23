@@ -1,0 +1,99 @@
+<Window x:Class="Trebuchet.Windows.DiscordBotHelpWindow"
+        xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:bot="clr-namespace:Trebuchet.ViewModels.DiscordBot"
+        xmlns:a="clr-namespace:Trebuchet.Assets"
+        xmlns:i="https://github.com/projektanker/icons.avalonia"
+        xmlns:sys="using:System"
+        xmlns:controls="clr-namespace:tot_gui_lib.Controls;assembly=tot-gui-lib"
+        mc:Ignorable="d"
+        Title="{x:Static a:Resources.DiscordBotHelpTitle}"
+        Height="760" Width="900"
+        MinHeight="480" MinWidth="640"
+        WindowStartupLocation="CenterScreen"
+        ExtendClientAreaToDecorationsHint="True"
+        WindowDecorations="Full"
+        ExtendClientAreaTitleBarHeightHint="40"
+        Classes="Trebuchet"
+        x:DataType="bot:DiscordBotHelpViewModel"
+        UseLayoutRounding="True">
+    <Border x:Name="MainBorder">
+        <Grid RowDefinitions="Auto,*,Auto">
+            <controls:WindowTitlebar x:Name="TitleBar" Title="{x:Static a:Resources.DiscordBotHelpTitle}" />
+
+            <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Margin="24,12,24,12" MaxWidth="820" Spacing="12">
+                    <!-- What this is about and what is needed. -->
+                    <Border Classes="Panel Blue Shadowed" Padding="16">
+                        <ItemsControl ItemsSource="{Binding Intro}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="sys:String">
+                                    <SelectableTextBlock Text="{Binding}" TextWrapping="Wrap" Margin="0,3" />
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Border>
+
+                    <!-- One panel per step. -->
+                    <ItemsControl ItemsSource="{Binding Steps}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="bot:DiscordBotHelpStep">
+                                <Border Classes="Panel Shadowed" Padding="16" Margin="0,0,0,12">
+                                    <StackPanel Spacing="10">
+                                        <DockPanel LastChildFill="True">
+                                            <Border DockPanel.Dock="Left" Classes="Panel Blue" Width="34" Height="34" CornerRadius="17"
+                                                    Padding="0" Margin="0,0,12,0" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding Number}" FontWeight="Bold" FontSize="15"
+                                                           HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <TextBlock Text="{Binding Title}" Classes="Title" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                        </DockPanel>
+                                        <ItemsControl ItemsSource="{Binding Paragraphs}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="sys:String">
+                                                    <DockPanel Margin="0,3">
+                                                        <i:Icon DockPanel.Dock="Left" Value="mdi-chevron-right" Classes="Normal SubText"
+                                                                Margin="0,0,8,0" VerticalAlignment="Top" />
+                                                        <SelectableTextBlock Text="{Binding}" TextWrapping="Wrap" />
+                                                    </DockPanel>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                        <Border Classes="Panel Yellow" Padding="10" IsVisible="{Binding HasHint}">
+                                            <DockPanel>
+                                                <i:Icon DockPanel.Dock="Left" Value="mdi-lightbulb-on-outline" Classes="Normal"
+                                                        Margin="0,0,8,0" VerticalAlignment="Top" />
+                                                <TextBlock DockPanel.Dock="Left" Text="{x:Static a:Resources.DiscordBotHelpHintLabel}"
+                                                           FontWeight="Bold" Margin="0,0,6,0" VerticalAlignment="Top" />
+                                                <SelectableTextBlock Text="{Binding Hint}" TextWrapping="Wrap" />
+                                            </DockPanel>
+                                        </Border>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </ScrollViewer>
+
+            <Border Grid.Row="2" Classes="Toolbar" Padding="12,8">
+                <DockPanel LastChildFill="False">
+                    <Button DockPanel.Dock="Right" Classes="Base" Click="OnCloseClicked" VerticalAlignment="Center" Margin="6,0,0,0">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <i:Icon Value="mdi-close" Classes="Normal" />
+                            <TextBlock Text="{x:Static a:Resources.DiscordBotHelpClose}" />
+                        </StackPanel>
+                    </Button>
+                    <Button DockPanel.Dock="Right" Command="{Binding OpenOnlineGuide}" Classes="Base Blue" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <i:Icon Value="mdi-open-in-new" Classes="Normal" />
+                            <TextBlock Text="{x:Static a:Resources.DiscordBotHelpOpenGuide}" />
+                        </StackPanel>
+                    </Button>
+                </DockPanel>
+            </Border>
+        </Grid>
+    </Border>
+</Window>

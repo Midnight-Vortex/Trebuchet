@@ -2407,39 +2407,6 @@ unten in den Server-Speicherständen und gelten für jedes Profil.
     <data name="DiscordBotAuditResultCancelled" xml:space="preserve">
         <value>Abgebrochen</value>
     </data>
-    <data name="DiscordBotSectionSetup" xml:space="preserve">
-        <value>Einrichtungshilfe</value>
-    </data>
-    <data name="DiscordBotSetupStep1" xml:space="preserve">
-        <value>Bot im Discord-Developer-Portal anlegen und „Public Bot“ ausschalten, damit ihn niemand sonst einladen kann.</value>
-    </data>
-    <data name="DiscordBotSetupStep2" xml:space="preserve">
-        <value>Alle privilegierten Gateway-Intents ausgeschaltet lassen (Presence, Server Members, Message Content).</value>
-    </data>
-    <data name="DiscordBotSetupStep3" xml:space="preserve">
-        <value>Mit den Bereichen bot und applications.commands einladen und nur „Kanäle ansehen“, „Nachrichten senden“ und „Links einbetten“ erlauben. Nie Administrator.</value>
-    </data>
-    <data name="DiscordBotSetupStep4" xml:space="preserve">
-        <value>Für das Konto des Developer-Portals die Zwei-Faktor-Anmeldung verwenden.</value>
-    </data>
-    <data name="DiscordBotSetupStep5" xml:space="preserve">
-        <value>Eine eigene Rolle anlegen (z. B. Trebuchet-Admin) und einen privaten Kanal, den nur diese Rolle sieht. Auch du brauchst die Rolle.</value>
-    </data>
-    <data name="DiscordBotSetupStep6" xml:space="preserve">
-        <value>In Discord den Entwicklermodus einschalten (Einstellungen → Erweitert), dann lassen sich IDs per Rechtsklick kopieren.</value>
-    </data>
-    <data name="DiscordBotSetupStep7" xml:space="preserve">
-        <value>Hier: Token, Server-ID, Super-Admin, Rollen und Nutzer eintragen, speichern, „Sicherheit prüfen“ drücken, dann starten.</value>
-    </data>
-    <data name="DiscordBotSetupStep8" xml:space="preserve">
-        <value>Im privaten Kanal als Super-Admin /bot channel set ausführen.</value>
-    </data>
-    <data name="DiscordBotSetupStep9" xml:space="preserve">
-        <value>Bei Verdacht, dass der Token bekannt wurde: im Portal „Reset Token“ drücken und den neuen Token hier eintragen.</value>
-    </data>
-    <data name="DiscordBotSetupOpenGuide" xml:space="preserve">
-        <value>Anleitung öffnen</value>
-    </data>
     <data name="DiscordBotIssueGuildMissing" xml:space="preserve">
         <value>Die Server-ID fehlt.</value>
     </data>
@@ -2463,5 +2430,162 @@ unten in den Server-Speicherständen und gelten für jedes Profil.
     </data>
     <data name="DiscordBotIssueUnknownCommand" xml:space="preserve">
         <value>Unbekannter Befehl in den Einstellungen</value>
+    </data>
+    <data name="DiscordBotHelpButton" xml:space="preserve">
+        <value>Einrichtungshilfe</value>
+    </data>
+    <data name="DiscordBotHelpTitle" xml:space="preserve">
+        <value>Discord-Bot einrichten</value>
+    </data>
+    <data name="DiscordBotHelpStepLabel" xml:space="preserve">
+        <value>Schritt {0}</value>
+    </data>
+    <data name="DiscordBotHelpHintLabel" xml:space="preserve">
+        <value>Tipp</value>
+    </data>
+    <data name="DiscordBotHelpClose" xml:space="preserve">
+        <value>Schließen</value>
+    </data>
+    <data name="DiscordBotHelpOpenGuide" xml:space="preserve">
+        <value>Anleitung im Browser öffnen</value>
+    </data>
+    <data name="DiscordBotHelpIntro" xml:space="preserve">
+        <value>Diese Anleitung führt dich Schritt für Schritt durch die Einrichtung des Discord-Bots. Plane etwa 15 Minuten ein.
+Du brauchst: ein Discord-Konto, einen Discord-Server, auf dem du Administrator bist, und dieses Trebuchet auf dem PC, auf dem deine Conan-Server laufen.
+Der Bot läuft in Trebuchet und baut nur eine ausgehende Verbindung zu Discord auf, es wird kein Port geöffnet. Zugriff hat nur, wer die Discord-User-ID in der Liste hat UND eine der erlaubten Rollen.
+Probiere alles zuerst mit einem Test-Server und einem Test-Save aus: der Bot kann echte Server neu starten und stoppen.</value>
+    </data>
+    <data name="DiscordBotHelpStep1Title" xml:space="preserve">
+        <value>Bot im Discord-Developer-Portal anlegen</value>
+    </data>
+    <data name="DiscordBotHelpStep1Text" xml:space="preserve">
+        <value>Öffne https://discord.com/developers/applications im Browser und melde dich mit deinem Discord-Konto an.
+Klicke oben rechts auf „New Application“, gib einen Namen ein (z. B. „Trebuchet Admin“), akzeptiere die Bedingungen und klicke auf „Create“. Dieser Name ist später auf deinem Server zu sehen.
+Klicke links im Menü auf „Bot“. Auf dieser Seite machst du die nächsten zwei Schritte.</value>
+    </data>
+    <data name="DiscordBotHelpStep1Hint" xml:space="preserve">
+        <value>Das Portal ist nur für die Einrichtung nötig. Danach brauchst du es nur noch, wenn du den Token zurücksetzen willst.</value>
+    </data>
+    <data name="DiscordBotHelpStep2Title" xml:space="preserve">
+        <value>Bot absichern</value>
+    </data>
+    <data name="DiscordBotHelpStep2Text" xml:space="preserve">
+        <value>„Public Bot“ ausschalten. Sonst kann jeder den Bot auf seinen eigenen Server einladen.
+Bei „Privileged Gateway Intents“ alle drei Schalter ausgeschaltet lassen („Presence Intent“, „Server Members Intent“, „Message Content Intent“). Der Bot braucht sie nicht.
+„Requires OAuth2 Code Grant“ ausgeschaltet lassen.
+Für das Konto, mit dem du im Developer-Portal angemeldet bist, die Zwei-Faktor-Anmeldung aktivieren (Discord → Einstellungen → Mein Konto).</value>
+    </data>
+    <data name="DiscordBotHelpStep3Title" xml:space="preserve">
+        <value>Token kopieren</value>
+    </data>
+    <data name="DiscordBotHelpStep3Text" xml:space="preserve">
+        <value>Klicke auf der Seite „Bot“ auf „Reset Token“, bestätige mit deinem Passwort und kopiere den angezeigten Token. Er ist ein langer Text mit zwei Punkten und wird nur einmal angezeigt.
+Der Token ist wie ein Passwort: Wer ihn hat, kann sich als dein Bot melden. Gib ihn nicht in Discord, per E-Mail oder auf Bildschirmfotos weiter.
+Lass den Token in der Zwischenablage, oder füge ihn gleich in Schritt 7 ein. Er wird in Trebuchet verschlüsselt gespeichert und danach nie wieder angezeigt.</value>
+    </data>
+    <data name="DiscordBotHelpStep3Hint" xml:space="preserve">
+        <value>Ist der Token weg oder bekannt geworden: im Portal wieder „Reset Token“ drücken. Der alte Token ist dann sofort ungültig.</value>
+    </data>
+    <data name="DiscordBotHelpStep4Title" xml:space="preserve">
+        <value>Bot auf deinen Server einladen</value>
+    </data>
+    <data name="DiscordBotHelpStep4Text" xml:space="preserve">
+        <value>Klicke im Developer-Portal links auf „OAuth2“ und dann auf „URL Generator“.
+Bei „Scopes“ ankreuzen: „bot“ und „applications.commands“.
+Bei „Bot Permissions“ nur diese drei ankreuzen: „View Channels“ (Kanäle ansehen), „Send Messages“ (Nachrichten senden) und „Embed Links“ (Links einbetten). Niemals „Administrator“.
+Kopiere unten die „Generated URL“, öffne sie im Browser, wähle deinen Server aus und bestätige mit „Weiter“ und „Autorisieren“.</value>
+    </data>
+    <data name="DiscordBotHelpStep4Hint" xml:space="preserve">
+        <value>Danach steht der Bot in der Mitgliederliste deines Servers, noch offline. Er geht online, sobald du ihn in Trebuchet startest.</value>
+    </data>
+    <data name="DiscordBotHelpStep5Title" xml:space="preserve">
+        <value>Entwicklermodus einschalten und IDs kopieren</value>
+    </data>
+    <data name="DiscordBotHelpStep5Text" xml:space="preserve">
+        <value>Schalte in Discord den Entwicklermodus ein: Einstellungen (Zahnrad) → Erweitert → Entwicklermodus.
+Server-ID: Rechtsklick auf das Symbol deines Servers → „Server-ID kopieren“.
+Deine Benutzer-ID: Rechtsklick auf deinen Namen (z. B. in der Mitgliederliste) → „Benutzer-ID kopieren“. Das ist später der Super-Admin.
+Weitere Personen, die den Bot benutzen dürfen: genauso jeweils deren Benutzer-ID kopieren.
+Rollen-ID: Servereinstellungen → Rollen → Rechtsklick auf die Rolle → „Rollen-ID kopieren“ (die Rolle legst du im nächsten Schritt an).
+IDs sind reine Zahlen mit 17 bis 20 Stellen. Du kannst sie in einem Texteditor zwischenspeichern, bis du sie in Schritt 7 einträgst.</value>
+    </data>
+    <data name="DiscordBotHelpStep5Hint" xml:space="preserve">
+        <value>Die Rolle „@everyone“ ist nicht erlaubt: sie haben alle Mitglieder, Trebuchet lehnt sie ab.</value>
+    </data>
+    <data name="DiscordBotHelpStep6Title" xml:space="preserve">
+        <value>Rolle und privaten Kanal anlegen</value>
+    </data>
+    <data name="DiscordBotHelpStep6Text" xml:space="preserve">
+        <value>Servereinstellungen → Rollen → „Rolle erstellen“. Name z. B. „Trebuchet-Admin“. Besondere Rechte braucht die Rolle nicht.
+Gib die Rolle allen, die den Bot benutzen dürfen, auch dir selbst (Mitglied anklicken → Rolle hinzufügen).
+Lege einen neuen Textkanal an (z. B. „server-admin“) und schalte „Privater Kanal“ ein. Erlaube nur der Rolle „Trebuchet-Admin“ und dem Bot den Zugriff.
+Der Bot braucht in diesem Kanal die Rechte „Kanal ansehen“, „Nachrichten senden“ und „Links einbetten“.</value>
+    </data>
+    <data name="DiscordBotHelpStep6Hint" xml:space="preserve">
+        <value>Zugriff gibt es nur mit User-ID UND Rolle. Die Rolle allein oder die ID allein reicht nicht, auch nicht für den Super-Admin.</value>
+    </data>
+    <data name="DiscordBotHelpStep7Title" xml:space="preserve">
+        <value>Hier in Trebuchet eintragen</value>
+    </data>
+    <data name="DiscordBotHelpStep7Text" xml:space="preserve">
+        <value>Abschnitt „Verbindung“: Token einfügen und speichern, dann die Server-ID eintragen. Der Token wird nach dem Speichern nie mehr angezeigt.
+Abschnitt „Sicherheit“: bei „Super-Admin“ deine Benutzer-ID eintragen (Pflicht, der Eintrag kann nicht entfernt werden). Bei „Erlaubte Rollen“ die Rollen-ID eintragen. Bei „Erlaubte Nutzer“ die IDs weiterer Personen hinzufügen.
+Oben auf „Speichern“ klicken. Ist etwas ungültig oder fehlt etwas, steht oben in Rot genau was, und es wird nichts gespeichert.
+Optional: bei „Audit-Kanal“ die ID eines Kanals eintragen, in den der Bot kritische Aktionen und Sperren meldet.</value>
+    </data>
+    <data name="DiscordBotHelpStep7Hint" xml:space="preserve">
+        <value>Ohne Token, Server-ID, Super-Admin und mindestens eine Rolle startet der Bot nicht. Das ist Absicht.</value>
+    </data>
+    <data name="DiscordBotHelpStep8Title" xml:space="preserve">
+        <value>Sicherheit prüfen und starten</value>
+    </data>
+    <data name="DiscordBotHelpStep8Text" xml:space="preserve">
+        <value>Klicke im Abschnitt „Sicherheit“ auf „Sicherheit prüfen“. Alle Punkte sollten grün sein (Server erreichbar, Rollen vorhanden, kein Administrator-Recht, …). Bei gelb oder rot den Hinweis lesen und beheben.
+Klicke oben im Abschnitt „Status“ auf „Starten“. Nach wenigen Sekunden steht dort „Verbunden“, und der Bot ist auf Discord online.
+Optional: „Mit Trebuchet starten“ einschalten, wenn der Bot immer mitlaufen soll.</value>
+    </data>
+    <data name="DiscordBotHelpStep9Title" xml:space="preserve">
+        <value>Admin-Kanal festlegen</value>
+    </data>
+    <data name="DiscordBotHelpStep9Text" xml:space="preserve">
+        <value>Gib im privaten Kanal als Super-Admin den Befehl /bot channel set ein und bestätige mit „Bestätigen“. Die Slash-Befehle erscheinen erst, wenn der Bot verbunden ist (kann eine Minute dauern, sonst Discord neu laden mit Strg+R).
+Danach antwortet der Bot nur noch in diesem Kanal und legt dort pro Server eine Status-Meldung mit Buttons an.
+Den Kanal wieder freigeben (alle Kanäle) geht nur hier im Trebuchet-Panel, nie über Discord.</value>
+    </data>
+    <data name="DiscordBotHelpStep9Hint" xml:space="preserve">
+        <value>Der Befehl funktioniert auch außerhalb des bisherigen Admin-Kanals, aber nur für den Super-Admin und nur mit Rolle.</value>
+    </data>
+    <data name="DiscordBotHelpStep10Title" xml:space="preserve">
+        <value>Befehle und Buttons einstellen</value>
+    </data>
+    <data name="DiscordBotHelpStep10Text" xml:space="preserve">
+        <value>Abschnitt „Befehle“: Standardmäßig an sind Status, Verschieben, Wieder freigeben und Kanal setzen. Aus sind Neustart jetzt, Stoppen, Starten und Update.
+Wer Neustart und Stopp per Knopf möchte, schaltet sie hier ein und speichert. Diese Aktionen fragen vor der Ausführung immer noch einmal nach („Bestätigen“). Starten und Update darf nur der Super-Admin.
+Grenzen stellst du im Abschnitt „Sicherheit“ ein: Wartezeit zwischen Befehlen, wie viele kritische Aktionen erlaubt sind, die längste Verschiebung und die Auswahlzeiten (z. B. 15 Min, 30 Min, 1 Std).</value>
+    </data>
+    <data name="DiscordBotHelpStep10Hint" xml:space="preserve">
+        <value>Schalte nur ein, was du wirklich brauchst. Je weniger an ist, desto weniger kann schiefgehen.</value>
+    </data>
+    <data name="DiscordBotHelpStep11Title" xml:space="preserve">
+        <value>Im Alltag benutzen</value>
+    </data>
+    <data name="DiscordBotHelpStep11Text" xml:space="preserve">
+        <value>Die Status-Meldung zeigt pro Server den Zustand: grün = läuft, gelb = es steht etwas an, blau = verschoben, rot = gestoppt oder abgestürzt.
+Steht ein Neustart, Stopp oder Update an, erscheint der Button „… verschieben“. Ein Klick öffnet eine Auswahl (z. B. 15 Min bis 6 Std). Ingame bekommen die Spieler die Meldung, dass verschoben wurde.
+„Wieder freigeben“ hebt eine Verschiebung auf. Insgesamt kann nur bis zur längsten Verschiebung (Standard 6 Std) aufgeschoben werden, danach erst wieder nach dem Neustart.
+Alles, was der Bot tut oder ablehnt, steht im Abschnitt „Protokoll“.</value>
+    </data>
+    <data name="DiscordBotHelpStep12Title" xml:space="preserve">
+        <value>Wenn etwas nicht klappt</value>
+    </data>
+    <data name="DiscordBotHelpStep12Text" xml:space="preserve">
+        <value>„Token abgelehnt“ oder „Verbindung verloren“: Token im Portal neu erzeugen (Schritt 3), hier eintragen und speichern.
+Keine Slash-Befehle in Discord, und das Panel zeigt „Verbunden, aber die Slash-Befehle konnten nicht angelegt werden“: Der Bot wurde ohne „applications.commands“ eingeladen. Lade ihn mit einem neuen Link aus Schritt 4 erneut ein.
+„Keine Berechtigung“: Benutzer-ID UND Rolle müssen stimmen, Server und Kanal auch. Der Bot sagt aus Sicherheitsgründen nicht, was fehlt. Der genaue Grund steht im Protokoll.
+Der Bot antwortet nicht im Kanal: Ist der Admin-Kanal gesetzt, und benutzt du den Befehl in diesem Kanal? Hat der Bot dort die Rechte aus Schritt 6?
+Bei „Token bereits in Verwendung“ läuft ein Bot mit demselben Token schon in einem anderen Trebuchet oder in „boulder bot“.</value>
+    </data>
+    <data name="DiscordBotHelpStep12Hint" xml:space="preserve">
+        <value>Hilft alles nichts: Bot stoppen, Seite „Sicherheit prüfen“ ansehen und die Anleitung im Browser öffnen (Button unten).</value>
     </data>
 </root>

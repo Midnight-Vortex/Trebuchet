@@ -397,7 +397,23 @@ public static class DiscordBotPanelChecks
                 Text(DiscordBotTexts.AuditResult(result), result, $"Audit result {result}");
             foreach (var result in Enum.GetValues<BotIdInputResult>().Where(x => x != BotIdInputResult.Added))
                 Text(DiscordBotTexts.IdInput(result), result, $"ID input {result}");
-            check(DiscordBotTexts.SetupSteps().Count == 9 && DiscordBotTexts.SetupSteps().All(x => x.Length > 10), "The setup checklist is complete");
+            var steps = DiscordBotHelp.Steps();
+            check(steps.Count == DiscordBotHelp.StepCount && steps.Select(x => x.Number).SequenceEqual(Enumerable.Range(1, DiscordBotHelp.StepCount))
+                  && steps.All(x => x.Title.Length > 3 && x.Paragraphs.Count > 0 && x.Paragraphs.All(p => p.Length > 20 && !p.Contains('\n'))),
+                $"The setup help has all steps with title and text in {culture}");
+            check(steps.Where(x => x.Number is not (2 or 8 or 11)).All(x => x.HasHint) && steps.Where(x => x.Number is 2 or 8 or 11).All(x => !x.HasHint),
+                $"The setup help tips are where they belong in {culture}");
+            check(DiscordBotHelp.Intro().Count > 0 && steps.All(x => x.Label.Contains(x.Number.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal)),
+                $"The setup help has an intro and numbered steps in {culture}");
+            if (culture != "en")
+            {
+                Trebuchet.Assets.Resources.Culture = CultureInfo.GetCultureInfo("en");
+                var english = DiscordBotHelp.Steps();
+                var englishIntro = DiscordBotHelp.Intro();
+                Trebuchet.Assets.Resources.Culture = CultureInfo.GetCultureInfo(culture);
+                check(steps.Zip(english).All(pair => pair.First.Paragraphs[0] != pair.Second.Paragraphs[0]) && DiscordBotHelp.Intro()[0] != englishIntro[0],
+                    $"The setup help is translated to {culture}");
+            }
         }
         Trebuchet.Assets.Resources.Culture = CultureInfo.GetCultureInfo("de");
         check(DiscordBotTexts.Check(BotCheckKind.Roles, BotCheckStatus.Error) != manager.GetString("DiscordBotCheckRolesError", CultureInfo.InvariantCulture)
@@ -416,6 +432,11 @@ public static class DiscordBotPanelChecks
             "Check rows show their traffic light");
         check(Trebuchet.ViewModels.Panels.DiscordBotPanel.SetupGuideUrl == "https://github.com/Midnight-Vortex/Trebuchet/blob/master/docs/INSTALLME.md",
             "The setup button opens the guide of the repository");
+        var opened = 0;
+        var help = new DiscordBotHelpViewModel(() => { opened++; return Task.CompletedTask; });
+        help.OpenOnlineGuide.Execute().Subscribe();
+        check(help.Steps.Count == DiscordBotHelp.StepCount && help.Intro.Count > 0 && help.Title.Length > 0 && opened == 1,
+            "The help window shows the steps and opens the online guide");
     }
 
     private static void ListChecks(Action<bool, string> check)

@@ -6970,105 +6970,6 @@ namespace Trebuchet.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Setup help.
-        /// </summary>
-        public static string DiscordBotSectionSetup {
-            get {
-                return ResourceManager.GetString("DiscordBotSectionSetup", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Create the bot in the Discord developer portal and switch Public Bot off, so nobody else can invite it..
-        /// </summary>
-        public static string DiscordBotSetupStep1 {
-            get {
-                return ResourceManager.GetString("DiscordBotSetupStep1", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Leave all privileged gateway intents off (Presence, Server Members, Message Content)..
-        /// </summary>
-        public static string DiscordBotSetupStep2 {
-            get {
-                return ResourceManager.GetString("DiscordBotSetupStep2", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Invite it with the scopes bot and applications.commands and only View Channels, Send Messages and Embed Links. Never Administrator..
-        /// </summary>
-        public static string DiscordBotSetupStep3 {
-            get {
-                return ResourceManager.GetString("DiscordBotSetupStep3", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Use two-factor login for the account of the developer portal..
-        /// </summary>
-        public static string DiscordBotSetupStep4 {
-            get {
-                return ResourceManager.GetString("DiscordBotSetupStep4", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Create a role of your own (e.g. Trebuchet-Admin) and a private channel only this role sees. You need the role too..
-        /// </summary>
-        public static string DiscordBotSetupStep5 {
-            get {
-                return ResourceManager.GetString("DiscordBotSetupStep5", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to In Discord turn on the developer mode (Settings -&gt; Advanced) to copy IDs with a right click..
-        /// </summary>
-        public static string DiscordBotSetupStep6 {
-            get {
-                return ResourceManager.GetString("DiscordBotSetupStep6", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Here: enter token, server ID, super admin, roles and users, save, press Check security, then Start..
-        /// </summary>
-        public static string DiscordBotSetupStep7 {
-            get {
-                return ResourceManager.GetString("DiscordBotSetupStep7", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to In the private channel run /bot channel set as super admin..
-        /// </summary>
-        public static string DiscordBotSetupStep8 {
-            get {
-                return ResourceManager.GetString("DiscordBotSetupStep8", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to If the token may have leaked: Reset Token in the portal and replace it here..
-        /// </summary>
-        public static string DiscordBotSetupStep9 {
-            get {
-                return ResourceManager.GetString("DiscordBotSetupStep9", resourceCulture);
-            }
-        }
-        
-        /// <summary>
-        ///   Looks up a localized string similar to Open the setup guide.
-        /// </summary>
-        public static string DiscordBotSetupOpenGuide {
-            get {
-                return ResourceManager.GetString("DiscordBotSetupOpenGuide", resourceCulture);
-            }
-        }
-        
-        /// <summary>
         ///   Looks up a localized string similar to The server ID is missing..
         /// </summary>
         public static string DiscordBotIssueGuildMissing {
@@ -7139,5 +7040,366 @@ namespace Trebuchet.Assets {
                 return ResourceManager.GetString("DiscordBotIssueUnknownCommand", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Setup help.
+        /// </summary>
+        public static string DiscordBotHelpButton {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpButton", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Set up the Discord bot.
+        /// </summary>
+        public static string DiscordBotHelpTitle {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Step {0}.
+        /// </summary>
+        public static string DiscordBotHelpStepLabel {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpStepLabel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Tip.
+        /// </summary>
+        public static string DiscordBotHelpHintLabel {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpHintLabel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Close.
+        /// </summary>
+        public static string DiscordBotHelpClose {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpClose", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Open the guide in the browser.
+        /// </summary>
+        public static string DiscordBotHelpOpenGuide {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpOpenGuide", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to This guide takes you through setting up the Discord bot, step by step. Plan about 15 minut.
+        /// </summary>
+        public static string DiscordBotHelpIntro {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpIntro", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Create the bot in the Discord developer portal.
+        /// </summary>
+        public static string DiscordBotHelpStep1Title {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpStep1Title", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Open https://discord.com/developers/applications in your browser and log in with your Disc.
+        /// </summary>
+        public static string DiscordBotHelpStep1Text {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpStep1Text", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to You only need the portal for the setup. Afterwards only to reset the token..
+        /// </summary>
+        public static string DiscordBotHelpStep1Hint {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpStep1Hint", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Secure the bot.
+        /// </summary>
+        public static string DiscordBotHelpStep2Title {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpStep2Title", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Switch "Public Bot" off. Otherwise anyone can invite the bot to their own server..
+        /// </summary>
+        public static string DiscordBotHelpStep2Text {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpStep2Text", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Copy the token.
+        /// </summary>
+        public static string DiscordBotHelpStep3Title {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpStep3Title", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to On the "Bot" page click "Reset Token", confirm with your password and copy the token shown.
+        /// </summary>
+        public static string DiscordBotHelpStep3Text {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpStep3Text", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to If the token is lost or became known: press "Reset Token" in the portal again. The old tok.
+        /// </summary>
+        public static string DiscordBotHelpStep3Hint {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpStep3Hint", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Invite the bot to your server.
+        /// </summary>
+        public static string DiscordBotHelpStep4Title {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpStep4Title", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to In the developer portal click "OAuth2" on the left, then "URL Generator"..
+        /// </summary>
+        public static string DiscordBotHelpStep4Text {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpStep4Text", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The bot then appears in the member list of your server, still offline. It goes online when.
+        /// </summary>
+        public static string DiscordBotHelpStep4Hint {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpStep4Hint", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Turn on developer mode and copy the IDs.
+        /// </summary>
+        public static string DiscordBotHelpStep5Title {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpStep5Title", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Turn on developer mode in Discord: Settings (cog) → Advanced → Developer Mode..
+        /// </summary>
+        public static string DiscordBotHelpStep5Text {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpStep5Text", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The role "@everyone" is not allowed: every member has it, Trebuchet refuses it..
+        /// </summary>
+        public static string DiscordBotHelpStep5Hint {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpStep5Hint", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Create a role and a private channel.
+        /// </summary>
+        public static string DiscordBotHelpStep6Title {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpStep6Title", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Server Settings → Roles → "Create Role". Name it e.g. "Trebuchet-Admin". The role needs no.
+        /// </summary>
+        public static string DiscordBotHelpStep6Text {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpStep6Text", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Access needs the user ID AND the role. The role alone or the ID alone is not enough, not e.
+        /// </summary>
+        public static string DiscordBotHelpStep6Hint {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpStep6Hint", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Enter it here in Trebuchet.
+        /// </summary>
+        public static string DiscordBotHelpStep7Title {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpStep7Title", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Section "Connection": paste the token and save it, then enter the server ID. After saving,.
+        /// </summary>
+        public static string DiscordBotHelpStep7Text {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpStep7Text", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Without a token, a server ID, a super admin and at least one role the bot does not start. .
+        /// </summary>
+        public static string DiscordBotHelpStep7Hint {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpStep7Hint", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Check the security and start.
+        /// </summary>
+        public static string DiscordBotHelpStep8Title {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpStep8Title", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to In the section "Security" click "Check security". All items should be green (server reacha.
+        /// </summary>
+        public static string DiscordBotHelpStep8Text {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpStep8Text", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Set the admin channel.
+        /// </summary>
+        public static string DiscordBotHelpStep9Title {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpStep9Title", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to In the private channel, as super admin, enter the command /bot channel set and confirm wit.
+        /// </summary>
+        public static string DiscordBotHelpStep9Text {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpStep9Text", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The command also works outside the current admin channel, but only for the super admin and.
+        /// </summary>
+        public static string DiscordBotHelpStep9Hint {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpStep9Hint", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Set the commands and buttons.
+        /// </summary>
+        public static string DiscordBotHelpStep10Title {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpStep10Title", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Section "Commands": on by default are status, postpone, release again and set channel. Off.
+        /// </summary>
+        public static string DiscordBotHelpStep10Text {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpStep10Text", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Switch on only what you really need. The less is on, the less can go wrong..
+        /// </summary>
+        public static string DiscordBotHelpStep10Hint {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpStep10Hint", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Use it every day.
+        /// </summary>
+        public static string DiscordBotHelpStep11Title {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpStep11Title", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The status message shows the state per server: green = running, yellow = something is pend.
+        /// </summary>
+        public static string DiscordBotHelpStep11Text {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpStep11Text", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to If something does not work.
+        /// </summary>
+        public static string DiscordBotHelpStep12Title {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpStep12Title", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to "Token refused" or "Connection lost": create the token again in the portal (step 3), enter.
+        /// </summary>
+        public static string DiscordBotHelpStep12Text {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpStep12Text", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to If nothing helps: stop the bot, look at "Check security" and open the guide in the browser.
+        /// </summary>
+        public static string DiscordBotHelpStep12Hint {
+            get {
+                return ResourceManager.GetString("DiscordBotHelpStep12Hint", resourceCulture);
+            }
+        }
+        
     }
 }

@@ -8,6 +8,7 @@ using System.Linq;
 using System.Reactive;
 using System.Threading;
 using System.Threading.Tasks;
+using Avalonia.Controls;
 using Avalonia.Threading;
 using Humanizer;
 using Microsoft.Extensions.Logging;
@@ -17,6 +18,7 @@ using Trebuchet.Services;
 using Trebuchet.ViewModels.DiscordBot;
 using Trebuchet.ViewModels.InnerContainer;
 using Trebuchet.ViewModels.SettingFields;
+using Trebuchet.Windows;
 using TrebuchetLib.DiscordBot;
 using Resources = Trebuchet.Assets.Resources;
 
@@ -185,7 +187,6 @@ public sealed class DiscordBotPanel : ReactiveObject, IBottomPanel, ITickingPane
             .Where(group => group.Fields.Count > 0)
             .ToList();
 
-        SetupSteps = DiscordBotTexts.SetupSteps();
 
         SaveCommand = ReactiveCommand.CreateFromTask(OnSave,
             this.WhenAnyValue(x => x.IsDirty, dirty => dirty && CanEdit));
@@ -200,7 +201,7 @@ public sealed class DiscordBotPanel : ReactiveObject, IBottomPanel, ITickingPane
             this.WhenAnyValue(x => x.IsAdminChannelRestricted, restricted => restricted && CanEdit));
         CheckSecurityCommand = ReactiveCommand.CreateFromTask(OnCheckSecurity);
         OpenAuditFolderCommand = ReactiveCommand.CreateFromTask(OnOpenAuditFolder);
-        OpenSetupGuideCommand = ReactiveCommand.CreateFromTask(OnOpenSetupGuide);
+        OpenSetupHelpCommand = ReactiveCommand.CreateFromTask(OnOpenSetupHelp);
 
         _audit.EntryWritten += OnAuditEntryWritten;
         ShowEditorValues();
@@ -411,8 +412,8 @@ public sealed class DiscordBotPanel : ReactiveObject, IBottomPanel, ITickingPane
     public ObservableCollection<AuditEntryRow> AuditEntries { get; } = [];
     public bool HasAuditEntries => AuditEntries.Count > 0;
     public ReactiveCommand<Unit, Unit> OpenAuditFolderCommand { get; }
-    public IReadOnlyList<string> SetupSteps { get; }
-    public ReactiveCommand<Unit, Unit> OpenSetupGuideCommand { get; }
+    /// <summary>Opens the step by step setup guide in its own window (one at a time).</summary>
+    public ReactiveCommand<Unit, Unit> OpenSetupHelpCommand { get; }
 
     public Task<bool> StartPanel()
     {
@@ -736,6 +737,32 @@ public sealed class DiscordBotPanel : ReactiveObject, IBottomPanel, ITickingPane
         catch (Exception ex)
         {
             _logger.LogError(ex, @"Opening the folder of the audit log failed");
+            await ShowErrorAsync(ex.Message);
+        }
+    }
+
+    private DiscordBotHelpWindow? _helpWindow;
+
+    private async Task OnOpenSetupHelp()
+    {
+        try
+        {
+            if (_helpWindow is { } open)
+            {
+                // Already open: bring it to the front instead of opening a second one.
+                if (open.WindowState == WindowState.Minimized) open.WindowState = WindowState.Normal;
+                open.Activate();
+                return;
+            }
+            var window = new DiscordBotHelpWindow { DataContext = new DiscordBotHelpViewModel(OnOpenSetupGuide) };
+            window.Closed += (_, _) => _helpWindow = null;
+            _helpWindow = window;
+            window.Show();
+        }
+        catch (Exception ex)
+        {
+            _helpWindow = null;
+            _logger.LogError(ex, @"Opening the setup help failed");
             await ShowErrorAsync(ex.Message);
         }
     }

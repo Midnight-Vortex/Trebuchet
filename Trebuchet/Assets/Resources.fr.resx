@@ -1797,39 +1797,6 @@ Losques des séquences sont utilisé, cela n'inclus que la mise en ligne et la d
     <data name="DiscordBotAuditResultCancelled" xml:space="preserve">
         <value>Annulé</value>
     </data>
-    <data name="DiscordBotSectionSetup" xml:space="preserve">
-        <value>Aide à la configuration</value>
-    </data>
-    <data name="DiscordBotSetupStep1" xml:space="preserve">
-        <value>Créez le bot dans le portail développeur Discord et désactivez « Public Bot » pour que personne d'autre ne puisse l'inviter.</value>
-    </data>
-    <data name="DiscordBotSetupStep2" xml:space="preserve">
-        <value>Laissez tous les intents privilégiés désactivés (Presence, Server Members, Message Content).</value>
-    </data>
-    <data name="DiscordBotSetupStep3" xml:space="preserve">
-        <value>Invitez-le avec les scopes bot et applications.commands et uniquement « Voir les salons », « Envoyer des messages » et « Intégrer des liens ». Jamais Administrateur.</value>
-    </data>
-    <data name="DiscordBotSetupStep4" xml:space="preserve">
-        <value>Utilisez la connexion à deux facteurs pour le compte du portail développeur.</value>
-    </data>
-    <data name="DiscordBotSetupStep5" xml:space="preserve">
-        <value>Créez votre propre rôle (par ex. Trebuchet-Admin) et un salon privé que seul ce rôle voit. Vous avez aussi besoin du rôle.</value>
-    </data>
-    <data name="DiscordBotSetupStep6" xml:space="preserve">
-        <value>Dans Discord, activez le mode développeur (Paramètres → Avancés) pour copier les ID par clic droit.</value>
-    </data>
-    <data name="DiscordBotSetupStep7" xml:space="preserve">
-        <value>Ici : saisissez le jeton, l'ID du serveur, le super administrateur, les rôles et les utilisateurs, enregistrez, cliquez sur Vérifier la sécurité, puis Démarrer.</value>
-    </data>
-    <data name="DiscordBotSetupStep8" xml:space="preserve">
-        <value>Dans le salon privé, exécutez /bot channel set en tant que super administrateur.</value>
-    </data>
-    <data name="DiscordBotSetupStep9" xml:space="preserve">
-        <value>Si le jeton a pu fuiter : Reset Token dans le portail, puis remplacez-le ici.</value>
-    </data>
-    <data name="DiscordBotSetupOpenGuide" xml:space="preserve">
-        <value>Ouvrir le guide d'installation</value>
-    </data>
     <data name="DiscordBotIssueGuildMissing" xml:space="preserve">
         <value>L'ID du serveur est manquant.</value>
     </data>
@@ -1853,5 +1820,162 @@ Losques des séquences sont utilisé, cela n'inclus que la mise en ligne et la d
     </data>
     <data name="DiscordBotIssueUnknownCommand" xml:space="preserve">
         <value>Commande inconnue dans les paramètres</value>
+    </data>
+    <data name="DiscordBotHelpButton" xml:space="preserve">
+        <value>Aide à la configuration</value>
+    </data>
+    <data name="DiscordBotHelpTitle" xml:space="preserve">
+        <value>Configurer le bot Discord</value>
+    </data>
+    <data name="DiscordBotHelpStepLabel" xml:space="preserve">
+        <value>Étape {0}</value>
+    </data>
+    <data name="DiscordBotHelpHintLabel" xml:space="preserve">
+        <value>Astuce</value>
+    </data>
+    <data name="DiscordBotHelpClose" xml:space="preserve">
+        <value>Fermer</value>
+    </data>
+    <data name="DiscordBotHelpOpenGuide" xml:space="preserve">
+        <value>Ouvrir le guide dans le navigateur</value>
+    </data>
+    <data name="DiscordBotHelpIntro" xml:space="preserve">
+        <value>Ce guide vous accompagne pas à pas dans la configuration du bot Discord. Prévoyez environ 15 minutes.
+Il vous faut : un compte Discord, un serveur Discord dont vous êtes administrateur, et ce Trebuchet sur le PC qui héberge vos serveurs Conan.
+Le bot tourne dans Trebuchet et n’ouvre qu’une connexion sortante vers Discord, aucun port n’est ouvert. N’a accès que celui dont l’ID utilisateur Discord figure dans la liste ET qui possède l’un des rôles autorisés.
+Essayez tout d’abord avec un serveur de test et une sauvegarde de test : le bot peut redémarrer et arrêter de vrais serveurs.</value>
+    </data>
+    <data name="DiscordBotHelpStep1Title" xml:space="preserve">
+        <value>Créer le bot dans le portail développeur Discord</value>
+    </data>
+    <data name="DiscordBotHelpStep1Text" xml:space="preserve">
+        <value>Ouvrez https://discord.com/developers/applications dans votre navigateur et connectez-vous avec votre compte Discord.
+Cliquez en haut à droite sur « New Application », saisissez un nom (par ex. « Trebuchet Admin »), acceptez les conditions et cliquez sur « Create ». Ce nom sera visible sur votre serveur.
+Cliquez sur « Bot » dans le menu de gauche. Vous effectuez les deux étapes suivantes sur cette page.</value>
+    </data>
+    <data name="DiscordBotHelpStep1Hint" xml:space="preserve">
+        <value>Le portail n’est nécessaire que pour la configuration, ensuite seulement pour réinitialiser le jeton.</value>
+    </data>
+    <data name="DiscordBotHelpStep2Title" xml:space="preserve">
+        <value>Sécuriser le bot</value>
+    </data>
+    <data name="DiscordBotHelpStep2Text" xml:space="preserve">
+        <value>Désactivez « Public Bot ». Sinon n’importe qui peut inviter le bot sur son propre serveur.
+Sous « Privileged Gateway Intents », laissez les trois interrupteurs désactivés (« Presence Intent », « Server Members Intent », « Message Content Intent »). Le bot n’en a pas besoin.
+Laissez « Requires OAuth2 Code Grant » désactivé.
+Activez l’authentification à deux facteurs pour le compte utilisé dans le portail développeur (Discord → Paramètres → Mon compte).</value>
+    </data>
+    <data name="DiscordBotHelpStep3Title" xml:space="preserve">
+        <value>Copier le jeton</value>
+    </data>
+    <data name="DiscordBotHelpStep3Text" xml:space="preserve">
+        <value>Sur la page « Bot », cliquez sur « Reset Token », confirmez avec votre mot de passe et copiez le jeton affiché. C’est un long texte avec deux points, affiché une seule fois.
+Le jeton est comme un mot de passe : celui qui l’a peut se connecter comme votre bot. Ne le partagez pas sur Discord, par e-mail ou en capture d’écran.
+Gardez le jeton dans le presse-papiers ou collez-le tout de suite à l’étape 7. Trebuchet le stocke chiffré et ne l’affiche plus jamais.</value>
+    </data>
+    <data name="DiscordBotHelpStep3Hint" xml:space="preserve">
+        <value>Jeton perdu ou connu de tiers : appuyez à nouveau sur « Reset Token » dans le portail. L’ancien jeton est aussitôt invalide.</value>
+    </data>
+    <data name="DiscordBotHelpStep4Title" xml:space="preserve">
+        <value>Inviter le bot sur votre serveur</value>
+    </data>
+    <data name="DiscordBotHelpStep4Text" xml:space="preserve">
+        <value>Dans le portail développeur, cliquez à gauche sur « OAuth2 », puis sur « URL Generator ».
+Sous « Scopes », cochez « bot » et « applications.commands ».
+Sous « Bot Permissions », cochez seulement ces trois : « View Channels », « Send Messages » et « Embed Links ». Jamais « Administrator ».
+Copiez en bas l’« Generated URL », ouvrez-la dans le navigateur, choisissez votre serveur et confirmez avec « Continuer » et « Autoriser ».</value>
+    </data>
+    <data name="DiscordBotHelpStep4Hint" xml:space="preserve">
+        <value>Le bot apparaît ensuite dans la liste des membres de votre serveur, encore hors ligne. Il passe en ligne quand vous le démarrez dans Trebuchet.</value>
+    </data>
+    <data name="DiscordBotHelpStep5Title" xml:space="preserve">
+        <value>Activer le mode développeur et copier les IDs</value>
+    </data>
+    <data name="DiscordBotHelpStep5Text" xml:space="preserve">
+        <value>Activez le mode développeur dans Discord : Paramètres (roue dentée) → Avancés → Mode développeur.
+ID du serveur : clic droit sur l’icône de votre serveur → « Copier l’identifiant du serveur ».
+Votre ID utilisateur : clic droit sur votre nom (par ex. dans la liste des membres) → « Copier l’identifiant de l’utilisateur ». Ce sera le super administrateur.
+Autres personnes autorisées à utiliser le bot : copiez de la même façon leur ID utilisateur.
+ID du rôle : Paramètres du serveur → Rôles → clic droit sur le rôle → « Copier l’identifiant du rôle » (vous créez le rôle à l’étape suivante).
+Les IDs sont de simples nombres de 17 à 20 chiffres. Vous pouvez les garder dans un éditeur de texte jusqu’à l’étape 7.</value>
+    </data>
+    <data name="DiscordBotHelpStep5Hint" xml:space="preserve">
+        <value>Le rôle « @everyone » n’est pas autorisé : tous les membres l’ont, Trebuchet le refuse.</value>
+    </data>
+    <data name="DiscordBotHelpStep6Title" xml:space="preserve">
+        <value>Créer un rôle et un salon privé</value>
+    </data>
+    <data name="DiscordBotHelpStep6Text" xml:space="preserve">
+        <value>Paramètres du serveur → Rôles → « Créer un rôle ». Nom par ex. « Trebuchet-Admin ». Le rôle n’a besoin d’aucune permission particulière.
+Donnez le rôle à tous ceux qui peuvent utiliser le bot, vous y compris (cliquez sur le membre → ajouter un rôle).
+Créez un nouveau salon textuel (par ex. « server-admin ») et activez « Salon privé ». N’autorisez l’accès qu’au rôle « Trebuchet-Admin » et au bot.
+Dans ce salon, le bot a besoin des permissions « Voir le salon », « Envoyer des messages » et « Intégrer des liens ».</value>
+    </data>
+    <data name="DiscordBotHelpStep6Hint" xml:space="preserve">
+        <value>L’accès exige l’ID utilisateur ET le rôle. Le rôle seul ou l’ID seul ne suffit pas, pas même pour le super administrateur.</value>
+    </data>
+    <data name="DiscordBotHelpStep7Title" xml:space="preserve">
+        <value>L’enregistrer ici dans Trebuchet</value>
+    </data>
+    <data name="DiscordBotHelpStep7Text" xml:space="preserve">
+        <value>Section « Connexion » : collez le jeton et enregistrez-le, puis saisissez l’ID du serveur. Après l’enregistrement, le jeton n’est plus jamais affiché.
+Section « Sécurité » : saisissez votre ID utilisateur comme « Super administrateur » (obligatoire, l’entrée ne peut pas être supprimée). Saisissez l’ID du rôle sous « Rôles autorisés ». Ajoutez les IDs d’autres personnes sous « Utilisateurs autorisés ».
+Cliquez sur « Enregistrer » en haut. Si quelque chose est invalide ou manque, le haut indique en rouge exactement quoi, et rien n’est enregistré.
+Facultatif : saisissez l’ID d’un salon comme « Salon d’audit » où le bot signale les actions critiques et les blocages.</value>
+    </data>
+    <data name="DiscordBotHelpStep7Hint" xml:space="preserve">
+        <value>Sans jeton, ID de serveur, super administrateur et au moins un rôle, le bot ne démarre pas. C’est voulu.</value>
+    </data>
+    <data name="DiscordBotHelpStep8Title" xml:space="preserve">
+        <value>Vérifier la sécurité et démarrer</value>
+    </data>
+    <data name="DiscordBotHelpStep8Text" xml:space="preserve">
+        <value>Dans la section « Sécurité », cliquez sur « Vérifier la sécurité ». Tous les points doivent être verts (serveur joignable, rôles présents, pas de droit administrateur, …). Pour jaune ou rouge, lisez l’indication et corrigez.
+En haut, dans la section « État », cliquez sur « Démarrer ». Après quelques secondes, « Connecté » s’affiche et le bot est en ligne sur Discord.
+Facultatif : activez « Démarrer avec Trebuchet » si le bot doit toujours tourner.</value>
+    </data>
+    <data name="DiscordBotHelpStep9Title" xml:space="preserve">
+        <value>Définir le salon d’administration</value>
+    </data>
+    <data name="DiscordBotHelpStep9Text" xml:space="preserve">
+        <value>Dans le salon privé, en tant que super administrateur, saisissez la commande /bot channel set et confirmez avec « Confirmer ». Les commandes slash n’apparaissent qu’une fois le bot connecté (cela peut prendre une minute, sinon rechargez Discord avec Ctrl+R).
+Ensuite le bot ne répond plus que dans ce salon et y publie un message d’état avec boutons par serveur.
+Libérer à nouveau le salon (tous les salons) n’est possible qu’ici dans le panneau Trebuchet, jamais via Discord.</value>
+    </data>
+    <data name="DiscordBotHelpStep9Hint" xml:space="preserve">
+        <value>La commande fonctionne aussi en dehors du salon d’administration actuel, mais seulement pour le super administrateur et avec le rôle.</value>
+    </data>
+    <data name="DiscordBotHelpStep10Title" xml:space="preserve">
+        <value>Régler les commandes et les boutons</value>
+    </data>
+    <data name="DiscordBotHelpStep10Text" xml:space="preserve">
+        <value>Section « Commandes » : activés par défaut : état, reporter, libérer à nouveau et définir le salon. Désactivés : redémarrer maintenant, arrêter, démarrer et mise à jour.
+Pour avoir redémarrer et arrêter comme boutons, activez-les ici et enregistrez. Ces actions demandent encore une fois confirmation avant de s’exécuter (« Confirmer »). Seul le super administrateur peut démarrer et mettre à jour.
+Vous réglez les limites dans la section « Sécurité » : délai entre commandes, nombre d’actions critiques autorisées, le report maximal et les choix (par ex. 15 min, 30 min, 1 h).</value>
+    </data>
+    <data name="DiscordBotHelpStep10Hint" xml:space="preserve">
+        <value>N’activez que ce dont vous avez vraiment besoin. Moins il y en a, moins il peut y avoir de problèmes.</value>
+    </data>
+    <data name="DiscordBotHelpStep11Title" xml:space="preserve">
+        <value>Utilisation au quotidien</value>
+    </data>
+    <data name="DiscordBotHelpStep11Text" xml:space="preserve">
+        <value>Le message d’état montre l’état par serveur : vert = en marche, jaune = quelque chose est prévu, bleu = reporté, rouge = arrêté ou planté.
+Quand un redémarrage, un arrêt ou une mise à jour est prévu, le bouton « … reporter » apparaît. Un clic ouvre un choix (par ex. 15 min à 6 h). En jeu, les joueurs reçoivent le message du report.
+« Libérer à nouveau » met fin à un report. Au total, on ne peut reporter que jusqu’au report maximal (6 h par défaut), ensuite seulement après le redémarrage.
+Tout ce que le bot fait ou refuse figure dans la section « Journal ».</value>
+    </data>
+    <data name="DiscordBotHelpStep12Title" xml:space="preserve">
+        <value>Si quelque chose ne fonctionne pas</value>
+    </data>
+    <data name="DiscordBotHelpStep12Text" xml:space="preserve">
+        <value>« Jeton refusé » ou « Connexion perdue » : recréez le jeton dans le portail (étape 3), saisissez-le ici et enregistrez.
+Pas de commandes slash dans Discord et le panneau indique « Connecté, mais les commandes slash n’ont pas pu être enregistrées » : le bot a été invité sans « applications.commands ». Invitez-le à nouveau avec un nouveau lien de l’étape 4.
+« Aucune autorisation » : l’ID utilisateur ET le rôle doivent correspondre, ainsi que le serveur et le salon. Par sécurité, le bot n’indique pas ce qui manque. La raison exacte figure dans le journal.
+Le bot ne répond pas dans le salon : le salon d’administration est-il défini, et utilisez-vous la commande dans ce salon ? Le bot y a-t-il les permissions de l’étape 6 ?
+« Jeton déjà utilisé » signifie qu’un bot avec le même jeton tourne déjà dans un autre Trebuchet ou dans « boulder bot ».</value>
+    </data>
+    <data name="DiscordBotHelpStep12Hint" xml:space="preserve">
+        <value>Rien n’y fait : arrêtez le bot, regardez « Vérifier la sécurité » et ouvrez le guide dans le navigateur (bouton ci-dessous).</value>
     </data>
 </root>

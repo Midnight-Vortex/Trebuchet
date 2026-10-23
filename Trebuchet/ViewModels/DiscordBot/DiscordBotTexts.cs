@@ -189,19 +189,5 @@ public static class DiscordBotTexts
         _ => result.ToString()
     };
 
-    /// <summary>The checklist of the setup (plan 1.8, docs/INSTALLME.md).</summary>
-    public static IReadOnlyList<string> SetupSteps() =>
-    [
-        Resources.DiscordBotSetupStep1,
-        Resources.DiscordBotSetupStep2,
-        Resources.DiscordBotSetupStep3,
-        Resources.DiscordBotSetupStep4,
-        Resources.DiscordBotSetupStep5,
-        Resources.DiscordBotSetupStep6,
-        Resources.DiscordBotSetupStep7,
-        Resources.DiscordBotSetupStep8,
-        Resources.DiscordBotSetupStep9
-    ];
-
     public static Exception ServiceUnavailable() => new InvalidOperationException(Resources.DiscordBotServiceError);
 }

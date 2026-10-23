@@ -2415,39 +2415,6 @@ of Server Saves and apply to every profile.
     <data name="DiscordBotAuditResultCancelled" xml:space="preserve">
         <value>Cancelled</value>
     </data>
-    <data name="DiscordBotSectionSetup" xml:space="preserve">
-        <value>Setup help</value>
-    </data>
-    <data name="DiscordBotSetupStep1" xml:space="preserve">
-        <value>Create the bot in the Discord developer portal and switch Public Bot off, so nobody else can invite it.</value>
-    </data>
-    <data name="DiscordBotSetupStep2" xml:space="preserve">
-        <value>Leave all privileged gateway intents off (Presence, Server Members, Message Content).</value>
-    </data>
-    <data name="DiscordBotSetupStep3" xml:space="preserve">
-        <value>Invite it with the scopes bot and applications.commands and only View Channels, Send Messages and Embed Links. Never Administrator.</value>
-    </data>
-    <data name="DiscordBotSetupStep4" xml:space="preserve">
-        <value>Use two-factor login for the account of the developer portal.</value>
-    </data>
-    <data name="DiscordBotSetupStep5" xml:space="preserve">
-        <value>Create a role of your own (e.g. Trebuchet-Admin) and a private channel only this role sees. You need the role too.</value>
-    </data>
-    <data name="DiscordBotSetupStep6" xml:space="preserve">
-        <value>In Discord turn on the developer mode (Settings → Advanced) to copy IDs with a right click.</value>
-    </data>
-    <data name="DiscordBotSetupStep7" xml:space="preserve">
-        <value>Here: enter token, server ID, super admin, roles and users, save, press Check security, then Start.</value>
-    </data>
-    <data name="DiscordBotSetupStep8" xml:space="preserve">
-        <value>In the private channel run /bot channel set as super admin.</value>
-    </data>
-    <data name="DiscordBotSetupStep9" xml:space="preserve">
-        <value>If the token may have leaked: Reset Token in the portal and replace it here.</value>
-    </data>
-    <data name="DiscordBotSetupOpenGuide" xml:space="preserve">
-        <value>Open the setup guide</value>
-    </data>
     <data name="DiscordBotIssueGuildMissing" xml:space="preserve">
         <value>The server ID is missing.</value>
     </data>
@@ -2471,5 +2438,162 @@ of Server Saves and apply to every profile.
     </data>
     <data name="DiscordBotIssueUnknownCommand" xml:space="preserve">
         <value>Unknown command in the settings</value>
+    </data>
+    <data name="DiscordBotHelpButton" xml:space="preserve">
+        <value>Setup help</value>
+    </data>
+    <data name="DiscordBotHelpTitle" xml:space="preserve">
+        <value>Set up the Discord bot</value>
+    </data>
+    <data name="DiscordBotHelpStepLabel" xml:space="preserve">
+        <value>Step {0}</value>
+    </data>
+    <data name="DiscordBotHelpHintLabel" xml:space="preserve">
+        <value>Tip</value>
+    </data>
+    <data name="DiscordBotHelpClose" xml:space="preserve">
+        <value>Close</value>
+    </data>
+    <data name="DiscordBotHelpOpenGuide" xml:space="preserve">
+        <value>Open the guide in the browser</value>
+    </data>
+    <data name="DiscordBotHelpIntro" xml:space="preserve">
+        <value>This guide takes you through setting up the Discord bot, step by step. Plan about 15 minutes.
+You need: a Discord account, a Discord server where you are an administrator, and this Trebuchet on the PC that runs your Conan servers.
+The bot runs inside Trebuchet and only opens an outgoing connection to Discord, no port is opened. Only someone whose Discord user ID is on the list AND who has one of the allowed roles gets access.
+Try everything with a test server and a test save first: the bot can restart and stop real servers.</value>
+    </data>
+    <data name="DiscordBotHelpStep1Title" xml:space="preserve">
+        <value>Create the bot in the Discord developer portal</value>
+    </data>
+    <data name="DiscordBotHelpStep1Text" xml:space="preserve">
+        <value>Open https://discord.com/developers/applications in your browser and log in with your Discord account.
+Click "New Application" at the top right, enter a name (e.g. "Trebuchet Admin"), accept the terms and click "Create". This name is shown on your server later.
+Click "Bot" in the left menu. You do the next two steps on this page.</value>
+    </data>
+    <data name="DiscordBotHelpStep1Hint" xml:space="preserve">
+        <value>You only need the portal for the setup. Afterwards only to reset the token.</value>
+    </data>
+    <data name="DiscordBotHelpStep2Title" xml:space="preserve">
+        <value>Secure the bot</value>
+    </data>
+    <data name="DiscordBotHelpStep2Text" xml:space="preserve">
+        <value>Switch "Public Bot" off. Otherwise anyone can invite the bot to their own server.
+Under "Privileged Gateway Intents" leave all three switches off ("Presence Intent", "Server Members Intent", "Message Content Intent"). The bot does not need them.
+Leave "Requires OAuth2 Code Grant" off.
+Turn on two-factor authentication for the account you use in the developer portal (Discord → Settings → My Account).</value>
+    </data>
+    <data name="DiscordBotHelpStep3Title" xml:space="preserve">
+        <value>Copy the token</value>
+    </data>
+    <data name="DiscordBotHelpStep3Text" xml:space="preserve">
+        <value>On the "Bot" page click "Reset Token", confirm with your password and copy the token shown. It is a long text with two dots and is shown only once.
+The token is like a password: whoever has it can log in as your bot. Do not share it in Discord, by e-mail or in screenshots.
+Keep the token in the clipboard or paste it right away in step 7. Trebuchet stores it encrypted and never shows it again.</value>
+    </data>
+    <data name="DiscordBotHelpStep3Hint" xml:space="preserve">
+        <value>If the token is lost or became known: press "Reset Token" in the portal again. The old token is invalid at once.</value>
+    </data>
+    <data name="DiscordBotHelpStep4Title" xml:space="preserve">
+        <value>Invite the bot to your server</value>
+    </data>
+    <data name="DiscordBotHelpStep4Text" xml:space="preserve">
+        <value>In the developer portal click "OAuth2" on the left, then "URL Generator".
+Under "Scopes" tick "bot" and "applications.commands".
+Under "Bot Permissions" tick only these three: "View Channels", "Send Messages" and "Embed Links". Never "Administrator".
+Copy the "Generated URL" at the bottom, open it in the browser, choose your server and confirm with "Continue" and "Authorize".</value>
+    </data>
+    <data name="DiscordBotHelpStep4Hint" xml:space="preserve">
+        <value>The bot then appears in the member list of your server, still offline. It goes online when you start it in Trebuchet.</value>
+    </data>
+    <data name="DiscordBotHelpStep5Title" xml:space="preserve">
+        <value>Turn on developer mode and copy the IDs</value>
+    </data>
+    <data name="DiscordBotHelpStep5Text" xml:space="preserve">
+        <value>Turn on developer mode in Discord: Settings (cog) → Advanced → Developer Mode.
+Server ID: right-click the icon of your server → "Copy Server ID".
+Your user ID: right-click your name (e.g. in the member list) → "Copy User ID". This will be the super admin.
+Other people who may use the bot: copy their user IDs the same way.
+Role ID: Server Settings → Roles → right-click the role → "Copy Role ID" (you create the role in the next step).
+IDs are plain numbers with 17 to 20 digits. You can keep them in a text editor until you enter them in step 7.</value>
+    </data>
+    <data name="DiscordBotHelpStep5Hint" xml:space="preserve">
+        <value>The role "@everyone" is not allowed: every member has it, Trebuchet refuses it.</value>
+    </data>
+    <data name="DiscordBotHelpStep6Title" xml:space="preserve">
+        <value>Create a role and a private channel</value>
+    </data>
+    <data name="DiscordBotHelpStep6Text" xml:space="preserve">
+        <value>Server Settings → Roles → "Create Role". Name it e.g. "Trebuchet-Admin". The role needs no special permissions.
+Give the role to everyone who may use the bot, including yourself (click the member → add role).
+Create a new text channel (e.g. "server-admin") and switch on "Private Channel". Allow only the role "Trebuchet-Admin" and the bot to access it.
+In this channel the bot needs the permissions "View Channel", "Send Messages" and "Embed Links".</value>
+    </data>
+    <data name="DiscordBotHelpStep6Hint" xml:space="preserve">
+        <value>Access needs the user ID AND the role. The role alone or the ID alone is not enough, not even for the super admin.</value>
+    </data>
+    <data name="DiscordBotHelpStep7Title" xml:space="preserve">
+        <value>Enter it here in Trebuchet</value>
+    </data>
+    <data name="DiscordBotHelpStep7Text" xml:space="preserve">
+        <value>Section "Connection": paste the token and save it, then enter the server ID. After saving, the token is never shown again.
+Section "Security": enter your user ID as "Super admin" (required, the entry cannot be removed). Enter the role ID under "Allowed roles". Add the IDs of other people under "Allowed users".
+Click "Save" at the top. If something is invalid or missing, the top shows in red exactly what, and nothing is saved.
+Optional: enter the ID of a channel as "Audit channel" where the bot reports critical actions and lock-outs.</value>
+    </data>
+    <data name="DiscordBotHelpStep7Hint" xml:space="preserve">
+        <value>Without a token, a server ID, a super admin and at least one role the bot does not start. That is on purpose.</value>
+    </data>
+    <data name="DiscordBotHelpStep8Title" xml:space="preserve">
+        <value>Check the security and start</value>
+    </data>
+    <data name="DiscordBotHelpStep8Text" xml:space="preserve">
+        <value>In the section "Security" click "Check security". All items should be green (server reachable, roles exist, no administrator permission, …). For yellow or red read the note and fix it.
+At the top in the section "Status" click "Start". After a few seconds it says "Connected" and the bot is online on Discord.
+Optional: switch on "Start with Trebuchet" if the bot should always run.</value>
+    </data>
+    <data name="DiscordBotHelpStep9Title" xml:space="preserve">
+        <value>Set the admin channel</value>
+    </data>
+    <data name="DiscordBotHelpStep9Text" xml:space="preserve">
+        <value>In the private channel, as super admin, enter the command /bot channel set and confirm with "Confirm". The slash commands only appear once the bot is connected (can take a minute, otherwise reload Discord with Ctrl+R).
+From then on the bot only answers in this channel and posts one status message with buttons per server there.
+Releasing the channel again (all channels) is only possible here in the Trebuchet panel, never through Discord.</value>
+    </data>
+    <data name="DiscordBotHelpStep9Hint" xml:space="preserve">
+        <value>The command also works outside the current admin channel, but only for the super admin and only with the role.</value>
+    </data>
+    <data name="DiscordBotHelpStep10Title" xml:space="preserve">
+        <value>Set the commands and buttons</value>
+    </data>
+    <data name="DiscordBotHelpStep10Text" xml:space="preserve">
+        <value>Section "Commands": on by default are status, postpone, release again and set channel. Off are restart now, stop, start and update.
+To get restart and stop as buttons, switch them on here and save. These actions still ask once more before they run ("Confirm"). Only the super admin may start and update.
+You set the limits in the section "Security": wait between commands, how many critical actions are allowed, the longest postponement and the choices (e.g. 15 min, 30 min, 1 h).</value>
+    </data>
+    <data name="DiscordBotHelpStep10Hint" xml:space="preserve">
+        <value>Switch on only what you really need. The less is on, the less can go wrong.</value>
+    </data>
+    <data name="DiscordBotHelpStep11Title" xml:space="preserve">
+        <value>Use it every day</value>
+    </data>
+    <data name="DiscordBotHelpStep11Text" xml:space="preserve">
+        <value>The status message shows the state per server: green = running, yellow = something is pending, blue = postponed, red = stopped or crashed.
+When a restart, stop or update is pending, the button "… postpone" appears. A click opens a choice (e.g. 15 min to 6 h). In game the players get the message that it was postponed.
+"Release again" ends a postponement. Altogether you can only postpone up to the longest postponement (default 6 h), after that only again after the restart.
+Everything the bot does or refuses is in the section "Log".</value>
+    </data>
+    <data name="DiscordBotHelpStep12Title" xml:space="preserve">
+        <value>If something does not work</value>
+    </data>
+    <data name="DiscordBotHelpStep12Text" xml:space="preserve">
+        <value>"Token refused" or "Connection lost": create the token again in the portal (step 3), enter it here and save.
+No slash commands in Discord and the panel says "Connected, but the slash commands could not be registered": the bot was invited without "applications.commands". Invite it again with a new link from step 4.
+"No permission": user ID AND role must match, and so must server and channel. For security the bot does not say what is missing. The exact reason is in the log.
+The bot does not answer in the channel: is the admin channel set, and do you use the command in that channel? Does the bot have the permissions from step 6 there?
+"Token already in use" means a bot with the same token already runs in another Trebuchet or in "boulder bot".</value>
+    </data>
+    <data name="DiscordBotHelpStep12Hint" xml:space="preserve">
+        <value>If nothing helps: stop the bot, look at "Check security" and open the guide in the browser (button below).</value>
     </data>
 </root>
