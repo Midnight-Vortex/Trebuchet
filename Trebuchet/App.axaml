@@ -58,6 +58,8 @@
                 <MergeResourceInclude Source="Templates\ModListView.axaml" />
                 <MergeResourceInclude Source="Templates\ClientConnectionListView.axaml" />
                 <MergeResourceInclude Source="Templates\SyncPanelView.axaml" />
+                <MergeResourceInclude Source="Templates\SecretField.axaml" />
+                <MergeResourceInclude Source="Templates\DiscordBotPanel.axaml" />
                 <MergeResourceInclude Source="Templates\MixedConsolePopedOutView.axaml" />
                 <MergeResourceInclude Source="Templates\DurationField.axaml" />
                 <MergeResourceInclude Source="Templates\DayTimeField.axaml" />
@@ -126,6 +128,8 @@
         <StaticResource ResourceKey="ClientConnectionListView" />
         <StaticResource ResourceKey="ModListView" />
         <StaticResource ResourceKey="SyncPanelView" />
+        <StaticResource ResourceKey="SecretField" />
+        <StaticResource ResourceKey="DiscordBotPanel" />
         <StaticResource ResourceKey="MixedConsolePopedOutView" />
         <StaticResource ResourceKey="DurationField" />
         <StaticResource ResourceKey="DayTimeField" />

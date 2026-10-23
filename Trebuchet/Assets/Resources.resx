@@ -1929,4 +1929,544 @@ of Server Saves and apply to every profile.
     <data name="DefaultNotificationRestartPostponed" xml:space="preserve">
         <value>The restart of {servername} is postponed by {minutes} minutes.</value>
     </data>
+    <data name="DiscordBotPanel" xml:space="preserve">
+        <value>Discord Bot</value>
+    </data>
+    <data name="DiscordBotUnsaved" xml:space="preserve">
+        <value>Unsaved changes</value>
+    </data>
+    <data name="DiscordBotRevert" xml:space="preserve">
+        <value>Revert</value>
+    </data>
+    <data name="DiscordBotNotSaved" xml:space="preserve">
+        <value>Not saved. Please correct:</value>
+    </data>
+    <data name="DiscordBotLoadError" xml:space="preserve">
+        <value>The bot settings could not be read ({0}). The bot stays off and nothing can be saved here. Repair or delete the file {1}, then restart Trebuchet.</value>
+    </data>
+    <data name="DiscordBotServiceError" xml:space="preserve">
+        <value>The Discord bot could not be loaded, see the log of Trebuchet. The rest of Trebuchet works as usual.</value>
+    </data>
+    <data name="DiscordBotSectionStatus" xml:space="preserve">
+        <value>Status</value>
+    </data>
+    <data name="DiscordBotStatusState" xml:space="preserve">
+        <value>State</value>
+    </data>
+    <data name="DiscordBotStatusBot" xml:space="preserve">
+        <value>Bot</value>
+    </data>
+    <data name="DiscordBotStatusServer" xml:space="preserve">
+        <value>Server</value>
+    </data>
+    <data name="DiscordBotStatusLatency" xml:space="preserve">
+        <value>Latency</value>
+    </data>
+    <data name="DiscordBotStatusSince" xml:space="preserve">
+        <value>Connected since</value>
+    </data>
+    <data name="DiscordBotLatencyValue" xml:space="preserve">
+        <value>{0} ms</value>
+    </data>
+    <data name="DiscordBotStart" xml:space="preserve">
+        <value>Start</value>
+    </data>
+    <data name="DiscordBotStop" xml:space="preserve">
+        <value>Stop</value>
+    </data>
+    <data name="DiscordBotReconnect" xml:space="preserve">
+        <value>Reconnect</value>
+    </data>
+    <data name="DiscordBotStateStopped" xml:space="preserve">
+        <value>Stopped</value>
+    </data>
+    <data name="DiscordBotStateStarting" xml:space="preserve">
+        <value>Connecting…</value>
+    </data>
+    <data name="DiscordBotStateConnected" xml:space="preserve">
+        <value>Connected</value>
+    </data>
+    <data name="DiscordBotStateStopping" xml:space="preserve">
+        <value>Stopping…</value>
+    </data>
+    <data name="DiscordBotStateError" xml:space="preserve">
+        <value>Error</value>
+    </data>
+    <data name="DiscordBotProblemNoToken" xml:space="preserve">
+        <value>No bot token is saved.</value>
+    </data>
+    <data name="DiscordBotProblemInvalidSettings" xml:space="preserve">
+        <value>The settings are incomplete or not valid, so the bot does not start.</value>
+    </data>
+    <data name="DiscordBotProblemTokenInUse" xml:space="preserve">
+        <value>Another Trebuchet already runs a bot with this token.</value>
+    </data>
+    <data name="DiscordBotProblemLoginFailed" xml:space="preserve">
+        <value>Discord refused the login. Is the token still valid? Replace it if it was reset.</value>
+    </data>
+    <data name="DiscordBotProblemGuildNotFound" xml:space="preserve">
+        <value>The bot is not on the server with the saved server ID. Invite it or check the ID.</value>
+    </data>
+    <data name="DiscordBotProblemConnectionLost" xml:space="preserve">
+        <value>The connection to Discord was lost. The bot reconnects by itself.</value>
+    </data>
+    <data name="DiscordBotProblemUnknown" xml:space="preserve">
+        <value>Unexpected error, see the log of Trebuchet.</value>
+    </data>
+    <data name="DiscordBotAutoStartSkipped" xml:space="preserve">
+        <value>Not started with Trebuchet: the saved settings are not valid.</value>
+    </data>
+    <data name="DiscordBotAutoStart" xml:space="preserve">
+        <value>Start with Trebuchet</value>
+    </data>
+    <data name="DiscordBotAutoStartText" xml:space="preserve">
+        <value>Starts the bot when Trebuchet opens, if the saved settings are valid. Off by default.</value>
+    </data>
+    <data name="DiscordBotUsesSavedSettings" xml:space="preserve">
+        <value>Start, Reconnect and Check security use the saved settings, not the unsaved changes.</value>
+    </data>
+    <data name="DiscordBotSectionSecurity" xml:space="preserve">
+        <value>Security</value>
+    </data>
+    <data name="DiscordBotSecurityNotice" xml:space="preserve">
+        <value>Access only with user ID AND role.</value>
+    </data>
+    <data name="DiscordBotSecurityNoticeText" xml:space="preserve">
+        <value>A person needs both: their Discord user ID in the list below and one of the allowed roles on your server. Only IDs count, never names. Permissions are changed only here, never through Discord.</value>
+    </data>
+    <data name="DiscordBotSuperAdmin" xml:space="preserve">
+        <value>Super admin</value>
+    </data>
+    <data name="DiscordBotSuperAdminText" xml:space="preserve">
+        <value>Required. The only user allowed to use the super admin commands. Needs one of the allowed roles too. Can not be removed, only replaced.</value>
+    </data>
+    <data name="DiscordBotSuperAdminNotSet" xml:space="preserve">
+        <value>Not set</value>
+    </data>
+    <data name="DiscordBotSuperAdminConfirmTitle" xml:space="preserve">
+        <value>Replace the super admin?</value>
+    </data>
+    <data name="DiscordBotSuperAdminConfirmText" xml:space="preserve">
+        <value>User ID {0} becomes the super admin instead of {1}. The previous super admin loses the super admin commands, and all access unless that ID is also in the list of users. Applies when you save.</value>
+    </data>
+    <data name="DiscordBotApply" xml:space="preserve">
+        <value>Apply</value>
+    </data>
+    <data name="DiscordBotLocked" xml:space="preserve">
+        <value>Can not be removed</value>
+    </data>
+    <data name="DiscordBotUsers" xml:space="preserve">
+        <value>Allowed users</value>
+    </data>
+    <data name="DiscordBotUsersText" xml:space="preserve">
+        <value>Discord user IDs of the people who may use the bot. Each of them also needs one of the allowed roles. The super admin always counts.</value>
+    </data>
+    <data name="DiscordBotRoles" xml:space="preserve">
+        <value>Allowed roles</value>
+    </data>
+    <data name="DiscordBotRolesText" xml:space="preserve">
+        <value>Discord role IDs, at least one. The role @everyone (it has the ID of the server) is refused.</value>
+    </data>
+    <data name="DiscordBotIdWatermark" xml:space="preserve">
+        <value>ID: 17 to 20 digits</value>
+    </data>
+    <data name="DiscordBotIdInvalid" xml:space="preserve">
+        <value>Not a Discord ID. Digits only, 17 to 20 of them.</value>
+    </data>
+    <data name="DiscordBotIdDuplicate" xml:space="preserve">
+        <value>This ID is already on the list.</value>
+    </data>
+    <data name="DiscordBotIdEveryone" xml:space="preserve">
+        <value>This is the role @everyone (the ID of the server). Every member has it, so it is refused.</value>
+    </data>
+    <data name="DiscordBotIdLooksLikeToken" xml:space="preserve">
+        <value>That looked like the bot token and was removed from the field. Enter the token only in the token field.</value>
+    </data>
+    <data name="DiscordBotListEmpty" xml:space="preserve">
+        <value>No entries yet.</value>
+    </data>
+    <data name="DiscordBotAuditChannel" xml:space="preserve">
+        <value>Audit channel</value>
+    </data>
+    <data name="DiscordBotAuditChannelText" xml:space="preserve">
+        <value>Optional channel ID. The bot reports critical actions and refused attempts there. Empty: none.</value>
+    </data>
+    <data name="DiscordBotAdminChannel" xml:space="preserve">
+        <value>Admin channel</value>
+    </data>
+    <data name="DiscordBotAdminChannelText" xml:space="preserve">
+        <value>The only channel the bot answers in. It is set with /bot channel set in the channel itself, which can only narrow it down. Back to all channels is only possible here.</value>
+    </data>
+    <data name="DiscordBotAdminChannelAll" xml:space="preserve">
+        <value>All channels</value>
+    </data>
+    <data name="DiscordBotAdminChannelAllPending" xml:space="preserve">
+        <value>All channels (when you save)</value>
+    </data>
+    <data name="DiscordBotAdminChannelClear" xml:space="preserve">
+        <value>Allow all channels</value>
+    </data>
+    <data name="DiscordBotAdminChannelClearTitle" xml:space="preserve">
+        <value>Allow all channels?</value>
+    </data>
+    <data name="DiscordBotAdminChannelClearText" xml:space="preserve">
+        <value>The bot will answer in every channel of the server again, not only in the admin channel. Applies when you save.</value>
+    </data>
+    <data name="DiscordBotLimits" xml:space="preserve">
+        <value>Limits</value>
+    </data>
+    <data name="DiscordBotCooldown" xml:space="preserve">
+        <value>Wait between two commands (seconds)</value>
+    </data>
+    <data name="DiscordBotCooldownText" xml:space="preserve">
+        <value>Per user.</value>
+    </data>
+    <data name="DiscordBotCriticalLimit" xml:space="preserve">
+        <value>Critical actions per server</value>
+    </data>
+    <data name="DiscordBotCriticalLimitText" xml:space="preserve">
+        <value>At most this many restarts, stops, starts or updates per server within the time below.</value>
+    </data>
+    <data name="DiscordBotCriticalWindow" xml:space="preserve">
+        <value>Time for the limit of critical actions (minutes)</value>
+    </data>
+    <data name="DiscordBotLockoutAttempts" xml:space="preserve">
+        <value>Refused attempts until lockout</value>
+    </data>
+    <data name="DiscordBotLockoutAttemptsText" xml:space="preserve">
+        <value>A user refused this often within the lockout time is ignored for the lockout time.</value>
+    </data>
+    <data name="DiscordBotLockoutMinutes" xml:space="preserve">
+        <value>Lockout time (minutes)</value>
+    </data>
+    <data name="DiscordBotMaxPause" xml:space="preserve">
+        <value>Longest postponement (minutes)</value>
+    </data>
+    <data name="DiscordBotMaxPauseText" xml:space="preserve">
+        <value>Restarts, stops and updates can be put off at most this long. Never more than 24 hours (1440 minutes).</value>
+    </data>
+    <data name="DiscordBotActionDelay" xml:space="preserve">
+        <value>Warning time before a restart or stop (minutes)</value>
+    </data>
+    <data name="DiscordBotActionDelayText" xml:space="preserve">
+        <value>Players are warned this long before a restart or stop started from Discord. 0: at once.</value>
+    </data>
+    <data name="DiscordBotPostponeChoices" xml:space="preserve">
+        <value>Postponement choices (minutes)</value>
+    </data>
+    <data name="DiscordBotPostponeChoicesText" xml:space="preserve">
+        <value>The minutes offered when postponing, separated by commas, e.g. 15, 30, 60. At most 25, none longer than the longest postponement.</value>
+    </data>
+    <data name="DiscordBotCheck" xml:space="preserve">
+        <value>Check security</value>
+    </data>
+    <data name="DiscordBotCheckText" xml:space="preserve">
+        <value>Checks the saved settings and, while the bot is connected, the server on Discord. Everything should be green.</value>
+    </data>
+    <data name="DiscordBotChecking" xml:space="preserve">
+        <value>Checking…</value>
+    </data>
+    <data name="DiscordBotCheckTimeout" xml:space="preserve">
+        <value>The security check did not finish within 30 seconds.</value>
+    </data>
+    <data name="DiscordBotCheckTokenOk" xml:space="preserve">
+        <value>A bot token is set.</value>
+    </data>
+    <data name="DiscordBotCheckTokenWarning" xml:space="preserve">
+        <value>The bot token could not be checked.</value>
+    </data>
+    <data name="DiscordBotCheckTokenError" xml:space="preserve">
+        <value>No bot token is set, or Discord refuses it.</value>
+    </data>
+    <data name="DiscordBotCheckSettingsOk" xml:space="preserve">
+        <value>The saved settings are complete and valid.</value>
+    </data>
+    <data name="DiscordBotCheckSettingsWarning" xml:space="preserve">
+        <value>The saved settings are valid but have a weak point.</value>
+    </data>
+    <data name="DiscordBotCheckSettingsError" xml:space="preserve">
+        <value>The saved settings are not valid, so the bot does not start.</value>
+    </data>
+    <data name="DiscordBotCheckGuildOk" xml:space="preserve">
+        <value>The bot is on the server with the saved server ID.</value>
+    </data>
+    <data name="DiscordBotCheckGuildWarning" xml:space="preserve">
+        <value>The server could not be checked (the bot is not connected).</value>
+    </data>
+    <data name="DiscordBotCheckGuildError" xml:space="preserve">
+        <value>The bot is not on the server with the saved server ID.</value>
+    </data>
+    <data name="DiscordBotCheckRolesOk" xml:space="preserve">
+        <value>All allowed roles exist on the server.</value>
+    </data>
+    <data name="DiscordBotCheckRolesWarning" xml:space="preserve">
+        <value>The roles could not be checked (the bot is not connected).</value>
+    </data>
+    <data name="DiscordBotCheckRolesError" xml:space="preserve">
+        <value>At least one allowed role does not exist on the server.</value>
+    </data>
+    <data name="DiscordBotCheckEveryoneRoleOk" xml:space="preserve">
+        <value>No allowed role is @everyone.</value>
+    </data>
+    <data name="DiscordBotCheckEveryoneRoleWarning" xml:space="preserve">
+        <value>The role @everyone could not be checked.</value>
+    </data>
+    <data name="DiscordBotCheckEveryoneRoleError" xml:space="preserve">
+        <value>An allowed role is @everyone, which every member has.</value>
+    </data>
+    <data name="DiscordBotCheckOtherGuildsOk" xml:space="preserve">
+        <value>The bot is on no other server.</value>
+    </data>
+    <data name="DiscordBotCheckOtherGuildsWarning" xml:space="preserve">
+        <value>Other servers could not be checked (the bot is not connected).</value>
+    </data>
+    <data name="DiscordBotCheckOtherGuildsError" xml:space="preserve">
+        <value>The bot is on other servers and leaves them. Switch off Public Bot in the developer portal.</value>
+    </data>
+    <data name="DiscordBotCheckAdministratorPermissionOk" xml:space="preserve">
+        <value>The bot has no administrator permission.</value>
+    </data>
+    <data name="DiscordBotCheckAdministratorPermissionWarning" xml:space="preserve">
+        <value>The permissions of the bot could not be checked (the bot is not connected).</value>
+    </data>
+    <data name="DiscordBotCheckAdministratorPermissionError" xml:space="preserve">
+        <value>The bot has administrator permission. Remove it on Discord: it only needs View Channels, Send Messages and Embed Links.</value>
+    </data>
+    <data name="DiscordBotCheckChannelOk" xml:space="preserve">
+        <value>The admin channel is set and the bot can write there.</value>
+    </data>
+    <data name="DiscordBotCheckChannelWarning" xml:space="preserve">
+        <value>No admin channel: the bot answers in every channel. Set one with /bot channel set.</value>
+    </data>
+    <data name="DiscordBotCheckChannelError" xml:space="preserve">
+        <value>The bot can not see or write in the admin channel.</value>
+    </data>
+    <data name="DiscordBotCheckConnectionOk" xml:space="preserve">
+        <value>Connected to Discord.</value>
+    </data>
+    <data name="DiscordBotCheckConnectionWarning" xml:space="preserve">
+        <value>The bot is not connected, only the saved settings were checked.</value>
+    </data>
+    <data name="DiscordBotCheckConnectionError" xml:space="preserve">
+        <value>Could not connect to Discord.</value>
+    </data>
+    <data name="DiscordBotSectionConnection" xml:space="preserve">
+        <value>Connection</value>
+    </data>
+    <data name="DiscordBotToken" xml:space="preserve">
+        <value>Bot token</value>
+    </data>
+    <data name="DiscordBotTokenText" xml:space="preserve">
+        <value>From the Discord developer portal (Bot → Reset Token). It is stored encrypted for your Windows user and never shown again.</value>
+    </data>
+    <data name="DiscordBotTokenSaved" xml:space="preserve">
+        <value>Token saved</value>
+    </data>
+    <data name="DiscordBotTokenFromEnvironment" xml:space="preserve">
+        <value>The token comes from the environment variable {0}.</value>
+    </data>
+    <data name="DiscordBotTokenNeedsEnvironment" xml:space="preserve">
+        <value>The token can not be stored on this system. Set the environment variable {0}.</value>
+    </data>
+    <data name="DiscordBotTokenInvalid" xml:space="preserve">
+        <value>This is not a Discord bot token. Nothing was saved.</value>
+    </data>
+    <data name="DiscordBotTokenSaveFailed" xml:space="preserve">
+        <value>The token could not be saved, see the log of Trebuchet.</value>
+    </data>
+    <data name="DiscordBotTokenWatermark" xml:space="preserve">
+        <value>Paste the token</value>
+    </data>
+    <data name="DiscordBotTokenRemoveTitle" xml:space="preserve">
+        <value>Remove the token?</value>
+    </data>
+    <data name="DiscordBotTokenRemoveText" xml:space="preserve">
+        <value>Without a token the bot can not connect. If the token may have leaked, also reset it in the Discord developer portal.</value>
+    </data>
+    <data name="DiscordBotTokenReconnect" xml:space="preserve">
+        <value>Reconnect the bot to use the new token.</value>
+    </data>
+    <data name="DiscordBotReplace" xml:space="preserve">
+        <value>Replace</value>
+    </data>
+    <data name="DiscordBotGuild" xml:space="preserve">
+        <value>Server ID</value>
+    </data>
+    <data name="DiscordBotGuildText" xml:space="preserve">
+        <value>The ID of your Discord server (right click on the server → Copy Server ID). The bot works only there and leaves every other server.</value>
+    </data>
+    <data name="DiscordBotLanguage" xml:space="preserve">
+        <value>Language of the bot</value>
+    </data>
+    <data name="DiscordBotLanguageText" xml:space="preserve">
+        <value>Language of the answers and status messages on Discord.</value>
+    </data>
+    <data name="DiscordBotSectionCommands" xml:space="preserve">
+        <value>Commands</value>
+    </data>
+    <data name="DiscordBotCommandsText" xml:space="preserve">
+        <value>Only switched on commands work. Who may use them stays the same: user ID and role.</value>
+    </data>
+    <data name="DiscordBotLevelRead" xml:space="preserve">
+        <value>Read</value>
+    </data>
+    <data name="DiscordBotLevelReadText" xml:space="preserve">
+        <value>Every allowed user.</value>
+    </data>
+    <data name="DiscordBotLevelManage" xml:space="preserve">
+        <value>Manage</value>
+    </data>
+    <data name="DiscordBotLevelManageText" xml:space="preserve">
+        <value>Every allowed user.</value>
+    </data>
+    <data name="DiscordBotLevelCritical" xml:space="preserve">
+        <value>Critical</value>
+    </data>
+    <data name="DiscordBotLevelCriticalText" xml:space="preserve">
+        <value>Every allowed user, with a confirmation button. Off by default and limited per server.</value>
+    </data>
+    <data name="DiscordBotLevelSuperAdmin" xml:space="preserve">
+        <value>Super admin</value>
+    </data>
+    <data name="DiscordBotLevelSuperAdminText" xml:space="preserve">
+        <value>Only the super admin, with a confirmation button.</value>
+    </data>
+    <data name="DiscordBotCommandStatus" xml:space="preserve">
+        <value>Status (/status)</value>
+    </data>
+    <data name="DiscordBotCommandStatusText" xml:space="preserve">
+        <value>Shows each server with its server save, state, players, uptime, postponement and pending update.</value>
+    </data>
+    <data name="DiscordBotCommandPostpone" xml:space="preserve">
+        <value>Postpone (/restart postpone, button)</value>
+    </data>
+    <data name="DiscordBotCommandPostponeText" xml:space="preserve">
+        <value>Puts off a pending restart, stop or update by some minutes. The players are told in game.</value>
+    </data>
+    <data name="DiscordBotCommandResume" xml:space="preserve">
+        <value>Release (/restart resume)</value>
+    </data>
+    <data name="DiscordBotCommandResumeText" xml:space="preserve">
+        <value>Ends a postponement, the automatic restarts run again.</value>
+    </data>
+    <data name="DiscordBotCommandRestartNow" xml:space="preserve">
+        <value>Restart now (/restart now)</value>
+    </data>
+    <data name="DiscordBotCommandRestartNowText" xml:space="preserve">
+        <value>Restarts a running server, with the usual warnings to the players.</value>
+    </data>
+    <data name="DiscordBotCommandStop" xml:space="preserve">
+        <value>Stop (/stop)</value>
+    </data>
+    <data name="DiscordBotCommandStopText" xml:space="preserve">
+        <value>Stops a running server, with the usual warnings to the players.</value>
+    </data>
+    <data name="DiscordBotCommandStart" xml:space="preserve">
+        <value>Start (/start)</value>
+    </data>
+    <data name="DiscordBotCommandStartText" xml:space="preserve">
+        <value>Starts a stopped server.</value>
+    </data>
+    <data name="DiscordBotCommandUpdate" xml:space="preserve">
+        <value>Update (/update)</value>
+    </data>
+    <data name="DiscordBotCommandUpdateText" xml:space="preserve">
+        <value>Checks for server and mod updates and installs them.</value>
+    </data>
+    <data name="DiscordBotCommandSetChannel" xml:space="preserve">
+        <value>Set admin channel (/bot channel set)</value>
+    </data>
+    <data name="DiscordBotCommandSetChannelText" xml:space="preserve">
+        <value>Makes the channel of the command the only channel of the bot and posts the status messages there. Can only narrow down.</value>
+    </data>
+    <data name="DiscordBotSectionAudit" xml:space="preserve">
+        <value>Audit log</value>
+    </data>
+    <data name="DiscordBotAuditText" xml:space="preserve">
+        <value>Every command, allowed or refused, with the exact reason. Kept in the log folder of Trebuchet (discord-bot-audit-&lt;month&gt;.log). The newest entries:</value>
+    </data>
+    <data name="DiscordBotOpenFolder" xml:space="preserve">
+        <value>Open folder</value>
+    </data>
+    <data name="DiscordBotAuditEmpty" xml:space="preserve">
+        <value>No entries since Trebuchet started.</value>
+    </data>
+    <data name="DiscordBotAuditResultAllowed" xml:space="preserve">
+        <value>Allowed</value>
+    </data>
+    <data name="DiscordBotAuditResultDenied" xml:space="preserve">
+        <value>Refused</value>
+    </data>
+    <data name="DiscordBotAuditResultThrottled" xml:space="preserve">
+        <value>Too fast</value>
+    </data>
+    <data name="DiscordBotAuditResultLockedOut" xml:space="preserve">
+        <value>Locked out</value>
+    </data>
+    <data name="DiscordBotAuditResultExecuted" xml:space="preserve">
+        <value>Done</value>
+    </data>
+    <data name="DiscordBotAuditResultFailed" xml:space="preserve">
+        <value>Failed</value>
+    </data>
+    <data name="DiscordBotAuditResultCancelled" xml:space="preserve">
+        <value>Cancelled</value>
+    </data>
+    <data name="DiscordBotSectionSetup" xml:space="preserve">
+        <value>Setup help</value>
+    </data>
+    <data name="DiscordBotSetupStep1" xml:space="preserve">
+        <value>Create the bot in the Discord developer portal and switch Public Bot off, so nobody else can invite it.</value>
+    </data>
+    <data name="DiscordBotSetupStep2" xml:space="preserve">
+        <value>Leave all privileged gateway intents off (Presence, Server Members, Message Content).</value>
+    </data>
+    <data name="DiscordBotSetupStep3" xml:space="preserve">
+        <value>Invite it with the scopes bot and applications.commands and only View Channels, Send Messages and Embed Links. Never Administrator.</value>
+    </data>
+    <data name="DiscordBotSetupStep4" xml:space="preserve">
+        <value>Use two-factor login for the account of the developer portal.</value>
+    </data>
+    <data name="DiscordBotSetupStep5" xml:space="preserve">
+        <value>Create a role of your own (e.g. Trebuchet-Admin) and a private channel only this role sees. You need the role too.</value>
+    </data>
+    <data name="DiscordBotSetupStep6" xml:space="preserve">
+        <value>In Discord turn on the developer mode (Settings → Advanced) to copy IDs with a right click.</value>
+    </data>
+    <data name="DiscordBotSetupStep7" xml:space="preserve">
+        <value>Here: enter token, server ID, super admin, roles and users, save, press Check security, then Start.</value>
+    </data>
+    <data name="DiscordBotSetupStep8" xml:space="preserve">
+        <value>In the private channel run /bot channel set as super admin.</value>
+    </data>
+    <data name="DiscordBotSetupStep9" xml:space="preserve">
+        <value>If the token may have leaked: Reset Token in the portal and replace it here.</value>
+    </data>
+    <data name="DiscordBotSetupOpenGuide" xml:space="preserve">
+        <value>Open the setup guide</value>
+    </data>
+    <data name="DiscordBotIssueGuildMissing" xml:space="preserve">
+        <value>The server ID is missing.</value>
+    </data>
+    <data name="DiscordBotIssueSuperAdminMissing" xml:space="preserve">
+        <value>The super admin is missing.</value>
+    </data>
+    <data name="DiscordBotIssueInvalidId" xml:space="preserve">
+        <value>Not a valid Discord ID (17 to 20 digits)</value>
+    </data>
+    <data name="DiscordBotIssueNoRoles" xml:space="preserve">
+        <value>At least one allowed role is needed.</value>
+    </data>
+    <data name="DiscordBotIssueEveryoneRole" xml:space="preserve">
+        <value>The role @everyone (the ID of the server) is not allowed</value>
+    </data>
+    <data name="DiscordBotIssueInvalidLimit" xml:space="preserve">
+        <value>Value out of range</value>
+    </data>
+    <data name="DiscordBotIssueInvalidPostponeChoices" xml:space="preserve">
+        <value>The postponement choices must be whole minutes from 1 up to the longest postponement, at most 25 of them.</value>
+    </data>
+    <data name="DiscordBotIssueUnknownCommand" xml:space="preserve">
+        <value>Unknown command in the settings</value>
+    </data>
 </root>

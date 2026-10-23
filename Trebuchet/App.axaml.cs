@@ -28,6 +28,7 @@ using Trebuchet.ViewModels.InnerContainer;
 using Trebuchet.ViewModels.Panels;
 using Trebuchet.Windows;
 using TrebuchetLib;
+using TrebuchetLib.DiscordBot;
 using TrebuchetLib.Processes;
 using TrebuchetLib.Services;
 using TrebuchetLib.Services.Importer;
@@ -49,6 +50,7 @@ public partial class App : Application, IApplication
     private LanguageManager? _langManager;
     private InternalLogSink? _internalLogSink;
     private ServiceProvider? _serviceProvider;
+    private DiscordBotHost? _discordBot;
     private readonly List<Exception> _uiConfigErrors = [];
     // Crash restart: 0 = none, 1 = being prepared, 2 = the new instance was started.
     private int _crashRestartState;
@@ -99,6 +101,8 @@ public partial class App : Application, IApplication
         _logger = _serviceProvider.GetRequiredService<ILogger<App>>();
         // Damaged settings/profiles repaired while loading (also before logging existed) are reported here.
         JsonFileStorage.SetLogger(_serviceProvider.GetRequiredService<ILoggerFactory>().CreateLogger(@"JsonFile"));
+        // Loads the bot settings (never throws); the bot itself is only created when the panel or the auto start needs it.
+        _discordBot = _serviceProvider.GetRequiredService<DiscordBotHost>();
         foreach (var error in _uiConfigErrors)
             _logger.LogError(error, @"UI settings could not be read, default settings are used");
         _uiConfigErrors.Clear();
@@ -229,6 +233,8 @@ public partial class App : Application, IApplication
             Dispatcher.UIThread.UnhandledException += OnDispatcherUnhandledException;
             TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
             desktop.ShutdownRequested += OnShutdownRequested;
+            // Not every way out raises ShutdownRequested (e.g. a programmatic shutdown for a restart). Runs once only.
+            desktop.Exit += (_, _) => ShutdownDiscordBot();
 
             //CrashHandler.SetReportUri(@"");
             
@@ -390,9 +396,34 @@ public partial class App : Application, IApplication
         services.AddSingleton<IPanel, ServerProfilePanel>();
         services.AddSingleton<IPanel, ConsolePanel>();
        
+        ConfigureDiscordBot(services, edition);
+
         services.AddSingleton<IPanel, DashboardPanel>();
+        // Right below the dashboard in the menu.
+        services.AddSingleton<IPanel, DiscordBotPanel>();
         services.AddSingleton<IPanel, ToolboxPanel>();
         services.AddSingleton<IPanel, SettingsPanel>();
+    }
+
+    /// <summary>
+    /// The Discord bot. Unreadable settings never stop Trebuchet (the bot then stays off and the panel says why), and
+    /// the bot itself is created on first use by <see cref="DiscordBotHost"/>, so a broken bot leaves the rest working.
+    /// </summary>
+    [Localizable(false)]
+    private static void ConfigureDiscordBot(IServiceCollection services, GameEdition edition)
+    {
+        services.AddSingleton(sp =>
+            DiscordBotSettingsFile.Load(edition, sp.GetRequiredService<ILogger<DiscordBotSettingsFile>>()));
+        services.AddSingleton(sp => sp.GetRequiredService<DiscordBotSettingsFile>().Config);
+        services.AddSingleton(sp => new BotTokenStore(sp.GetRequiredService<DiscordBotSettingsFile>().TokenPath));
+        services.AddSingleton(_ => new BotAuditLog(Constants.GetLoggingDirectory().FullName));
+        services.AddSingleton<BotRateLimiter>();
+        services.AddSingleton(sp => new BotGuard(sp.GetRequiredService<BotRateLimiter>()));
+        services.AddSingleton<BotPendingActions>();
+        services.AddSingleton<IBotDispatcher>(_ => new AvaloniaBotDispatcher());
+        services.AddSingleton<IBotActions, LauncherBotActions>();
+        services.AddSingleton<IDiscordBotService, DiscordBotService>();
+        services.AddSingleton<DiscordBotHost>();
     }
 
     private static string ResolveDebugLogDirectory()
@@ -432,11 +463,50 @@ public partial class App : Application, IApplication
 
     private void OnShutdownRequested(object? sender, ShutdownRequestedEventArgs e)
     {
+        ShutdownDiscordBot();
         _internalLogSink?.Dispose();
         _logger?.LogInformation(@"Trebuchet off");
         _logger?.LogInformation(@"----------------------------------------");
         if (_serviceProvider is not null)
-            _serviceProvider.Dispose();
+            DisposeServices(_serviceProvider);
+    }
+
+    /// <summary>
+    /// The bot stops first: no Discord command may reach a launcher that is being disposed, and its token is free at
+    /// once for a restarted Trebuchet. Waits a few seconds at most. Safe to call twice.
+    /// </summary>
+    private void ShutdownDiscordBot()
+    {
+        try
+        {
+            _discordBot?.Shutdown(TimeSpan.FromSeconds(5));
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, @"Stopping the Discord bot failed");
+        }
+    }
+
+    /// <summary>
+    /// Microsoft's container throws from Dispose for a service that only implements IAsyncDisposable, which the bot
+    /// may do. The bot is stopped already then, so the asynchronous variant completes right here, in the same order.
+    /// </summary>
+    private void DisposeServices(ServiceProvider provider)
+    {
+        if (_discordBot?.CreatedService is not (IAsyncDisposable and not IDisposable))
+        {
+            provider.Dispose();
+            return;
+        }
+        var disposing = provider.DisposeAsync().AsTask();
+        if (disposing.IsCompleted)
+        {
+            disposing.GetAwaiter().GetResult();
+            return;
+        }
+        _logger?.LogWarning(@"Services are still being disposed while Trebuchet exits");
+        _ = disposing.ContinueWith(static t => _ = t.Exception, CancellationToken.None,
+            TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
     }
 
     private async void OnDispatcherUnhandledException(object sender, DispatcherUnhandledExceptionEventArgs e)

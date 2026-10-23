@@ -5510,5 +5510,1625 @@ namespace Trebuchet.Assets {
                 return ResourceManager.GetString("DefaultNotificationRestartPostponed", resourceCulture);
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Discord Bot.
+        /// </summary>
+        public static string DiscordBotPanel {
+            get {
+                return ResourceManager.GetString("DiscordBotPanel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Unsaved changes.
+        /// </summary>
+        public static string DiscordBotUnsaved {
+            get {
+                return ResourceManager.GetString("DiscordBotUnsaved", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Revert.
+        /// </summary>
+        public static string DiscordBotRevert {
+            get {
+                return ResourceManager.GetString("DiscordBotRevert", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Not saved. Please correct:.
+        /// </summary>
+        public static string DiscordBotNotSaved {
+            get {
+                return ResourceManager.GetString("DiscordBotNotSaved", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The bot settings could not be read ({0}). The bot stays off and nothing can be saved here. Repair or delete the file {1}, then restart Trebuchet..
+        /// </summary>
+        public static string DiscordBotLoadError {
+            get {
+                return ResourceManager.GetString("DiscordBotLoadError", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The Discord bot could not be loaded, see the log of Trebuchet. The rest of Trebuchet works as usual..
+        /// </summary>
+        public static string DiscordBotServiceError {
+            get {
+                return ResourceManager.GetString("DiscordBotServiceError", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Status.
+        /// </summary>
+        public static string DiscordBotSectionStatus {
+            get {
+                return ResourceManager.GetString("DiscordBotSectionStatus", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to State.
+        /// </summary>
+        public static string DiscordBotStatusState {
+            get {
+                return ResourceManager.GetString("DiscordBotStatusState", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Bot.
+        /// </summary>
+        public static string DiscordBotStatusBot {
+            get {
+                return ResourceManager.GetString("DiscordBotStatusBot", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Server.
+        /// </summary>
+        public static string DiscordBotStatusServer {
+            get {
+                return ResourceManager.GetString("DiscordBotStatusServer", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Latency.
+        /// </summary>
+        public static string DiscordBotStatusLatency {
+            get {
+                return ResourceManager.GetString("DiscordBotStatusLatency", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Connected since.
+        /// </summary>
+        public static string DiscordBotStatusSince {
+            get {
+                return ResourceManager.GetString("DiscordBotStatusSince", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to {0} ms.
+        /// </summary>
+        public static string DiscordBotLatencyValue {
+            get {
+                return ResourceManager.GetString("DiscordBotLatencyValue", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Start.
+        /// </summary>
+        public static string DiscordBotStart {
+            get {
+                return ResourceManager.GetString("DiscordBotStart", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Stop.
+        /// </summary>
+        public static string DiscordBotStop {
+            get {
+                return ResourceManager.GetString("DiscordBotStop", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Reconnect.
+        /// </summary>
+        public static string DiscordBotReconnect {
+            get {
+                return ResourceManager.GetString("DiscordBotReconnect", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Stopped.
+        /// </summary>
+        public static string DiscordBotStateStopped {
+            get {
+                return ResourceManager.GetString("DiscordBotStateStopped", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Connecting....
+        /// </summary>
+        public static string DiscordBotStateStarting {
+            get {
+                return ResourceManager.GetString("DiscordBotStateStarting", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Connected.
+        /// </summary>
+        public static string DiscordBotStateConnected {
+            get {
+                return ResourceManager.GetString("DiscordBotStateConnected", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Stopping....
+        /// </summary>
+        public static string DiscordBotStateStopping {
+            get {
+                return ResourceManager.GetString("DiscordBotStateStopping", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Error.
+        /// </summary>
+        public static string DiscordBotStateError {
+            get {
+                return ResourceManager.GetString("DiscordBotStateError", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to No bot token is saved..
+        /// </summary>
+        public static string DiscordBotProblemNoToken {
+            get {
+                return ResourceManager.GetString("DiscordBotProblemNoToken", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The settings are incomplete or not valid, so the bot does not start..
+        /// </summary>
+        public static string DiscordBotProblemInvalidSettings {
+            get {
+                return ResourceManager.GetString("DiscordBotProblemInvalidSettings", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Another Trebuchet already runs a bot with this token..
+        /// </summary>
+        public static string DiscordBotProblemTokenInUse {
+            get {
+                return ResourceManager.GetString("DiscordBotProblemTokenInUse", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Discord refused the login. Is the token still valid? Replace it if it was reset..
+        /// </summary>
+        public static string DiscordBotProblemLoginFailed {
+            get {
+                return ResourceManager.GetString("DiscordBotProblemLoginFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The bot is not on the server with the saved server ID. Invite it or check the ID..
+        /// </summary>
+        public static string DiscordBotProblemGuildNotFound {
+            get {
+                return ResourceManager.GetString("DiscordBotProblemGuildNotFound", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The connection to Discord was lost. The bot reconnects by itself..
+        /// </summary>
+        public static string DiscordBotProblemConnectionLost {
+            get {
+                return ResourceManager.GetString("DiscordBotProblemConnectionLost", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Unexpected error, see the log of Trebuchet..
+        /// </summary>
+        public static string DiscordBotProblemUnknown {
+            get {
+                return ResourceManager.GetString("DiscordBotProblemUnknown", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Not started with Trebuchet: the saved settings are not valid..
+        /// </summary>
+        public static string DiscordBotAutoStartSkipped {
+            get {
+                return ResourceManager.GetString("DiscordBotAutoStartSkipped", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Start with Trebuchet.
+        /// </summary>
+        public static string DiscordBotAutoStart {
+            get {
+                return ResourceManager.GetString("DiscordBotAutoStart", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Starts the bot when Trebuchet opens, if the saved settings are valid. Off by default..
+        /// </summary>
+        public static string DiscordBotAutoStartText {
+            get {
+                return ResourceManager.GetString("DiscordBotAutoStartText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Start, Reconnect and Check security use the saved settings, not the unsaved changes..
+        /// </summary>
+        public static string DiscordBotUsesSavedSettings {
+            get {
+                return ResourceManager.GetString("DiscordBotUsesSavedSettings", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Security.
+        /// </summary>
+        public static string DiscordBotSectionSecurity {
+            get {
+                return ResourceManager.GetString("DiscordBotSectionSecurity", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Access only with user ID AND role..
+        /// </summary>
+        public static string DiscordBotSecurityNotice {
+            get {
+                return ResourceManager.GetString("DiscordBotSecurityNotice", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to A person needs both: their Discord user ID in the list below and one of the allowed roles on your server. Only IDs count, never names. Permissions are changed only here, never through Discord..
+        /// </summary>
+        public static string DiscordBotSecurityNoticeText {
+            get {
+                return ResourceManager.GetString("DiscordBotSecurityNoticeText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Super admin.
+        /// </summary>
+        public static string DiscordBotSuperAdmin {
+            get {
+                return ResourceManager.GetString("DiscordBotSuperAdmin", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Required. The only user allowed to use the super admin commands. Needs one of the allowed roles too. Can not be removed, only replaced..
+        /// </summary>
+        public static string DiscordBotSuperAdminText {
+            get {
+                return ResourceManager.GetString("DiscordBotSuperAdminText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Not set.
+        /// </summary>
+        public static string DiscordBotSuperAdminNotSet {
+            get {
+                return ResourceManager.GetString("DiscordBotSuperAdminNotSet", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Replace the super admin?.
+        /// </summary>
+        public static string DiscordBotSuperAdminConfirmTitle {
+            get {
+                return ResourceManager.GetString("DiscordBotSuperAdminConfirmTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to User ID {0} becomes the super admin instead of {1}. The previous super admin loses the super admin commands, and all access unless that ID is also in the list of users. Applies when you save..
+        /// </summary>
+        public static string DiscordBotSuperAdminConfirmText {
+            get {
+                return ResourceManager.GetString("DiscordBotSuperAdminConfirmText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Apply.
+        /// </summary>
+        public static string DiscordBotApply {
+            get {
+                return ResourceManager.GetString("DiscordBotApply", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Can not be removed.
+        /// </summary>
+        public static string DiscordBotLocked {
+            get {
+                return ResourceManager.GetString("DiscordBotLocked", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Allowed users.
+        /// </summary>
+        public static string DiscordBotUsers {
+            get {
+                return ResourceManager.GetString("DiscordBotUsers", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Discord user IDs of the people who may use the bot. Each of them also needs one of the allowed roles. The super admin always counts..
+        /// </summary>
+        public static string DiscordBotUsersText {
+            get {
+                return ResourceManager.GetString("DiscordBotUsersText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Allowed roles.
+        /// </summary>
+        public static string DiscordBotRoles {
+            get {
+                return ResourceManager.GetString("DiscordBotRoles", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Discord role IDs, at least one. The role @everyone (it has the ID of the server) is refused..
+        /// </summary>
+        public static string DiscordBotRolesText {
+            get {
+                return ResourceManager.GetString("DiscordBotRolesText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to ID: 17 to 20 digits.
+        /// </summary>
+        public static string DiscordBotIdWatermark {
+            get {
+                return ResourceManager.GetString("DiscordBotIdWatermark", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Not a Discord ID. Digits only, 17 to 20 of them..
+        /// </summary>
+        public static string DiscordBotIdInvalid {
+            get {
+                return ResourceManager.GetString("DiscordBotIdInvalid", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to This ID is already on the list..
+        /// </summary>
+        public static string DiscordBotIdDuplicate {
+            get {
+                return ResourceManager.GetString("DiscordBotIdDuplicate", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to This is the role @everyone (the ID of the server). Every member has it, so it is refused..
+        /// </summary>
+        public static string DiscordBotIdEveryone {
+            get {
+                return ResourceManager.GetString("DiscordBotIdEveryone", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to That looked like the bot token and was removed from the field. Enter the token only in the token field..
+        /// </summary>
+        public static string DiscordBotIdLooksLikeToken {
+            get {
+                return ResourceManager.GetString("DiscordBotIdLooksLikeToken", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to No entries yet..
+        /// </summary>
+        public static string DiscordBotListEmpty {
+            get {
+                return ResourceManager.GetString("DiscordBotListEmpty", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Audit channel.
+        /// </summary>
+        public static string DiscordBotAuditChannel {
+            get {
+                return ResourceManager.GetString("DiscordBotAuditChannel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Optional channel ID. The bot reports critical actions and refused attempts there. Empty: none..
+        /// </summary>
+        public static string DiscordBotAuditChannelText {
+            get {
+                return ResourceManager.GetString("DiscordBotAuditChannelText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Admin channel.
+        /// </summary>
+        public static string DiscordBotAdminChannel {
+            get {
+                return ResourceManager.GetString("DiscordBotAdminChannel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The only channel the bot answers in. It is set with /bot channel set in the channel itself, which can only narrow it down. Back to all channels is only possible here..
+        /// </summary>
+        public static string DiscordBotAdminChannelText {
+            get {
+                return ResourceManager.GetString("DiscordBotAdminChannelText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to All channels.
+        /// </summary>
+        public static string DiscordBotAdminChannelAll {
+            get {
+                return ResourceManager.GetString("DiscordBotAdminChannelAll", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to All channels (when you save).
+        /// </summary>
+        public static string DiscordBotAdminChannelAllPending {
+            get {
+                return ResourceManager.GetString("DiscordBotAdminChannelAllPending", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Allow all channels.
+        /// </summary>
+        public static string DiscordBotAdminChannelClear {
+            get {
+                return ResourceManager.GetString("DiscordBotAdminChannelClear", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Allow all channels?.
+        /// </summary>
+        public static string DiscordBotAdminChannelClearTitle {
+            get {
+                return ResourceManager.GetString("DiscordBotAdminChannelClearTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The bot will answer in every channel of the server again, not only in the admin channel. Applies when you save..
+        /// </summary>
+        public static string DiscordBotAdminChannelClearText {
+            get {
+                return ResourceManager.GetString("DiscordBotAdminChannelClearText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Limits.
+        /// </summary>
+        public static string DiscordBotLimits {
+            get {
+                return ResourceManager.GetString("DiscordBotLimits", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Wait between two commands (seconds).
+        /// </summary>
+        public static string DiscordBotCooldown {
+            get {
+                return ResourceManager.GetString("DiscordBotCooldown", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Per user..
+        /// </summary>
+        public static string DiscordBotCooldownText {
+            get {
+                return ResourceManager.GetString("DiscordBotCooldownText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Critical actions per server.
+        /// </summary>
+        public static string DiscordBotCriticalLimit {
+            get {
+                return ResourceManager.GetString("DiscordBotCriticalLimit", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to At most this many restarts, stops, starts or updates per server within the time below..
+        /// </summary>
+        public static string DiscordBotCriticalLimitText {
+            get {
+                return ResourceManager.GetString("DiscordBotCriticalLimitText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Time for the limit of critical actions (minutes).
+        /// </summary>
+        public static string DiscordBotCriticalWindow {
+            get {
+                return ResourceManager.GetString("DiscordBotCriticalWindow", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Refused attempts until lockout.
+        /// </summary>
+        public static string DiscordBotLockoutAttempts {
+            get {
+                return ResourceManager.GetString("DiscordBotLockoutAttempts", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to A user refused this often within the lockout time is ignored for the lockout time..
+        /// </summary>
+        public static string DiscordBotLockoutAttemptsText {
+            get {
+                return ResourceManager.GetString("DiscordBotLockoutAttemptsText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Lockout time (minutes).
+        /// </summary>
+        public static string DiscordBotLockoutMinutes {
+            get {
+                return ResourceManager.GetString("DiscordBotLockoutMinutes", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Longest postponement (minutes).
+        /// </summary>
+        public static string DiscordBotMaxPause {
+            get {
+                return ResourceManager.GetString("DiscordBotMaxPause", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Restarts, stops and updates can be put off at most this long. Never more than 24 hours (1440 minutes)..
+        /// </summary>
+        public static string DiscordBotMaxPauseText {
+            get {
+                return ResourceManager.GetString("DiscordBotMaxPauseText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Warning time before a restart or stop (minutes).
+        /// </summary>
+        public static string DiscordBotActionDelay {
+            get {
+                return ResourceManager.GetString("DiscordBotActionDelay", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Players are warned this long before a restart or stop started from Discord. 0: at once..
+        /// </summary>
+        public static string DiscordBotActionDelayText {
+            get {
+                return ResourceManager.GetString("DiscordBotActionDelayText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Postponement choices (minutes).
+        /// </summary>
+        public static string DiscordBotPostponeChoices {
+            get {
+                return ResourceManager.GetString("DiscordBotPostponeChoices", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The minutes offered when postponing, separated by commas, e.g. 15, 30, 60. At most 25, none longer than the longest postponement..
+        /// </summary>
+        public static string DiscordBotPostponeChoicesText {
+            get {
+                return ResourceManager.GetString("DiscordBotPostponeChoicesText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Check security.
+        /// </summary>
+        public static string DiscordBotCheck {
+            get {
+                return ResourceManager.GetString("DiscordBotCheck", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Checks the saved settings and, while the bot is connected, the server on Discord. Everything should be green..
+        /// </summary>
+        public static string DiscordBotCheckText {
+            get {
+                return ResourceManager.GetString("DiscordBotCheckText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Checking....
+        /// </summary>
+        public static string DiscordBotChecking {
+            get {
+                return ResourceManager.GetString("DiscordBotChecking", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The security check did not finish within 30 seconds..
+        /// </summary>
+        public static string DiscordBotCheckTimeout {
+            get {
+                return ResourceManager.GetString("DiscordBotCheckTimeout", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to A bot token is set..
+        /// </summary>
+        public static string DiscordBotCheckTokenOk {
+            get {
+                return ResourceManager.GetString("DiscordBotCheckTokenOk", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The bot token could not be checked..
+        /// </summary>
+        public static string DiscordBotCheckTokenWarning {
+            get {
+                return ResourceManager.GetString("DiscordBotCheckTokenWarning", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to No bot token is set, or Discord refuses it..
+        /// </summary>
+        public static string DiscordBotCheckTokenError {
+            get {
+                return ResourceManager.GetString("DiscordBotCheckTokenError", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The saved settings are complete and valid..
+        /// </summary>
+        public static string DiscordBotCheckSettingsOk {
+            get {
+                return ResourceManager.GetString("DiscordBotCheckSettingsOk", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The saved settings are valid but have a weak point..
+        /// </summary>
+        public static string DiscordBotCheckSettingsWarning {
+            get {
+                return ResourceManager.GetString("DiscordBotCheckSettingsWarning", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The saved settings are not valid, so the bot does not start..
+        /// </summary>
+        public static string DiscordBotCheckSettingsError {
+            get {
+                return ResourceManager.GetString("DiscordBotCheckSettingsError", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The bot is on the server with the saved server ID..
+        /// </summary>
+        public static string DiscordBotCheckGuildOk {
+            get {
+                return ResourceManager.GetString("DiscordBotCheckGuildOk", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The server could not be checked (the bot is not connected)..
+        /// </summary>
+        public static string DiscordBotCheckGuildWarning {
+            get {
+                return ResourceManager.GetString("DiscordBotCheckGuildWarning", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The bot is not on the server with the saved server ID..
+        /// </summary>
+        public static string DiscordBotCheckGuildError {
+            get {
+                return ResourceManager.GetString("DiscordBotCheckGuildError", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to All allowed roles exist on the server..
+        /// </summary>
+        public static string DiscordBotCheckRolesOk {
+            get {
+                return ResourceManager.GetString("DiscordBotCheckRolesOk", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The roles could not be checked (the bot is not connected)..
+        /// </summary>
+        public static string DiscordBotCheckRolesWarning {
+            get {
+                return ResourceManager.GetString("DiscordBotCheckRolesWarning", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to At least one allowed role does not exist on the server..
+        /// </summary>
+        public static string DiscordBotCheckRolesError {
+            get {
+                return ResourceManager.GetString("DiscordBotCheckRolesError", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to No allowed role is @everyone..
+        /// </summary>
+        public static string DiscordBotCheckEveryoneRoleOk {
+            get {
+                return ResourceManager.GetString("DiscordBotCheckEveryoneRoleOk", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The role @everyone could not be checked..
+        /// </summary>
+        public static string DiscordBotCheckEveryoneRoleWarning {
+            get {
+                return ResourceManager.GetString("DiscordBotCheckEveryoneRoleWarning", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to An allowed role is @everyone, which every member has..
+        /// </summary>
+        public static string DiscordBotCheckEveryoneRoleError {
+            get {
+                return ResourceManager.GetString("DiscordBotCheckEveryoneRoleError", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The bot is on no other server..
+        /// </summary>
+        public static string DiscordBotCheckOtherGuildsOk {
+            get {
+                return ResourceManager.GetString("DiscordBotCheckOtherGuildsOk", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Other servers could not be checked (the bot is not connected)..
+        /// </summary>
+        public static string DiscordBotCheckOtherGuildsWarning {
+            get {
+                return ResourceManager.GetString("DiscordBotCheckOtherGuildsWarning", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The bot is on other servers and leaves them. Switch off Public Bot in the developer portal..
+        /// </summary>
+        public static string DiscordBotCheckOtherGuildsError {
+            get {
+                return ResourceManager.GetString("DiscordBotCheckOtherGuildsError", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The bot has no administrator permission..
+        /// </summary>
+        public static string DiscordBotCheckAdministratorPermissionOk {
+            get {
+                return ResourceManager.GetString("DiscordBotCheckAdministratorPermissionOk", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The permissions of the bot could not be checked (the bot is not connected)..
+        /// </summary>
+        public static string DiscordBotCheckAdministratorPermissionWarning {
+            get {
+                return ResourceManager.GetString("DiscordBotCheckAdministratorPermissionWarning", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The bot has administrator permission. Remove it on Discord: it only needs View Channels, Send Messages and Embed Links..
+        /// </summary>
+        public static string DiscordBotCheckAdministratorPermissionError {
+            get {
+                return ResourceManager.GetString("DiscordBotCheckAdministratorPermissionError", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The admin channel is set and the bot can write there..
+        /// </summary>
+        public static string DiscordBotCheckChannelOk {
+            get {
+                return ResourceManager.GetString("DiscordBotCheckChannelOk", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to No admin channel: the bot answers in every channel. Set one with /bot channel set..
+        /// </summary>
+        public static string DiscordBotCheckChannelWarning {
+            get {
+                return ResourceManager.GetString("DiscordBotCheckChannelWarning", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The bot can not see or write in the admin channel..
+        /// </summary>
+        public static string DiscordBotCheckChannelError {
+            get {
+                return ResourceManager.GetString("DiscordBotCheckChannelError", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Connected to Discord..
+        /// </summary>
+        public static string DiscordBotCheckConnectionOk {
+            get {
+                return ResourceManager.GetString("DiscordBotCheckConnectionOk", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The bot is not connected, only the saved settings were checked..
+        /// </summary>
+        public static string DiscordBotCheckConnectionWarning {
+            get {
+                return ResourceManager.GetString("DiscordBotCheckConnectionWarning", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Could not connect to Discord..
+        /// </summary>
+        public static string DiscordBotCheckConnectionError {
+            get {
+                return ResourceManager.GetString("DiscordBotCheckConnectionError", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Connection.
+        /// </summary>
+        public static string DiscordBotSectionConnection {
+            get {
+                return ResourceManager.GetString("DiscordBotSectionConnection", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Bot token.
+        /// </summary>
+        public static string DiscordBotToken {
+            get {
+                return ResourceManager.GetString("DiscordBotToken", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to From the Discord developer portal (Bot -&gt; Reset Token). It is stored encrypted for your Windows user and never shown again..
+        /// </summary>
+        public static string DiscordBotTokenText {
+            get {
+                return ResourceManager.GetString("DiscordBotTokenText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Token saved.
+        /// </summary>
+        public static string DiscordBotTokenSaved {
+            get {
+                return ResourceManager.GetString("DiscordBotTokenSaved", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The token comes from the environment variable {0}..
+        /// </summary>
+        public static string DiscordBotTokenFromEnvironment {
+            get {
+                return ResourceManager.GetString("DiscordBotTokenFromEnvironment", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The token can not be stored on this system. Set the environment variable {0}..
+        /// </summary>
+        public static string DiscordBotTokenNeedsEnvironment {
+            get {
+                return ResourceManager.GetString("DiscordBotTokenNeedsEnvironment", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to This is not a Discord bot token. Nothing was saved..
+        /// </summary>
+        public static string DiscordBotTokenInvalid {
+            get {
+                return ResourceManager.GetString("DiscordBotTokenInvalid", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The token could not be saved, see the log of Trebuchet..
+        /// </summary>
+        public static string DiscordBotTokenSaveFailed {
+            get {
+                return ResourceManager.GetString("DiscordBotTokenSaveFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Paste the token.
+        /// </summary>
+        public static string DiscordBotTokenWatermark {
+            get {
+                return ResourceManager.GetString("DiscordBotTokenWatermark", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Remove the token?.
+        /// </summary>
+        public static string DiscordBotTokenRemoveTitle {
+            get {
+                return ResourceManager.GetString("DiscordBotTokenRemoveTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Without a token the bot can not connect. If the token may have leaked, also reset it in the Discord developer portal..
+        /// </summary>
+        public static string DiscordBotTokenRemoveText {
+            get {
+                return ResourceManager.GetString("DiscordBotTokenRemoveText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Reconnect the bot to use the new token..
+        /// </summary>
+        public static string DiscordBotTokenReconnect {
+            get {
+                return ResourceManager.GetString("DiscordBotTokenReconnect", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Replace.
+        /// </summary>
+        public static string DiscordBotReplace {
+            get {
+                return ResourceManager.GetString("DiscordBotReplace", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Server ID.
+        /// </summary>
+        public static string DiscordBotGuild {
+            get {
+                return ResourceManager.GetString("DiscordBotGuild", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The ID of your Discord server (right click on the server -&gt; Copy Server ID). The bot works only there and leaves every other server..
+        /// </summary>
+        public static string DiscordBotGuildText {
+            get {
+                return ResourceManager.GetString("DiscordBotGuildText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Language of the bot.
+        /// </summary>
+        public static string DiscordBotLanguage {
+            get {
+                return ResourceManager.GetString("DiscordBotLanguage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Language of the answers and status messages on Discord..
+        /// </summary>
+        public static string DiscordBotLanguageText {
+            get {
+                return ResourceManager.GetString("DiscordBotLanguageText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Commands.
+        /// </summary>
+        public static string DiscordBotSectionCommands {
+            get {
+                return ResourceManager.GetString("DiscordBotSectionCommands", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Only switched on commands work. Who may use them stays the same: user ID and role..
+        /// </summary>
+        public static string DiscordBotCommandsText {
+            get {
+                return ResourceManager.GetString("DiscordBotCommandsText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Read.
+        /// </summary>
+        public static string DiscordBotLevelRead {
+            get {
+                return ResourceManager.GetString("DiscordBotLevelRead", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Every allowed user..
+        /// </summary>
+        public static string DiscordBotLevelReadText {
+            get {
+                return ResourceManager.GetString("DiscordBotLevelReadText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Manage.
+        /// </summary>
+        public static string DiscordBotLevelManage {
+            get {
+                return ResourceManager.GetString("DiscordBotLevelManage", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Every allowed user..
+        /// </summary>
+        public static string DiscordBotLevelManageText {
+            get {
+                return ResourceManager.GetString("DiscordBotLevelManageText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Critical.
+        /// </summary>
+        public static string DiscordBotLevelCritical {
+            get {
+                return ResourceManager.GetString("DiscordBotLevelCritical", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Every allowed user, with a confirmation button. Off by default and limited per server..
+        /// </summary>
+        public static string DiscordBotLevelCriticalText {
+            get {
+                return ResourceManager.GetString("DiscordBotLevelCriticalText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Super admin.
+        /// </summary>
+        public static string DiscordBotLevelSuperAdmin {
+            get {
+                return ResourceManager.GetString("DiscordBotLevelSuperAdmin", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Only the super admin, with a confirmation button..
+        /// </summary>
+        public static string DiscordBotLevelSuperAdminText {
+            get {
+                return ResourceManager.GetString("DiscordBotLevelSuperAdminText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Status (/status).
+        /// </summary>
+        public static string DiscordBotCommandStatus {
+            get {
+                return ResourceManager.GetString("DiscordBotCommandStatus", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Shows each server with its server save, state, players, uptime, postponement and pending update..
+        /// </summary>
+        public static string DiscordBotCommandStatusText {
+            get {
+                return ResourceManager.GetString("DiscordBotCommandStatusText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Postpone (/restart postpone, button).
+        /// </summary>
+        public static string DiscordBotCommandPostpone {
+            get {
+                return ResourceManager.GetString("DiscordBotCommandPostpone", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Puts off a pending restart, stop or update by some minutes. The players are told in game..
+        /// </summary>
+        public static string DiscordBotCommandPostponeText {
+            get {
+                return ResourceManager.GetString("DiscordBotCommandPostponeText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Release (/restart resume).
+        /// </summary>
+        public static string DiscordBotCommandResume {
+            get {
+                return ResourceManager.GetString("DiscordBotCommandResume", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Ends a postponement, the automatic restarts run again..
+        /// </summary>
+        public static string DiscordBotCommandResumeText {
+            get {
+                return ResourceManager.GetString("DiscordBotCommandResumeText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Restart now (/restart now).
+        /// </summary>
+        public static string DiscordBotCommandRestartNow {
+            get {
+                return ResourceManager.GetString("DiscordBotCommandRestartNow", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Restarts a running server, with the usual warnings to the players..
+        /// </summary>
+        public static string DiscordBotCommandRestartNowText {
+            get {
+                return ResourceManager.GetString("DiscordBotCommandRestartNowText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Stop (/stop).
+        /// </summary>
+        public static string DiscordBotCommandStop {
+            get {
+                return ResourceManager.GetString("DiscordBotCommandStop", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Stops a running server, with the usual warnings to the players..
+        /// </summary>
+        public static string DiscordBotCommandStopText {
+            get {
+                return ResourceManager.GetString("DiscordBotCommandStopText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Start (/start).
+        /// </summary>
+        public static string DiscordBotCommandStart {
+            get {
+                return ResourceManager.GetString("DiscordBotCommandStart", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Starts a stopped server..
+        /// </summary>
+        public static string DiscordBotCommandStartText {
+            get {
+                return ResourceManager.GetString("DiscordBotCommandStartText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Update (/update).
+        /// </summary>
+        public static string DiscordBotCommandUpdate {
+            get {
+                return ResourceManager.GetString("DiscordBotCommandUpdate", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Checks for server and mod updates and installs them..
+        /// </summary>
+        public static string DiscordBotCommandUpdateText {
+            get {
+                return ResourceManager.GetString("DiscordBotCommandUpdateText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Set admin channel (/bot channel set).
+        /// </summary>
+        public static string DiscordBotCommandSetChannel {
+            get {
+                return ResourceManager.GetString("DiscordBotCommandSetChannel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Makes the channel of the command the only channel of the bot and posts the status messages there. Can only narrow down..
+        /// </summary>
+        public static string DiscordBotCommandSetChannelText {
+            get {
+                return ResourceManager.GetString("DiscordBotCommandSetChannelText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Audit log.
+        /// </summary>
+        public static string DiscordBotSectionAudit {
+            get {
+                return ResourceManager.GetString("DiscordBotSectionAudit", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Every command, allowed or refused, with the exact reason. Kept in the log folder of Trebuchet (discord-bot-audit-&lt;month&gt;.log). The newest entries:.
+        /// </summary>
+        public static string DiscordBotAuditText {
+            get {
+                return ResourceManager.GetString("DiscordBotAuditText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Open folder.
+        /// </summary>
+        public static string DiscordBotOpenFolder {
+            get {
+                return ResourceManager.GetString("DiscordBotOpenFolder", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to No entries since Trebuchet started..
+        /// </summary>
+        public static string DiscordBotAuditEmpty {
+            get {
+                return ResourceManager.GetString("DiscordBotAuditEmpty", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Allowed.
+        /// </summary>
+        public static string DiscordBotAuditResultAllowed {
+            get {
+                return ResourceManager.GetString("DiscordBotAuditResultAllowed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Refused.
+        /// </summary>
+        public static string DiscordBotAuditResultDenied {
+            get {
+                return ResourceManager.GetString("DiscordBotAuditResultDenied", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Too fast.
+        /// </summary>
+        public static string DiscordBotAuditResultThrottled {
+            get {
+                return ResourceManager.GetString("DiscordBotAuditResultThrottled", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Locked out.
+        /// </summary>
+        public static string DiscordBotAuditResultLockedOut {
+            get {
+                return ResourceManager.GetString("DiscordBotAuditResultLockedOut", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Done.
+        /// </summary>
+        public static string DiscordBotAuditResultExecuted {
+            get {
+                return ResourceManager.GetString("DiscordBotAuditResultExecuted", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Failed.
+        /// </summary>
+        public static string DiscordBotAuditResultFailed {
+            get {
+                return ResourceManager.GetString("DiscordBotAuditResultFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Cancelled.
+        /// </summary>
+        public static string DiscordBotAuditResultCancelled {
+            get {
+                return ResourceManager.GetString("DiscordBotAuditResultCancelled", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Setup help.
+        /// </summary>
+        public static string DiscordBotSectionSetup {
+            get {
+                return ResourceManager.GetString("DiscordBotSectionSetup", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Create the bot in the Discord developer portal and switch Public Bot off, so nobody else can invite it..
+        /// </summary>
+        public static string DiscordBotSetupStep1 {
+            get {
+                return ResourceManager.GetString("DiscordBotSetupStep1", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Leave all privileged gateway intents off (Presence, Server Members, Message Content)..
+        /// </summary>
+        public static string DiscordBotSetupStep2 {
+            get {
+                return ResourceManager.GetString("DiscordBotSetupStep2", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Invite it with the scopes bot and applications.commands and only View Channels, Send Messages and Embed Links. Never Administrator..
+        /// </summary>
+        public static string DiscordBotSetupStep3 {
+            get {
+                return ResourceManager.GetString("DiscordBotSetupStep3", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Use two-factor login for the account of the developer portal..
+        /// </summary>
+        public static string DiscordBotSetupStep4 {
+            get {
+                return ResourceManager.GetString("DiscordBotSetupStep4", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Create a role of your own (e.g. Trebuchet-Admin) and a private channel only this role sees. You need the role too..
+        /// </summary>
+        public static string DiscordBotSetupStep5 {
+            get {
+                return ResourceManager.GetString("DiscordBotSetupStep5", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to In Discord turn on the developer mode (Settings -&gt; Advanced) to copy IDs with a right click..
+        /// </summary>
+        public static string DiscordBotSetupStep6 {
+            get {
+                return ResourceManager.GetString("DiscordBotSetupStep6", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Here: enter token, server ID, super admin, roles and users, save, press Check security, then Start..
+        /// </summary>
+        public static string DiscordBotSetupStep7 {
+            get {
+                return ResourceManager.GetString("DiscordBotSetupStep7", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to In the private channel run /bot channel set as super admin..
+        /// </summary>
+        public static string DiscordBotSetupStep8 {
+            get {
+                return ResourceManager.GetString("DiscordBotSetupStep8", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to If the token may have leaked: Reset Token in the portal and replace it here..
+        /// </summary>
+        public static string DiscordBotSetupStep9 {
+            get {
+                return ResourceManager.GetString("DiscordBotSetupStep9", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Open the setup guide.
+        /// </summary>
+        public static string DiscordBotSetupOpenGuide {
+            get {
+                return ResourceManager.GetString("DiscordBotSetupOpenGuide", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The server ID is missing..
+        /// </summary>
+        public static string DiscordBotIssueGuildMissing {
+            get {
+                return ResourceManager.GetString("DiscordBotIssueGuildMissing", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The super admin is missing..
+        /// </summary>
+        public static string DiscordBotIssueSuperAdminMissing {
+            get {
+                return ResourceManager.GetString("DiscordBotIssueSuperAdminMissing", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Not a valid Discord ID (17 to 20 digits).
+        /// </summary>
+        public static string DiscordBotIssueInvalidId {
+            get {
+                return ResourceManager.GetString("DiscordBotIssueInvalidId", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to At least one allowed role is needed..
+        /// </summary>
+        public static string DiscordBotIssueNoRoles {
+            get {
+                return ResourceManager.GetString("DiscordBotIssueNoRoles", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The role @everyone (the ID of the server) is not allowed.
+        /// </summary>
+        public static string DiscordBotIssueEveryoneRole {
+            get {
+                return ResourceManager.GetString("DiscordBotIssueEveryoneRole", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Value out of range.
+        /// </summary>
+        public static string DiscordBotIssueInvalidLimit {
+            get {
+                return ResourceManager.GetString("DiscordBotIssueInvalidLimit", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The postponement choices must be whole minutes from 1 up to the longest postponement, at most 25 of them..
+        /// </summary>
+        public static string DiscordBotIssueInvalidPostponeChoices {
+            get {
+                return ResourceManager.GetString("DiscordBotIssueInvalidPostponeChoices", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Unknown command in the settings.
+        /// </summary>
+        public static string DiscordBotIssueUnknownCommand {
+            get {
+                return ResourceManager.GetString("DiscordBotIssueUnknownCommand", resourceCulture);
+            }
+        }
     }
 }
