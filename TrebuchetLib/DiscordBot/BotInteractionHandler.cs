@@ -1,25 +1,7 @@
+using System.Globalization;
+using Microsoft.Extensions.Logging;
+
 namespace TrebuchetLib.DiscordBot;
-
-/// <summary>
-/// Everything that happens after Discord delivered a command, button click or menu choice, without any Discord type:
-/// gate (<see cref="BotGuard"/>), questions, the action through <see cref="IBotActions"/>, audit, answer. The Discord
-/// layer only converts to <see cref="BotInteraction"/> and renders the replies.
-/// </summary>
-public sealed class BotInteractionHandler
-{
-    public BotInteractionHandler(IBotActions actions, BotGuard guard, BotPendingActions pending, BotAuditLog audit,
-        IBotSettings settings, IBotChannelClient? channel = null, Func<DateTime>? clock = null)
-    {
-        throw new NotImplementedException();
-    }
-
-    /// <summary>Never throws. Whatever goes wrong is answered with a neutral message and logged.</summary>
-    public Task HandleAsync(BotInteraction interaction, IBotResponder responder, CancellationToken token)
-        => throw new NotImplementedException();
-
-    /// <summary>The slash commands the Discord layer registers for the server (names and options, no logic).</summary>
-    public static IReadOnlyList<BotSlashCommand> SlashCommands => throw new NotImplementedException();
-}
 
 public enum BotOptionType { Integer, String }
 
@@ -29,19 +11,571 @@ public sealed record BotSlashOption(string Name, string Description, BotOptionTy
 public sealed record BotSlashCommand(string Path, string Description, IReadOnlyList<BotSlashOption> Options);
 
 /// <summary>
-/// Keeps the public status message of every server instance in the admin channel up to date: posts it, edits it when
-/// it changed (at most every few seconds), posts a new one when it was deleted.
+/// Everything that happens after Discord delivered a command, button click or menu choice, without any Discord type:
+/// gate (<see cref="BotGuard"/>), questions, the action through <see cref="IBotActions"/>, audit, answer. The Discord
+/// layer only converts to <see cref="BotInteraction"/> and renders the replies.
 /// </summary>
-public sealed class BotStatusBoard
+/// <remarks>
+/// Order for every request: read what was asked (no decision yet) → the gate (server, channel, user ID and role, command
+/// switch, level, wait and limits) → validate the inputs → ask a question (confirmation, minutes) or act → audit → answer.
+/// A user who is not allowed gets the same neutral answer whatever was asked, so nothing leaks before the gate.
+/// </remarks>
+public sealed class BotInteractionHandler
 {
-    public BotStatusBoard(IBotActions actions, IBotChannelClient channel, IBotSettings settings, Func<DateTime>? clock = null)
+    private const int MaxEmbeds = 10;
+    private const int MaxDelayMinutes = 60;
+    private static readonly TimeSpan SelectLifetime = TimeSpan.FromMinutes(2);
+    private static readonly TimeSpan ConfirmLifetime = BotPendingActions.DefaultLifetime;
+
+    private static readonly IReadOnlyDictionary<string, BotCommand> Paths = new Dictionary<string, BotCommand>(StringComparer.Ordinal)
     {
-        throw new NotImplementedException();
+        ["status"] = BotCommand.Status,
+        ["restart postpone"] = BotCommand.Postpone,
+        ["restart resume"] = BotCommand.Resume,
+        ["restart now"] = BotCommand.RestartNow,
+        ["stop"] = BotCommand.Stop,
+        ["start"] = BotCommand.Start,
+        ["update"] = BotCommand.Update,
+        ["bot channel set"] = BotCommand.SetChannel
+    };
+
+    private readonly IBotActions _actions;
+    private readonly BotGuard _guard;
+    private readonly BotPendingActions _pending;
+    private readonly BotAuditLog _audit;
+    private readonly IBotSettings _settings;
+    private readonly IBotChannelClient? _channel;
+    private readonly Func<DateTime> _clock;
+    private readonly ILogger? _logger;
+
+    public BotInteractionHandler(IBotActions actions, BotGuard guard, BotPendingActions pending, BotAuditLog audit,
+        IBotSettings settings, IBotChannelClient? channel = null, Func<DateTime>? clock = null, ILogger? logger = null)
+    {
+        _actions = actions;
+        _guard = guard;
+        _pending = pending;
+        _audit = audit;
+        _settings = settings;
+        _channel = channel;
+        _clock = clock ?? (() => DateTime.UtcNow);
+        _logger = logger;
     }
 
-    /// <summary>Call every few seconds and after an action. Never throws.</summary>
-    public Task RefreshAsync(CancellationToken token, bool force = false) => throw new NotImplementedException();
+    /// <summary>How long a command waits for the launcher before it answers "running". The action itself continues.</summary>
+    public TimeSpan ActionTimeout { get; init; } = TimeSpan.FromSeconds(15);
 
-    /// <summary>Forget the posted messages (the admin channel changed).</summary>
-    public void Reset() => throw new NotImplementedException();
+    /// <summary>Called after an action changed something, so the status messages can be refreshed at once.</summary>
+    public Func<CancellationToken, Task>? AfterAction { get; set; }
+
+    /// <summary>The slash commands the Discord layer registers for the server (names and options, no logic).</summary>
+    public static IReadOnlyList<BotSlashCommand> SlashCommands { get; } =
+    [
+        new("status", "Show the state of the servers", [Instance(false)]),
+        new("restart postpone", "Postpone a pending restart, stop or update", [
+            Instance(true),
+            new BotSlashOption("minutes", "Minutes to postpone", BotOptionType.Integer, true, 1, DiscordBotConfig.HardMaxPauseMinutes),
+            new BotSlashOption("reason", "Reason (only for the log)", BotOptionType.String, false)]),
+        new("restart resume", "End a postponement: automatic restarts run again", [Instance(true)]),
+        new("restart now", "Restart a server (players are warned first)", [
+            Instance(true),
+            new BotSlashOption("delay", "Warning time in minutes (default: from the settings)", BotOptionType.Integer, false, 0, MaxDelayMinutes)]),
+        new("stop", "Stop a server (players are warned first)", [
+            Instance(true),
+            new BotSlashOption("delay", "Warning time in minutes (default: from the settings)", BotOptionType.Integer, false, 0, MaxDelayMinutes)]),
+        new("start", "Start a stopped server", [Instance(true)]),
+        new("update", "Check for updates and install them", []),
+        new("bot channel set", "Make this channel the admin channel of the bot", [])
+    ];
+
+    private static BotSlashOption Instance(bool required) =>
+        new("instance", "Server instance number", BotOptionType.Integer, required, 0, 99);
+
+    /// <summary>Never throws. Whatever goes wrong is answered with a neutral message and logged.</summary>
+    public async Task HandleAsync(BotInteraction interaction, IBotResponder responder, CancellationToken token)
+    {
+        var messages = BotMessages.For(_settings.Policy?.Language);
+        var update = interaction.Kind != BotInteractionKind.Slash && IsOwnQuestion(interaction.Name);
+        try
+        {
+            await HandleCoreAsync(interaction, responder, token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Handling a Discord interaction failed");
+            await TryAnswerAsync(responder, new BotReply(messages.Failed), update).ConfigureAwait(false);
+        }
+    }
+
+    private async Task HandleCoreAsync(BotInteraction i, IBotResponder responder, CancellationToken token)
+    {
+        var policy = _settings.Policy;
+        var messages = BotMessages.For(policy?.Language);
+        var now = _clock();
+
+        // 1. Read what was asked. No decision is made on it yet.
+        var ask = Read(i, now);
+
+        // 2. The gate: nothing below runs for anyone it does not let through.
+        var request = new BotRequest(i.UserId, i.GuildId, i.ChannelId, i.RoleIds ?? [], i.IsHuman, ask.GuardCommand, i.InteractionId);
+        var gate = _guard.Evaluate(policy, request, ask.Instance, ask.FollowUp);
+        switch (gate.Outcome)
+        {
+            case BotGuardOutcome.Ignored:
+                return;
+            case BotGuardOutcome.Denied:
+                Audit(i, BotAuditResult.Denied, ask, gate.Reason.ToString());
+                if (gate.LockedOutNow)
+                {
+                    Audit(i, BotAuditResult.LockedOut, ask, "too many refused requests");
+                    await NoteAsync(policy, $"User {i.UserId} ({BotInputRules.SanitizeForLog(i.UserName)}) is locked out after repeated refused requests.").ConfigureAwait(false);
+                }
+                await AnswerAsync(responder, new BotReply(messages.NoPermission), ask.UpdateMessage).ConfigureAwait(false);
+                return;
+            case BotGuardOutcome.Throttled:
+                Audit(i, BotAuditResult.Throttled, ask, gate.Throttle.ToString());
+                await AnswerAsync(responder,
+                    new BotReply(gate.Throttle == BotThrottle.CriticalLimit ? messages.CriticalLimit : messages.Wait), ask.UpdateMessage).ConfigureAwait(false);
+                return;
+        }
+
+        // From here on the user is allowed to use ask.GuardCommand (the baseline Status for unknown requests).
+        var allowedPolicy = policy!;
+        Audit(i, BotAuditResult.Allowed, ask, string.Empty);
+
+        if (ask.Unknown || ask.Expired)
+        {
+            await AnswerAsync(responder, new BotReply(ask.Expired ? messages.Expired : messages.UnknownRequest), ask.UpdateMessage).ConfigureAwait(false);
+            return;
+        }
+
+        // 3. Act on it.
+        switch (ask.Kind)
+        {
+            case Step.Cancel:
+                await AnswerAsync(responder, new BotReply(messages.Cancelled), true).ConfigureAwait(false);
+                Audit(i, BotAuditResult.Cancelled, ask, string.Empty);
+                return;
+            case Step.Confirm:
+                await ConfirmedAsync(i, ask, allowedPolicy, messages, responder, token).ConfigureAwait(false);
+                return;
+            case Step.PostponeChoice:
+                await PostponePickedAsync(i, ask, allowedPolicy, messages, responder, token).ConfigureAwait(false);
+                return;
+        }
+
+        switch (ask.Command)
+        {
+            case BotCommand.Status:
+                await StatusAsync(i, ask, allowedPolicy, messages, responder, token).ConfigureAwait(false);
+                break;
+            case BotCommand.Postpone:
+                await PostponeAsync(i, ask, allowedPolicy, messages, responder, token).ConfigureAwait(false);
+                break;
+            case BotCommand.Resume:
+                if (!TryInstance(ask, messages, out var resumeError))
+                    await AnswerAsync(responder, resumeError!, false).ConfigureAwait(false);
+                else
+                    await RunAsync(i, ask, BotCommand.Resume, ask.Instance!.Value, 0, allowedPolicy, messages, responder, false, token).ConfigureAwait(false);
+                break;
+            default:
+                await AskConfirmationAsync(i, ask, allowedPolicy, messages, responder).ConfigureAwait(false);
+                break;
+        }
+    }
+
+    // ---- reading the request
+
+    private enum Step { Initial, Confirm, Cancel, PostponeChoice }
+
+    private sealed record Ask(
+        BotCommand Command, BotCommand GuardCommand, Step Kind, int? Instance, bool FollowUp, bool Unknown, bool Expired, bool UpdateMessage,
+        BotPending? Pending, long? RawInstance, long? RawMinutes, long? RawDelay, string? Reason, string Parameters);
+
+    private Ask Read(BotInteraction i, DateTime now)
+    {
+        var numbers = i.Numbers;
+        long? raw(string key) => numbers is not null && numbers.TryGetValue(key, out var v) ? v : null;
+        string? text(string key) => i.Texts is not null && i.Texts.TryGetValue(key, out var v) ? v : null;
+        var count = _actions.InstanceCount;
+
+        if (i.Kind == BotInteractionKind.Slash)
+        {
+            var path = (i.Name ?? string.Empty).Trim().ToLowerInvariant();
+            if (!Paths.TryGetValue(path, out var command))
+                return Unknown(false);
+            var rawInstance = raw("instance");
+            int? instance = rawInstance is { } r && BotInputRules.TryParseInstance(r, count, out var parsed) ? parsed : null;
+            var reason = BotInputRules.SanitizeReason(text("reason"));
+            return new Ask(command, command, Step.Initial, instance, false, false, false, false, null, rawInstance, raw("minutes"), raw("delay"),
+                reason, Describe(command, rawInstance, raw("minutes"), raw("delay"), reason));
+        }
+
+        if (!BotCustomId.TryParse(i.Name, count, out var kind, out var buttonCommand, out var buttonInstance, out var nonce))
+        {
+            // Maybe an old button of an instance that does not exist any more: same neutral handling.
+            return Unknown(IsOwnQuestion(i.Name));
+        }
+
+        switch (kind)
+        {
+            case BotCustomIdKind.Action:
+                return new Ask(buttonCommand, buttonCommand, Step.Initial, buttonInstance, false, false, false, false, null, buttonInstance, null, null,
+                    string.Empty, Describe(buttonCommand, buttonInstance, null, null, string.Empty));
+            default:
+            {
+                var step = kind switch
+                {
+                    BotCustomIdKind.Confirm => Step.Confirm,
+                    BotCustomIdKind.Cancel => Step.Cancel,
+                    _ => Step.PostponeChoice
+                };
+                if (!_pending.TryTake(nonce, i.UserId, now, out var pending))
+                {
+                    // Expired, used before, or not this user's: the user is still checked as a user of the bot.
+                    return new Ask(BotCommand.Status, BotCommand.Status, step, null, true, false, true, true, null, null, null, null, null, $"code={kind}");
+                }
+                // A cancel is no action: it must not use up a limit of the command it cancels.
+                var guardCommand = step == Step.Cancel ? BotCommand.Status : pending.Command;
+                int? instance = pending.Instance >= 0 && pending.Instance < count ? pending.Instance : null;
+                return new Ask(pending.Command, guardCommand, step, instance, true, false, false, true, pending, pending.Instance, pending.Minutes, null, null,
+                    Describe(pending.Command, pending.Instance, pending.Minutes, null, string.Empty) + $" step={step}");
+            }
+        }
+    }
+
+    private static Ask Unknown(bool update) =>
+        new(BotCommand.Status, BotCommand.Status, Step.Initial, null, false, true, false, update, null, null, null, null, null, "unknown");
+
+    private static bool IsOwnQuestion(string? customId) =>
+        customId is not null && (customId.StartsWith("tb1:ok:", StringComparison.Ordinal) || customId.StartsWith("tb1:no:", StringComparison.Ordinal)
+                                 || customId.StartsWith("tb1:pp:", StringComparison.Ordinal));
+
+    private static string Describe(BotCommand command, long? instance, long? minutes, long? delay, string? reason)
+    {
+        var parts = new List<string>();
+        if (instance is { } n) parts.Add($"instance={n.ToString(CultureInfo.InvariantCulture)}");
+        if (minutes is { } m && m != 0) parts.Add($"minutes={m.ToString(CultureInfo.InvariantCulture)}");
+        if (delay is { } d) parts.Add($"delay={d.ToString(CultureInfo.InvariantCulture)}");
+        if (!string.IsNullOrEmpty(reason)) parts.Add($"reason={reason}");
+        return string.Join(' ', parts);
+    }
+
+    private static bool TryInstance(Ask ask, BotMessages messages, out BotReply? error)
+    {
+        if (ask.Instance is not null)
+        {
+            error = null;
+            return true;
+        }
+        error = new BotReply(ask.RawInstance is null ? messages.InvalidInput : messages.UnknownServer);
+        return false;
+    }
+
+    // ---- commands
+
+    private async Task StatusAsync(BotInteraction i, Ask ask, BotPolicy policy, BotMessages messages, IBotResponder responder, CancellationToken token)
+    {
+        if (ask.RawInstance is not null && ask.Instance is null)
+        {
+            await AnswerAsync(responder, new BotReply(messages.UnknownServer), false).ConfigureAwait(false);
+            return;
+        }
+        var statuses = await _actions.GetStatusesAsync(token).ConfigureAwait(false);
+        var texts = BotTexts.For(policy.Language);
+        var now = _clock();
+        var embeds = statuses
+            .Where(x => ask.Instance is null || x.Instance == ask.Instance)
+            .Take(MaxEmbeds)
+            .Select(x => BotStatusMessageBuilder.Build(x, policy, texts, now))
+            .ToList();
+        await AnswerAsync(responder, new BotReply(embeds.Count == 0 ? messages.NoServers : messages.StatusTitle, embeds), false).ConfigureAwait(false);
+        Audit(i, BotAuditResult.Executed, ask, $"{embeds.Count} servers");
+    }
+
+    private async Task PostponeAsync(BotInteraction i, Ask ask, BotPolicy policy, BotMessages messages, IBotResponder responder, CancellationToken token)
+    {
+        if (!TryInstance(ask, messages, out var error))
+        {
+            await AnswerAsync(responder, error!, false).ConfigureAwait(false);
+            return;
+        }
+        var instance = ask.Instance!.Value;
+
+        if (i.Kind == BotInteractionKind.Slash)
+        {
+            if (ask.RawMinutes is not { } raw || !BotInputRules.TryParseMinutes(raw, policy, out var minutes))
+            {
+                await AnswerAsync(responder, new BotReply(messages.InvalidInput), false).ConfigureAwait(false);
+                return;
+            }
+            await RunAsync(i, ask, BotCommand.Postpone, instance, minutes, policy, messages, responder, false, token, ask.Reason).ConfigureAwait(false);
+            return;
+        }
+
+        // The button of the status message: the user picks the minutes from the offered ones.
+        var nonce = _pending.Create(i.UserId, BotCommand.Postpone, instance, _clock(), SelectLifetime, 0, i.ChannelId ?? 0);
+        var choices = policy.PostponeChoices.Select(m => new BotChoice(messages.FormatMinutes(m), m.ToString(CultureInfo.InvariantCulture))).ToList();
+        await AnswerAsync(responder,
+            new BotReply(messages.PostponePlaceholder, Question: new BotSelectQuestion(nonce, messages.PostponePlaceholder, choices)), false).ConfigureAwait(false);
+    }
+
+    private async Task PostponePickedAsync(BotInteraction i, Ask ask, BotPolicy policy, BotMessages messages, IBotResponder responder, CancellationToken token)
+    {
+        if (ask.Command != BotCommand.Postpone || ask.Instance is not { } instance
+            || i.Kind != BotInteractionKind.Select
+            || i.Values is not { Count: 1 } values || !BotInputRules.TryParsePostponeChoice(values[0], policy, out var minutes))
+        {
+            await AnswerAsync(responder, new BotReply(messages.InvalidInput), true).ConfigureAwait(false);
+            return;
+        }
+        await RunAsync(i, ask, BotCommand.Postpone, instance, minutes, policy, messages, responder, true, token).ConfigureAwait(false);
+    }
+
+    private async Task AskConfirmationAsync(BotInteraction i, Ask ask, BotPolicy policy, BotMessages messages, IBotResponder responder)
+    {
+        var command = ask.Command;
+        if (!BotCommands.NeedsConfirmation(command))
+        {
+            await AnswerAsync(responder, new BotReply(messages.UnknownRequest), false).ConfigureAwait(false);
+            return;
+        }
+
+        var instance = ask.Instance ?? -1;
+        var delayMinutes = 0;
+        if (command is BotCommand.RestartNow or BotCommand.Stop or BotCommand.Start)
+        {
+            if (!TryInstance(ask, messages, out var error))
+            {
+                await AnswerAsync(responder, error!, false).ConfigureAwait(false);
+                return;
+            }
+            if (command != BotCommand.Start)
+            {
+                delayMinutes = (int)Math.Round(policy.ActionDelay.TotalMinutes);
+                if (ask.RawDelay is { } rawDelay)
+                {
+                    if (rawDelay < 0 || rawDelay > MaxDelayMinutes)
+                    {
+                        await AnswerAsync(responder, new BotReply(messages.InvalidInput), false).ConfigureAwait(false);
+                        return;
+                    }
+                    delayMinutes = (int)rawDelay;
+                }
+            }
+        }
+        if (command == BotCommand.SetChannel && (i.ChannelId is not { } channel || !BotId.IsValid(channel)))
+        {
+            await AnswerAsync(responder, new BotReply(messages.InvalidInput), false).ConfigureAwait(false);
+            return;
+        }
+
+        var server = instance.ToString(CultureInfo.InvariantCulture);
+        var warning = delayMinutes == 0 ? messages.Now : messages.FormatMinutes(delayMinutes);
+        var text = command switch
+        {
+            BotCommand.RestartNow => string.Format(CultureInfo.InvariantCulture, messages.AskRestart, server, warning),
+            BotCommand.Stop => string.Format(CultureInfo.InvariantCulture, messages.AskStop, server, warning),
+            BotCommand.Start => string.Format(CultureInfo.InvariantCulture, messages.AskStart, server),
+            BotCommand.Update => messages.AskUpdate,
+            _ => messages.AskChannel
+        };
+        var nonce = _pending.Create(i.UserId, command, instance, _clock(), ConfirmLifetime, delayMinutes, i.ChannelId ?? 0);
+        await AnswerAsync(responder, new BotReply(text, Question: new BotConfirmQuestion(nonce, messages.Confirm, messages.Cancel)), false).ConfigureAwait(false);
+    }
+
+    private async Task ConfirmedAsync(BotInteraction i, Ask ask, BotPolicy policy, BotMessages messages, IBotResponder responder, CancellationToken token)
+    {
+        var pending = ask.Pending!;
+        // The answer only counts from the channel the question was asked in.
+        if (pending.ChannelId != 0 && i.ChannelId != pending.ChannelId)
+        {
+            Audit(i, BotAuditResult.Denied, ask, "WrongChannel");
+            await AnswerAsync(responder, new BotReply(messages.NoPermission), true).ConfigureAwait(false);
+            return;
+        }
+
+        switch (pending.Command)
+        {
+            case BotCommand.SetChannel:
+                if (!BotId.IsValid(pending.ChannelId))
+                {
+                    await AnswerAsync(responder, new BotReply(messages.InvalidInput), true).ConfigureAwait(false);
+                    return;
+                }
+                await _settings.SetAdminChannelAsync(pending.ChannelId).ConfigureAwait(false);
+                Audit(i, BotAuditResult.Executed, ask, "admin channel set");
+                await NoteAsync(policy, $"Admin channel changed by user {i.UserId} ({BotInputRules.SanitizeForLog(i.UserName)}).").ConfigureAwait(false);
+                await AnswerAsync(responder, new BotReply(messages.DoneChannel), true).ConfigureAwait(false);
+                await RefreshAsync(token).ConfigureAwait(false);
+                return;
+            case BotCommand.Update:
+                await RunAsync(i, ask, BotCommand.Update, -1, 0, policy, messages, responder, true, token).ConfigureAwait(false);
+                return;
+            case BotCommand.RestartNow:
+            case BotCommand.Stop:
+            case BotCommand.Start:
+                if (ask.Instance is not { } instance)
+                {
+                    await AnswerAsync(responder, new BotReply(messages.UnknownServer), true).ConfigureAwait(false);
+                    return;
+                }
+                await RunAsync(i, ask, pending.Command, instance, pending.Minutes, policy, messages, responder, true, token).ConfigureAwait(false);
+                return;
+            default:
+                await AnswerAsync(responder, new BotReply(messages.UnknownRequest), true).ConfigureAwait(false);
+                return;
+        }
+    }
+
+    // ---- doing it
+
+    private async Task RunAsync(BotInteraction i, Ask ask, BotCommand command, int instance, int minutes, BotPolicy policy, BotMessages messages,
+        IBotResponder responder, bool update, CancellationToken token, string? reason = null)
+    {
+        var text = string.IsNullOrWhiteSpace(reason) ? "Discord" : "Discord: " + reason;
+        var delay = TimeSpan.FromMinutes(minutes);
+
+        BotActionResult result;
+        try
+        {
+            var action = command switch
+            {
+                BotCommand.Postpone => _actions.PostponeAsync(instance, minutes, text, token),
+                BotCommand.Resume => _actions.ResumeAsync(instance, token),
+                BotCommand.RestartNow => _actions.RestartAsync(instance, delay, "Discord", token),
+                BotCommand.Stop => _actions.StopAsync(instance, delay, "Discord", token),
+                BotCommand.Start => _actions.StartAsync(instance, token),
+                BotCommand.Update => _actions.UpdateAsync(token),
+                _ => Task.FromResult(new BotActionResult(BotActionOutcome.Failed, "not an action"))
+            };
+
+            using var timer = CancellationTokenSource.CreateLinkedTokenSource(token);
+            var finished = await Task.WhenAny(action, Task.Delay(ActionTimeout, timer.Token)).ConfigureAwait(false);
+            timer.Cancel();
+            if (finished != action)
+            {
+                // Takes long (e.g. the update): answer now, the action carries on and is logged when it ends.
+                _ = action.ContinueWith(t => LogLate(i, ask, t), TaskScheduler.Default);
+                Audit(i, BotAuditResult.Executed, ask, "running");
+                await AnswerAsync(responder, new BotReply(messages.Running), update).ConfigureAwait(false);
+                return;
+            }
+            result = await action.ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(ex, "Discord action {Command} failed", command);
+            result = new BotActionResult(BotActionOutcome.Failed, "exception");
+        }
+
+        Audit(i, result.Success ? BotAuditResult.Executed : BotAuditResult.Failed, ask, $"{result.Outcome} {result.Detail}".Trim());
+        if (result.Success && BotCommands.IsLimited(command))
+        {
+            var target = instance >= 0 ? $" server {instance.ToString(CultureInfo.InvariantCulture)}" : string.Empty;
+            await NoteAsync(policy, $"{command}{target} by user {i.UserId} ({BotInputRules.SanitizeForLog(i.UserName)}).").ConfigureAwait(false);
+        }
+        await AnswerAsync(responder, new BotReply(ResultText(command, instance, minutes, result, messages)), update).ConfigureAwait(false);
+        if (result.Success) await RefreshAsync(token).ConfigureAwait(false);
+    }
+
+    private void LogLate(BotInteraction i, Ask ask, Task<BotActionResult> task)
+    {
+        try
+        {
+            // Reading the exception marks it as observed.
+            var detail = task.IsCompletedSuccessfully ? $"finished {task.Result.Outcome} {task.Result.Detail}".Trim() : $"finished with an error ({task.Exception?.GetBaseException().GetType().Name})";
+            Audit(i, task.IsCompletedSuccessfully && task.Result.Success ? BotAuditResult.Executed : BotAuditResult.Failed, ask, detail);
+        }
+        catch (Exception)
+        {
+            // The audit log never throws; a faulted task is observed above.
+        }
+    }
+
+    private static string ResultText(BotCommand command, int instance, int minutes, BotActionResult result, BotMessages messages)
+    {
+        var server = instance.ToString(CultureInfo.InvariantCulture);
+        return result.Outcome switch
+        {
+            BotActionOutcome.Done => command switch
+            {
+                BotCommand.Postpone => string.Format(CultureInfo.InvariantCulture, messages.Postponed, messages.FormatMinutes(minutes)),
+                BotCommand.Resume => messages.Resumed,
+                BotCommand.RestartNow => string.Format(CultureInfo.InvariantCulture, messages.DoneRestart, server),
+                BotCommand.Stop => string.Format(CultureInfo.InvariantCulture, messages.DoneStop, server),
+                BotCommand.Start => string.Format(CultureInfo.InvariantCulture, messages.DoneStart, server),
+                BotCommand.Update => messages.DoneUpdate,
+                _ => messages.Failed
+            },
+            BotActionOutcome.NotRunning => messages.NotRunning,
+            BotActionOutcome.AlreadyRunning => messages.AlreadyRunning,
+            BotActionOutcome.NothingPending => messages.NothingPending,
+            BotActionOutcome.Busy => messages.Busy,
+            _ => messages.Failed
+        };
+    }
+
+    // ---- helpers
+
+    private async Task RefreshAsync(CancellationToken token)
+    {
+        var after = AfterAction;
+        if (after is null) return;
+        try
+        {
+            await after(token).ConfigureAwait(false);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger?.LogWarning(ex, "Refreshing the status messages after an action failed");
+        }
+    }
+
+    private void Audit(BotInteraction i, BotAuditResult result, Ask ask, string detail)
+    {
+        try
+        {
+            _audit.Write(new BotAuditEntry(_clock(), result, i.UserId, i.UserName ?? string.Empty, i.GuildId ?? 0, i.ChannelId ?? 0,
+                ask.Unknown ? null : ask.Command, ask.Parameters, detail));
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Writing the Discord audit log failed");
+        }
+    }
+
+    private async Task NoteAsync(BotPolicy? policy, string text)
+    {
+        if (_channel is null || policy is null || policy.AuditChannelId == 0) return;
+        try
+        {
+            await _channel.PostNoteAsync(policy.AuditChannelId, BotInputRules.SanitizeForLog(text)).WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogWarning(ex, "Posting to the audit channel failed");
+        }
+    }
+
+    private static Task AnswerAsync(IBotResponder responder, BotReply reply, bool update) =>
+        update ? responder.UpdateAsync(reply) : responder.ReplyAsync(reply);
+
+    private static async Task TryAnswerAsync(IBotResponder responder, BotReply reply, bool update)
+    {
+        try
+        {
+            await AnswerAsync(responder, reply, update).ConfigureAwait(false);
+        }
+        catch (Exception)
+        {
+            // Nothing more can be done for this interaction.
+        }
+    }
 }
