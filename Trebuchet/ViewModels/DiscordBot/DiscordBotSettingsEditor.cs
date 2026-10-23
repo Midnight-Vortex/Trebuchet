@@ -327,7 +327,9 @@ public sealed class DiscordBotSettingsEditor
     /// <summary>A detached copy (no file): saving it by mistake fails instead of overwriting the settings.</summary>
     private static DiscordBotConfig Clone(DiscordBotConfig config)
     {
-        var json = JsonSerializer.Serialize(config, DiscordBotConfig._jsonOptions);
+        // The bot changes the status messages in place under this lock: unlocked, the copy can throw "collection was modified".
+        string json;
+        lock (config) json = JsonSerializer.Serialize(config, DiscordBotConfig._jsonOptions);
         return JsonSerializer.Deserialize<DiscordBotConfig>(json, DiscordBotConfig._jsonOptions)
                ?? throw new InvalidOperationException(@"The bot settings could not be copied");
     }

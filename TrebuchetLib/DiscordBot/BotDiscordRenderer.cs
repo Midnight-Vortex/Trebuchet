@@ -23,7 +23,8 @@ internal static class BotDiscordRenderer
     private const int MaxFields = 25;
     private const int MaxFooter = 2048;
     private const int MaxLabel = 80;
-    private const int MaxPlaceholder = 150;
+    // Discord.Net refuses a longer placeholder (ArgumentException) and the whole answer with it.
+    private const int MaxPlaceholder = SelectMenuBuilder.MaxPlaceholderLength;
     private const int MaxOptions = 25;
     private const int MaxOptionText = 100;
     // Button IDs carry an instance of at most three digits.
