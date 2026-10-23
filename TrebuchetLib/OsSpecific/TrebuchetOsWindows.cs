@@ -125,13 +125,18 @@ internal static class TrebuchetOsWindowsEx
         {
             foreach (var process in collection)
             {
-                try
+                // ProcessData copies the values: the WMI object goes at once, not with the garbage collector (a scan every
+                // few seconds for days).
+                using (process)
                 {
-                    result.Add(new ProcessData(process));
-                }
-                catch (Exception)
-                {
-                    // Process vanished while being enumerated (killed/exited) — skip it.
+                    try
+                    {
+                        result.Add(new ProcessData(process));
+                    }
+                    catch (Exception)
+                    {
+                        // Process vanished while being enumerated (killed/exited) — skip it.
+                    }
                 }
             }
         }

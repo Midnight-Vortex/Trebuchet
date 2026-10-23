@@ -33,7 +33,8 @@ public class SequenceActionDiscordWebHook : ISequenceAction
         try
         {
             using var discord = new DiscordWebhookClient(DiscordWebHook);
-            await discord.SendMessageAsync(args.Expand(Message));
+            // Discord retries on its own: a slow Discord must not hold the sequence (and a pending restart) for ever.
+            await discord.SendMessageAsync(args.Expand(Message)).WaitAsync(TimeSpan.FromSeconds(30), args.CancellationToken);
         }
         catch (Exception ex)
         {

@@ -12,7 +12,10 @@ public static class ConsoleControl
     private static readonly object Lock = new();
     // Trebuchet attaches to the server console for a moment and receives the Ctrl+C too: this handler keeps it running.
     // A handler routine (unlike "ignore Ctrl+C") is not inherited, so servers started later still react to Ctrl+C.
-    private static readonly ConsoleCtrlHandler IgnoreAll = _ => true;
+    // It only swallows events for a few seconds after we sent a Ctrl+C ourselves: a host without a console (boulder bot
+    // under a service wrapper) must still get its own Ctrl+C, close and shutdown signals.
+    private static readonly ConsoleCtrlHandler IgnoreAll = _ => Environment.TickCount64 < Interlocked.Read(ref _ignoreUntilTick);
+    private static long _ignoreUntilTick;
     private static bool _handlerInstalled;
 
     private delegate bool ConsoleCtrlHandler(uint ctrlType);
@@ -45,6 +48,8 @@ public static class ConsoleControl
                 try
                 {
                     if (!IsOnlyServerOfConsole(pid)) return false;
+                    // The event reaches this process too, a moment later on another thread.
+                    Interlocked.Exchange(ref _ignoreUntilTick, Environment.TickCount64 + 5000);
                     return GenerateConsoleCtrlEvent(CtrlCEvent, 0);
                 }
                 finally

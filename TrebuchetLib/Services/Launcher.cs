@@ -2016,8 +2016,9 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
                 $"Client binary for {Constants.GetEditionDisplayName(_setup.Edition)} was not found: {filename}",
                 filename);
 
-        var modlistFile = Path.GetTempFileName();
+        var modlistFile = CreateModListFile("client");
         await File.WriteAllLinesAsync(modlistFile, _setup.GetModsPath(modList));
+        ReplaceModListFile("client", modlistFile);
         var args = profile.GetClientArgs(modlistFile, autoConnect, _setup.Edition);
 
         var dir = Path.GetDirectoryName(filename);
@@ -2232,8 +2233,9 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
                 "Enhanced edition uses shared server AppID {ServerAppId}; verify the dedicated server build matches the Enhanced client",
                 _setup.ServerAppId);
 
-        var modfileFile = Path.GetTempFileName();
+        var modfileFile = CreateModListFile($"server{instance}");
         await File.WriteAllLinesAsync(modfileFile, _setup.GetModsPath(modlist));
+        ReplaceModListFile($"server{instance}", modfileFile);
         
         var args = profile.GetServerArgs(instance, modfileFile);
 
@@ -2323,15 +2325,27 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
                 process.Process.Dispose();
                 continue;
             }
-            var serverInfos = await _setup.GetInfosFromIni(process.Instance);
-            var builder = _processFactory.Create()
-                .SetStartDate(process.Start)
-                .SetProcess(process.Process)
-                .SetServerInfos(serverInfos)
-                .SetLogFile(process.GameLogs);
-            if (serverInfos.RConPort > 0)
-                builder.UseRCon();
-            var serverProcess = await builder.BuildServer();
+            IConanServerProcess serverProcess;
+            try
+            {
+                var serverInfos = await _setup.GetInfosFromIni(process.Instance);
+                var builder = _processFactory.Create()
+                    .SetStartDate(process.Start)
+                    .SetProcess(process.Process)
+                    .SetServerInfos(serverInfos)
+                    .SetLogFile(process.GameLogs);
+                if (serverInfos.RConPort > 0)
+                    builder.UseRCon();
+                serverProcess = await builder.BuildServer();
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // A locked ini or an offline folder of ONE server must not keep the others from being attached (a second
+                // server would be started on an instance that runs). Tried again with the next scan.
+                process.Process.Dispose();
+                LogAttachFailure(process.Instance, ex);
+                continue;
+            }
             if (_serverProcesses.ContainsKey(process.Instance) || _launchingInstances.Contains(process.Instance)
                 || !_serverProcesses.TryAdd(process.Instance, serverProcess))
             {
@@ -2342,6 +2356,69 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             _crashedInstances.Remove(process.Instance);
             OnStateChanged();
         }
+    }
+
+    private const string ModListFilePrefix = "trebuchet-mods-";
+    private readonly Dictionary<string, string> _modListFiles = [];
+    private bool _modListFilesSwept;
+
+    /// <summary>
+    /// The mod list file a game process reads at its start. <c>Path.GetTempFileName</c> left one file per start for ever
+    /// (and fails once 65535 exist): one file per server instance (and the client) is kept, the previous one removed.
+    /// Files of earlier runs are swept after 30 days (a server started by an earlier run may still hold its list).
+    /// </summary>
+    private string CreateModListFile(string owner)
+    {
+        if (!_modListFilesSwept)
+        {
+            _modListFilesSwept = true;
+            SweepOldModListFiles();
+        }
+        return Path.Combine(Path.GetTempPath(), $"{ModListFilePrefix}{owner}-{Guid.NewGuid():N}.txt");
+    }
+
+    private void ReplaceModListFile(string owner, string created)
+    {
+        if (_modListFiles.TryGetValue(owner, out var previous) && previous != created)
+            TryDeleteFile(previous);
+        _modListFiles[owner] = created;
+    }
+
+    private static void SweepOldModListFiles()
+    {
+        try
+        {
+            foreach (var file in Directory.EnumerateFiles(Path.GetTempPath(), ModListFilePrefix + "*.txt"))
+                if (File.GetLastWriteTimeUtc(file) < DateTime.UtcNow.AddDays(-30))
+                    TryDeleteFile(file);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Left for the next start.
+        }
+    }
+
+    private static void TryDeleteFile(string path)
+    {
+        try
+        {
+            File.Delete(path);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Still read by a process or locked: the sweep removes it later.
+        }
+    }
+
+    private readonly Dictionary<int, DateTime> _attachFailureLoggedUtc = [];
+
+    /// <summary>Once a minute per instance: the scan runs every few seconds.</summary>
+    private void LogAttachFailure(int instance, Exception ex)
+    {
+        var now = DateTime.UtcNow;
+        if (_attachFailureLoggedUtc.TryGetValue(instance, out var last) && now - last < TimeSpan.FromMinutes(1)) return;
+        _attachFailureLoggedUtc[instance] = now;
+        _logger.LogWarning(ex, "Could not attach the running server of instance {Instance}, trying again", instance);
     }
 
     private async void OnServerStateChanged(object? sender, ProcessState e)

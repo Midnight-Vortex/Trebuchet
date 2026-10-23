@@ -14,6 +14,7 @@ static class CrashLeadChecks
         Check(nulls is { Modlist: { Count: 0 }, ClientConnections: { Count: 0 } }, "A remote sync profile with null lists has empty lists, not null");
         var some = JsonSerializer.Deserialize<SyncProfile>("{ \"Modlist\": [\"123\", \"456\"] }", JsonFile<SyncProfile>._jsonOptions);
         Check(some is { Modlist.Count: 2, ClientConnections.Count: 0 }, "Lists that are there stay as they are");
+
         return count;
     }
 }

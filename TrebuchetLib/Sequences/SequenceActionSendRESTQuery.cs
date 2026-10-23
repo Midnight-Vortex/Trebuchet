@@ -13,6 +13,7 @@ public class SequenceActionSendRESTQuery : ISequenceAction
     public string Body { get; set; } = string.Empty;
     public string Headers { get; set; } = "Content-Type:application/json";
     public TimeSpan TimeOut { get; set; } = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan MaxTimeOut = TimeSpan.FromMinutes(5);
     
     public async Task Execute(SequenceArgs args)
     {
@@ -46,7 +47,8 @@ public class SequenceActionSendRESTQuery : ISequenceAction
             }
 
             using var httpClient = new HttpClient();
-            httpClient.Timeout = TimeOut;
+            // A save may set an infinite timeout: the sequence (and a restart waiting for it) would never go on.
+            httpClient.Timeout = TimeOut <= TimeSpan.Zero || TimeOut > MaxTimeOut ? MaxTimeOut : TimeOut;
             using var response = await httpClient.SendAsync(request, args.CancellationToken);
             response.EnsureSuccessStatusCode();
         }
