@@ -56,7 +56,8 @@ Zugriff nur, wenn **alle** Schritte bestanden sind, in dieser Reihenfolge. Der e
 1. Befehl kommt von einem **Server**, nicht aus einer DM.
 2. Server-ID == in den Einstellungen hinterlegte **Guild-ID**.
 3. Absender ist ein echter Nutzer (kein Bot, kein Webhook).
-4. Optional: Kanal-ID steht in der Liste erlaubter Kanäle (leere Liste = alle Kanäle).
+4. Optional: Kanal-ID steht in der Liste erlaubter Kanäle (leere Liste = alle Kanäle). Der **Admin-Kanal** wird mit
+   dem Befehl `/bot channel set` **aus dem Kanal selbst** gesetzt (siehe 1.4).
 5. Wartezeit/Sperre des Nutzers (1.6) ist nicht aktiv.
 6. **User-ID** steht in der Liste erlaubter Nutzer (Super-Admin zählt immer dazu).
 7. Der Nutzer hat **mindestens eine** Rolle aus der Liste erlaubter Rollen. Die Rollen kommen **frisch aus der
@@ -87,13 +88,18 @@ Regeln dazu:
 - Der Super-Admin muss **ebenfalls die Rolle haben** (strenger Doppelcheck, siehe Entscheidung 1).
 - Die Rechte aller Nutzer **ändert nur der Launcher**, nie ein Discord-Befehl. Wer Discord hat, kann also keine
   Rechte vergeben oder entziehen.
+- **Einzige Ausnahme: der Admin-Kanal.** `/bot channel set` (nur Super-Admin, mit Bestätigung, im Audit-Protokoll)
+  macht den Kanal, in dem der Befehl steht, zum einzigen Kanal des Bots. Das **schränkt nur ein**: es gibt keinen
+  Discord-Befehl, der den Kanal wieder freigibt. Zurück auf „alle Kanäle“ geht nur im Launcher. Der Befehl wirkt
+  auch außerhalb des bisherigen Admin-Kanals (sonst käme man nie in einen neuen Kanal), prüft aber Server, User-ID,
+  Rolle und Super-Admin wie jeder andere.
 
 | Stufe | Wer | Beispiele |
 |---|---|---|
 | **Lesen** | alle Berechtigten | `/status` |
 | **Verwalten** | alle Berechtigten | Neustart verschieben, wieder freigeben |
 | **Kritisch** | alle Berechtigten, **nur wenn in den Einstellungen eingeschaltet**, mit Bestätigung | Neustart jetzt, Stopp |
-| **Super-Admin** | nur Super-Admin, mit Bestätigung | Server starten, Updates anstoßen |
+| **Super-Admin** | nur Super-Admin, mit Bestätigung | Server starten, Updates anstoßen, Admin-Kanal setzen |
 
 Pro Befehl lässt sich einstellen: aus / Stufe. „Kritisch“ und „Super-Admin“ sind standardmäßig **aus**.
 
@@ -188,8 +194,51 @@ Zeit, User-ID, Anzeigename (nur zur Info), Server-/Kanal-ID, Befehl, Parameter, 
 | `/stop instanz [verzögerung]` | `CloseServerIn(instance, delay)` | Kritisch + Bestätigung |
 | `/start instanz` | `CatapultServer(instance)` | Super-Admin + Bestätigung |
 | `/update` | Update-Prüfung/Update anstoßen | Super-Admin + Bestätigung, später |
+| `/bot channel set` | macht den aktuellen Kanal zum Admin-Kanal und legt dort die Status-Meldungen an | Super-Admin + Bestätigung |
 
-Nicht enthalten, mit Absicht: harter Kill, RCon, Skripte, Mods, Einstellungen, Rechteverwaltung.
+Nicht enthalten, mit Absicht: harter Kill, RCon, Skripte, Mods, Einstellungen, Rechteverwaltung (außer dem
+Admin-Kanal, siehe 1.4).
+
+### 2.1 Status-Meldung mit Buttons (im Admin-Kanal)
+
+Pro Server-Instanz postet der Bot **eine Meldung als Embed** und ändert sie laufend (ändert nur bei Änderung,
+höchstens alle ~10 Sekunden). Die Nachricht-ID steht in den Einstellungen, damit der Bot nach einem Neustart die
+alte Meldung weiter benutzt statt eine neue zu posten.
+
+Das Embed zeigt: Name und Instanz, Zustand, Spieler (nur online), Laufzeit, Geplantes („Neustart in …“), „Verschoben
+bis …“. Es zeigt **keine** Pfade, IPs oder Passwörter. Die Farbe des Embeds folgt dem Zustand:
+
+| Zustand | Farbe |
+|---|---|
+| online, nichts geplant | grün |
+| startet, stoppt, oder Neustart/Stopp/Update steht an | gelb |
+| Neustarts verschoben | blau |
+| gestoppt, abgestürzt | rot |
+
+Darunter stehen die Buttons, nur die, die zum Zustand passen **und** deren Befehl eingeschaltet ist
+(Discord kennt nur diese vier Farben):
+
+| Button | Farbe | Wann |
+|---|---|---|
+| **Starten** | grün | Server ist gestoppt oder abgestürzt (Super-Admin, aus) |
+| **Neustart** | blau | Server läuft (kritisch, aus) |
+| **Stoppen** | rot | Server läuft (kritisch, aus) |
+| **Neustart verschieben** / **Stopp verschieben** / **Update verschieben** | grau | nur wenn gerade etwas ansteht. Der Text sagt, was ansteht |
+| **Wieder freigeben** | grau | wenn verschoben wurde |
+
+Nach der Entscheidung 2 sind Starten, Neustart und Stoppen zuerst **aus**. Dann zeigt die Meldung nur den
+Verschieben-Button, wenn etwas ansteht. Die anderen Buttons erscheinen, sobald sie im Launcher eingeschaltet werden.
+
+**Verschieben**: Der Klick öffnet eine **Auswahl nur für den Klickenden** (ephemeral) mit Vorgaben: **15 Min, 30 Min,
+1 Std, 2 Std, 3 Std, 6 Std**. Die Vorgaben und die längste Zeit stellt man im Launcher ein. Nach der Auswahl wird
+`PauseAutomaticRestarts` ausgeführt, die Ingame-Meldung „verschoben um X Minuten“ kommt von selbst. Ein anstehender
+**Stopp** wird neu geplant: der Countdown wird abgebrochen und ein neuer Stopp in X Minuten gestartet.
+
+**Sicherheit der Buttons**: Die Meldung liegt im Kanal, jeder dort kann auf die Buttons klicken. Deshalb wird **jeder
+Klick** wie ein Befehl geprüft (Server, Kanal, User-ID **und** Rolle, Befehl an, Stufe, Wartezeit). Die Button-IDs sind
+nur Namen (`tb1:a:stop:0`), sie geben keine Rechte. Starten, Neustart und Stoppen verlangen danach noch den
+Bestätigungsknopf mit Zufallscode (nur für den, der geklickt hat, 30 Sekunden, einmal). Die Auswahl der Minuten läuft
+über denselben Mechanismus und prüft, dass der Wert eine der angebotenen Vorgaben ist.
 
 ---
 
@@ -199,18 +248,24 @@ Alle Teile in `TrebuchetLib` (ohne Oberfläche), damit Boulder den Bot später a
 Panel liegt in `Trebuchet`.
 
 ```
-TrebuchetLib/DiscordBot/
-  DiscordBotConfig.cs        Einstellungen (Guild, Super-Admin, IDs, Rollen, Befehle, Limits), JsonFile, atomar
-  DiscordBotSecrets.cs       Token verschlüsselt lesen/schreiben (DPAPI), Mutex pro Token
-  BotPolicy.cs               unveränderliches Abbild der Einstellungen
-  BotRequest.cs              Datenklasse: UserId, GuildId, ChannelId, RoleIds, IsBot, IsDm, Befehl, Parameter
-  BotAuthorizer.cs           der Doppelcheck (1.3), reine Funktion, voll testbar
-  BotRateLimiter.cs          Wartezeit, Limit, Sperre
-  BotInputRules.cs           Prüfen und Bereinigen der Eingaben
-  BotAuditLog.cs             Protokoll
+TrebuchetLib/DiscordBot/                         (Phase 1, fertig)
+  BotId.cs                   Discord-IDs prüfen (17 bis 20 Ziffern)
+  BotCommand.cs              die feste Liste der Befehle, ihre Stufen, was Bestätigung braucht
+  DiscordBotConfig.cs        Einstellungen (Server, Super-Admin, IDs, Rollen, Kanal, Befehle, Limits), JsonFile, atomar
+  BotPolicy.cs               unveränderliches Abbild, ungültige Einstellungen ergeben keine Richtlinie
+  BotAuthorizer.cs           der Doppelcheck (1.3), reine Funktion
+  BotRateLimiter.cs          Wartezeit, Limit kritischer Aktionen, Sperre, doppelte Interaktionen
+  BotGuard.cs                Doppelcheck + Begrenzer in einem Aufruf: das Tor vor dem Launcher
+  BotPendingActions.cs       Rückfragen (Bestätigung, Minutenauswahl) mit Zufallscode
+  BotCustomId.cs             Button- und Menü-IDs, streng geprüft
+  BotInputRules.cs           Instanz, Minuten, Texte prüfen und bereinigen
+  BotAuditLog.cs             Protokoll, eine Datei pro Monat
+  BotToken.cs / BotTokenStore.cs   Token prüfen, verschlüsselt speichern (DPAPI), aus Logs entfernen, ein Bot pro Token
+  BotStatusMessage.cs / BotTexts.cs   Aufbau der Status-Meldung (Farbe, Felder, Buttons), Texte de/en
+TrebuchetLib/DiscordBot/                         (Phase 2)
   BotActions.cs              einzige Brücke zum Launcher (Fassade mit fester Liste)
-  DiscordBotService.cs       Verbindung, Slash-Befehle, Wiederverbindung, Start/Stop, Zustand
-Trebuchet/ViewModels/Panels/DiscordBotPanel.cs   + Templates/DiscordBotPanel.axaml
+  DiscordBotService.cs       Verbindung, Slash-Befehle, Status-Meldungen, Wiederverbindung, Start/Stop
+Trebuchet/ViewModels/Panels/DiscordBotPanel.cs   + Templates/DiscordBotPanel.axaml   (Phase 3)
 Trebuchet/ViewModels/SettingFields/SecretField.cs
 ```
 
@@ -223,8 +278,10 @@ Trebuchet/ViewModels/SettingFields/SecretField.cs
 - **Panel**: `DiscordBotPanel : IBottomPanel, ITickingPanel, IRefreshablePanel`, Registrierung in
   `App.axaml.cs` zwischen `DashboardPanel` und `ToolboxPanel`. Symbol `mdi-robot`.
 - **Launcher-Änderungen** (klein): `RestartServerIn` und `CloseServerIn` bekommen einen optionalen `reason`
-  (z. B. „Discord“) für Log und Meldung; ein Lese-Abbild `GetServerStatuses()` mit Instanz, Save-Name, Zustand,
-  Spielern, Start, Pause bis, Countdown, offenem Update.
+  (z. B. „Discord“) für Log und Meldung; ein Lese-Abbild `GetServerStatuses()` (`BotServerStatus`) mit Instanz,
+  Save-Name, Zustand, Spielern, Start, Pause bis und **was ansteht** (Neustart, Stopp oder Update, und wann).
+  Daraus entscheidet sich der Text des Verschieben-Buttons. Dazu eine Methode, die einen anstehenden Stopp neu
+  plant (Countdown abbrechen, `CloseServerIn` mit der gewählten Zeit).
 - Sprachen: neue Texte in `Resources.resx` (EN), `.de.resx`, `.fr.resx`.
 - Ablauf-Reihenfolge im Bot: **eingehend → Prüfung (1.3) → Eingaben → Ausführen → Protokoll → Antwort**.
   Ausführen ist immer der letzte Schritt nach allen Prüfungen.
@@ -274,10 +331,10 @@ Trebuchet/ViewModels/SettingFields/SecretField.cs
 
 | Phase | Inhalt | Ergebnis |
 |---|---|---|
-| 1 | Konfiguration, Token-Schutz, `BotAuthorizer`, Eingabeprüfung, Limits, Protokoll, alle Tests | Sicherheitskern ohne Discord, komplett getestet |
-| 2 | `BotActions`, Launcher-Lese-Abbild, Verbindung, `/status`, `/restart postpone`, `/restart resume` | Der Hauptanwendungsfall |
+| 1 | **Erledigt.** Konfiguration, Token-Schutz, `BotAuthorizer`, Eingabeprüfung, Limits, Protokoll, Button-IDs, Bestätigungen, Aufbau der Status-Meldung, Tests | Sicherheitskern ohne Discord, komplett getestet |
+| 2 | `BotActions`, Launcher-Lese-Abbild (mit „was steht an“), Verbindung, Status-Meldung mit Verschieben-Button und Auswahl, `/status`, `/restart resume`, `/bot channel set` | Der Hauptanwendungsfall |
 | 3 | Panel mit Status, Sicherheit, Verbindung, Befehle, Protokoll, Sprachen | Bedienung im Launcher |
-| 4 | Kritische Befehle mit Bestätigung, Audit-Kanal | Neustart jetzt, Stopp, Start |
+| 4 | Buttons Neustart, Stoppen, Starten mit Bestätigung, Audit-Kanal | Neustart jetzt, Stopp, Start |
 | 5 (optional) | Boulder-Befehl `bot` ohne Oberfläche | Betrieb ohne GUI |
 
 Erst nach Phase 1 und der Prüfung durch mich selbst und die Review-Agenten kommt Phase 2. Der Bot wird nie
@@ -285,18 +342,20 @@ ausgeliefert, bevor die Sicherheitstests grün sind.
 
 ---
 
-## 7. Offene Entscheidungen (Empfehlung zuerst)
+## 7. Entscheidungen
 
-1. **Muss der Super-Admin auch die Rolle haben?** Empfehlung: **ja** (strenger Doppelcheck, wie von dir
-   beschrieben). Er hat trotzdem Sonderrechte (nicht entfernbar, Super-Admin-Befehle). Falls die Rolle falsch
-   eingestellt ist, korrigierst du sie im Launcher. Alternative: Super-Admin ohne Rolle als Notzugang.
-2. **Dürfen normale Berechtigte „Neustart jetzt“ und „Stopp“?** Empfehlung: **aus**, nur auf Wunsch einschalten.
-3. **Eigene Kanalbeschränkung?** Empfehlung: **ja, optional**, ein Kanal nur für Admins.
-4. **Maximale Pause**: Empfehlung 6 Stunden, harte Grenze 24 Stunden.
-5. **Soll der Name des Discord-Nutzers Ingame im Text stehen?** Empfehlung: **nein**, nur „Discord“ im Text, der
-   Name steht im Protokoll.
-6. **Zwei Editionen (Legacy/Enhanced) gleichzeitig?** Empfehlung: jede Edition hat eigene Bot-Einstellungen
-   (wie `settings.<edition>.json`), pro Token läuft aber nur ein Bot.
+Alle fünf sind getroffen:
+
+1. **Super-Admin braucht auch die Rolle: ja.** Strenger Doppelcheck für alle.
+2. **Neustart jetzt, Stopp (und Start): zuerst aus, im Launcher einschaltbar.** Ohne diese Befehle zeigen die
+   Meldungen keine Buttons dafür.
+3. **Admin-Kanal: ja.** Gesetzt mit `/bot channel set` aus dem Kanal selbst. Die Einrichtung steht in
+   `docs/INSTALLME.md`.
+4. **Längste Verschiebung: 6 Stunden** (einstellbar bis 24 Stunden). Das ist die längste Zeit, um die man einen
+   Neustart, Stopp oder ein Update verschieben darf. Der Rest ist die Auswahl mit Vorgaben (15 Min bis 6 Std).
+5. **Der Discord-Name steht nicht Ingame im Text**, nur im Protokoll.
+
+Noch offen: Sollen Instanz-Kanäle getrennt sein (ein Admin-Kanal pro Server)? Vorerst ein Kanal für alle Server.
 
 ## 8. Risiken
 

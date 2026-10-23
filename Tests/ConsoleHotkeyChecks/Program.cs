@@ -129,6 +129,7 @@ finally
     Directory.Delete(resolvedRoot, recursive: true);
 }
 checks += JsonFileChecks.Run();
+checks += DiscordBotChecks.Run();
 checks += await DirectoryCopyChecks.Run();
 checks += await ServerStopChecks.Run();
 checks += await ServerStabilityChecks.Run();
