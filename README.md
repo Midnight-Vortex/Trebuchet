@@ -2,6 +2,13 @@
 
 After installing, launch Trebuchet from the Start menu or desktop shortcut. The installer deliberately does not launch it: on affected Windows versions, a process started by Setup can inherit RedirectionGuard and fail to traverse Trebuchet's Saved/profile junctions. Conan then reports that it cannot ensure `Saved/ExtractedMods` exists, even when the directory is present. If this happens after an older setup, fully close Trebuchet and relaunch it from the Start menu; reinstalling mods is not required for this directory-access error.
 
+## 0.9.20 Discord bot
+
+- New menu entry **Discord Bot** (below Dashboard): a bot that runs inside Trebuchet and lets authorized people postpone a restart, stop or update, and optionally restart, stop or start servers, from Discord. A status message per server with colored buttons is kept up to date in an admin channel.
+- Security first: a user needs their Discord ID on the allowed list **and** one of the allowed roles (also the super admin), on the one configured server, in the admin channel. Everything is off until configured, critical actions are off by default and need a confirmation, postponing is bounded, every request is logged, the token is stored protected and never shown. Setup guide: [docs/INSTALLME.md](docs/INSTALLME.md), design: [docs/plan-discord-bot.md](docs/plan-discord-bot.md).
+- `boulder bot` runs Trebuchet's launcher and the bot without a window.
+- Not yet tested against a live Discord server: try it with a test server first.
+
 ## 0.9.7 parallel save copying
 
 - Files now copy with four to eight concurrent workers, starting at four. Every second, Windows CPU/memory measurements and actual read/write latency guide the limit: two quiet samples allow one extra worker; high CPU/memory load, low available RAM or slow I/O remove two slots, down to four. In-flight files finish before excess workers pause. Missing metrics fall back to four. All workers share a 300 MB/s transfer budget (300,000,000 bytes/s) with a small bounded burst; idle periods do not accumulate unlimited burst credit.
