@@ -21,7 +21,7 @@ internal interface IBotChannelTransport
 
 /// <summary>
 /// The public status messages and notes. It writes only to the channel it is given, and only when that channel belongs to
-/// the one server the bot works for. Nothing here throws: a failure is logged and reported as null or false.
+/// the one server the bot works for. Nothing here throws: a failure is logged and reported as null or a failed result.
 /// </summary>
 internal sealed class DiscordNetChannelClient(IBotChannelTransport transport, Func<ulong> guildId, ILogger logger) : IBotChannelClient
 {
@@ -39,18 +39,21 @@ internal sealed class DiscordNetChannelClient(IBotChannelTransport transport, Fu
         }
     }
 
-    public async Task<bool> EditStatusAsync(ulong channelId, ulong messageId, BotStatusMessage message)
+    public async Task<BotEditResult> EditStatusAsync(ulong channelId, ulong messageId, BotStatusMessage message)
     {
-        if (messageId == 0 || !IsAllowed(channelId)) return false;
+        if (messageId == 0) return BotEditResult.Gone;
+        if (!IsAllowed(channelId)) return BotEditResult.Failed;
         try
         {
-            return await transport.ModifyAsync(channelId, messageId, BotDiscordRenderer.RenderStatus(message)).ConfigureAwait(false);
+            return await transport.ModifyAsync(channelId, messageId, BotDiscordRenderer.RenderStatus(message)).ConfigureAwait(false)
+                ? BotEditResult.Edited
+                : BotEditResult.Gone;
         }
         catch (Exception ex)
         {
             logger.LogWarning("Discord bot: could not edit status message {Message} in channel {Channel}: {Error}", messageId, channelId,
                 DiscordNetLog.Describe(ex));
-            return false;
+            return BotEditResult.Failed;
         }
     }
 

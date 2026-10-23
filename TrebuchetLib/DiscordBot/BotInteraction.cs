@@ -49,14 +49,19 @@ public interface IBotResponder
     Task UpdateAsync(BotReply reply);
 }
 
+public enum BotEditResult { Edited, Gone, Failed }
+
 /// <summary>Posts and edits the public status messages and short notes. Implemented by the Discord layer.</summary>
 public interface IBotChannelClient
 {
     /// <returns>The ID of the new message, null when it could not be posted.</returns>
     Task<ulong?> PostStatusAsync(ulong channelId, BotStatusMessage message);
 
-    /// <returns>False when the message does not exist any more (deleted), so a new one has to be posted.</returns>
-    Task<bool> EditStatusAsync(ulong channelId, ulong messageId, BotStatusMessage message);
+    /// <returns>
+    /// <see cref="BotEditResult.Gone"/> when the message does not exist any more (deleted), so a new one has to be posted.
+    /// <see cref="BotEditResult.Failed"/> for any other problem (rate limit, network): nothing is posted, it is tried again.
+    /// </returns>
+    Task<BotEditResult> EditStatusAsync(ulong channelId, ulong messageId, BotStatusMessage message);
 
     /// <summary>A plain note, e.g. to the audit channel. No mentions.</summary>
     Task PostNoteAsync(ulong channelId, string text);

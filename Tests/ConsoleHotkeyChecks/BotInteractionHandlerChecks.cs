@@ -104,11 +104,14 @@ static class BotInteractionHandlerChecks
             return Task.FromResult<ulong?>(id);
         }
 
-        public Task<bool> EditStatusAsync(ulong channelId, ulong messageId, BotStatusMessage message)
+        public bool FailEdits { get; set; }
+
+        public Task<BotEditResult> EditStatusAsync(ulong channelId, ulong messageId, BotStatusMessage message)
         {
-            if (!Existing.Contains((channelId, messageId))) return Task.FromResult(false);
+            if (FailEdits) return Task.FromResult(BotEditResult.Failed);
+            if (!Existing.Contains((channelId, messageId))) return Task.FromResult(BotEditResult.Gone);
             Edits.Add((channelId, messageId, message));
-            return Task.FromResult(true);
+            return Task.FromResult(BotEditResult.Edited);
         }
 
         public Task PostNoteAsync(ulong channelId, string text)
@@ -507,6 +510,22 @@ static class BotInteractionHandlerChecks
         var invalidBoard = new BotStatusBoard(actions, quiet, new FakeSettings { Policy = null, AdminChannelId = Channel }, () => clock.Now);
         await invalidBoard.RefreshAsync(CancellationToken.None);
         check(quiet.Posts.Count == 0, "No admin channel or no valid policy: nothing is posted");
+
+        // An edit that fails for another reason than "gone" does not post a duplicate and is tried again.
+        var flaky = new FakeChannel();
+        var flakySettings = new FakeSettings { Policy = PolicyOf(Config()), AdminChannelId = Channel };
+        var flakyBoard = new BotStatusBoard(actions, flaky, flakySettings, () => clock.Now);
+        await flakyBoard.RefreshAsync(CancellationToken.None);
+        flaky.FailEdits = true;
+        actions.Statuses[0] = actions.Statuses[0] with { Players = 20 };
+        actions.Statuses[1] = actions.Statuses[1] with { Players = 5 };
+        clock.Now = clock.Now.AddSeconds(10);
+        await flakyBoard.RefreshAsync(CancellationToken.None);
+        check(flaky.Posts.Count == 2 && flaky.Edits.Count == 0, "A failing edit does not post a duplicate message");
+        flaky.FailEdits = false;
+        clock.Now = clock.Now.AddSeconds(10);
+        await flakyBoard.RefreshAsync(CancellationToken.None);
+        check(flaky.Posts.Count == 2, "...and is tried again later");
 
         var failing = new FakeChannel { ThrowOnPost = true };
         var failingBoard = new BotStatusBoard(actions, failing, new FakeSettings { Policy = PolicyOf(Config()), AdminChannelId = Channel }, () => clock.Now);

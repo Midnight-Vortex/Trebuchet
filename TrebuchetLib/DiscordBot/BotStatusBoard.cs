@@ -113,8 +113,13 @@ public sealed class BotStatusBoard
                 return;
             }
 
-            if (messageId != 0 && !await _channel.EditStatusAsync(channelId, messageId, message).ConfigureAwait(false))
-                messageId = 0;
+            if (messageId != 0)
+            {
+                var edit = await _channel.EditStatusAsync(channelId, messageId, message).ConfigureAwait(false);
+                // A failure that is not "the message is gone" (rate limit, network) must not post a duplicate: try again.
+                if (edit == BotEditResult.Failed) return;
+                if (edit == BotEditResult.Gone) messageId = 0;
+            }
             if (messageId == 0)
             {
                 var posted = await _channel.PostStatusAsync(channelId, message).ConfigureAwait(false);

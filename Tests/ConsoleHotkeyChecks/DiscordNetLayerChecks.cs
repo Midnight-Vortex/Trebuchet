@@ -439,21 +439,21 @@ static class DiscordNetLayerChecks
               && RowsOf(sent.Content.Components).All(x => x.Count <= 5), "A status message goes to the given channel of the server");
         Check(await channelClient.PostStatusAsync(OtherChannel, model) is null && await channelClient.PostStatusAsync(OtherChannel + 7, model) is null
               && await channelClient.PostStatusAsync(0, model) is null && transport.Calls.Count == 1, "Never to a channel of another server or an unknown one");
-        Check(!await channelClient.EditStatusAsync(OtherChannel, 5, model) && transport.Calls.Count == 1, "No edit on another server");
+        Check(await channelClient.EditStatusAsync(OtherChannel, 5, model) == BotEditResult.Failed && transport.Calls.Count == 1, "No edit on another server");
         await channelClient.PostNoteAsync(OtherChannel, "note");
         Check(transport.Calls.Count == 1, "No note on another server");
-        Check(await channelClient.EditStatusAsync(Channel, posted!.Value, model) && transport.Calls[^1] is { Kind: "modify", Channel: Channel } edit
+        Check(await channelClient.EditStatusAsync(Channel, posted!.Value, model) == BotEditResult.Edited && transport.Calls[^1] is { Kind: "modify", Channel: Channel } edit
               && edit.Message == posted.Value && NoMentions(edit.Content), "A status message is edited where it is");
         transport.MessageExists = false;
-        Check(!await channelClient.EditStatusAsync(Channel, posted.Value, model), "A deleted status message is reported");
+        Check(await channelClient.EditStatusAsync(Channel, posted.Value, model) == BotEditResult.Gone, "A deleted status message is reported");
         var callsBefore = transport.Calls.Count;
-        Check(!await channelClient.EditStatusAsync(Channel, 0, model) && transport.Calls.Count == callsBefore, "No message, no edit");
+        Check(await channelClient.EditStatusAsync(Channel, 0, model) == BotEditResult.Gone && transport.Calls.Count == callsBefore, "No message, no edit");
         await channelClient.PostNoteAsync(Channel, "@everyone " + new string('x', 3000));
         Check(transport.Calls[^1] is { Kind: "send" } note && note.Content.Text.Length <= 2000 && NoMentions(note.Content) && note.Content.Embeds.Length == 0,
             "A note is short and mentions nobody");
         transport.Failure = new HttpException(HttpStatusCode.InternalServerError, null, reason: "broken " + SampleToken);
-        Check(await channelClient.PostStatusAsync(Channel, model) is null && !await channelClient.EditStatusAsync(Channel, 5, model),
-            "Errors become null and false, no exception");
+        Check(await channelClient.PostStatusAsync(Channel, model) is null && await channelClient.EditStatusAsync(Channel, 5, model) == BotEditResult.Failed,
+            "Errors become null and a failed result, no exception");
         await channelClient.PostNoteAsync(Channel, "x");
         Check(!logs.All.Contains(SampleToken), "Errors of channels log no token");
         transport.Failure = null;
