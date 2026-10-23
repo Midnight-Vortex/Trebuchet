@@ -2,6 +2,11 @@
 
 After installing, launch Trebuchet from the Start menu or desktop shortcut. The installer deliberately does not launch it: on affected Windows versions, a process started by Setup can inherit RedirectionGuard and fail to traverse Trebuchet's Saved/profile junctions. Conan then reports that it cannot ensure `Saved/ExtractedMods` exists, even when the directory is present. If this happens after an older setup, fully close Trebuchet and relaunch it from the Start menu; reinstalling mods is not required for this directory-access error.
 
+## 0.9.22 stop fix
+
+- **Stopping or restarting a server (from Discord, with a countdown or at once) ended Trebuchet itself**, without a log line or a crash report, while the server kept running. Cause: for Ctrl+C, Trebuchet attached to the console of the server, and the event reached Trebuchet too. Now a short-lived helper process (Trebuchet itself, started with `--send-ctrl-c <pid>`) sends it: Trebuchet never attaches to a console. A server that does not react to Ctrl+C gets 45 seconds, then the RCon `shutdown` follows (before: 3 minutes). The log says before each step what is sent.
+- **Hard ends now leave a report**: while Trebuchet runs it keeps a small marker file in the log folder. If the next start finds it from a process that is gone (killed from outside, power loss, a native crash), it writes `crash-unclean-<time>.json` with the last 60 lines of the log and logs a warning. A normal exit logs "Trebuchet closes" and removes the marker.
+
 ## 0.9.21 Discord bot follow-ups
 
 - The **super admin always has every right** (the command switches only limit the other users). The status message always shows the buttons that fit the server state, whatever the switches say; every click is still checked.

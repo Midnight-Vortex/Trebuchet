@@ -26,6 +26,11 @@ class Program
 
     static async Task<int> Main(string[] args)
     {
+        // Started only to send Ctrl+C to the console of a server (see ConsoleControl).
+        if (ConsoleControl.IsHelperCall(args, out var serverPid))
+            return ConsoleControl.RunHelper(serverPid);
+        ConsoleControl.UseHelper(Environment.ProcessPath);
+
         var rootCommand = RootCommandFactory.Create();
 
         var result = rootCommand.Parse(args);

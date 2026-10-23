@@ -10,6 +10,7 @@ using tot_lib.OsSpecific;
 using Trebuchet.Utils;
 using TrebuchetLib;
 using TrebuchetLib.OsSpecific;
+using TrebuchetLib.Processes;
 
 namespace Trebuchet;
 
@@ -21,10 +22,24 @@ static class Program
     [STAThread]
     public static void Main(string[] args)
     {
+        // Started only to send Ctrl+C to the console of a server (see ConsoleControl): nothing else of Trebuchet runs. It
+        // must come first, before the single instance check that would send it to the running Trebuchet instead.
+        if (ConsoleControl.IsHelperCall(args, out var serverPid))
+        {
+            Environment.ExitCode = ConsoleControl.RunHelper(serverPid);
+            return;
+        }
+        ConsoleControl.UseHelper(Environment.ProcessPath);
+
         using var mutex = new Mutex(true, @"TotTrebuchet", out var createdNew);
         
         if(createdNew || args.Contains(AppConstants.RestartArg))
+        {
+            // Notes that this session runs, so a hard end (killed from outside, power loss, a native crash) shows as a
+            // report at the next start: no code runs at such an end, so no crash report could be written then.
+            SessionMarker.Begin(Constants.GetLoggingDirectory().FullName, tot_lib.ProcessUtil.GetStringVersion());
             BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        }
         else
         {
             var currentProcess = Process.GetCurrentProcess();

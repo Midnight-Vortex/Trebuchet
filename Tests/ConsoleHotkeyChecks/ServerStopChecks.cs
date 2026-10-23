@@ -15,6 +15,33 @@ static class ServerStopChecks
         var count = 0;
         void Check(bool condition, string message) { if (!condition) throw new Exception(message); count++; }
 
+        // Ctrl+C is sent by a helper process (the launcher itself never attaches to the console of a server, that ended
+        // Trebuchet on the first stop). The call of the helper is exact; without a helper nothing is sent.
+        Check(ConsoleControl.IsHelperCall(["--send-ctrl-c", "123"], out var helperPid) && helperPid == 123
+              && ConsoleControl.IsHelperCall([ConsoleControl.HelperArg, "2147483647"], out var biggestPid) && biggestPid == int.MaxValue,
+            "The helper call carries the process id of the server");
+        foreach (var bad in new[]
+                 {
+                     Array.Empty<string>(), ["--send-ctrl-c"], ["--send-ctrl-c", "abc"], ["--send-ctrl-c", "0"], ["--send-ctrl-c", "-5"], ["--send-ctrl-c", "+5"],
+                     ["--send-ctrl-c", " 5"], ["--send-ctrl-c", "5 "], ["--send-ctrl-c", "99999999999"], ["--send-ctrl-c", "5", "x"], ["--SEND-CTRL-C", "5"],
+                     ["5", "--send-ctrl-c"], ["--send-ctrl-c", ""]
+                 })
+            Check(!ConsoleControl.IsHelperCall(bad, out var none) && none == 0, $"'{string.Join(' ', bad)}' is no helper call");
+        Check(!ConsoleControl.IsAvailable && !ConsoleControl.TrySendCtrlC(Environment.ProcessId) && !await ConsoleControl.TrySendCtrlCAsync(Environment.ProcessId),
+            "Without a helper nothing is sent");
+        Check(OperatingSystem.IsWindows() || ConsoleControl.RunHelper(Environment.ProcessId) == ConsoleControl.Unsupported, "The helper only works on Windows");
+        Check(ConsoleControl.RunHelper(0) == ConsoleControl.Unsupported && ConsoleControl.RunHelper(-1) == ConsoleControl.Unsupported, "The helper refuses a process id that is none");
+        ConsoleControl.UseHelper(Path.Combine(Path.GetTempPath(), "no-such-program-" + Guid.NewGuid().ToString("N") + ".exe"));
+        try
+        {
+            Check(!ConsoleControl.TrySendCtrlC(Environment.ProcessId) && !ConsoleControl.TrySendCtrlC(0), "A helper that can not be started delivers nothing, and does not throw");
+        }
+        finally
+        {
+            ConsoleControl.UseHelper(null);
+        }
+        Check(!ConsoleControl.IsAvailable, "The helper can be switched off again");
+
         var start = OperatingSystem.IsWindows()
             ? new ProcessStartInfo("cmd.exe", "/c ping -n 60 127.0.0.1 >nul")
             : new ProcessStartInfo("sleep", "60");

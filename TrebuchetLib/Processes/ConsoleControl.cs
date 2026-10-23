@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Globalization;
 using System.Runtime.InteropServices;
 
 namespace TrebuchetLib.Processes;
@@ -6,63 +8,118 @@ namespace TrebuchetLib.Processes;
 /// Sends Ctrl+C to the console of a server, the way an admin stops it by hand: Unreal servers then save and shut down.
 /// Closing the main window did nothing for them (their log window is a console owned by conhost).
 /// </summary>
+/// <remarks>
+/// Sending Ctrl+C means attaching to the console of the server, and the event reaches every process of that console,
+/// the one that sends it included. Done inside Trebuchet this ended Trebuchet itself on the first stop: the event
+/// was not caught, the process was gone without a log line or a crash report, and the server went on running. So it is
+/// done by a short-lived helper process (the program itself, started with <see cref="HelperArg"/>): whatever happens to
+/// it, the launcher never attaches to a console and never receives the event. A program that can act as the helper says
+/// so with <see cref="UseHelper"/>; without that (tests, other hosts) nothing is sent and the next way of stopping is used.
+/// </remarks>
 public static class ConsoleControl
 {
-    private const uint CtrlCEvent = 0;
-    private static readonly object Lock = new();
-    // Trebuchet attaches to the server console for a moment and receives the Ctrl+C too: this handler keeps it running.
-    // A handler routine (unlike "ignore Ctrl+C") is not inherited, so servers started later still react to Ctrl+C.
-    // It only swallows events for a few seconds after we sent a Ctrl+C ourselves: a host without a console (boulder bot
-    // under a service wrapper) must still get its own Ctrl+C, close and shutdown signals.
-    private static readonly ConsoleCtrlHandler IgnoreAll = _ => Environment.TickCount64 < Interlocked.Read(ref _ignoreUntilTick);
-    private static long _ignoreUntilTick;
-    private static bool _handlerInstalled;
+    /// <summary>First argument of the helper call: <c>--send-ctrl-c &lt;process id&gt;</c>.</summary>
+    public const string HelperArg = "--send-ctrl-c";
 
-    private delegate bool ConsoleCtrlHandler(uint ctrlType);
+    /// <summary>Exit codes of the helper.</summary>
+    public const int Delivered = 0;
+    public const int AttachFailed = 2;
+    public const int ConsoleShared = 3;
+    public const int Failed = 4;
+    public const int Unsupported = 5;
+
+    private const uint CtrlCEvent = 0;
+    // Start of the helper, attach and the short wait that lets the event reach the console before it is left.
+    private static readonly TimeSpan HelperTimeout = TimeSpan.FromSeconds(10);
+    private static string? _helperPath;
+
+    /// <summary>The program that answers <see cref="HelperArg"/> (its <c>Main</c> calls <see cref="IsHelperCall"/> first).</summary>
+    public static void UseHelper(string? programPath) =>
+        _helperPath = string.IsNullOrWhiteSpace(programPath) ? null : programPath;
+
+    /// <summary>Whether <see cref="TrySendCtrlC"/> can do anything here.</summary>
+    public static bool IsAvailable => _helperPath is not null && OperatingSystem.IsWindows();
+
+    /// <summary>
+    /// First thing in <c>Main</c> of a program that supports the helper: true when this process was only started to
+    /// send the Ctrl+C (then <see cref="RunHelper"/> does it and <c>Main</c> ends with its exit code).
+    /// </summary>
+    public static bool IsHelperCall(IReadOnlyList<string> args, out int pid)
+    {
+        pid = 0;
+        return args.Count == 2 && string.Equals(args[0], HelperArg, StringComparison.Ordinal)
+                               && int.TryParse(args[1], NumberStyles.None, CultureInfo.InvariantCulture, out pid) && pid > 0;
+    }
+
+    /// <summary>The helper: attaches to the console of the process, sends Ctrl+C there and leaves again.</summary>
+    /// <returns>The exit code of the helper process.</returns>
+    public static int RunHelper(int pid)
+    {
+        if (!OperatingSystem.IsWindows() || pid <= 0) return Unsupported;
+        try
+        {
+            // A console program (Boulder) starts with a console of its own: leave it first, one process has only one.
+            FreeConsole();
+            if (!AttachConsole((uint)pid)) return AttachFailed;
+            try
+            {
+                if (!IsOnlyServerOfConsole(pid)) return ConsoleShared;
+                // This helper ends a moment later anyway: it does not need to be hurt by the event it sends.
+                SetConsoleCtrlHandler(IntPtr.Zero, true);
+                var sent = GenerateConsoleCtrlEvent(CtrlCEvent, 0);
+                // Leaving the console at once could take the event with it before it was delivered.
+                Thread.Sleep(500);
+                return sent ? Delivered : Failed;
+            }
+            finally
+            {
+                FreeConsole();
+            }
+        }
+        catch (Exception)
+        {
+            return Failed;
+        }
+    }
 
     /// <returns>True when the Ctrl+C was delivered to the console of the process.</returns>
     /// <remarks>
     /// Ctrl+C reaches every process of that console. When other servers share it (e.g. several started from one
-    /// terminal with Boulder) nothing is sent: it would stop them too.
+    /// terminal with Boulder) nothing is sent: it would stop them too. Blocks until the helper is done, call it from a
+    /// background thread (<see cref="TrySendCtrlCAsync"/>).
     /// </remarks>
     public static bool TrySendCtrlC(int pid)
     {
-        if (!OperatingSystem.IsWindows() || pid <= 0) return false;
-        lock (Lock)
+        var program = _helperPath;
+        if (program is null || !OperatingSystem.IsWindows() || pid <= 0) return false;
+        try
         {
-            try
+            var start = new ProcessStartInfo(program) { UseShellExecute = false, CreateNoWindow = true };
+            start.ArgumentList.Add(HelperArg);
+            start.ArgumentList.Add(pid.ToString(CultureInfo.InvariantCulture));
+            using var helper = Process.Start(start);
+            if (helper is null) return false;
+            if (!helper.WaitForExit(HelperTimeout))
             {
-                // A console application (Boulder) would lose its own console by attaching to another one.
-                if (GetConsoleWindow() != IntPtr.Zero) return false;
-                if (!_handlerInstalled)
-                {
-                    // .NET binds Console.Out/Error to the standard handles when they are first used. Bound while we
-                    // are attached to a server console they would point to a closed handle afterwards and every later
-                    // Console.Write (DepotDownloader writes there) would throw: bind them now, without a console.
-                    _ = Console.Out;
-                    _ = Console.Error;
-                    _handlerInstalled = SetConsoleCtrlHandler(IgnoreAll, true);
-                }
-                if (!_handlerInstalled) return false;
-                if (!AttachConsole((uint)pid)) return false;
                 try
                 {
-                    if (!IsOnlyServerOfConsole(pid)) return false;
-                    // The event reaches this process too, a moment later on another thread.
-                    Interlocked.Exchange(ref _ignoreUntilTick, Environment.TickCount64 + 5000);
-                    return GenerateConsoleCtrlEvent(CtrlCEvent, 0);
+                    helper.Kill(entireProcessTree: true);
                 }
-                finally
+                catch (Exception)
                 {
-                    FreeConsole();
+                    // Gone meanwhile.
                 }
-            }
-            catch (Exception)
-            {
                 return false;
             }
+            return helper.ExitCode == Delivered;
+        }
+        catch (Exception)
+        {
+            return false;
         }
     }
+
+    public static Task<bool> TrySendCtrlCAsync(int pid) => Task.Run(() => TrySendCtrlC(pid));
 
     /// <summary>True when no other server process is attached to the console we are attached to.</summary>
     private static bool IsOnlyServerOfConsole(int pid)
@@ -78,7 +135,7 @@ public static class ConsoleControl
             if (id == pid || id == own) continue;
             try
             {
-                using var other = System.Diagnostics.Process.GetProcessById(id);
+                using var other = Process.GetProcessById(id);
                 if (string.Equals(other.ProcessName, serverName, StringComparison.OrdinalIgnoreCase))
                     return false;
             }
@@ -109,12 +166,9 @@ public static class ConsoleControl
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool GenerateConsoleCtrlEvent(uint ctrlEvent, uint processGroupId);
 
+    // A null handler routine with "add" set makes the calling process ignore Ctrl+C.
     // https://learn.microsoft.com/windows/console/setconsolectrlhandler
     [DllImport("kernel32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
-    private static extern bool SetConsoleCtrlHandler(ConsoleCtrlHandler handler, [MarshalAs(UnmanagedType.Bool)] bool add);
-
-    // https://learn.microsoft.com/windows/console/getconsolewindow
-    [DllImport("kernel32.dll")]
-    private static extern IntPtr GetConsoleWindow();
+    private static extern bool SetConsoleCtrlHandler(IntPtr handler, [MarshalAs(UnmanagedType.Bool)] bool add);
 }

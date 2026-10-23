@@ -310,6 +310,7 @@ checks += await ProfileMenuChecks.Run();
 }
 checks += DiscordBotPanelChecks.Run();
 checks += CrashUiChecks.Run();
+checks += SessionMarkerChecks.Run();
 Console.WriteLine($"Passed {checks} mod list and profile menu checks.");
 
 sealed class ExampleServerFiles(string root) : IAppFileHandler<ServerProfile, ServerProfileRef>

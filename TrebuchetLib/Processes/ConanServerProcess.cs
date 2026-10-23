@@ -31,6 +31,9 @@ internal sealed class ConanServerProcess : IConanServerProcess
     private bool _requestRestart;
     // Time a server gets after a stop request to save and exit before the next, harder way is tried.
     private static readonly TimeSpan ShutdownGrace = TimeSpan.FromMinutes(3);
+    // Ctrl+C is answered at once or not at all: a server that ignores it (no console to receive it) must not hold up
+    // the other ways for minutes.
+    private static readonly TimeSpan CtrlCGrace = TimeSpan.FromSeconds(45);
 
     public event EventHandler<ProcessState>? StateChanged;
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -279,13 +282,13 @@ internal sealed class ConanServerProcess : IConanServerProcess
 
     /// <summary>
     /// Stops the server, from the gentlest way to the hardest: Ctrl+C on its console (it saves and exits), the RCon
-    /// "shutdown" command, closing its window, then kill. Each way that was delivered gets <see cref="ShutdownGrace"/>;
-    /// a way that could not be delivered hands over at once (it used to wait 3 minutes each time, so a server without
+    /// "shutdown" command, closing its window, then kill. Each way that was delivered gets <see cref="ShutdownGrace"/>
+    /// (Ctrl+C <see cref="CtrlCGrace"/>); a way that could not be delivered hands over at once (it used to wait 3 minutes each time, so a server without
     /// RCon or a console window only stopped after 3 to 6 minutes, and then by a kill).
     /// </summary>
     private void SendShutdown()
     {
-        if (_shutdownStep > 0 && !_shutdownStepFailed && DateTime.UtcNow - _shutdownCallTime < ShutdownGrace) return;
+        if (_shutdownStep > 0 && !_shutdownStepFailed && DateTime.UtcNow - _shutdownCallTime < (_shutdownStep == 1 ? CtrlCGrace : ShutdownGrace)) return;
         _shutdownCallTime = DateTime.UtcNow;
         _shutdownStepFailed = false;
 
@@ -294,8 +297,10 @@ internal sealed class ConanServerProcess : IConanServerProcess
             switch (++_shutdownStep)
             {
                 case 1:
-                    if (!ConsoleControl.TrySendCtrlC(PId)) continue;
-                    Logger?.LogInformation("Stopping server {Instance}: Ctrl+C sent to its console", Instance);
+                    if (!ConsoleControl.IsAvailable) continue;
+                    // Logged before it is sent: if anything about this step ever goes wrong, the log shows where.
+                    Logger?.LogInformation("Stopping server {Instance}: sending Ctrl+C to its console", Instance);
+                    _ = SendCtrlCAsync();
                     return;
                 case 2:
                     if (RCon is null) continue;
@@ -317,6 +322,28 @@ internal sealed class ConanServerProcess : IConanServerProcess
                     return;
             }
         }
+    }
+
+    // By a helper process, in the background: the launcher itself never touches the console of a server.
+    private async Task SendCtrlCAsync()
+    {
+        var sent = false;
+        try
+        {
+            sent = await ConsoleControl.TrySendCtrlCAsync(PId).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            Logger?.LogWarning(ex, "Ctrl+C for server {Instance} failed", Instance);
+        }
+        if (sent)
+        {
+            Logger?.LogInformation("Stopping server {Instance}: Ctrl+C delivered", Instance);
+            return;
+        }
+        // Not delivered: the next refresh goes on with the next way instead of waiting.
+        Logger?.LogInformation("Stopping server {Instance}: Ctrl+C could not be delivered, trying the next way", Instance);
+        _shutdownStepFailed = true;
     }
 
     private async Task SendRConShutdown(IRcon rcon)

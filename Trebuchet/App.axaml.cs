@@ -126,6 +126,8 @@ public partial class App : Application, IApplication
         }
         
         _logger.LogInformation(@"Starting Trebuchet");
+        if (SessionMarker.PreviousReport is { } uncleanReport)
+            _logger.LogWarning(@"The last Trebuchet session ended without a clean exit (killed from outside, a console event, power loss or a native crash), report: {Report}", uncleanReport);
         _logger.LogInformation(@$"Selecting {edition}");
         if(osSpecifics.IsProcessElevated())
             _logger.LogInformation(@"Process is elevated");
@@ -234,7 +236,11 @@ public partial class App : Application, IApplication
             TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
             desktop.ShutdownRequested += OnShutdownRequested;
             // Not every way out raises ShutdownRequested (e.g. a programmatic shutdown for a restart). Runs once only.
-            desktop.Exit += (_, _) => ShutdownDiscordBot();
+            desktop.Exit += (_, _) =>
+            {
+                ShutdownDiscordBot();
+                _logger?.LogInformation(@"Trebuchet closes");
+            };
 
             //CrashHandler.SetReportUri(@"");
             
