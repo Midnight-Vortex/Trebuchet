@@ -1,0 +1,402 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:i="https://github.com/projektanker/icons.avalonia"
+                    xmlns:a="clr-namespace:Trebuchet.Assets"
+                    xmlns:p="clr-namespace:Trebuchet.ViewModels.Panels"
+                    xmlns:bot="clr-namespace:Trebuchet.ViewModels.DiscordBot"
+                    xmlns:sys="clr-namespace:System;assembly=System.Runtime">
+
+    <!-- Add/remove list of Discord IDs (allowed users, allowed roles). Locked rows (super admin) have no remove button. -->
+    <DataTemplate x:Key="DiscordBotIdList" x:DataType="bot:BotIdListViewModel">
+        <Border Classes="Panel Shadowed" Padding="12" Margin="0,0,0,12">
+            <StackPanel Spacing="6">
+                <TextBlock Text="{Binding Title}" FontWeight="Bold" />
+                <TextBlock Text="{Binding Description}" Classes="SubText" TextWrapping="Wrap" />
+                <TextBlock Text="{x:Static a:Resources.DiscordBotListEmpty}" Classes="SubText" FontStyle="Italic"
+                           IsVisible="{Binding IsEmpty}" />
+                <ItemsControl ItemsSource="{Binding Items}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Spacing="4" />
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="bot:BotIdRow">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <Border Width="32" IsVisible="{Binding IsLocked}" Background="Transparent"
+                                        ToolTip.Tip="{x:Static a:Resources.DiscordBotLocked}">
+                                    <i:Icon Value="mdi-lock" Classes="Normal SubText" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <Button Classes="Base Red Colored" IsVisible="{Binding CanRemove}"
+                                        ToolTip.Tip="{x:Static a:Resources.Remove}"
+                                        Command="{Binding $parent[ItemsControl].((bot:BotIdListViewModel)DataContext).Remove}"
+                                        CommandParameter="{Binding}">
+                                    <i:Icon Value="mdi-delete" Classes="Normal" />
+                                </Button>
+                                <SelectableTextBlock Text="{Binding Text}" VerticalAlignment="Center" MinWidth="190" />
+                                <TextBlock Text="{Binding Label}" IsVisible="{Binding HasLabel}" Classes="SubText" VerticalAlignment="Center" />
+                            </StackPanel>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding IsEnabled}">
+                    <TextBox Width="260" Height="25" VerticalContentAlignment="Center" MaxLength="40"
+                             PlaceholderText="{x:Static a:Resources.DiscordBotIdWatermark}"
+                             Text="{Binding Input, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                    <Button Command="{Binding Add}" Classes="Base Green" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <i:Icon Value="mdi-plus" Classes="Normal" />
+                            <TextBlock Text="{x:Static a:Resources.Add}" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+                <TextBlock Text="{Binding Error}" IsVisible="{Binding HasError}" Classes="Error" TextWrapping="Wrap" />
+            </StackPanel>
+        </Border>
+    </DataTemplate>
+
+    <DataTemplate x:Key="DiscordBotPanel" x:DataType="p:DiscordBotPanel">
+        <DockPanel LastChildFill="True">
+            <DockPanel.Styles>
+                <Style Selector="TextBlock.Ok">
+                    <Setter Property="Foreground" Value="{DynamicResource TGreen}" />
+                </Style>
+                <Style Selector="TextBlock.Warning">
+                    <Setter Property="Foreground" Value="{DynamicResource TYellow}" />
+                </Style>
+                <Style Selector="TextBlock.Bad">
+                    <Setter Property="Foreground" Value="{DynamicResource TRed}" />
+                </Style>
+                <Style Selector="i|Icon.State">
+                    <Setter Property="Foreground" Value="{DynamicResource TSubText}" />
+                </Style>
+                <Style Selector="i|Icon.Ok">
+                    <Setter Property="Foreground" Value="{DynamicResource TGreen}" />
+                </Style>
+                <Style Selector="i|Icon.Warning">
+                    <Setter Property="Foreground" Value="{DynamicResource TYellow}" />
+                </Style>
+                <Style Selector="i|Icon.Bad">
+                    <Setter Property="Foreground" Value="{DynamicResource TRed}" />
+                </Style>
+                <Style Selector="TextBlock.Section">
+                    <Setter Property="Margin" Value="0,24,0,0" />
+                </Style>
+            </DockPanel.Styles>
+
+            <!-- Save / revert: edits reach the settings only from here. -->
+            <Border DockPanel.Dock="Top" Classes="Toolbar">
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Button Command="{Binding SaveCommand}" Classes="Base Green" Classes.Colored="{Binding IsDirty}"
+                            Classes.Heavy="{Binding IsDirty}" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <i:Icon Value="mdi-content-save" Classes="Normal" />
+                            <TextBlock Text="{x:Static a:Resources.Save}" />
+                        </StackPanel>
+                    </Button>
+                    <Button Command="{Binding RevertCommand}" Classes="Base Yellow" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <i:Icon Value="mdi-undo" Classes="Normal" />
+                            <TextBlock Text="{x:Static a:Resources.DiscordBotRevert}" />
+                        </StackPanel>
+                    </Button>
+                    <StackPanel Orientation="Horizontal" Spacing="6" Margin="12,0,0,0" VerticalAlignment="Center"
+                                IsVisible="{Binding IsDirty}">
+                        <i:Icon Value="mdi-pencil" Classes="Normal Warning" />
+                        <TextBlock Text="{x:Static a:Resources.DiscordBotUnsaved}" Classes="Warning" FontWeight="Bold" VerticalAlignment="Center" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Why the last save was refused, kept up to date while editing. -->
+            <Border DockPanel.Dock="Top" Classes="Panel Red Shadowed" Margin="12,12,12,0" Padding="12" IsVisible="{Binding HasIssues}">
+                <StackPanel Spacing="3">
+                    <TextBlock Text="{x:Static a:Resources.DiscordBotNotSaved}" Classes="Bad" FontWeight="Bold" />
+                    <ItemsControl ItemsSource="{Binding Issues}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="sys:String">
+                                <TextBlock Text="{Binding}" TextWrapping="Wrap" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <ScrollViewer>
+                <StackPanel Margin="12">
+                    <Border Classes="Panel Red Shadowed" Padding="12" Margin="0,0,0,12" IsVisible="{Binding HasLoadError}">
+                        <DockPanel>
+                            <i:Icon DockPanel.Dock="Left" Value="mdi-alert-octagon" Classes="Bigger Bad" Margin="0,0,12,0" VerticalAlignment="Top" />
+                            <TextBlock Text="{Binding LoadError}" TextWrapping="Wrap" />
+                        </DockPanel>
+                    </Border>
+
+                    <!-- (a) Status -->
+                    <TextBlock Classes="Title" Text="{x:Static a:Resources.DiscordBotSectionStatus}" />
+                    <Border Classes="HSeparator" />
+                    <Border Classes="Panel Shadowed" Padding="12" Margin="0,0,0,12">
+                        <StackPanel Spacing="12">
+                            <Grid ColumnDefinitions="Auto,18,*" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Classes="SubText" Text="{x:Static a:Resources.DiscordBotStatusState}" VerticalAlignment="Center" />
+                                <StackPanel Grid.Row="0" Grid.Column="2" Orientation="Horizontal" Spacing="6">
+                                    <i:Icon Value="mdi-circle" FontSize="14" VerticalAlignment="Center" Classes="State"
+                                            Classes.Ok="{Binding IsConnected}"
+                                            Classes.Warning="{Binding IsTransitioning}"
+                                            Classes.Bad="{Binding IsFailed}" />
+                                    <TextBlock Text="{Binding StateText}" FontWeight="Bold" VerticalAlignment="Center" />
+                                </StackPanel>
+                                <TextBlock Grid.Row="1" Grid.Column="0" Classes="SubText" Text="{x:Static a:Resources.DiscordBotStatusBot}" Margin="0,6,0,0" />
+                                <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding BotName}" Margin="0,6,0,0" />
+                                <TextBlock Grid.Row="2" Grid.Column="0" Classes="SubText" Text="{x:Static a:Resources.DiscordBotStatusServer}" Margin="0,6,0,0" />
+                                <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding GuildName}" Margin="0,6,0,0" />
+                                <TextBlock Grid.Row="3" Grid.Column="0" Classes="SubText" Text="{x:Static a:Resources.DiscordBotStatusLatency}" Margin="0,6,0,0" />
+                                <TextBlock Grid.Row="3" Grid.Column="2" Text="{Binding LatencyText}" Margin="0,6,0,0" />
+                                <TextBlock Grid.Row="4" Grid.Column="0" Classes="SubText" Text="{x:Static a:Resources.DiscordBotStatusSince}" Margin="0,6,0,0" />
+                                <TextBlock Grid.Row="4" Grid.Column="2" Text="{Binding ConnectedSinceText}" Margin="0,6,0,0" />
+                            </Grid>
+                            <TextBlock Text="{Binding ProblemText}" IsVisible="{Binding HasProblem}" Classes="Bad" TextWrapping="Wrap" />
+                            <ItemsControl ItemsSource="{Binding ServiceIssues}" IsVisible="{Binding HasServiceIssues}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="sys:String">
+                                        <TextBlock Text="{Binding}" TextWrapping="Wrap" Classes="Bad" Margin="12,0,0,0" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Text="{x:Static a:Resources.DiscordBotAutoStartSkipped}" IsVisible="{Binding AutoStartSkipped}"
+                                       Classes="Warning" TextWrapping="Wrap" />
+                            <TextBlock Text="{x:Static a:Resources.DiscordBotServiceError}" IsVisible="{Binding HasServiceError}"
+                                       Classes="Bad" TextWrapping="Wrap" />
+                            <WrapPanel Orientation="Horizontal">
+                                <Button Command="{Binding StartCommand}" Classes="Base Green" Margin="0,0,6,0">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <i:Icon Value="mdi-play" Classes="Normal" />
+                                        <TextBlock Text="{x:Static a:Resources.DiscordBotStart}" />
+                                    </StackPanel>
+                                </Button>
+                                <Button Command="{Binding StopCommand}" Classes="Base Yellow" Margin="0,0,6,0">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <i:Icon Value="mdi-stop" Classes="Normal" />
+                                        <TextBlock Text="{x:Static a:Resources.DiscordBotStop}" />
+                                    </StackPanel>
+                                </Button>
+                                <Button Command="{Binding ReconnectCommand}" Classes="Base Blue" Margin="0,0,6,0">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <i:Icon Value="mdi-restart" Classes="Normal" />
+                                        <TextBlock Text="{x:Static a:Resources.DiscordBotReconnect}" />
+                                    </StackPanel>
+                                </Button>
+                            </WrapPanel>
+                            <TextBlock Text="{x:Static a:Resources.DiscordBotUsesSavedSettings}" IsVisible="{Binding IsDirty}"
+                                       Classes="SubText" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+                    <ContentControl Content="{Binding AutoStartField}" ClipToBounds="False" />
+
+                    <!-- (b) Security: the main point of the bot. -->
+                    <TextBlock Classes="Title Section" Text="{x:Static a:Resources.DiscordBotSectionSecurity}" />
+                    <Border Classes="HSeparator" />
+                    <Border Classes="Panel Yellow Shadowed" Padding="12" Margin="0,0,0,12">
+                        <DockPanel>
+                            <i:Icon DockPanel.Dock="Left" Value="mdi-shield-account" FontSize="34" Classes="Warning" Margin="0,0,12,0" VerticalAlignment="Top" />
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="{x:Static a:Resources.DiscordBotSecurityNotice}" FontWeight="Bold" FontSize="16" TextWrapping="Wrap" />
+                                <TextBlock Text="{x:Static a:Resources.DiscordBotSecurityNoticeText}" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </DockPanel>
+                    </Border>
+
+                    <!-- Super admin: required, never removed, replaced only with a confirmation. -->
+                    <Border Classes="Panel Shadowed" Padding="12" Margin="0,0,0,12">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="{x:Static a:Resources.DiscordBotSuperAdmin}" FontWeight="Bold" />
+                            <TextBlock Text="{x:Static a:Resources.DiscordBotSuperAdminText}" Classes="SubText" TextWrapping="Wrap" />
+                            <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding !IsEditingSuperAdmin}">
+                                <i:Icon Value="mdi-lock" Classes="Normal SubText" VerticalAlignment="Center" Background="Transparent"
+                                        ToolTip.Tip="{x:Static a:Resources.DiscordBotLocked}" />
+                                <SelectableTextBlock Text="{Binding SuperAdminText}" VerticalAlignment="Center" MinWidth="190" FontWeight="Bold" />
+                                <Button Command="{Binding ChangeSuperAdminCommand}" Classes="Base Blue" IsVisible="{Binding CanEdit}">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <i:Icon Value="mdi-pencil" Classes="Normal" />
+                                        <TextBlock Text="{x:Static a:Resources.Change}" />
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                            <StackPanel Orientation="Horizontal" Spacing="6" IsVisible="{Binding IsEditingSuperAdmin}">
+                                <TextBox Width="260" Height="25" VerticalContentAlignment="Center" MaxLength="40"
+                                         PlaceholderText="{x:Static a:Resources.DiscordBotIdWatermark}"
+                                         Text="{Binding SuperAdminInput, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                <Button Command="{Binding ApplySuperAdminCommand}" Classes="Base Green" VerticalAlignment="Center">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <i:Icon Value="mdi-check" Classes="Normal" />
+                                        <TextBlock Text="{x:Static a:Resources.DiscordBotApply}" />
+                                    </StackPanel>
+                                </Button>
+                                <Button Command="{Binding CancelSuperAdminCommand}" Classes="Base" VerticalAlignment="Center">
+                                    <TextBlock Text="{x:Static a:Resources.Cancel}" />
+                                </Button>
+                            </StackPanel>
+                            <TextBlock Text="{Binding SuperAdminError}" IsVisible="{Binding HasSuperAdminError}" Classes="Error" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+
+                    <ContentControl Content="{Binding Users}" ContentTemplate="{StaticResource DiscordBotIdList}" ClipToBounds="False" />
+                    <ContentControl Content="{Binding Roles}" ContentTemplate="{StaticResource DiscordBotIdList}" ClipToBounds="False" />
+
+                    <!-- Admin channel: Discord can only narrow it, widening is only possible here. -->
+                    <Border Classes="Panel Shadowed" Padding="12" Margin="0,0,0,12">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="{x:Static a:Resources.DiscordBotAdminChannel}" FontWeight="Bold" />
+                            <TextBlock Text="{x:Static a:Resources.DiscordBotAdminChannelText}" Classes="SubText" TextWrapping="Wrap" />
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <i:Icon Value="mdi-pound" Classes="Normal SubText" VerticalAlignment="Center" />
+                                <SelectableTextBlock Text="{Binding AdminChannelText}" VerticalAlignment="Center" MinWidth="190" />
+                                <Button Command="{Binding ClearAdminChannelCommand}" Classes="Base Yellow" IsVisible="{Binding IsAdminChannelRestricted}">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <i:Icon Value="mdi-close" Classes="Normal" />
+                                        <TextBlock Text="{x:Static a:Resources.DiscordBotAdminChannelClear}" />
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <ContentControl Content="{Binding AuditChannelField}" ClipToBounds="False" />
+
+                    <TextBlock Classes="SmallTitle" Text="{x:Static a:Resources.DiscordBotLimits}" Margin="0,12,0,12" />
+                    <ItemsControl ItemsSource="{Binding LimitFields}" ClipToBounds="False">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                    </ItemsControl>
+
+                    <!-- Check security: traffic light list. -->
+                    <Border Classes="Panel Shadowed" Padding="12" Margin="0,0,0,12">
+                        <StackPanel Spacing="6">
+                            <DockPanel LastChildFill="True">
+                                <Button DockPanel.Dock="Right" Command="{Binding CheckSecurityCommand}" Classes="Base Blue Colored Heavy"
+                                        VerticalAlignment="Top" Margin="12,0,0,0">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <i:Icon Value="mdi-shield-check" Classes="Normal" />
+                                        <TextBlock Text="{x:Static a:Resources.DiscordBotCheck}" />
+                                    </StackPanel>
+                                </Button>
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="{x:Static a:Resources.DiscordBotCheck}" FontWeight="Bold" />
+                                    <TextBlock Text="{x:Static a:Resources.DiscordBotCheckText}" Classes="SubText" TextWrapping="Wrap" />
+                                </StackPanel>
+                            </DockPanel>
+                            <TextBlock Text="{x:Static a:Resources.DiscordBotUsesSavedSettings}" IsVisible="{Binding IsDirty}"
+                                       Classes="SubText" TextWrapping="Wrap" />
+                            <TextBlock Text="{x:Static a:Resources.DiscordBotChecking}" IsVisible="{Binding IsChecking}" Classes="SubText" />
+                            <ItemsControl ItemsSource="{Binding CheckRows}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="bot:SecurityCheckRow">
+                                        <DockPanel Margin="0,3">
+                                            <i:Icon DockPanel.Dock="Left" Value="{Binding Icon}" Classes="Normal" Margin="0,0,6,0" VerticalAlignment="Top"
+                                                    Classes.Ok="{Binding IsOk}" Classes.Warning="{Binding IsWarning}" Classes.Bad="{Binding IsError}" />
+                                            <TextBlock Text="{Binding Text}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                        </DockPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- (c) Connection -->
+                    <TextBlock Classes="Title Section" Text="{x:Static a:Resources.DiscordBotSectionConnection}" />
+                    <Border Classes="HSeparator" />
+                    <ContentControl Content="{Binding TokenField}" ClipToBounds="False" />
+                    <TextBlock Text="{Binding TokenHint}" IsVisible="{Binding HasTokenHint}" Classes="Warning" TextWrapping="Wrap" Margin="12,0,0,12" />
+                    <ContentControl Content="{Binding GuildField}" ClipToBounds="False" />
+                    <ContentControl Content="{Binding LanguageField}" ClipToBounds="False" />
+
+                    <!-- (d) Commands -->
+                    <TextBlock Classes="Title Section" Text="{x:Static a:Resources.DiscordBotSectionCommands}" />
+                    <Border Classes="HSeparator" />
+                    <TextBlock Text="{x:Static a:Resources.DiscordBotCommandsText}" Classes="SubText" TextWrapping="Wrap" Margin="0,0,0,6" />
+                    <ItemsControl ItemsSource="{Binding CommandGroups}" ClipToBounds="False">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="bot:BotCommandGroup">
+                                <StackPanel Margin="0,6,0,0">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <i:Icon Value="mdi-shield-alert" Classes="Normal Warning" IsVisible="{Binding IsRestricted}" VerticalAlignment="Center" />
+                                        <TextBlock Classes="SmallTitle" Text="{Binding Title}" VerticalAlignment="Center" />
+                                    </StackPanel>
+                                    <TextBlock Text="{Binding Note}" Classes="SubText" TextWrapping="Wrap" Margin="0,3,0,6" />
+                                    <ItemsControl ItemsSource="{Binding Fields}" ClipToBounds="False">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <StackPanel />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- (e) Audit log -->
+                    <TextBlock Classes="Title Section" Text="{x:Static a:Resources.DiscordBotSectionAudit}" />
+                    <Border Classes="HSeparator" />
+                    <Border Classes="Panel Shadowed" Padding="12" Margin="0,0,0,12">
+                        <StackPanel Spacing="6">
+                            <DockPanel LastChildFill="True">
+                                <Button DockPanel.Dock="Right" Command="{Binding OpenAuditFolderCommand}" Classes="Base" VerticalAlignment="Top" Margin="12,0,0,0">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <i:Icon Value="mdi-folder-open" Classes="Normal" />
+                                        <TextBlock Text="{x:Static a:Resources.DiscordBotOpenFolder}" />
+                                    </StackPanel>
+                                </Button>
+                                <TextBlock Text="{x:Static a:Resources.DiscordBotAuditText}" Classes="SubText" TextWrapping="Wrap" />
+                            </DockPanel>
+                            <TextBlock Text="{x:Static a:Resources.DiscordBotAuditEmpty}" Classes="SubText" FontStyle="Italic"
+                                       IsVisible="{Binding !HasAuditEntries}" />
+                            <Border Classes="DarkPanel" Padding="6" MaxHeight="320" IsVisible="{Binding HasAuditEntries}">
+                                <ScrollViewer>
+                                    <ItemsControl ItemsSource="{Binding AuditEntries}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="bot:AuditEntryRow">
+                                                <DockPanel Margin="0,1">
+                                                    <TextBlock DockPanel.Dock="Left" Text="{Binding Time}" Classes="SubText" Margin="0,0,12,0" />
+                                                    <TextBlock DockPanel.Dock="Left" Text="{Binding Result}" Width="110" FontWeight="Bold"
+                                                               Classes.Ok="{Binding IsOk}" Classes.Warning="{Binding IsWarning}" Classes.Bad="{Binding IsError}" />
+                                                    <SelectableTextBlock Text="{Binding Text}" TextWrapping="Wrap" />
+                                                </DockPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </ScrollViewer>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- (f) Setup help -->
+                    <TextBlock Classes="Title Section" Text="{x:Static a:Resources.DiscordBotSectionSetup}" />
+                    <Border Classes="HSeparator" />
+                    <Border Classes="Panel Shadowed" Padding="12" Margin="0,0,0,12">
+                        <StackPanel Spacing="6">
+                            <ItemsControl ItemsSource="{Binding SetupSteps}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="sys:String">
+                                        <DockPanel Margin="0,2">
+                                            <i:Icon DockPanel.Dock="Left" Value="mdi-chevron-right" Classes="Normal SubText" Margin="0,0,6,0" VerticalAlignment="Top" />
+                                            <TextBlock Text="{Binding}" TextWrapping="Wrap" VerticalAlignment="Center" />
+                                        </DockPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <Button Command="{Binding OpenSetupGuideCommand}" Classes="Base Blue" HorizontalAlignment="Left" Margin="0,6,0,0">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <i:Icon Value="mdi-open-in-new" Classes="Normal" />
+                                    <TextBlock Text="{x:Static a:Resources.DiscordBotSetupOpenGuide}" />
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </DockPanel>
+    </DataTemplate>
+</ResourceDictionary>
