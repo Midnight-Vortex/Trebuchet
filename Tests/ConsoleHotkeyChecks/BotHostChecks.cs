@@ -548,6 +548,9 @@ static class BotHostChecks
             log = new ListLogger();
             var run = new BotHost(parts, log, Fast).RunAsync(stop.Token);
             check(await WaitUntil(() => parts.Bot.State == DiscordBotState.Connected, 5_000), "Connected");
+            // "After a good start": the host has judged the first start by now. Set at once, the error could come before it
+            // read the state, and a server that is not there at the very start ends the host (on a slow machine it did).
+            await Task.Delay(300);
             parts.Bot.Set(DiscordBotState.Error, DiscordBotProblem.GuildNotFound);
             check(await WaitUntil(() => parts.Bot.Starts == 2 && parts.Bot.State == DiscordBotState.Connected, 5_000) && !run.IsCompleted,
                 "A server that went missing after a good start is looked for again, the host does not run on without a bot");

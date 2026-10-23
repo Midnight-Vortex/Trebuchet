@@ -356,7 +356,7 @@ static class BotInteractionHandlerChecks
             Check(rig.Actions.Calls.Last() == "stop 0 5 Discord" && done.Replies[0].Update && done.Last.Text == "Stopp von Server 0 gestartet.",
                 "The confirmation stops with the default warning time");
             Check(rig.Client.Notes.Any(x => x.Channel == AuditChannel && x.Text.Contains("Stop server 0")), "Critical actions are reported to the audit channel");
-            var secondClick = await rig.Do(rig.Click(confirm, true));
+            var secondClick = await rig.Do(rig.Click(confirm!, true));
             Check(secondClick.Last.Text == BotMessages.German.Expired && !secondClick.Replies[0].Update && rig.Actions.Executed == 1,
                 "A confirmation works once, the second click is answered as a new message (it does not overwrite the result)");
 
