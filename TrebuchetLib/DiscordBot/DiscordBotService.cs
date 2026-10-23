@@ -14,7 +14,7 @@ namespace TrebuchetLib.DiscordBot;
 /// Trebuchet uses and the configured server present; it leaves every other server. Nothing it logs or exposes holds the
 /// token, and nothing it does blocks or throws into the launcher.
 /// </summary>
-public sealed class DiscordBotService : IDiscordBotService, IBotSettings
+public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDisposable
 {
     internal static readonly TimeSpan ConnectDeadline = TimeSpan.FromSeconds(60);
     internal static readonly TimeSpan RefreshInterval = TimeSpan.FromSeconds(10);
@@ -255,6 +255,9 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings
             _logger.LogError("Discord bot: stop failed: {Error}", DiscordNetLog.Describe(ex));
         }
     }
+
+    /// <summary>For containers that dispose synchronously. Safe to call after <see cref="DisposeAsync"/> (it is idempotent).</summary>
+    public void Dispose() => Task.Run(() => DisposeAsync().AsTask()).Wait(TimeSpan.FromSeconds(10));
 
     public async ValueTask DisposeAsync()
     {

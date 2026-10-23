@@ -307,6 +307,7 @@ checks += await ProfileMenuChecks.Run();
     Check(ServerProfile.LogFiltersDefault.Contains("LogOnlineSubsystemFls=Fatal") && new ServerProfile().LogFilters.Contains("LogOnlineSubsystemFls=Fatal"),
         "New server saves start with the voice log filter");
 }
+checks += DiscordBotPanelChecks.Run();
 Console.WriteLine($"Passed {checks} mod list and profile menu checks.");
 
 sealed class ExampleServerFiles(string root) : IAppFileHandler<ServerProfile, ServerProfileRef>
