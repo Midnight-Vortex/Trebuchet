@@ -608,7 +608,32 @@ namespace DepotDownloader
             }
         }
 
+        // CallbackManager handler, hence async void: an exception escaping it is rethrown on the thread pool and ends
+        // the process (the pump's catch never sees it). E.g. LogOnAnonymous rethrows a failed machine id lookup.
         private async void ConnectedCallback(SteamClient.ConnectedCallback connected)
+        {
+            var epoch = Volatile.Read(ref authEpoch);
+            try
+            {
+                await LogOnAfterConnectAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex)
+            {
+                try
+                {
+                    Util.WriteLine("Failed to log on to Steam: " + ex.Message);
+                    // Ends this attempt so Connect() returns at once; a newer attempt is left alone.
+                    if (epoch == Volatile.Read(ref authEpoch))
+                        Abort(false);
+                }
+                catch
+                {
+                    // Must never throw either; the next Connect() starts over.
+                }
+            }
+        }
+
+        private async Task LogOnAfterConnectAsync()
         {
             // Connected right before Disconnect()/Abort(): don't log on a connection that is being torn down.
             if (bAborted)

@@ -350,7 +350,13 @@ public static class Tools
         var temporary = path + ".tmp";
         try
         {
-            await File.WriteAllTextAsync(temporary, content);
+            // On disk before the rename (like JsonFileStorage): after a power loss the renamed file could hold zeros
+            // instead of the text, and the ini parser then rejects it on every following server start.
+            await using (var stream = new FileStream(temporary, FileMode.Create, FileAccess.Write, FileShare.None, 4096, FileOptions.Asynchronous))
+            {
+                await stream.WriteAsync(new UTF8Encoding(false).GetBytes(content));
+                stream.Flush(flushToDisk: true);
+            }
             File.Move(temporary, path, overwrite: true);
         }
         catch

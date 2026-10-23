@@ -10,9 +10,7 @@ public static class YuuIniServerFiles
     public static async Task WriteIni(this AppSetup setup, ServerProfile profile, int instance)
     {
         Dictionary<string, IniDocument> documents = new Dictionary<string, IniDocument>();
-        // Modify the default SectionName parse because funcom sometime does an oupsi and generate sections with an empty name
-        var iniParserConfiguration = new IniParserConfiguration();
-        iniParserConfiguration.SectionNameRegex = "\\s*[^\\[\\]]*\\s*";
+        var iniParserConfiguration = CreateParserConfiguration();
 
         foreach (var method in GetIniMethods())
         {
@@ -48,8 +46,11 @@ public static class YuuIniServerFiles
         var infos = new ConanServerInfos();
         infos.Instance = instance;
 
+        // Same rules as WriteIni: the default parser threw on the empty section names Funcom writes, so a running server
+        // was never attached again after a restart of Trebuchet (and a second one was started on its instance).
+        var configuration = CreateParserConfiguration();
         string initPath = ResolveServerAbsolutePath(setup, instance, string.Format(Constants.FileIniServer, "Engine"));
-        IniDocument document = IniParser.Parse(await Tools.GetFileContent(initPath));
+        IniDocument document = IniParser.Parse(await Tools.GetFileContent(initPath), configuration);
 
         IniSection section = document.GetSection("OnlineSubsystem");
         infos.Title = section.GetValue("ServerName", "Conan Exile Dedicated Server");
@@ -61,11 +62,19 @@ public static class YuuIniServerFiles
         infos.QueryPort = section.GetValue("GameServerQueryPort", 27015);
 
         document = IniParser.Parse(await Tools.GetFileContent(
-            ResolveServerAbsolutePath(setup, instance, string.Format(Constants.FileIniServer, "Game"))));
+            ResolveServerAbsolutePath(setup, instance, string.Format(Constants.FileIniServer, "Game"))), configuration);
         section = document.GetSection("RconPlugin");
         infos.RConPassword = section.GetValue("RconPassword", string.Empty);
         infos.RConPort = section.GetValue("RconEnabled", false) ? section.GetValue("RconPort", 25575) : 0;
         return infos;
+    }
+
+    // Modify the default SectionName parse because funcom sometime does an oupsi and generate sections with an empty name
+    private static IniParserConfiguration CreateParserConfiguration()
+    {
+        var configuration = new IniParserConfiguration();
+        configuration.SectionNameRegex = "\\s*[^\\[\\]]*\\s*";
+        return configuration;
     }
 
     /// <summary>
