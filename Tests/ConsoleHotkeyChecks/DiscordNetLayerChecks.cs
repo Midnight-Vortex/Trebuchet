@@ -440,6 +440,10 @@ static class DiscordNetLayerChecks
         Check(await channelClient.PostStatusAsync(OtherChannel, model) is null && await channelClient.PostStatusAsync(OtherChannel + 7, model) is null
               && await channelClient.PostStatusAsync(0, model) is null && transport.Calls.Count == 1, "Never to a channel of another server or an unknown one");
         Check(await channelClient.EditStatusAsync(OtherChannel, 5, model) == BotEditResult.Failed && transport.Calls.Count == 1, "No edit on another server");
+        var refusals = logs.All.Split('\n').Count(l => l.Contains("refused to write to channel", StringComparison.Ordinal) && l.Contains(OtherChannel.ToString(), StringComparison.Ordinal));
+        for (var n = 0; n < 5; n++) await channelClient.EditStatusAsync(OtherChannel, 5, model);
+        Check(logs.All.Split('\n').Count(l => l.Contains("refused to write to channel", StringComparison.Ordinal) && l.Contains(OtherChannel.ToString(), StringComparison.Ordinal)) == refusals && refusals >= 1,
+            "A refused channel is logged once, not on every refresh");
         await channelClient.PostNoteAsync(OtherChannel, "note");
         Check(transport.Calls.Count == 1, "No note on another server");
         Check(await channelClient.EditStatusAsync(Channel, posted!.Value, model) == BotEditResult.Edited && transport.Calls[^1] is { Kind: "modify", Channel: Channel } edit

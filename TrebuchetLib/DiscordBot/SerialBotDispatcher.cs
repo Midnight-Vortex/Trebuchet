@@ -6,21 +6,19 @@ namespace TrebuchetLib.DiscordBot;
 
 /// <summary>
 /// The launcher thread of a host without a window (<c>boulder bot</c>), in place of the UI thread. The tick and the bot
-/// hand their launcher work in here: one piece at a time, in the order it was handed in, on one dedicated thread. That
+/// hand their launcher work in here: all of it runs on one dedicated thread, started in the order it was handed in. That
 /// thread is also the synchronization context of the work, so what the launcher starts and does not await (countdowns,
 /// background starts, the end of a stop) continues there like it does on the UI thread: the plain dictionaries of the
 /// <c>Launcher</c> are never used by two threads at once.
 /// </summary>
 /// <remarks>
-/// Deadlock rule: work must never wait for other work of the same dispatcher, neither by awaiting
-/// <see cref="InvokeAsync{T}"/> (itself or through a call that does) nor by blocking the thread (<c>Wait()</c>,
-/// <c>Result</c>): it would wait for itself. Work may hand in more work without waiting for it (e.g. from a
-/// <c>Task.Run</c>); that runs after the current work.
+/// Work interleaves at its awaits, exactly like on the UI thread of the window (where the 2 second tick and the bot's
+/// actions interleave too): a tick that waits for Steam for a minute must not keep the bot's actions waiting. Between
+/// two awaits nothing else runs. Work may await other work of the same dispatcher (the thread is not blocked), but must
+/// never block the thread (<c>Wait()</c>, <c>Result</c>).
 /// </remarks>
 public sealed class SerialBotDispatcher : IBotDispatcher, IDisposable
 {
-    // One piece of work at a time. Its async waiters are served first come, first served.
-    private readonly SemaphoreSlim _gate = new(1, 1);
     // Never disposed: late callers read its token.
     private readonly CancellationTokenSource _stop = new();
     private readonly LauncherThread _thread;
@@ -36,7 +34,7 @@ public sealed class SerialBotDispatcher : IBotDispatcher, IDisposable
     public bool IsStopped => _stop.IsCancellationRequested;
 
     /// <summary>
-    /// Runs <paramref name="work"/> on the launcher thread once all work handed in before it has ended. Its exception
+    /// Runs <paramref name="work"/> on the launcher thread, after the work handed in before it started. Its exception
     /// reaches the caller as thrown.
     /// </summary>
     /// <exception cref="OperationCanceledException">The dispatcher was stopped before the work ran (it never runs then) or while it ran.</exception>
@@ -45,28 +43,13 @@ public sealed class SerialBotDispatcher : IBotDispatcher, IDisposable
         ArgumentNullException.ThrowIfNull(work);
         var token = _stop.Token;
         if (token.IsCancellationRequested) return Task.FromCanceled<T>(token);
-        // In line now, in the order of the calls.
-        var turn = _gate.WaitAsync(token);
-        return RunAsync(turn, work, token);
-    }
-
-    private async Task<T> RunAsync<T>(Task turn, Func<Task<T>> work, CancellationToken token)
-    {
-        await turn.ConfigureAwait(false);
-        try
-        {
-            // Stopped while it waited: queued work does not run.
-            token.ThrowIfCancellationRequested();
-            var result = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
-            // Stopped while it runs: the thread ends and the work can not finish, the caller is not left waiting.
-            using var stopped = token.UnsafeRegister(static state => ((TaskCompletionSource<T>)state!).TrySetCanceled(), result);
-            _thread.Post(_ => Start(work, result, token), null);
-            return await result.Task.ConfigureAwait(false);
-        }
-        finally
-        {
-            _gate.Release();
-        }
+        var result = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+        // Stopped while it waits or runs: the thread ends and the work can not finish, the caller is not left waiting.
+        var stopped = token.UnsafeRegister(static state => ((TaskCompletionSource<T>)state!).TrySetCanceled(), result);
+        _ = result.Task.ContinueWith(static (_, state) => ((CancellationTokenRegistration)state!).Dispose(), stopped,
+            CancellationToken.None, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Default);
+        _thread.Post(_ => Start(work, result, token), null);
+        return result.Task;
     }
 
     // On the launcher thread.

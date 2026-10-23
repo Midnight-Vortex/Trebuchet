@@ -47,7 +47,7 @@ static class BotHostChecks
     {
         using var dispatcher = new SerialBotDispatcher();
 
-        // Many callers on many threads, work that awaits in between: never two pieces of work at once, all on one thread.
+        // Many callers on many threads, work that awaits in between: all of it on one thread (so plain dictionaries are safe).
         var inside = 0;
         var mostInside = 0;
         var offThread = 0;
@@ -66,7 +66,7 @@ static class BotHostChecks
             return i;
         }))).ToArray();
         check(await Within(Task.WhenAll(load), 30_000), "The work under load ends");
-        check(Volatile.Read(ref mostInside) == 1, $"Never two pieces of work at once, also across awaits ({mostInside} at once)");
+        check(Volatile.Read(ref mostInside) >= 1, "The work ran");
         check(offThread == 0, "The work and its continuations run on the launcher thread");
         check(load.Select(x => x.Result).SequenceEqual(Enumerable.Range(0, 200)) && table.Count == 200 && table.All(x => x.Key == x.Value),
             "Every caller gets the result of its own work");
@@ -87,13 +87,15 @@ static class BotHostChecks
         check(await Within(background.Task, 5_000) && background.Task.Result == dispatcher.ThreadId,
             "A continuation the work did not await runs on the launcher thread, like on the UI thread");
 
-        // Order: work handed in one after another runs in that order, also when it had to wait in line.
+        // A long piece of work (a tick that waits for Steam) does not keep other work waiting: they interleave at the awaits,
+        // like the tick and the bot's actions on the UI thread of the window.
         var order = new List<int>();
         var hold = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var first = dispatcher.InvokeAsync(async () =>
         {
-            await hold.Task;
             order.Add(-1);
+            await hold.Task;
+            order.Add(-2);
             return -1;
         });
         var queued = Enumerable.Range(0, 50).Select(i => dispatcher.InvokeAsync(async () =>
@@ -102,11 +104,15 @@ static class BotHostChecks
             await Task.Yield();
             return i;
         })).ToList();
-        await Task.Delay(50);
-        check(order.Count == 0 && queued.All(x => !x.IsCompleted), "Work waits while other work runs");
+        check(await Within(Task.WhenAll(queued), 10_000) && !first.IsCompleted,
+            "Work handed in meanwhile runs while a long piece of work waits");
+        check(order.Take(51).SequenceEqual(Enumerable.Range(-1, 51)), "Work starts in the order it was handed in: " + string.Join(",", order.Take(10)));
         hold.SetResult();
-        check(await Within(Task.WhenAll(queued.Append(first)), 10_000), "Queued work runs once the work before it ended");
-        check(order.SequenceEqual(Enumerable.Range(-1, 51)), "Work runs in the order it was handed in: " + string.Join(",", order.Take(10)));
+        check(await Within(first, 10_000) && order[^1] == -2, "The long work goes on when what it waited for is there");
+
+        // Work that awaits other work of the same dispatcher ends (the thread is not blocked).
+        var nested = await dispatcher.InvokeAsync(async () => await dispatcher.InvokeAsync(() => Task.FromResult(5)) + 1);
+        check(nested == 6, "Work may await other work of its dispatcher");
 
         // Errors reach the caller as thrown, before or after an await, and the dispatcher goes on.
         check(await ThrowsAsync<InvalidOperationException>(dispatcher.InvokeAsync<int>(() => throw new InvalidOperationException("at once")), "at once"),
@@ -140,14 +146,16 @@ static class BotHostChecks
         });
         check(await Within(direct!, 5_000) && direct!.Result == 8, "Work queued right on the launcher thread without waiting runs after");
 
-        // Stopped: queued work never runs, nobody is left waiting, new work is refused.
+        // Stopped: queued work never runs, nobody is left waiting, new work is refused. The launcher thread is held on
+        // purpose (blocked, which real work never does) so that the other work is still waiting in line when it stops.
         var stopped = new SerialBotDispatcher();
         var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var never = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var release = new ManualResetEventSlim();
         var running = stopped.InvokeAsync(() =>
         {
             started.SetResult();
-            return never.Task;
+            release.Wait();
+            return Task.FromResult(true);
         });
         await started.Task;
         var ranAfterStop = 0;
@@ -157,7 +165,7 @@ static class BotHostChecks
             return Task.FromResult(true);
         })).ToList();
         stopped.Dispose();
-        never.SetResult(true);
+        release.Set();
         foreach (var task in waiting)
             check(await ThrowsAsync<OperationCanceledException>(task), "Queued work of a stopped dispatcher is cancelled");
         check(await Within(running.ContinueWith(_ => { }), 5_000), "The caller of running work is not left waiting by the stop");
@@ -169,14 +177,6 @@ static class BotHostChecks
         check(await ThrowsAsync<OperationCanceledException>(late), "New work for a stopped dispatcher is cancelled");
         await Task.Delay(100);
         check(Volatile.Read(ref ranAfterStop) == 0 && stopped.IsStopped, "Work queued before or after the stop never runs");
-
-        // The deadlock rule: work that awaits other work of the same dispatcher waits for itself. The stop frees both callers.
-        var selfWait = new SerialBotDispatcher();
-        var waitsForItself = selfWait.InvokeAsync(async () => await selfWait.InvokeAsync(() => Task.FromResult(1)));
-        check(!await Within(waitsForItself, 200), "Work that awaits work of its own dispatcher never ends (the rule of the comment)");
-        selfWait.Dispose();
-        check(await Within(waitsForItself.ContinueWith(_ => { }), 5_000) && waitsForItself.IsCanceled,
-            "The stop frees the caller of such work");
     }
 
     #endregion
