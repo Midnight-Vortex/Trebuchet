@@ -132,7 +132,9 @@ namespace TrebuchetLib
         {
             if (_cts != null) return;
             _cts = new CancellationTokenSource();
-            Task.Run(() => ThreadLoop(_endpoint, _timeout, _refreshRate, _cts.Token), _cts.Token);
+            // Read now: a stop before the thread runs left _cts null or disposed for it.
+            var token = _cts.Token;
+            Task.Run(() => ThreadLoop(_endpoint, _timeout, _refreshRate, token), token);
         }
 
         public void StopQueryThread()
@@ -165,10 +167,10 @@ namespace TrebuchetLib
             ms.Seek(4, SeekOrigin.Begin);   // skip the 4 0xFFs
             Header = br.ReadByte();
             Protocol = br.ReadByte();
-            Name = br.ReadNullTerminatedString() ?? string.Empty;
-            Map = br.ReadNullTerminatedString() ?? string.Empty;
-            Folder = br.ReadNullTerminatedString() ?? string.Empty;
-            Game = br.ReadNullTerminatedString() ?? string.Empty;
+            Name = br.ReadNullTerminatedUtf8();
+            Map = br.ReadNullTerminatedUtf8();
+            Folder = br.ReadNullTerminatedUtf8();
+            Game = br.ReadNullTerminatedUtf8();
             ID = br.ReadInt16();
             Players = br.ReadByte();
             MaxPlayers = br.ReadByte();
@@ -177,7 +179,7 @@ namespace TrebuchetLib
             Environment = (EnvironmentFlags)br.ReadByte();
             Visibility = (VisibilityFlags)br.ReadByte();
             VAC = (VACFlags)br.ReadByte();
-            Version = br.ReadNullTerminatedString() ?? string.Empty;
+            Version = br.ReadNullTerminatedUtf8();
             Online = true;
         }
         
@@ -245,5 +247,20 @@ namespace TrebuchetLib
         //    GameID = br.ReadUInt64();
 
         //#endregion These EDF readers have to be in this order because that's the way they are reported
+    }
+
+    internal static class BinaryReaderUtf8
+    {
+        /// <summary>
+        /// Reads a null terminated UTF-8 string byte by byte. BinaryReader.ReadChar threw for a character of two UTF-16
+        /// chars (an emoji in the server name): the server never showed online, an RCon answer naming such a player failed.
+        /// </summary>
+        public static string ReadNullTerminatedUtf8(this BinaryReader reader)
+        {
+            var bytes = new List<byte>();
+            for (var b = reader.ReadByte(); b != 0; b = reader.ReadByte())
+                bytes.Add(b);
+            return Encoding.UTF8.GetString(bytes.ToArray());
+        }
     }
 }

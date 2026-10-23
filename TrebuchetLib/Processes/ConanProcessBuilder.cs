@@ -100,21 +100,22 @@ public class ConanProcessBuilder : IConanProcessServerBuilderLogTracked
         var logReader = new LogReader(_gameLogger, _log.FullName)
             .SetContext("instance", serverInfo.Instance);
         
-        if(_logAtBeginning) logReader.StartAtBeginning();
-        else logReader.Start();
-        
-        var sourceQuery = new SourceQueryReader(new IPEndPoint(IPAddress.Loopback, serverInfo.QueryPort), 1500, 2000);
-        sourceQuery.StartQueryThread();
+        // The ports come unchecked from the save (the query port field takes any number) or the server ini. An invalid
+        // one threw here after the log reader and the query thread were started: every tick leaked both again, and the
+        // running server was never attached, so it was started a second time on the same save. Its query and RCon
+        // cannot work anyway: the server is watched without them.
+        var queryPort = IsValidPort(serverInfo.QueryPort) ? serverInfo.QueryPort : 0;
+        var sourceQuery = new SourceQueryReader(new IPEndPoint(IPAddress.Loopback, queryPort), 1500, 2000);
 
         IRcon? rcon = null;
-        if(_useRcon)
+        if(_useRcon && IsValidPort(serverInfo.RConPort))
             rcon = new Rcon(
                 new IPEndPoint(IPAddress.Loopback, serverInfo.RConPort), 
                 serverInfo.RConPassword,
                 _rconLogger
                 ).SetContext("instance", serverInfo.Instance);
         
-        return new ConanServerProcess(_process, logReader)
+        var server = new ConanServerProcess(_process, logReader)
         {
             SourceQueryReader = sourceQuery,
             StartUtc = _start,
@@ -122,7 +123,15 @@ public class ConanProcessBuilder : IConanProcessServerBuilderLogTracked
             Infos = serverInfo,
             Logger = _processLogger
         };
+
+        // Started last, once nothing can throw any more: they would run on without an owner.
+        if(_logAtBeginning) logReader.StartAtBeginning();
+        else logReader.Start();
+        sourceQuery.StartQueryThread();
+        return server;
     }
+
+    private static bool IsValidPort(int port) => port is >= IPEndPoint.MinPort and <= IPEndPoint.MaxPort;
 
     public Task<IConanProcess> BuildClient()
     {

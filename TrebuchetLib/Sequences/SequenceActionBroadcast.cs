@@ -51,12 +51,19 @@ internal sealed class SequenceActionRestartCountdown(IReadOnlyList<RestartWarnin
         await WaitUntil(args, start + total);
     }
 
-    /// <returns>false when the countdown can end early because the server is empty.</returns>
+    /// <returns>false when the countdown can end early because the server is empty or no longer runs.</returns>
     private async Task<bool> WaitUntil(SequenceArgs args, DateTime utc)
     {
         while (true)
         {
             args.CancellationToken.ThrowIfCancellationRequested();
+            // A server that crashed is neither cleaned up nor restarted while a sequence of it runs: a timed stop or
+            // restart (up to a day) kept it down until its end. The countdown ends, the crash restart follows.
+            if (!SequenceActionWaitOffline.IsServerRunning(args))
+            {
+                args.Logger.LogInformation("Server {Instance} no longer runs, its countdown ends", args.Instance);
+                return false;
+            }
             if (earlyWhenEmpty && IsServerEmpty(args))
             {
                 args.Logger.LogInformation("No players are connected, initiating early restart of instance {Instance}", args.Instance);
