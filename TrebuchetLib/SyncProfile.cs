@@ -13,8 +13,20 @@ namespace TrebuchetLib
     
     public sealed class SyncProfile : ProfileFile<SyncProfile>
     {
+        private List<string> _modlist = [];
+        private List<ClientConnection> _clientConnections = [];
+
         public string SyncURL { get; set; } = string.Empty;
-        public List<string> Modlist { get; set; } = [];
-        public List<ClientConnection> ClientConnections { get; set; } = [];
+        // A profile imported from a remote JSON may say null: that means empty, it must not crash later.
+        public List<string> Modlist
+        {
+            get => _modlist;
+            set => _modlist = value ?? [];
+        }
+        public List<ClientConnection> ClientConnections
+        {
+            get => _clientConnections;
+            set => _clientConnections = value ?? [];
+        }
     }
 }

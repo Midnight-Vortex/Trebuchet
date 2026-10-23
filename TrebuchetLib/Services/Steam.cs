@@ -120,6 +120,11 @@ public class Steam : IDebugListener, IDisposable
             {
                 _logger.LogWarning(ex, @"Could not download mod infos");
             }
+            catch (System.Text.Json.JsonException ex)
+            {
+                // A 200 answer that is no JSON (a proxy or maintenance page): like any other failed lookup.
+                _logger.LogWarning(ex, @"Mod infos from Steam could not be read");
+            }
         }
 
         await EnrichEmptyTagsFromSteamKit(results);

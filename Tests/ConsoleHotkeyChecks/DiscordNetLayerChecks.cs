@@ -20,9 +20,10 @@ static class DiscordNetLayerChecks
     private const ulong Channel = 400000000000000011UL;
     private const ulong OtherChannel = 400000000000000012UL;
     // Made up. Put together at run time so secret scanners do not take the source for a real token.
-    private static readonly string SampleToken = string.Join(".", "OTg3NjU0MzIxMDk4NzY1NDMy", "HxyzAB", "zyxwvutsrqponmlkjihgfedcba9876543210ZYXW");
+    // A different token in every run: the lock of a token is a machine wide name (parallel runs must not meet).
+    private static readonly string SampleToken = string.Join(".", "OTg3NjU0MzIxMDk4NzY1NDMy", "HxyzAB", "zyxwvutsrqponmlkjihgfedcba9876543210ZYXW" + Guid.NewGuid().ToString("N")[..8]);
     // Never registered with the redactor: only its form gives it away.
-    private static readonly string UnseenToken = string.Join(".", "NTU1NTU1NTU1NTU1NTU1NTU1", "QrStUv", "0123456789abcdefghijklmnopqrstuvwxyzABCD");
+    private static readonly string UnseenToken = string.Join(".", "NTU1NTU1NTU1NTU1NTU1NTU1", "QrStUv", "0123456789abcdefghijklmnopqrstuvwxyzABCD" + Guid.NewGuid().ToString("N")[..8]);
 
     #region Fakes
 

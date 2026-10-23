@@ -15,7 +15,8 @@ using TrebuchetLib.Services;
 static class BotHostChecks
 {
     // Made up. Put together at run time so secret scanners do not take the source for a real token.
-    private static readonly string SampleToken = string.Join(".", "MTIzNDU2Nzg5MDEyMzQ1Njc4", "GabcDE", "abcdefghijklmnopqrstuvwxyz0123456789ABCD");
+    // A different token in every run: the lock of a token is a machine wide name (parallel runs must not meet).
+    private static readonly string SampleToken = string.Join(".", "MTIzNDU2Nzg5MDEyMzQ1Njc4", "GabcDE", "abcdefghijklmnopqrstuvwxyz0123456789ABCD" + Guid.NewGuid().ToString("N")[..8]);
 
     private static readonly BotHostTimings Fast = new()
     {

@@ -17,7 +17,8 @@ using TrebuchetLib.DiscordBot;
 public static class DiscordBotPanelChecks
 {
     // Made up, put together at run time so secret scanners do not take the source for a real token.
-    private static readonly string SampleToken = string.Join(".", "MTIzNDU2Nzg5MDEyMzQ1Njc4", "GabcDE", "abcdefghijklmnopqrstuvwxyz0123456789ABCD");
+    // A different token in every run: the lock of a token is a machine wide name (parallel runs must not meet).
+    private static readonly string SampleToken = string.Join(".", "MTIzNDU2Nzg5MDEyMzQ1Njc4", "GabcDE", "abcdefghijklmnopqrstuvwxyz0123456789ABCD" + Guid.NewGuid().ToString("N")[..8]);
     private const ulong Guild = 100000000000000001;
     private const ulong Admin = 200000000000000001;
     private const ulong User = 200000000000000002;

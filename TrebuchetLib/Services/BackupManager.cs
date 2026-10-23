@@ -133,7 +133,16 @@ public class BackupManager(AppSetup setup, AppFiles appFiles)
             .Skip(keep)
             .ToList();
         foreach (var day in days)
-            day.Delete(true);
+        {
+            try
+            {
+                day.Delete(true);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // A folder in use stays until the next backup: trimming is best effort and never fails the backup.
+            }
+        }
     }
 
     private async Task PerformServerBackup(string directory, string filePrefix)
@@ -160,13 +169,29 @@ public class BackupManager(AppSetup setup, AppFiles appFiles)
 
     private void DeleteOldBackup(string prefix, TimeSpan maxAge)
     {
-        var directory = GetBackupDirectory();
-        var files = new DirectoryInfo(directory).GetFiles($"{prefix}.*.zip");
-        var maxDate = DateTime.UtcNow - maxAge;
-        foreach (var file in files)
+        // The new backup exists already: a locked or missing old one must not turn it into a failed backup (and cancel
+        // a sequence that stops on failure).
+        try
         {
-            if(file.LastWriteTimeUtc <= maxDate)
-                file.Delete();
+            var directory = GetBackupDirectory();
+            var files = new DirectoryInfo(directory).GetFiles($"{prefix}.*.zip");
+            var maxDate = DateTime.UtcNow - maxAge;
+            foreach (var file in files)
+            {
+                try
+                {
+                    if (file.LastWriteTimeUtc <= maxDate)
+                        file.Delete();
+                }
+                catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+                {
+                    // Tried again with the next backup.
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // Same: old backups are cleaned up best effort.
         }
     }
 
