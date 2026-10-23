@@ -62,7 +62,8 @@ namespace Trebuchet.ViewModels
             if (_textEditor is not { Document: not null } || text == null) return;
             var caretOffset = _textEditor.CaretOffset;
             _textEditor.Document.Text = text;
-            _textEditor.CaretOffset = caretOffset;
+            // A shorter text (other ini tab, empty fallback, reloaded file) threw for a caret behind its end.
+            _textEditor.CaretOffset = Math.Min(caretOffset, _textEditor.Document.TextLength);
         }
         
         private void OnAllowScrollBellowDocumentChanged(bool allowScrollBellowDocument)

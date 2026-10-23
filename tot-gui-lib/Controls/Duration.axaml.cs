@@ -137,26 +137,34 @@ public partial class Duration : UserControl
 
     private void ApplyText()
     {
-        if (!double.TryParse(_durationField.Text, out var value)) return;
         if (_unitSelection.SelectedIndex >= _availableUnits.Length || _unitSelection.SelectedIndex < 0) return;
-        
         var unit = _availableUnits[_unitSelection.SelectedIndex];
+        if (TryParseDuration(_durationField.Text, unit, out var duration))
+            DurationValue = duration;
+    }
 
-        switch (unit)
+    /// <summary>
+    /// Text typed into the field as a duration. A number too large for a TimeSpan (e.g. 99999999 days) or NaN threw
+    /// from the focus/key handler and crashed Trebuchet: both are ignored now, like any other invalid text.
+    /// </summary>
+    internal static bool TryParseDuration(string? text, TimeUnit unit, out TimeSpan duration)
+    {
+        duration = TimeSpan.Zero;
+        if (!double.TryParse(text, out var value) || !double.IsFinite(value)) return false;
+        try
         {
-            case TimeUnit.Day:
-                DurationValue = TimeSpan.FromDays(value);
-                break;
-            case TimeUnit.Hour:
-                DurationValue = TimeSpan.FromHours(value);
-                break;
-            case TimeUnit.Minute:
-                DurationValue = TimeSpan.FromMinutes(value);
-                break;
-            case TimeUnit.Second:
-            default:
-                DurationValue = TimeSpan.FromSeconds(value);
-                break;
+            duration = unit switch
+            {
+                TimeUnit.Day => TimeSpan.FromDays(value),
+                TimeUnit.Hour => TimeSpan.FromHours(value),
+                TimeUnit.Minute => TimeSpan.FromMinutes(value),
+                _ => TimeSpan.FromSeconds(value)
+            };
+            return true;
+        }
+        catch (OverflowException)
+        {
+            return false;
         }
     }
 }

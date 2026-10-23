@@ -147,31 +147,41 @@ public static class CrashHandler
         if (_semaphore is null)
             _semaphore = new SemaphoreSlim(1, 1);
         await _semaphore.WaitAsync();
-        var handler = new CrashHandlerViewModel(ex, logs);
-        var window = new CrashHandlerWindow();
-        window.DataContext = handler;
-        if (Application.Current is not null &&
-            Application.Current.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        IClassicDesktopStyleApplicationLifetime? desktop;
+        // Released whatever happens: a crash window that failed to open blocked every later crash report for good.
+        try
         {
-            if (desktop.MainWindow is not null)
+            desktop = Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime;
+            if (desktop is not null)
             {
-                window.WindowStartupLocation = WindowStartupLocation.CenterOwner;
-                await window.ShowDialog(desktop.MainWindow);
+                var handler = new CrashHandlerViewModel(ex, logs);
+                var window = new CrashHandlerWindow();
+                window.DataContext = handler;
+                // ShowDialog throws for an owner that is not shown yet (crash while the main window is built) or
+                // already closed: no crash window appeared and the process stayed alive without any window.
+                if (desktop.MainWindow is { IsVisible: true } owner)
+                {
+                    window.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+                    await window.ShowDialog(owner);
+                }
+                else
+                {
+                    desktop.MainWindow = window;
+                    window.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+                    var closed = WaitForWindow(window);
+                    window.Show();
+                    await closed;
+                }
             }
-            else
-            {
-                desktop.MainWindow = window;
-                window.WindowStartupLocation = WindowStartupLocation.CenterScreen;
-                window.Show();
-                await WaitForWindow(window);
-            }
-
+        }
+        finally
+        {
             _semaphore.Release();
-            desktop.Shutdown(1);
-            return;
         }
 
-        throw new Exception("Not supported");
+        if (desktop is null)
+            throw new Exception("Not supported");
+        desktop.Shutdown(1);
     }
 
     public static async Task<bool> SendReport(CrashHandlerPayload payload)
@@ -183,11 +193,14 @@ public static class CrashHandler
         return response.IsSuccessStatusCode;
     }
 
-    private static async Task WaitForWindow(Window window)
+    /// <summary>
+    /// Completes when the window is closed. Waiting while it was active ended the application as soon as the crash
+    /// window lost the focus, or right away when it was shown without it (e.g. started at logon).
+    /// </summary>
+    private static Task WaitForWindow(Window window)
     {
-        while (window.IsActive)
-        {
-            await Task.Delay(25);
-        }
+        var closed = new TaskCompletionSource();
+        window.Closed += (_, _) => closed.TrySetResult();
+        return closed.Task;
     }
 }
