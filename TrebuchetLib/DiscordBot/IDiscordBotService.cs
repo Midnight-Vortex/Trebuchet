@@ -12,7 +12,9 @@ public enum DiscordBotProblem
     LoginFailed,
     GuildNotFound,
     ConnectionLost,
-    Unknown
+    Unknown,
+    /// <summary>Connected, but the slash commands could not be registered (e.g. the invite lacks <c>applications.commands</c>).</summary>
+    CommandsNotRegistered
 }
 
 public enum BotCheckKind { Token, Settings, Guild, Roles, EveryoneRole, OtherGuilds, AdministratorPermission, Channel, Connection }

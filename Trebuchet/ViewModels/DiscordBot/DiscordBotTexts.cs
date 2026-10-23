@@ -28,6 +28,7 @@ public static class DiscordBotTexts
         DiscordBotProblem.LoginFailed => Resources.DiscordBotProblemLoginFailed,
         DiscordBotProblem.GuildNotFound => Resources.DiscordBotProblemGuildNotFound,
         DiscordBotProblem.ConnectionLost => Resources.DiscordBotProblemConnectionLost,
+        DiscordBotProblem.CommandsNotRegistered => Resources.DiscordBotProblemCommandsNotRegistered,
         _ => Resources.DiscordBotProblemUnknown
     };
 

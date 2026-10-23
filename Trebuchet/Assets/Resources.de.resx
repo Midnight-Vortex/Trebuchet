@@ -2002,6 +2002,9 @@ unten in den Server-Speicherständen und gelten für jedes Profil.
     <data name="DiscordBotProblemConnectionLost" xml:space="preserve">
         <value>Die Verbindung zu Discord ist abgebrochen. Der Bot verbindet sich von selbst neu.</value>
     </data>
+    <data name="DiscordBotProblemCommandsNotRegistered" xml:space="preserve">
+        <value>Verbunden, aber die Slash-Befehle konnten nicht angelegt werden. Lade den Bot noch einmal mit dem Bereich applications.commands ein. Der Bot versucht es weiter.</value>
+    </data>
     <data name="DiscordBotProblemUnknown" xml:space="preserve">
         <value>Unerwarteter Fehler, Details stehen im Log von Trebuchet.</value>
     </data>

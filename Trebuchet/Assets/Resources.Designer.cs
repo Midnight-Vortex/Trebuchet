@@ -5755,6 +5755,15 @@ namespace Trebuchet.Assets {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Connected, but the slash commands could not be registered. Invite the bot again with the scope applications.commands. The bot keeps trying..
+        /// </summary>
+        public static string DiscordBotProblemCommandsNotRegistered {
+            get {
+                return ResourceManager.GetString("DiscordBotProblemCommandsNotRegistered", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Unexpected error, see the log of Trebuchet..
         /// </summary>
         public static string DiscordBotProblemUnknown {

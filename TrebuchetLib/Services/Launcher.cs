@@ -60,6 +60,9 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     private readonly ILogger<Launcher> _logger;
     private string _lastRestartReason = string.Empty;
     private DateTime _lastExternalIpCheck = DateTime.MinValue;
+    private static readonly TimeSpan InstalledCountMaxAge = TimeSpan.FromSeconds(5);
+    private int _installedCount;
+    private DateTime _installedCountAtUtc;
     private readonly HashSet<int> _countdownInstances = [];
     // Reason of the restart a running countdown leads to (stop countdowns are not in it).
     private readonly Dictionary<int, string> _restartCountdownReasons = [];
@@ -753,14 +756,23 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     {
         var count = Math.Max(0, _setup.Config.ServerInstanceCount);
         int installed;
-        try
+        // Remote control asks every few seconds: once every instance is installed the folders are only listed again after a
+        // short while. While one is missing the answer is not kept, a fresh install shows at once.
+        if (_installedCount >= count && DateTime.UtcNow - _installedCountAtUtc < InstalledCountMaxAge)
+            installed = _installedCount;
+        else
         {
-            installed = _steam.GetInstalledInstances();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogDebug(ex, "Could not count the installed server instances");
-            installed = 0;
+            try
+            {
+                installed = _steam.GetInstalledInstances();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Could not count the installed server instances");
+                installed = 0;
+            }
+            _installedCount = installed;
+            _installedCountAtUtc = DateTime.UtcNow;
         }
         var statuses = new List<LauncherServerStatus>(count);
         for (var instance = 0; instance < count; instance++)

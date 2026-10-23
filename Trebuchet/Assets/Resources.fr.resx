@@ -1392,6 +1392,9 @@ Losques des séquences sont utilisé, cela n'inclus que la mise en ligne et la d
     <data name="DiscordBotProblemConnectionLost" xml:space="preserve">
         <value>La connexion à Discord a été perdue. Le bot se reconnecte tout seul.</value>
     </data>
+    <data name="DiscordBotProblemCommandsNotRegistered" xml:space="preserve">
+        <value>Connecté, mais les commandes slash n’ont pas pu être enregistrées. Invitez à nouveau le bot avec la portée applications.commands. Le bot réessaie.</value>
+    </data>
     <data name="DiscordBotProblemUnknown" xml:space="preserve">
         <value>Erreur inattendue, voir le journal de Trebuchet.</value>
     </data>

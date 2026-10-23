@@ -16,6 +16,8 @@ internal enum BotConnectionEvent
     GatewayDisconnected,
     /// <summary>Ready, and the configured server is there.</summary>
     ReadyVerified,
+    /// <summary>Ready and the server is there, but the slash commands could not be registered.</summary>
+    ReadyVerifiedCommandsFailed,
     /// <summary>The configured server is not there, or the bot was removed from it.</summary>
     GuildMissing,
     /// <summary>No ready within the connect deadline (Discord.Net keeps trying).</summary>
@@ -36,6 +38,8 @@ internal static class BotConnectionStateMachine
         BotConnectionEvent e, bool guildVerified, bool settingsValid)
     {
         var healthy = settingsValid ? DiscordBotProblem.None : DiscordBotProblem.InvalidSettings;
+        // News that say nothing about the commands keep a pending "commands not registered".
+        var keep = settingsValid && problem == DiscordBotProblem.CommandsNotRegistered ? problem : healthy;
         // Gateway news only count while the bot is meant to run and connecting or connected.
         var live = state is DiscordBotState.Starting or DiscordBotState.Connected
                    || state == DiscordBotState.Error && problem == DiscordBotProblem.ConnectionLost;
@@ -52,12 +56,13 @@ internal static class BotConnectionStateMachine
             BotConnectionEvent.Stopping => (DiscordBotState.Stopping, DiscordBotProblem.None),
             BotConnectionEvent.Stopped => (DiscordBotState.Stopped, DiscordBotProblem.None),
             BotConnectionEvent.ReadyVerified when live => (DiscordBotState.Connected, healthy),
+            BotConnectionEvent.ReadyVerifiedCommandsFailed when live => (DiscordBotState.Connected, settingsValid ? DiscordBotProblem.CommandsNotRegistered : healthy),
             // Back after a resume: only connected when this connection had seen the server.
-            BotConnectionEvent.GatewayConnected when live && guildVerified => (DiscordBotState.Connected, healthy),
+            BotConnectionEvent.GatewayConnected when live && guildVerified => (DiscordBotState.Connected, keep),
             // While starting a lost connection is retried, the deadline decides.
             BotConnectionEvent.GatewayDisconnected when state == DiscordBotState.Connected => (DiscordBotState.Error, DiscordBotProblem.ConnectionLost),
             BotConnectionEvent.ConnectDeadline when state == DiscordBotState.Starting => (DiscordBotState.Error, DiscordBotProblem.ConnectionLost),
-            BotConnectionEvent.SettingsApplied when state == DiscordBotState.Connected => (DiscordBotState.Connected, healthy),
+            BotConnectionEvent.SettingsApplied when state == DiscordBotState.Connected => (DiscordBotState.Connected, keep),
             _ => (state, problem)
         };
     }

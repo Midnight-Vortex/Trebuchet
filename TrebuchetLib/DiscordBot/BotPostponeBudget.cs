@@ -19,8 +19,31 @@ public sealed class BotPostponeBudget
         public DateTime LastUntilUtc;
     }
 
+    /// <summary>The state of one server's chain before a reservation, to take it back when the action did not happen.</summary>
+    public readonly record struct Snapshot(bool Existed, DateTime AnchorUtc, DateTime? ServerStartedUtc, DateTime LastUntilUtc);
+
     private readonly object _lock = new();
     private readonly Dictionary<int, Chain> _chains = [];
+
+    public Snapshot Save(int instance)
+    {
+        lock (_lock)
+            return _chains.TryGetValue(instance, out var chain)
+                ? new Snapshot(true, chain.AnchorUtc, chain.ServerStartedUtc, chain.LastUntilUtc)
+                : default;
+    }
+
+    /// <summary>Takes a reservation back: an action that was refused (busy, not running) used none of the budget.</summary>
+    public void Restore(int instance, Snapshot snapshot)
+    {
+        lock (_lock)
+        {
+            if (!snapshot.Existed)
+                _chains.Remove(instance);
+            else
+                _chains[instance] = new Chain { AnchorUtc = snapshot.AnchorUtc, ServerStartedUtc = snapshot.ServerStartedUtc, LastUntilUtc = snapshot.LastUntilUtc };
+        }
+    }
 
     /// <returns>The minutes that may be postponed now: the requested ones, less when the chain reaches its limit, 0 when it is used up.</returns>
     public int Reserve(int instance, DateTime? serverStartedUtc, int requestedMinutes, TimeSpan maxPause, DateTime utcNow)

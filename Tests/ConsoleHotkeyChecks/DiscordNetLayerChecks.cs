@@ -473,6 +473,17 @@ static class DiscordNetLayerChecks
         (DiscordBotState, DiscordBotProblem) Next(DiscordBotState s, DiscordBotProblem p, BotConnectionEvent e, bool verified = true, bool valid = true)
             => BotConnectionStateMachine.Next(s, p, e, verified, valid);
         const DiscordBotProblem none = DiscordBotProblem.None;
+        // Commands that could not be registered: connected, but the panel is told. Nothing else wipes it, a good ready does.
+        var noCommands = DiscordBotProblem.CommandsNotRegistered;
+        Check(Next(DiscordBotState.Starting, none, BotConnectionEvent.ReadyVerifiedCommandsFailed) == (DiscordBotState.Connected, noCommands)
+              && Next(DiscordBotState.Starting, none, BotConnectionEvent.ReadyVerifiedCommandsFailed, valid: false) == (DiscordBotState.Connected, DiscordBotProblem.InvalidSettings),
+            "A ready without commands is connected with a problem (invalid settings come first)");
+        Check(Next(DiscordBotState.Connected, noCommands, BotConnectionEvent.SettingsApplied) == (DiscordBotState.Connected, noCommands)
+              && Next(DiscordBotState.Connected, noCommands, BotConnectionEvent.GatewayConnected) == (DiscordBotState.Connected, noCommands),
+            "Applying settings or a resume keeps the commands problem");
+        Check(Next(DiscordBotState.Connected, noCommands, BotConnectionEvent.ReadyVerified) == (DiscordBotState.Connected, none)
+              && Next(DiscordBotState.Connected, noCommands, BotConnectionEvent.SettingsApplied, valid: false) == (DiscordBotState.Connected, DiscordBotProblem.InvalidSettings),
+            "Registered commands (or invalid settings) replace the commands problem");
         Check(Next(DiscordBotState.Stopped, none, BotConnectionEvent.Starting) == (DiscordBotState.Starting, none)
               && Next(DiscordBotState.Error, DiscordBotProblem.NoToken, BotConnectionEvent.Starting) == (DiscordBotState.Starting, none), "Starting clears the problem");
         foreach (var (e, problem) in new[]
@@ -521,7 +532,7 @@ static class DiscordNetLayerChecks
             // An error without a problem never happens, so it is no start for a transition.
             if (state == DiscordBotState.Error && problem == none) continue;
             var (nextState, nextProblem) = Next(state, problem, e, verified: false);
-            if (e != BotConnectionEvent.ReadyVerified && e != BotConnectionEvent.SettingsApplied)
+            if (e != BotConnectionEvent.ReadyVerified && e != BotConnectionEvent.ReadyVerifiedCommandsFailed && e != BotConnectionEvent.SettingsApplied)
                 Check(nextState != DiscordBotState.Connected || state == DiscordBotState.Connected, $"Only a verified server connects ({state} {problem} {e})");
             Check(nextState != DiscordBotState.Error || nextProblem != none, $"An error always has a problem ({state} {problem} {e})");
         }

@@ -455,6 +455,11 @@ static class DiscordBotChecks
         Check(BotStatusMessageBuilder.Build(online with { Pending = BotPendingAction.Restart }, policy, BotTexts.English, t0).Buttons[0].Label == "Postpone restart",
             "The texts follow the language");
 
+        // A restart that is pending but put off by a pause shows as postponed (blue), with both buttons.
+        var putOff = BotStatusMessageBuilder.Build(online with { Pending = BotPendingAction.Restart, PausedUntilUtc = t0.AddHours(1) }, policy, BotTexts.German, t0);
+        Check(putOff.Color == BotStatusMessageBuilder.Blue && putOff.Buttons.Select(b => b.Command).SequenceEqual([BotCommand.Postpone, BotCommand.Resume]),
+            "A pending restart that is postponed is blue, it can be postponed further or released");
+
         var postponeOff = ValidConfig();
         postponeOff.SetEnabled(BotCommand.Postpone, false);
         Check(BotStatusMessageBuilder.Build(online with { Pending = BotPendingAction.Restart }, PolicyOf(postponeOff), BotTexts.German, t0).Buttons.Count == 0,

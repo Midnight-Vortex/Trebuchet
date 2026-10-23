@@ -2010,6 +2010,9 @@ of Server Saves and apply to every profile.
     <data name="DiscordBotProblemConnectionLost" xml:space="preserve">
         <value>The connection to Discord was lost. The bot reconnects by itself.</value>
     </data>
+    <data name="DiscordBotProblemCommandsNotRegistered" xml:space="preserve">
+        <value>Connected, but the slash commands could not be registered. Invite the bot again with the scope applications.commands. The bot keeps trying.</value>
+    </data>
     <data name="DiscordBotProblemUnknown" xml:space="preserve">
         <value>Unexpected error, see the log of Trebuchet.</value>
     </data>

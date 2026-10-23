@@ -82,8 +82,9 @@ public static class BotStatusMessageBuilder
             case BotServerState.Stopping:
                 return Yellow;
             default:
-                if (status.Pending != BotPendingAction.None) return Yellow;
-                return status.PausedUntilUtc is { } paused && paused > utcNow ? Blue : Green;
+                // Postponed wins over pending: the launcher still reports the restart as pending while it is put off.
+                if (status.PausedUntilUtc is { } paused && paused > utcNow) return Blue;
+                return status.Pending != BotPendingAction.None ? Yellow : Green;
         }
     }
 

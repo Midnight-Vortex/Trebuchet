@@ -121,3 +121,7 @@ boulder bot --enhanced
   `3` kein Token, `4` der Token wird schon von einem anderen Trebuchet benutzt, `5` Discord lehnt den Token ab oder
   der Bot ist nicht auf dem Server.
 - Das Protokoll steht wie beim Fenster im Logordner (`boulder.log` und `discord-bot-audit-<Jahr><Monat>.log`).
+
+> Hinweis: Fenster und `boulder bot` schließen sich nur innerhalb **einer** Windows-Sitzung gegenseitig aus. Starte nicht
+> beides in verschiedenen Sitzungen (z. B. Fenster per Remotedesktop und `boulder bot` als geplante Aufgabe), sonst
+> betreiben zwei Launcher dieselben Server. Der Bot selbst läuft pro Token nur einmal.

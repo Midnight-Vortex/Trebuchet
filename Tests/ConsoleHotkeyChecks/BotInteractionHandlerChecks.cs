@@ -420,6 +420,14 @@ static class BotInteractionHandlerChecks
             Check((await rig.Do(rig.Slash("restart postpone", numbers: Rig.N(0, 360)))).Last.Text == "Verschoben um 6 Std.", "After the restart a new chain starts");
             Check((await rig.Do(rig.Slash("restart postpone", numbers: Rig.N(1, 360)))).Last.Text == "Verschoben um 6 Std.", "Every server has its own budget");
 
+            // A postponement the launcher refused (busy) used none of the budget.
+            rig = new Rig(folder, Config());
+            rig.Actions.Result = new BotActionResult(BotActionOutcome.Busy);
+            Check((await rig.Do(rig.Slash("restart postpone", numbers: Rig.N(0, 360)))).Last.Text == BotMessages.German.Busy, "A busy launcher refuses the postponement");
+            rig.Actions.Result = new BotActionResult(BotActionOutcome.Done);
+            Check((await rig.Do(rig.Slash("restart postpone", numbers: Rig.N(0, 360)))).Last.Text == "Verschoben um 6 Std.",
+                "A refused postponement does not use up the budget");
+
             rig = new Rig(folder, Config());
             await rig.Do(rig.Slash("restart postpone", numbers: Rig.N(0, 60)));
             Check((await rig.Do(rig.Slash("restart postpone", numbers: Rig.N(0, 360)), advanceSeconds: 91 * 60)).Last.Text == "Verschoben um 6 Std.",

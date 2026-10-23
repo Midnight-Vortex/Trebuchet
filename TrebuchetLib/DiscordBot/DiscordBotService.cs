@@ -18,6 +18,7 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
 {
     internal static readonly TimeSpan ConnectDeadline = TimeSpan.FromSeconds(60);
     internal static readonly TimeSpan RefreshInterval = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan CommandRetryInterval = TimeSpan.FromMinutes(1);
     private static readonly TimeSpan LoginTimeout = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan ShutdownTimeout = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan RoleFetchTimeout = TimeSpan.FromSeconds(5);
@@ -445,6 +446,25 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
         }
     }
 
+    /// <summary>Registers the slash commands for the server. A failure is logged and shown as a problem, never thrown.</summary>
+    private async Task<bool> TryRegisterCommandsAsync(Session session)
+    {
+        session.LastCommandAttemptUtc = DateTime.UtcNow;
+        try
+        {
+            var guild = session.Client.GetGuild(session.GuildId);
+            if (guild is null) return false;
+            await DiscordNetCommandRegistrar.RegisterAsync(session.Client, guild, BotInteractionHandler.SlashCommands, _logger).ConfigureAwait(false);
+            session.CommandsRegistered = true;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError("Discord bot: the slash commands could not be registered: {Error}", DiscordNetLog.Describe(ex));
+            return false;
+        }
+    }
+
     private async Task OnReadyAsync(Session session)
     {
         try
@@ -463,18 +483,7 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
                 await LeaveGuildAsync(session, id, client.GetGuild(id)?.Name).ConfigureAwait(false);
 
             var guild = client.GetGuild(session.GuildId);
-            if (!session.CommandsRegistered)
-            {
-                try
-                {
-                    await DiscordNetCommandRegistrar.RegisterAsync(client, guild, BotInteractionHandler.SlashCommands, _logger).ConfigureAwait(false);
-                    session.CommandsRegistered = true;
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError("Discord bot: the slash commands could not be registered: {Error}", DiscordNetLog.Describe(ex));
-                }
-            }
+            var commandsOk = session.CommandsRegistered || await TryRegisterCommandsAsync(session).ConfigureAwait(false);
 
             session.Verified = true;
             lock (_stateLock)
@@ -486,7 +495,7 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
                     _latencyMs = client.Latency;
                 }
             }
-            Apply(session, BotConnectionEvent.ReadyVerified);
+            Apply(session, commandsOk ? BotConnectionEvent.ReadyVerified : BotConnectionEvent.ReadyVerifiedCommandsFailed);
             session.Ready.TrySetResult(ReadyOutcome.Verified);
             _logger.LogInformation("Discord bot: connected to server {Guild}", session.GuildId);
             Interlocked.Exchange(ref session.ForceRefresh, 1);
@@ -627,6 +636,11 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
         {
             try
             {
+                // The commands could not be registered at ready (e.g. a missing invite scope): try again every minute.
+                if (session.Verified && !session.CommandsRegistered && State == DiscordBotState.Connected
+                    && DateTime.UtcNow - session.LastCommandAttemptUtc > CommandRetryInterval
+                    && await TryRegisterCommandsAsync(session).ConfigureAwait(false))
+                    Apply(session, BotConnectionEvent.ReadyVerified);
                 if (session.Verified && State == DiscordBotState.Connected && _board is { } board)
                 {
                     var force = Interlocked.Exchange(ref session.ForceRefresh, 0) == 1;
@@ -942,6 +956,7 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
         public Task? Loop { get; set; }
         public volatile bool Verified;
         public volatile bool CommandsRegistered;
+        public DateTime LastCommandAttemptUtc;
         public int ForceRefresh = 1;
     }
 }

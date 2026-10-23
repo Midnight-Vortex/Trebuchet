@@ -381,6 +381,11 @@ Rückfragen zählen nicht als Ablehnung, Notizen enthalten keine freien Namen, d
   im Panel speichern.
 - Verschiebt man einen Server mitten in einer gemeinsamen Update-Runde, können die anderen zweimal neu starten.
 - Buttons von Befehlen, die ein Nutzer nicht darf, zählen beim Klick als Ablehnung für dessen Sperre.
+- Jede Interaktion wird zuerst bestätigt und dann geprüft. Ein Unberechtigter, der viele Befehle schickt, kostet den Bot
+  also je zwei Anfragen an Discord, und ab 32 gleichzeitigen Interaktionen werden weitere ohne Antwort verworfen.
+- Fenster und `boulder bot` schließen sich über denselben Namen aus, aber nur innerhalb einer Windows-Sitzung. Läuft das
+  Fenster in einer anderen Sitzung (z. B. Remotedesktop) als `boulder bot`, würden beide den Launcher betreiben. Der Bot
+  selbst läuft trotzdem nur einmal (Sperre pro Token).
 
 **Ohne Fenster (`boulder bot`)**: ersetzt das Fenster für diese Installation und startet nicht, solange das Fenster läuft.
 Nicht übernommen: „System wach halten“, der Selbst-Neustart nach hängenden Ticks, das Schließen des Konsolenfensters beendet

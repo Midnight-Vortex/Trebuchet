@@ -452,8 +452,10 @@ public sealed class BotInteractionHandler
     {
         var text = string.IsNullOrWhiteSpace(reason) ? "Discord" : "Discord: " + reason;
         var requestedMinutes = minutes;
+        BotPostponeBudget.Snapshot budgetBefore = default;
         if (command == BotCommand.Postpone)
         {
+            budgetBefore = _budget.Save(instance);
             // Postponing can not go on for ever: a chain of postponements ends at the longest one of the settings.
             var granted = await ReservePostponeAsync(instance, minutes, policy, token).ConfigureAwait(false);
             if (granted == 0)
@@ -503,6 +505,8 @@ public sealed class BotInteractionHandler
             result = new BotActionResult(BotActionOutcome.Failed, "exception");
         }
 
+        // Refused (busy, not running, failed): nothing was postponed, so none of the budget is used.
+        if (command == BotCommand.Postpone && !result.Success) _budget.Restore(instance, budgetBefore);
         Audit(i, result.Success ? BotAuditResult.Executed : BotAuditResult.Failed, ask, $"{result.Outcome} {result.Detail}".Trim());
         if (result.Success && BotCommands.IsLimited(command))
         {
