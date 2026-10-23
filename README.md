@@ -2,6 +2,11 @@
 
 After installing, launch Trebuchet from the Start menu or desktop shortcut. The installer deliberately does not launch it: on affected Windows versions, a process started by Setup can inherit RedirectionGuard and fail to traverse Trebuchet's Saved/profile junctions. Conan then reports that it cannot ensure `Saved/ExtractedMods` exists, even when the directory is present. If this happens after an older setup, fully close Trebuchet and relaunch it from the Start menu; reinstalling mods is not required for this directory-access error.
 
+## 0.9.23 server names and audit channel
+
+- **The name of a server is the "Server name" of its server save** (first field of the server saves), no longer a name set in the Discord Bot panel. The bot (status message, answers, questions), the Trebuchet log ("Stopping server 0 (Main server)", restarts, postponements, crashes) and the audit channel use it. While the save keeps the default name, the name of the save is shown; the log then shows the number only. The name field in the bot settings is gone, old settings files still load.
+- **The audit channel now gets everything the bot does**: every request with server, user and result (also refused, slowed down and locked out ones), every state change of a server ("Server Main (instance 0): Online -> Stopping") and the bot's own notes (connected, problem). One line each, with a pause between lines; the exact reason of a refusal stays in the log file. Use a channel of its own: in the admin channel the lines would push the status messages away.
+
 ## 0.9.22 stop fix
 
 - **Stopping or restarting a server (from Discord, with a countdown or at once) ended Trebuchet itself**, without a log line or a crash report, while the server kept running. Cause: for Ctrl+C, Trebuchet attached to the console of the server, and the event reached Trebuchet too. Now a short-lived helper process (Trebuchet itself, started with `--send-ctrl-c <pid>`) sends it: Trebuchet never attaches to a console. A server that does not react to Ctrl+C gets 45 seconds, then the RCon `shutdown` follows (before: 3 minutes). The log says before each step what is sent.
