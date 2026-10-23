@@ -131,6 +131,7 @@ finally
 checks += JsonFileChecks.Run();
 checks += DiscordBotChecks.Run();
 checks += await BotInteractionHandlerChecks.Run();
+checks += await LauncherBotActionsChecks.Run();
 checks += await DirectoryCopyChecks.Run();
 checks += await ServerStopChecks.Run();
 checks += await ServerStabilityChecks.Run();
