@@ -20,6 +20,8 @@ public enum BotCommand
     Start,
     /// <summary>Check for updates and install them.</summary>
     Update,
+    /// <summary>Ask Steam whether mods or the server need an update. Installs nothing.</summary>
+    CheckUpdates,
     /// <summary>Make the channel of the command the only channel the bot listens to.</summary>
     SetChannel
 }
@@ -31,19 +33,22 @@ public enum BotLevel
     Read = 0,
     /// <summary>Every authorized user.</summary>
     Manage = 1,
-    /// <summary>Every authorized user, only when the command is switched on, with a confirmation.</summary>
+    /// <summary>Every authorized user whose command is switched on (the super admin always), with a confirmation.</summary>
     Critical = 2,
-    /// <summary>Only the super admin, with a confirmation.</summary>
+    /// <summary>Only the super admin, always, with a confirmation.</summary>
     SuperAdmin = 3
 }
 
 public static class BotCommands
 {
-    /// <summary>The level of a command is fixed in code. The settings can only switch a command on or off.</summary>
+    /// <summary>
+    /// The level of a command is fixed in code. The settings can only switch a command on or off for the other users:
+    /// the super admin may use every command.
+    /// </summary>
     public static BotLevel LevelOf(BotCommand command) => command switch
     {
         BotCommand.Status => BotLevel.Read,
-        BotCommand.Postpone or BotCommand.Resume => BotLevel.Manage,
+        BotCommand.Postpone or BotCommand.Resume or BotCommand.CheckUpdates => BotLevel.Manage,
         BotCommand.RestartNow or BotCommand.Stop => BotLevel.Critical,
         BotCommand.Start or BotCommand.Update or BotCommand.SetChannel => BotLevel.SuperAdmin,
         _ => BotLevel.SuperAdmin
@@ -57,5 +62,5 @@ public static class BotCommands
 
     /// <summary>Commands that are on in a new settings file. Everything else is off until someone switches it on.</summary>
     public static IReadOnlyList<BotCommand> EnabledByDefault { get; } =
-        [BotCommand.Status, BotCommand.Postpone, BotCommand.Resume, BotCommand.SetChannel];
+        [BotCommand.Status, BotCommand.Postpone, BotCommand.Resume, BotCommand.CheckUpdates, BotCommand.SetChannel];
 }

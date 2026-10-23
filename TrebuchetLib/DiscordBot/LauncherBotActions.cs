@@ -8,7 +8,7 @@ namespace TrebuchetLib.DiscordBot;
 /// thread the launcher is used on. Actions that take minutes (countdowns, starts, updates) are started there and go on
 /// in the background: the answer waits only a moment for them and their later failure is logged. Never throws.
 /// </summary>
-public sealed class LauncherBotActions : IBotActions
+public sealed class LauncherBotActions : IBotActions, IDisposable
 {
     /// <summary>A scheduled restart further ahead is not shown as pending.</summary>
     public static readonly TimeSpan ScheduledRestartLookAhead = TimeSpan.FromHours(1);
@@ -33,6 +33,23 @@ public sealed class LauncherBotActions : IBotActions
         _files = files;
         _dispatcher = dispatcher;
         _logger = logger;
+        _launcher.ServerStatusChanged += OnLauncherStatusChanged;
+    }
+
+    public event EventHandler? StatusChanged;
+
+    public void Dispose() => _launcher.ServerStatusChanged -= OnLauncherStatusChanged;
+
+    private void OnLauncherStatusChanged(object? sender, EventArgs e)
+    {
+        try
+        {
+            StatusChanged?.Invoke(this, EventArgs.Empty);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Discord bot: a listener of the status change failed");
+        }
     }
 
     public int InstanceCount => Math.Max(0, _setup.Config.ServerInstanceCount);
@@ -159,6 +176,33 @@ public sealed class LauncherBotActions : IBotActions
                 true => new BotActionResult(BotActionOutcome.Done),
                 false => Fail("update failed")
             };
+        }, token);
+    }
+
+    public Task<BotActionResult> CheckUpdatesAsync(CancellationToken token)
+    {
+        return ActAsync("checkupdates", null, string.Empty, async (_, _, t) =>
+        {
+            // Unlike an update, the answer is the result: it waits for Steam (the dispatch has its own limit).
+            var check = _launcher.CheckForUpdatesNow();
+            LauncherUpdateCheck? found;
+            try
+            {
+                found = await check.WaitAsync(t);
+            }
+            catch (OperationCanceledException) when (t.IsCancellationRequested)
+            {
+                return Fail("cancelled");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Discord bot: the update check failed");
+                return Fail("the update check failed");
+            }
+            if (found is null) return new BotActionResult(BotActionOutcome.Busy, "a start, update or download runs");
+            if (!found.Succeeded) return Fail("Steam did not answer");
+            return new BotActionResult(BotActionOutcome.Done, $"mods={found.OutdatedMods} server={found.ServerUpdate}",
+                new BotUpdateInfo(found.OutdatedMods, found.ServerUpdate));
         }, token);
     }
 

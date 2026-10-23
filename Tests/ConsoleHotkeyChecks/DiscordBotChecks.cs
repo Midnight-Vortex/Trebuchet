@@ -170,6 +170,25 @@ static class DiscordBotChecks
               && BotAuthorizer.Authorize(allOnPolicy, Request(Operator, command: BotCommand.Update)).Reason == BotDenyReason.LevelTooLow,
             "Start and update stay with the super admin, even when on");
         Check(BotAuthorizer.Authorize(allOnPolicy, Request(SuperAdmin, command: BotCommand.Start)).Allowed, "The super admin may start");
+        // The super admin always has every right: the switches only limit the other users. Everything else still applies.
+        Check(Enum.GetValues<BotCommand>().All(c => BotAuthorizer.Authorize(policy, Request(SuperAdmin, command: c)).Allowed),
+            "The super admin may use every command without switching any on");
+        Check(Enum.GetValues<BotCommand>().Where(c => !policy.IsCommandEnabled(c)).All(c =>
+                  BotAuthorizer.Authorize(policy, Request(Operator, command: c)).Reason is BotDenyReason.CommandDisabled),
+            "The switches still hold back every other user");
+        Check(BotAuthorizer.Authorize(policy, Request(SuperAdmin, roles: [OtherRole], command: BotCommand.Stop)).Reason == BotDenyReason.MissingRole
+              && BotAuthorizer.Authorize(policy, Request(SuperAdmin, channel: OtherChannel, command: BotCommand.Stop) with { }).Allowed,
+            "The super admin still needs the role (the channel only restricts when one is set)");
+        Check(BotAuthorizer.Authorize(policy, Request(SuperAdmin, guild: Guild + 1, command: BotCommand.Stop)).Reason == BotDenyReason.WrongGuild
+              && BotAuthorizer.Authorize(policy, Request(SuperAdmin, human: false, command: BotCommand.Stop)).Reason == BotDenyReason.NotHuman,
+            "...and the server and the human check");
+        var channelBound = ValidConfig();
+        channelBound.SetAdminChannel(Channel);
+        Check(BotAuthorizer.Authorize(PolicyOf(channelBound), Request(SuperAdmin, channel: OtherChannel, command: BotCommand.Stop)).Reason == BotDenyReason.WrongChannel,
+            "...and the admin channel");
+        Check(BotCommands.EnabledByDefault.Contains(BotCommand.CheckUpdates) && BotCommands.LevelOf(BotCommand.CheckUpdates) == BotLevel.Manage
+              && !BotCommands.NeedsConfirmation(BotCommand.CheckUpdates) && !BotCommands.IsLimited(BotCommand.CheckUpdates),
+            "The update check is a harmless command: on by default, no confirmation");
         Check(Enum.GetValues<BotCommand>().All(c => BotCommands.NeedsConfirmation(c) == (BotCommands.LevelOf(c) >= BotLevel.Critical)), "Critical commands need a confirmation");
         Check(!BotCommands.NeedsConfirmation(BotCommand.Postpone) && !BotCommands.NeedsConfirmation(BotCommand.Status), "Postponing needs no confirmation");
 
@@ -392,8 +411,51 @@ static class DiscordBotChecks
         for (var i = 0; i < 700; i++) pending.Create(Operator, BotCommand.Stop, 0, t0);
         Check(pending.Count <= 500, "Open questions are limited");
 
+        // --- input: warning times, server names, instances
+        Check(BotInputRules.DelayChoices(BotCommand.RestartNow).SequenceEqual([0, 1, 5, 10, 15, 30, 60, 120])
+              && BotInputRules.DelayChoices(BotCommand.Stop).SequenceEqual([0, 1, 5, 10, 15, 30, 60])
+              && BotInputRules.MaxDelayMinutes(BotCommand.RestartNow) == 120 && BotInputRules.MaxDelayMinutes(BotCommand.Stop) == 60,
+            "The warning times are those of the dialog in Trebuchet: a restart up to two hours, a stop up to one");
+        Check(BotInputRules.TryParseDelayChoice("0", BotCommand.Stop, out var noDelay) && noDelay == 0
+              && BotInputRules.TryParseDelayChoice("120", BotCommand.RestartNow, out var twoHours) && twoHours == 120
+              && !BotInputRules.TryParseDelayChoice("120", BotCommand.Stop, out _) && !BotInputRules.TryParseDelayChoice("7", BotCommand.Stop, out _)
+              && !BotInputRules.TryParseDelayChoice("5", BotCommand.Postpone, out _) && !BotInputRules.TryParseDelayChoice(null, BotCommand.Stop, out _)
+              && !BotInputRules.TryParseDelayChoice("", BotCommand.Stop, out _) && !BotInputRules.TryParseDelayChoice("-1", BotCommand.Stop, out _)
+              && !BotInputRules.TryParseDelayChoice("1e1", BotCommand.Stop, out _) && !BotInputRules.TryParseDelayChoice("5 ", BotCommand.Stop, out _),
+            "Only an offered warning time of that command is accepted");
+        Check(BotInputRules.SanitizeName("  Haupt <@123> [Server] `x` |y| *z* ~w~ \\ {a} #b :c:  ") == "Haupt 123 Server x y z w a b c"
+              && BotInputRules.SanitizeName(null) == string.Empty && BotInputRules.SanitizeName("<>@") == string.Empty
+              && BotInputRules.SanitizeName(new string('n', 100)).Length == BotInputRules.MaxNameLength
+              && BotInputRules.SanitizeName("A\nB\u202EC\u200BD") == "A BCD" && BotInputRules.SanitizeName("Haupt_Server (1) - Süd") == "Haupt_Server (1) - Süd",
+            "Server names lose everything Discord would turn into a mention, link or format, and stay one short line");
+        var namedConfig = ValidConfig();
+        namedConfig.ManagedInstances = [2, -1, 100, 0, 2];
+        namedConfig.InstanceNames = new Dictionary<int, string> { [0] = " Haupt <b>", [1] = "<>", [2] = "Zwei", [200] = "weg", [-3] = "weg" };
+        var namedPolicy = PolicyOf(namedConfig);
+        Check(namedPolicy.IsManaged(0) && namedPolicy.IsManaged(2) && !namedPolicy.IsManaged(1) && !namedPolicy.IsManaged(100) && !namedPolicy.IsManaged(-1),
+            "The policy manages the chosen instances that a Discord option can name, nothing else");
+        Check(namedPolicy.ServerLabel(0) == "Haupt b" && namedPolicy.ServerLabel(1) == "1" && namedPolicy.ServerLabel(2) == "Zwei"
+              && namedPolicy.InstanceNames.Count == 2, "Names are cleaned, empty ones and those of impossible instances are dropped");
+        var shown = namedPolicy.Named(new BotServerStatus(0, "Exiled Lands", BotServerState.Online, 1, 40, null, BotPendingAction.None, null, null));
+        Check(shown.Name == "Haupt b" && namedPolicy.Named(shown with { Instance = 1, Name = "Siptah" }).Name == "Siptah", "The status shows the name instead of the save");
+        var noneChosen = ValidConfig();
+        noneChosen.ManagedInstances = [];
+        Check(PolicyOf(ValidConfig()).ManagedInstances is null && PolicyOf(ValidConfig()).IsManaged(0) && PolicyOf(ValidConfig()).IsManaged(99)
+              && !PolicyOf(noneChosen).IsManaged(0),
+            "Not chosen yet manages every server, an empty choice none");
+        var jsonPath = Path.Combine(folder, "servers.json");
+        var serversConfig = DiscordBotConfig.CreateConfig(jsonPath);
+        serversConfig.ManagedInstances = [1, 3];
+        serversConfig.InstanceNames[1] = "Zwei";
+        serversConfig.SaveFile();
+        var loadedServers = DiscordBotConfig.LoadStrict(jsonPath);
+        Check(loadedServers.ManagedInstances!.SequenceEqual([1, 3]) && loadedServers.InstanceNames[1] == "Zwei", "The chosen servers and names survive saving");
+        File.WriteAllText(jsonPath, "{ \"ManagedInstances\": null, \"InstanceNames\": null }");
+        var nullServers = DiscordBotConfig.LoadStrict(jsonPath);
+        Check(nullServers.ManagedInstances is null && nullServers.InstanceNames.Count == 0, "Nothing written (or null) in the file is not chosen yet and no names");
+
         // --- IDs of buttons
-        foreach (var command in new[] { BotCommand.Start, BotCommand.Stop, BotCommand.RestartNow, BotCommand.Postpone, BotCommand.Resume })
+        foreach (var command in new[] { BotCommand.Start, BotCommand.Stop, BotCommand.RestartNow, BotCommand.Postpone, BotCommand.Resume, BotCommand.CheckUpdates })
             foreach (var instance in new[] { 0, 3, 9 })
             {
                 var id = BotCustomId.ForAction(command, instance);
@@ -438,8 +500,12 @@ static class DiscordBotChecks
 
         // --- the status message
         var online = new BotServerStatus(1, "Exiled Lands", BotServerState.Online, 12, 40, t0.AddHours(-3), BotPendingAction.None, null, null);
-        var defaults = BotStatusMessageBuilder.Build(online, policy, BotTexts.German, t0);
-        Check(defaults.Color == BotStatusMessageBuilder.Green && defaults.Buttons.Count == 0, "A healthy server is green without buttons while the dangerous commands are off");
+        var defaults = BotStatusMessageBuilder.Build(online, BotTexts.German, t0);
+        Check(defaults.Color == BotStatusMessageBuilder.Green
+              && defaults.Buttons.Select(b => b.Command).SequenceEqual([BotCommand.RestartNow, BotCommand.Stop, BotCommand.CheckUpdates])
+              && defaults.Buttons.All(b => !b.Disabled),
+            "A healthy server is green with restart, stop and update check buttons, the command switches do not hide them");
+        Check(defaults.UpdatedUtc == t0 && defaults.Footer == "Aktualisiert", "The message carries the time of the check");
         Check(defaults.Title.Contains("Exiled Lands") && defaults.Fields.Any(f => f.Name == "Spieler" && f.Value == "12 / 40")
               && defaults.Fields.Any(f => f.Name == "Läuft" && f.Value.StartsWith("<t:")), "Name, players and run time are shown");
         var unix = new DateTimeOffset(t0.AddHours(-3)).ToUnixTimeSeconds();
@@ -450,46 +516,51 @@ static class DiscordBotChecks
                      (BotPendingAction.Restart, "Neustart verschieben"), (BotPendingAction.Stop, "Stopp verschieben"), (BotPendingAction.Update, "Update verschieben")
                  })
         {
-            var planned = BotStatusMessageBuilder.Build(online with { Pending = pendingAction, PendingAtUtc = t0.AddMinutes(10) }, policy, BotTexts.German, t0);
-            Check(planned.Buttons.Count == 1 && planned.Buttons[0].Label == label && planned.Buttons[0].Style == BotButtonStyle.Secondary
-                  && planned.Buttons[0].Command == BotCommand.Postpone && planned.Color == BotStatusMessageBuilder.Yellow
-                  && planned.Fields.Any(f => f.Name == "Geplant"), $"A pending {pendingAction} offers '{label}'");
-            Check(BotCustomId.TryParse(planned.Buttons[0].CustomId, 4, out _, out var buttonCommand, out var buttonInstance, out _)
+            var planned = BotStatusMessageBuilder.Build(online with { Pending = pendingAction, PendingAtUtc = t0.AddMinutes(10) }, BotTexts.German, t0);
+            var postponeButton = planned.Buttons.SingleOrDefault(b => b.Command == BotCommand.Postpone);
+            Check(planned.Buttons.Count == 4 && postponeButton is { Style: BotButtonStyle.Secondary } && postponeButton.Label == label
+                  && planned.Color == BotStatusMessageBuilder.Yellow && planned.Fields.Any(f => f.Name == "Geplant"), $"A pending {pendingAction} offers '{label}'");
+            Check(postponeButton is not null && BotCustomId.TryParse(postponeButton.CustomId, 4, out _, out var buttonCommand, out var buttonInstance, out _)
                   && buttonCommand == BotCommand.Postpone && buttonInstance == 1, "The button belongs to its server and command");
         }
-        Check(BotStatusMessageBuilder.Build(online with { Pending = BotPendingAction.Restart }, policy, BotTexts.English, t0).Buttons[0].Label == "Postpone restart",
+        Check(BotStatusMessageBuilder.Build(online with { Pending = BotPendingAction.Restart }, BotTexts.English, t0).Buttons.Single(b => b.Command == BotCommand.Postpone).Label == "Postpone restart",
             "The texts follow the language");
 
         // A restart that is pending but put off by a pause shows as postponed (blue), with both buttons.
-        var putOff = BotStatusMessageBuilder.Build(online with { Pending = BotPendingAction.Restart, PausedUntilUtc = t0.AddHours(1) }, policy, BotTexts.German, t0);
-        Check(putOff.Color == BotStatusMessageBuilder.Blue && putOff.Buttons.Select(b => b.Command).SequenceEqual([BotCommand.Postpone, BotCommand.Resume]),
+        var putOff = BotStatusMessageBuilder.Build(online with { Pending = BotPendingAction.Restart, PausedUntilUtc = t0.AddHours(1) }, BotTexts.German, t0);
+        Check(putOff.Color == BotStatusMessageBuilder.Blue && putOff.Buttons.Select(b => b.Command).SequenceEqual([BotCommand.RestartNow, BotCommand.Stop, BotCommand.Postpone, BotCommand.Resume, BotCommand.CheckUpdates]),
             "A pending restart that is postponed is blue, it can be postponed further or released");
 
-        var postponeOff = ValidConfig();
-        postponeOff.SetEnabled(BotCommand.Postpone, false);
-        Check(BotStatusMessageBuilder.Build(online with { Pending = BotPendingAction.Restart }, PolicyOf(postponeOff), BotTexts.German, t0).Buttons.Count == 0,
-            "No postpone button when postponing is off");
+        // The message is the same for everybody (and the super admin may do everything): no switch and no policy decides
+        // which buttons it shows, the click is checked like every other request.
+        Check(BotStatusMessageBuilder.Build(online with { Pending = BotPendingAction.Restart }, BotTexts.German, t0).Buttons.Any(b => b.Command == BotCommand.Postpone),
+            "The postpone button shows while something is pending");
 
         var paused = online with { PausedUntilUtc = t0.AddHours(1) };
-        var pausedMessage = BotStatusMessageBuilder.Build(paused, policy, BotTexts.German, t0);
-        Check(pausedMessage.Color == BotStatusMessageBuilder.Blue && pausedMessage.Buttons.Single().Command == BotCommand.Resume
+        var pausedMessage = BotStatusMessageBuilder.Build(paused, BotTexts.German, t0);
+        Check(pausedMessage.Color == BotStatusMessageBuilder.Blue && pausedMessage.Buttons.Select(b => b.Command).SequenceEqual([BotCommand.RestartNow, BotCommand.Stop, BotCommand.Resume, BotCommand.CheckUpdates])
               && pausedMessage.Fields.Any(f => f.Name == "Verschoben bis"), "A postponed server is blue and can be released");
-        Check(BotStatusMessageBuilder.Build(paused with { PausedUntilUtc = t0.AddMinutes(-1) }, policy, BotTexts.German, t0).Buttons.Count == 0, "A postponement that is over shows nothing");
+        Check(BotStatusMessageBuilder.Build(paused with { PausedUntilUtc = t0.AddMinutes(-1) }, BotTexts.German, t0).Buttons.All(b => b.Command != BotCommand.Resume),
+            "A postponement that is over has no release button");
 
-        var full = BotStatusMessageBuilder.Build(online with { Pending = BotPendingAction.Restart }, allOnPolicy, BotTexts.German, t0);
+        var full = BotStatusMessageBuilder.Build(online with { Pending = BotPendingAction.Restart }, BotTexts.German, t0);
         Check(full.Buttons.Select(b => (b.Command, b.Style)).SequenceEqual(
-                  [(BotCommand.RestartNow, BotButtonStyle.Primary), (BotCommand.Stop, BotButtonStyle.Danger), (BotCommand.Postpone, BotButtonStyle.Secondary)]),
-            "A running server: restart blue, stop red, postpone grey");
-        var stopped = BotStatusMessageBuilder.Build(online with { State = BotServerState.Stopped, Players = 0, StartedUtc = null }, allOnPolicy, BotTexts.German, t0);
-        Check(stopped.Color == BotStatusMessageBuilder.Red && stopped.Buttons.Single().Command == BotCommand.Start && stopped.Buttons.Single().Style == BotButtonStyle.Success
-              && !stopped.Fields.Any(f => f.Name == "Spieler"), "A stopped server is red with a green start button");
-        var crashed = BotStatusMessageBuilder.Build(online with { State = BotServerState.Crashed }, allOnPolicy, BotTexts.German, t0);
-        Check(crashed.Color == BotStatusMessageBuilder.Red && crashed.Buttons.Single().Command == BotCommand.Start, "A crashed server can be started");
+                  [(BotCommand.RestartNow, BotButtonStyle.Primary), (BotCommand.Stop, BotButtonStyle.Danger), (BotCommand.Postpone, BotButtonStyle.Secondary),
+                   (BotCommand.CheckUpdates, BotButtonStyle.Secondary)]),
+            "A running server: restart blue, stop red, postpone and update check grey");
+        var stopped = BotStatusMessageBuilder.Build(online with { State = BotServerState.Stopped, Players = 0, StartedUtc = null }, BotTexts.German, t0);
+        Check(stopped.Color == BotStatusMessageBuilder.Red && stopped.Buttons[0] is { Command: BotCommand.Start, Style: BotButtonStyle.Success, Disabled: false }
+              && stopped.Buttons.Count == 2 && !stopped.Fields.Any(f => f.Name == "Spieler"), "A stopped server is red with a green start button");
+        var crashed = BotStatusMessageBuilder.Build(online with { State = BotServerState.Crashed }, BotTexts.German, t0);
+        Check(crashed.Color == BotStatusMessageBuilder.Red && crashed.Buttons[0].Command == BotCommand.Start, "A crashed server can be started");
         foreach (var transition in new[] { BotServerState.Starting, BotServerState.Stopping })
         {
-            var message = BotStatusMessageBuilder.Build(online with { State = transition }, allOnPolicy, BotTexts.German, t0);
-            Check(message.Color == BotStatusMessageBuilder.Yellow && (transition == BotServerState.Stopping ? message.Buttons.Count == 0 : message.Buttons.Count == 2),
-                $"{transition}: yellow, buttons only while it can still be restarted or stopped");
+            var message = BotStatusMessageBuilder.Build(online with { State = transition }, BotTexts.German, t0);
+            Check(message.Color == BotStatusMessageBuilder.Yellow
+                  && (transition == BotServerState.Stopping
+                      ? message.Buttons.Count == 2 && message.Buttons[0] is { Command: BotCommand.Start, Disabled: true } && !message.Buttons[1].Disabled
+                      : message.Buttons.Count == 3 && message.Buttons.All(b => !b.Disabled)),
+                $"{transition}: yellow, the buttons stay and are greyed out while the server is going down");
         }
         Check(allOnPolicy.IsCommandEnabled(BotCommand.Start) && full.Buttons.Count <= 5, "At most five buttons fit in a row");
         Check(!full.Fields.Concat(stopped.Fields).Any(f => f.Value.Contains(folder) || f.Value.Contains("password", StringComparison.OrdinalIgnoreCase)), "No paths or passwords in the message");

@@ -106,6 +106,13 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     public event EventHandler? StateChanged;
     public event EventHandler<SequenceProgress>? SequenceProgressChanged; 
 
+    /// <summary>
+    /// Something <see cref="GetServerStatuses"/> shows has changed: a server started, went online (the game log says so),
+    /// is stopping, stopped or crashed, a countdown began or ended, a pause or postponement was set. Raised on whatever
+    /// thread noticed it, not only on the launcher thread: handlers only take note (wake a loop) and read the state later.
+    /// </summary>
+    public event EventHandler? ServerStatusChanged;
+
     public void Dispose()
     {
         _conanClientProcess?.Dispose();
@@ -250,6 +257,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
 
         // Two starts of one instance (button and automatic start) must not launch two servers on the same save.
         if (!_launchingInstances.Add(instance)) return;
+        OnServerStatusChanged();
         try
         {
             var process = await CatapultServerProcess(profileName, listRef, instance);
@@ -277,6 +285,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         {
             _launchingInstances.Remove(instance);
             _startingProcesses.Remove(instance);
+            OnServerStatusChanged();
         }
     }
 
@@ -288,6 +297,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     private void CatapultServerInBackground(int instance)
     {
         if (!_backgroundStarts.Add(instance)) return;
+        OnServerStatusChanged();
         _ = RunBackgroundStart(instance);
     }
 
@@ -305,6 +315,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         finally
         {
             _backgroundStarts.Remove(instance);
+            OnServerStatusChanged();
         }
 
         try
@@ -707,6 +718,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             _automaticRestartsPausedUntil[instance] = DateTime.UtcNow + pause;
             _logger.LogInformation("Automatic restarts of instance {Instance} paused until {Until}", instance,
                 DateTime.Now + pause);
+            OnServerStatusChanged();
         }
         // A paused instance cannot take part in a common update restart: the others start without waiting for it.
         LeaveUpdateRound(instance);
@@ -721,6 +733,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         if (postponedReason is not null)
         {
             _postponedRestarts[instance] = postponedReason;
+            OnServerStatusChanged();
             _logger.LogInformation("Restart of instance {Instance} postponed by {Minutes} minutes", instance,
                 (int)Math.Round(pause.TotalMinutes));
             await BroadcastMessage(instance, _setup.Config.NotificationRestartPostponed.Replace("{minutes}",
@@ -735,7 +748,10 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     {
         // A postponed restart then runs with the next tick.
         if (_automaticRestartsPausedUntil.Remove(instance))
+        {
             _logger.LogInformation("Automatic restarts of instance {Instance} resumed", instance);
+            OnServerStatusChanged();
+        }
     }
 
     private bool AreAutomaticRestartsPaused(int instance)
@@ -919,6 +935,28 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         try
         {
             return await PerformCatapultUpdates();
+        }
+        finally
+        {
+            _prelaunchUpdateGate.Release();
+        }
+    }
+
+    /// <summary>
+    /// Asks Steam now whether mods or the server need an update, the same check the tick makes every few minutes, and
+    /// installs nothing. What it finds is used like the result of the tick (a restart for it follows the settings of the
+    /// automatic updates). Null while something else works on the files: a start, an update or a Steam download.
+    /// </summary>
+    public async Task<LauncherUpdateCheck?> CheckForUpdatesNow()
+    {
+        if (_steam.Status != SteamStatus.StandBy) return null;
+        if (!await _prelaunchUpdateGate.WaitAsync(0)) return null;
+        try
+        {
+            var modsAnswered = await CheckModUpdates();
+            var serverAnswered = await CheckServerUpdate();
+            return new LauncherUpdateCheck(modsAnswered && serverAnswered,
+                _modNeedUpdate.Select(x => x.PublishedFileId).Distinct().Count(), _serverUpdate.NeedUpdate);
         }
         finally
         {
@@ -1616,6 +1654,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         _lastRestartReason = string.Empty;
         var runner = new SequenceRunner(sequence, args, this);
         _serverSequences[instance] = runner;
+        OnServerStatusChanged();
 
         try
         {
@@ -1646,6 +1685,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
                 _countdownInstances.Remove(instance);
                 _restartCountdownReasons.Remove(instance);
                 _countdownEndsUtc.Remove(instance);
+                OnServerStatusChanged();
             }
         }
     }
@@ -1659,6 +1699,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             _countdownInstances.Remove(instance);
             _restartCountdownReasons.Remove(instance);
             _countdownEndsUtc.Remove(instance);
+            OnServerStatusChanged();
         }
     }
 
@@ -2428,6 +2469,8 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     {
         try
         {
+            // Starting, online (the log says the server is ready), stopping, stopped, crashed: show it at once.
+            OnServerStatusChanged();
             if (sender is not IConanServerProcess process) return;
             var uri = _setup.Config.GetInstanceProfile(process.Infos.Instance);
             if (!_appFiles.Server.TryResolve(uri, out var reference)) return;
@@ -2517,6 +2560,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         {
             var automation = RunShutdownAutomation(instance);
             _shutdownTasks[instance] = automation;
+            OnServerStatusChanged();
             try
             {
                 await automation;
@@ -2525,6 +2569,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             {
                 if (_shutdownTasks.TryGetValue(instance, out var current) && ReferenceEquals(current, automation))
                     _shutdownTasks.Remove(instance);
+                OnServerStatusChanged();
             }
 
             var name = _appFiles.Server.Resolve(_setup.Config.GetInstanceProfile(instance));
@@ -2562,6 +2607,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         {
             if (_heldStarts.Count == 0) _heldSinceUtc = DateTime.UtcNow;
             _heldStarts.Add(instance);
+            OnServerStatusChanged();
             _logger.LogInformation("Server {Instance} starts once the other servers of the update are stopped", instance);
             return;
         }
@@ -2651,5 +2697,19 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     private void OnStateChanged()
     {
         StateChanged?.Invoke(this, EventArgs.Empty);
+        OnServerStatusChanged();
+    }
+
+    private void OnServerStatusChanged()
+    {
+        try
+        {
+            ServerStatusChanged?.Invoke(this, EventArgs.Empty);
+        }
+        catch (Exception ex)
+        {
+            // A listener must never break the launcher.
+            _logger.LogDebug(ex, "A listener of the server status failed");
+        }
     }
 }

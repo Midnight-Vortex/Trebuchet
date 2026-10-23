@@ -20,6 +20,8 @@ static class BotInteractionHandlerChecks
     private sealed class FakeActions : IBotActions
     {
         public int InstanceCount { get; set; } = 2;
+        public event EventHandler? StatusChanged;
+        public void RaiseStatusChanged() => StatusChanged?.Invoke(this, EventArgs.Empty);
         public List<string> Calls { get; } = [];
         public List<BotServerStatus> Statuses { get; set; } = [];
         public BotActionResult Result { get; set; } = new(BotActionOutcome.Done);
@@ -43,6 +45,7 @@ static class BotInteractionHandlerChecks
         public Task<BotActionResult> StopAsync(int instance, TimeSpan delay, string reason, CancellationToken token) => Answer($"stop {instance} {delay.TotalMinutes} {reason}");
         public Task<BotActionResult> StartAsync(int instance, CancellationToken token) => Answer($"start {instance}");
         public Task<BotActionResult> UpdateAsync(CancellationToken token) => Answer("update");
+        public Task<BotActionResult> CheckUpdatesAsync(CancellationToken token) => Answer("checkupdates");
         public int Executed => Calls.Count(x => x != "statuses");
         public List<string> Done => Calls.Where(x => x != "statuses").ToList();
     }
@@ -235,7 +238,7 @@ static class BotInteractionHandlerChecks
                 await rig.Do(rig.Slash("status", Operator, guild: Guild + 1)),
                 await rig.Do(rig.Slash("status", Stranger + 1, human: false)),
                 await rig.Do(rig.Slash("stop", Operator, numbers: Rig.N(0))),
-                await rig.Do(rig.Slash("update", SuperAdmin)),
+                await rig.Do(rig.Slash("update", Operator)),
                 await rig.Do(rig.Slash("start", SuperAdmin, roles: [OtherRole], numbers: Rig.N(0)))
             };
             Check(refusals.All(r => r.Replies.Count == 1 && r.Last.Text == BotDecision.PublicMessage && r.Last.Embeds is null && r.Last.Question is null),
@@ -244,6 +247,19 @@ static class BotInteractionHandlerChecks
             Check(rig.Audit.Recent.Count(x => x.Result == BotAuditResult.Denied) == refusals.Count
                   && rig.Audit.Recent.Any(x => x.Detail == "MissingRole") && rig.Audit.Recent.Any(x => x.Detail == "WrongChannel")
                   && rig.Audit.Recent.Any(x => x.Detail == "CommandDisabled"), "The exact reasons are in the audit log");
+
+            // the super admin always has every right: the switches (all critical ones are off here) only limit the others
+            var superRig = new Rig(folder, Config());
+            foreach (var command in new[] { "stop", "restart now", "start", "update" })
+            {
+                var asked = await superRig.Do(superRig.Slash(command, SuperAdmin, numbers: command == "update" ? null : Rig.N(0)));
+                Check(asked.Replies.Count == 1 && asked.Last.Text != BotDecision.PublicMessage && asked.Last.Question is not null,
+                    $"The super admin may use '{command}' without switching it on, after the confirmation");
+            }
+            Check(superRig.Actions.Calls.Count == 0, "Nothing runs before the confirmation, not even for the super admin");
+            var operatorTries = await superRig.Do(superRig.Slash("stop", Operator, numbers: Rig.N(0)));
+            Check(operatorTries.Last.Text == BotDecision.PublicMessage && operatorTries.Last.Question is null,
+                "The switches still limit everybody else");
 
             // lock out after repeated refusals, then silence
             var locked = new Rig(folder, Config());
@@ -366,8 +382,131 @@ static class BotInteractionHandlerChecks
             var restart = (await rig.Do(rig.Slash("restart now", numbers: Rig.N(1, delay: 10)))).Last;
             await rig.Do(rig.Click((BotConfirmQuestion)restart.Question!, true));
             Check(rig.Actions.Calls.Last() == "restart 1 10 Discord", "Restart with its warning time");
-            var button2 = (await rig.Do(rig.Button(BotCustomId.ForAction(BotCommand.RestartNow, 0)))).Last;
-            Check(button2.Question is BotConfirmQuestion, "The restart button asks as well");
+
+            // --- the restart and stop buttons ask for the warning time first (a menu, like the dialog in Trebuchet), then confirm
+            var menus = new Rig(folder, AllOn());
+            var before = menus.Actions.Executed;
+            var delayMenu = (await menus.Do(menus.Button(BotCustomId.ForAction(BotCommand.RestartNow, 0)))).Last;
+            var delays = delayMenu.Question as BotSelectQuestion;
+            Check(delays is not null && menus.Actions.Executed == before && delayMenu.Text.Contains("Server 0")
+                  && delays.Choices.Select(c => c.Value).SequenceEqual(["0", "1", "5", "10", "15", "30", "60", "120"])
+                  && delays.Choices[0].Label == "Sofort" && delays.Choices[1].Label == "1 Min" && delays.Choices[^2].Label == "1 Std" && delays.Choices[^1].Label == "2 Std",
+                "The restart button offers the warning times of Trebuchet first and does nothing yet");
+            var picked = await menus.Do(menus.Select(BotCustomId.ForPostponeSelect(delays!.Nonce), "10"));
+            var pickedConfirm = picked.Last.Question as BotConfirmQuestion;
+            Check(pickedConfirm is not null && picked.Replies[0].Update && picked.Last.Text.Contains("Server 0") && picked.Last.Text.Contains("10 Min")
+                  && menus.Actions.Executed == before, "The chosen warning time comes back in the confirmation, nothing runs yet");
+            await menus.Do(menus.Click(pickedConfirm!, true));
+            Check(menus.Actions.Calls.Last() == "restart 0 10 Discord", "Confirming restarts with the chosen warning time");
+
+            var stopMenu = (await menus.Do(menus.Button(BotCustomId.ForAction(BotCommand.Stop, 1)))).Last.Question as BotSelectQuestion;
+            Check(stopMenu is not null && stopMenu.Choices.Select(c => c.Value).SequenceEqual(["0", "1", "5", "10", "15", "30", "60"]),
+                "A stop is offered up to one hour");
+            var immediate = (await menus.Do(menus.Select(BotCustomId.ForPostponeSelect(stopMenu!.Nonce), "0"))).Last;
+            Check(immediate.Text.Contains("sofort") && immediate.Question is BotConfirmQuestion, "'Right away' is a choice too");
+            await menus.Do(menus.Click((BotConfirmQuestion)immediate.Question!, true));
+            Check(menus.Actions.Calls.Last() == "stop 1 0 Discord", "Stopping right away passes no warning time");
+
+            stopMenu = (await menus.Do(menus.Button(BotCustomId.ForAction(BotCommand.Stop, 0)))).Last.Question as BotSelectQuestion;
+            before = menus.Actions.Executed;
+            foreach (var wrong in new[] { "120", "7", "-1", "", "1e1", "0 ", "٣" })
+            {
+                var refused = await menus.Do(menus.Select(BotCustomId.ForPostponeSelect(stopMenu!.Nonce), wrong));
+                Check(refused.Last.Text == BotMessages.German.InvalidInput && refused.Replies[0].Update && menus.Actions.Executed == before,
+                    $"The warning time '{wrong}' is not one of the offered ones");
+                stopMenu = (await menus.Do(menus.Button(BotCustomId.ForAction(BotCommand.Stop, 0)))).Last.Question as BotSelectQuestion;
+            }
+            Check((await menus.Do(menus.Select(BotCustomId.ForPostponeSelect(stopMenu!.Nonce), "5", Stranger))).Last.Text == BotDecision.PublicMessage,
+                "A stranger can not use the menu of warning times");
+            Check((await menus.Do(menus.Select(BotCustomId.ForPostponeSelect(stopMenu.Nonce), "5", SuperAdmin))).Last.Text == BotMessages.German.Expired,
+                "Another user can not answer someone else's menu of warning times");
+            stopMenu = (await menus.Do(menus.Button(BotCustomId.ForAction(BotCommand.Stop, 0)))).Last.Question as BotSelectQuestion;
+            Check((await menus.Do(menus.Select(BotCustomId.ForPostponeSelect(stopMenu!.Nonce), "5"), advanceSeconds: 200)).Last.Text == BotMessages.German.Expired
+                  && menus.Actions.Executed == before, "The menu of warning times runs out after two minutes");
+
+            // The menu does not use up the limit of critical actions, the confirmation does.
+            var limited = new Rig(folder, AllOn());
+            for (var n = 0; n < 5; n++)
+            {
+                var offered = (await limited.Do(limited.Button(BotCustomId.ForAction(BotCommand.Stop, 0)))).Last.Question as BotSelectQuestion;
+                Check(offered is not null, "The menu is offered again and again as long as nothing is confirmed");
+                Check((await limited.Do(limited.Select(BotCustomId.ForPostponeSelect(offered!.Nonce), "5"))).Last.Question is BotConfirmQuestion,
+                    "The menu answers with the confirmation while nothing is used up");
+            }
+            for (var n = 0; n < 3; n++)
+            {
+                var offered = (await limited.Do(limited.Button(BotCustomId.ForAction(BotCommand.Stop, 0)))).Last.Question as BotSelectQuestion;
+                var question = (await limited.Do(limited.Select(BotCustomId.ForPostponeSelect(offered!.Nonce), "1"))).Last.Question as BotConfirmQuestion;
+                await limited.Do(limited.Click(question!, true));
+            }
+            Check(limited.Actions.Executed == 3, "Three confirmed stops are carried out, each counted once (not for the menu and the confirmation)");
+            Check((await limited.Do(limited.Button(BotCustomId.ForAction(BotCommand.Stop, 0)))).Last.Text == BotMessages.German.CriticalLimit,
+                "The fourth is refused before the menu is shown");
+
+            // A user who may not stop gets no menu at all.
+            var noMenu = new Rig(folder, Config());
+            Check((await noMenu.Do(noMenu.Button(BotCustomId.ForAction(BotCommand.Stop, 0)))).Last.Text == BotDecision.PublicMessage && noMenu.Pending.Count == 0,
+                "Without the right to stop there is no menu of warning times");
+            var superMenu = (await noMenu.Do(noMenu.Button(BotCustomId.ForAction(BotCommand.Stop, 0), SuperAdmin))).Last.Question as BotSelectQuestion;
+            Check(superMenu is not null, "The super admin gets the menu without any switch");
+            // A menu is only checked as the command it belongs to: the one of a stop does not become a restart.
+            var forged = await noMenu.Do(noMenu.Select(BotCustomId.ForPostponeSelect(superMenu!.Nonce), "120", SuperAdmin));
+            Check(forged.Last.Text == BotMessages.German.InvalidInput && noMenu.Actions.Executed == 0, "The menu of a stop does not accept the two hours of a restart");
+
+            // --- the check for updates: scan only, no confirmation, no installation
+            var checking = new Rig(folder, Config());
+            var found = await checking.Do(checking.Slash("updatecheck"));
+            Check(checking.Actions.Calls.Last() == "checkupdates" && found.Last.Question is null
+                  && found.Last.Text == "Update-Prüfung fertig. Mod-Updates: 0. Server-Version: aktuell. Es wurde nichts installiert.",
+                "The check for updates runs at once and says that nothing was installed");
+            checking.Actions.Result = new BotActionResult(BotActionOutcome.Done, string.Empty, new BotUpdateInfo(2, true));
+            Check((await checking.Do(checking.Button(BotCustomId.ForAction(BotCommand.CheckUpdates, 1)))).Last.Text
+                  == "Update-Prüfung fertig. Mod-Updates: 2. Server-Version: neue Version verfügbar. Es wurde nichts installiert.",
+                "The button of the status message does the same and reports the mods and the server build");
+            checking.Actions.Result = new BotActionResult(BotActionOutcome.Busy);
+            Check((await checking.Do(checking.Slash("updatecheck"))).Last.Text == BotMessages.German.Busy, "A check while Steam is busy says so");
+            checking.Actions.Result = new BotActionResult(BotActionOutcome.Failed, "Steam did not answer");
+            Check((await checking.Do(checking.Slash("updatecheck"))).Last.Text == BotMessages.German.Failed, "A check that failed says so");
+            Check(checking.Actions.Done.All(x => x == "checkupdates") && checking.Actions.Done.Count == 4, "Only the check ran, never an update");
+            Check((await checking.Do(checking.Slash("updatecheck", Stranger))).Last.Text == BotDecision.PublicMessage, "A stranger can not check for updates");
+            var checkOff = new Rig(folder, Config(c => c.SetEnabled(BotCommand.CheckUpdates, false)));
+            Check((await checkOff.Do(checkOff.Slash("updatecheck"))).Last.Text == BotDecision.PublicMessage && checkOff.Actions.Executed == 0,
+                "The check can be switched off for the other users");
+            Check((await checkOff.Do(checkOff.Slash("updatecheck", SuperAdmin))).Last.Text.StartsWith("Update-Prüfung fertig", StringComparison.Ordinal),
+                "...but the super admin always can");
+
+            // --- only the servers chosen in the settings, under the names chosen there
+            var chosen = new Rig(folder, Config(c =>
+            {
+                foreach (var command in Enum.GetValues<BotCommand>()) c.SetEnabled(command, true);
+                c.ManagedInstances = [1];
+                c.InstanceNames[1] = "Haupt <@123> [Server]";
+                c.InstanceNames[0] = "Nicht verwaltet";
+            }));
+            var chosenStatus = await chosen.Do(chosen.Slash("status"));
+            Check(chosenStatus.Last.Embeds is { Count: 1 } shown && shown[0].Title == "Haupt 123 Server · Instanz 1",
+                "The status shows only the managed server, with its name cleaned of mentions and links");
+            Check((await chosen.Do(chosen.Slash("status", numbers: Rig.N(0)))).Last.Text == BotMessages.German.UnknownServer, "A server that is not managed does not exist for the bot");
+            foreach (var path in new[] { "stop", "restart now", "start", "restart postpone", "restart resume" })
+                Check((await chosen.Do(chosen.Slash(path, SuperAdmin, numbers: Rig.N(0, path == "restart postpone" ? 30 : null)))).Last.Text == BotMessages.German.UnknownServer,
+                    $"'{path}' for a server that is not managed is refused, also for the super admin");
+            Check((await chosen.Do(chosen.Button(BotCustomId.ForAction(BotCommand.Stop, 0)))).Last.Text == BotMessages.German.UnknownServer
+                  && (await chosen.Do(chosen.Button(BotCustomId.ForAction(BotCommand.Start, 0), SuperAdmin))).Last.Text == BotMessages.German.UnknownServer,
+                "The buttons of an old message of such a server do nothing");
+            Check(chosen.Actions.Executed == 0, "Nothing reached the launcher");
+            var named = (await chosen.Do(chosen.Slash("stop", numbers: Rig.N(1)))).Last;
+            Check(named.Text.Contains("Server Haupt 123 Server stoppen"), "The questions use the chosen name");
+            var namedDone = await chosen.Do(chosen.Click((BotConfirmQuestion)named.Question!, true));
+            Check(chosen.Actions.Calls.Last() == "stop 1 5 Discord" && namedDone.Last.Text == "Stopp von Server Haupt 123 Server gestartet.", "...and so do the answers");
+            var namedMenu = (await chosen.Do(chosen.Button(BotCustomId.ForAction(BotCommand.RestartNow, 1)))).Last;
+            Check(namedMenu.Text.Contains("Haupt 123 Server"), "...and the menu of warning times");
+            var unnamed = new Rig(folder, Config(c => c.ManagedInstances = [0, 1]));
+            Check((await unnamed.Do(unnamed.Slash("status"))).Last.Embeds!.Select(e => e.Title).SequenceEqual(["Exiled Lands · Instanz 0", "Siptah · Instanz 1"]),
+                "Without a name the save is shown, every chosen server is listed");
+            var allOfThem = new Rig(folder, Config());
+            Check((await allOfThem.Do(allOfThem.Slash("status"))).Last.Embeds!.Count == 2, "Not chosen yet means every server");
+            var noneOfThem = new Rig(folder, Config(c => c.ManagedInstances = []));
+            Check((await noneOfThem.Do(noneOfThem.Slash("status"))).Last.Text == BotMessages.German.NoServers, "An empty choice means no server");
 
             // start and update are for the super admin only, even when switched on
             Check((await rig.Do(rig.Slash("start", Operator, numbers: Rig.N(1)))).Last.Text == BotDecision.PublicMessage
@@ -557,7 +696,7 @@ static class BotInteractionHandlerChecks
         check(channel.Edits.Count == 0, "A change right after a write waits a few seconds");
         clock.Now = clock.Now.AddSeconds(10);
         await board.RefreshAsync(CancellationToken.None);
-        check(channel.Edits.Count == 1 && channel.Edits[0].Id == settings.Ids[0] && channel.Edits[0].Message.Buttons.Single().Label == "Neustart verschieben"
+        check(channel.Edits.Count == 1 && channel.Edits[0].Id == settings.Ids[0] && channel.Edits[0].Message.Buttons.Any(b => b.Label == "Neustart verschieben")
               && channel.Edits[0].Message.Color == BotStatusMessageBuilder.Yellow, "The message is edited, with the postpone button");
         await board.RefreshAsync(CancellationToken.None, force: true);
         check(channel.Edits.Count == 3, "A forced refresh writes every message again");
@@ -575,12 +714,14 @@ static class BotInteractionHandlerChecks
         await board.RefreshAsync(CancellationToken.None);
         check(channel.Posts.Count == 3 && channel.Edits.Count == editsBefore + 2, "After a reset the existing messages are edited, not posted twice");
 
+        // The buttons always fit the state, whatever the switches say: switching a command on or off writes nothing.
+        check(channel.Edits[^1].Message.Buttons.Any(b => b.Command == BotCommand.Stop), "The buttons of the message show stop without any switch");
         var enabledStop = PolicyOf(Config(c => { c.SetEnabled(BotCommand.Stop, true); c.SetEnabled(BotCommand.RestartNow, true); }));
         settings.Policy = enabledStop;
         clock.Now = clock.Now.AddSeconds(10);
         editsBefore = channel.Edits.Count;
         await board.RefreshAsync(CancellationToken.None);
-        check(channel.Edits.Count > editsBefore && channel.Edits[^1].Message.Buttons.Any(b => b.Command == BotCommand.Stop), "Switching a command on changes the buttons");
+        check(channel.Edits.Count == editsBefore, "Switching a command on or off does not change the buttons");
 
         var postsBefore = channel.Posts.Count;
         editsBefore = channel.Edits.Count;
@@ -631,6 +772,94 @@ static class BotInteractionHandlerChecks
             await deniedBoard.RefreshAsync(CancellationToken.None);
         }
         check(denied.PostAttempts is >= 2 and <= 8, $"A refused post is not retried every refresh ({denied.PostAttempts} attempts for 12 refreshes of 2 servers)");
+
+        // --- the regular check: the message is edited at least every five minutes, a calm server is looked at every five
+        // minutes and a changing one more often
+        var beat = new Clock();
+        var beatActions = new FakeActions
+        {
+            Statuses =
+            [
+                new BotServerStatus(0, "Exiled Lands", BotServerState.Online, 12, 40, beat.Now.AddHours(-4), BotPendingAction.None, null, null),
+                new BotServerStatus(1, "Siptah", BotServerState.Online, 3, 40, beat.Now.AddHours(-2), BotPendingAction.None, null, null)
+            ]
+        };
+        var beatSettings = new FakeSettings { Policy = PolicyOf(Config()), AdminChannelId = Channel };
+        var beatChannel = new FakeChannel();
+        var beatBoard = new BotStatusBoard(beatActions, beatChannel, beatSettings, () => beat.Now);
+        var firstWait = await beatBoard.RefreshAsync(CancellationToken.None);
+        check(beatChannel.Posts.Count == 2 && firstWait == TimeSpan.FromMinutes(5) && beatChannel.Posts[0].Message.UpdatedUtc == beat.Now,
+            "A calm server is checked again in five minutes, the message carries the time of the check");
+        beat.Now = beat.Now.AddMinutes(2);
+        var secondWait = await beatBoard.RefreshAsync(CancellationToken.None);
+        check(beatChannel.Edits.Count == 0 && secondWait == TimeSpan.FromMinutes(3), "Nothing is written before the five minutes are over, and the next check is due when they are");
+        beat.Now = beat.Now.AddMinutes(3);
+        await beatBoard.RefreshAsync(CancellationToken.None);
+        check(beatChannel.Edits.Count == 2 && beatChannel.Edits.All(e => e.Message.UpdatedUtc == beat.Now),
+            "After five minutes both messages are edited although nothing changed, so the time shows that the check runs");
+        beatChannel.Existing.Remove((Channel, beatSettings.Ids[0]));
+        beat.Now = beat.Now.AddMinutes(5);
+        await beatBoard.RefreshAsync(CancellationToken.None);
+        check(beatChannel.Posts.Count == 3 && beatChannel.Edits.Count == 3, "A message deleted by someone is noticed by the regular check and posted again");
+
+        // A server that starts or stops is read more often, a change is written as soon as the pause between edits is over.
+        beatActions.Statuses[0] = beatActions.Statuses[0] with { State = BotServerState.Stopping };
+        beat.Now = beat.Now.AddSeconds(30);
+        var stoppingWait = await beatBoard.RefreshAsync(CancellationToken.None);
+        check(stoppingWait == TimeSpan.FromSeconds(15) && beatChannel.Edits[^1].Message.Buttons[0] is { Command: BotCommand.Start, Disabled: true },
+            "While a server is stopping the next look is due in 15 seconds and the buttons wait greyed out");
+        beatActions.Statuses[0] = beatActions.Statuses[0] with { State = BotServerState.Stopped, StartedUtc = null, Players = 0 };
+        beat.Now = beat.Now.AddSeconds(2);
+        var tooSoon = await beatBoard.RefreshAsync(CancellationToken.None);
+        var editsNow = beatChannel.Edits.Count;
+        check(tooSoon == TimeSpan.FromSeconds(3), "A change right after an edit is due as soon as the pause between edits is over");
+        beat.Now = beat.Now.AddSeconds(3);
+        await beatBoard.RefreshAsync(CancellationToken.None);
+        check(beatChannel.Edits.Count == editsNow + 1 && beatChannel.Edits[^1].Message.Buttons[0] is { Command: BotCommand.Start, Disabled: false },
+            "Then the stopped server shows its start button");
+        beatChannel.FailEdits = true;
+        beatActions.Statuses[1] = beatActions.Statuses[1] with { Players = 9 };
+        beat.Now = beat.Now.AddMinutes(1);
+        var failedWait = await beatBoard.RefreshAsync(CancellationToken.None);
+        check(failedWait <= TimeSpan.FromMinutes(10) && failedWait >= TimeSpan.FromSeconds(1), "A failing edit is looked at again later, not never");
+        beatActions.Statuses = [];
+        check(await beatBoard.RefreshAsync(CancellationToken.None, force: true) == TimeSpan.FromSeconds(15), "No answer from the launcher is asked again soon");
+
+        // --- only the managed servers, under their names; a server taken out gets a note instead of its buttons
+        var picked = new Clock();
+        var pickedActions = new FakeActions
+        {
+            Statuses =
+            [
+                new BotServerStatus(0, "Exiled Lands", BotServerState.Online, 12, 40, picked.Now.AddHours(-4), BotPendingAction.None, null, null),
+                new BotServerStatus(1, "Siptah", BotServerState.Online, 3, 40, picked.Now.AddHours(-2), BotPendingAction.None, null, null)
+            ]
+        };
+        var pickedSettings = new FakeSettings { Policy = PolicyOf(Config()), AdminChannelId = Channel };
+        var pickedChannel = new FakeChannel();
+        var pickedBoard = new BotStatusBoard(pickedActions, pickedChannel, pickedSettings, () => picked.Now);
+        await pickedBoard.RefreshAsync(CancellationToken.None);
+        var secondId = pickedSettings.Ids[1];
+        pickedSettings.Policy = PolicyOf(Config(c =>
+        {
+            c.ManagedInstances = [0];
+            c.InstanceNames[0] = "Haupt-Server";
+        }));
+        picked.Now = picked.Now.AddSeconds(10);
+        await pickedBoard.RefreshAsync(CancellationToken.None, force: true);
+        check(pickedChannel.Edits.Any(e => e.Id == pickedSettings.Ids[0] && e.Message.Title == "Haupt-Server · Instanz 0")
+              && pickedChannel.Edits.Any(e => e.Id == secondId && e.Message.Buttons.Count == 0 && e.Message.Title == BotTexts.German.NotManagedTitle)
+              && pickedSettings.Ids[1] == 0 && pickedChannel.Posts.Count == 2,
+            "The managed server shows its name, the one that was taken out is replaced by a note without buttons and not posted again");
+        var editsAfterRetire = pickedChannel.Edits.Count;
+        picked.Now = picked.Now.AddSeconds(10);
+        await pickedBoard.RefreshAsync(CancellationToken.None, force: true);
+        check(pickedChannel.Edits.Count == editsAfterRetire + 1 && pickedChannel.Posts.Count == 2, "The note is written once");
+        pickedSettings.Policy = PolicyOf(Config(c => c.ManagedInstances = [0, 1]));
+        picked.Now = picked.Now.AddSeconds(10);
+        await pickedBoard.RefreshAsync(CancellationToken.None);
+        check(pickedChannel.Posts.Count == 3 && pickedSettings.Ids[1] != 0 && pickedSettings.Ids[1] != secondId,
+            "A server that is chosen again gets a new message");
 
         using var cancelled = new CancellationTokenSource();
         cancelled.Cancel();

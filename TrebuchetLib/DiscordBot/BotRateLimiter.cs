@@ -58,7 +58,8 @@ public sealed class BotRateLimiter
     /// The first request of a command waits for the cooldown. A follow-up (confirmation, selection) answers a question
     /// of the bot and does not. A limited command is counted when it is confirmed.
     /// </summary>
-    public BotThrottle TryAcquire(ulong userId, BotCommand command, int? instance, bool followUp, DateTime utcNow, BotPolicy policy)
+    public BotThrottle TryAcquire(ulong userId, BotCommand command, int? instance, bool followUp, DateTime utcNow, BotPolicy policy,
+        bool finalStep = true)
     {
         lock (_lock)
         {
@@ -76,7 +77,7 @@ public sealed class BotRateLimiter
             list.RemoveAll(x => utcNow - x > policy.CriticalWindow);
             if (list.Count >= policy.CriticalLimit) return BotThrottle.CriticalLimit;
             // Only the confirmed action uses up the limit.
-            if (followUp || !BotCommands.NeedsConfirmation(command)) list.Add(utcNow);
+            if ((followUp && finalStep) || !BotCommands.NeedsConfirmation(command)) list.Add(utcNow);
             return BotThrottle.None;
         }
     }

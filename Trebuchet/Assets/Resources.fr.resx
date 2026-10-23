@@ -1423,7 +1423,7 @@ Losques des séquences sont utilisé, cela n'inclus que la mise en ligne et la d
         <value>Super administrateur</value>
     </data>
     <data name="DiscordBotSuperAdminText" xml:space="preserve">
-        <value>Obligatoire. Le seul utilisateur autorisé à utiliser les commandes de super administrateur. A aussi besoin d'un des rôles autorisés. Ne peut pas être supprimé, seulement remplacé.</value>
+        <value>Obligatoire. A toujours tous les droits : toutes les commandes fonctionnent pour cet utilisateur sans les activer. A aussi besoin d'un des rôles autorisés. Ne peut pas être supprimé, seulement remplacé.</value>
     </data>
     <data name="DiscordBotSuperAdminNotSet" xml:space="preserve">
         <value>Non défini</value>
@@ -1690,7 +1690,7 @@ Losques des séquences sont utilisé, cela n'inclus que la mise en ligne et la d
         <value>Commandes</value>
     </data>
     <data name="DiscordBotCommandsText" xml:space="preserve">
-        <value>Seules les commandes activées fonctionnent. Qui peut les utiliser ne change pas : ID utilisateur et rôle.</value>
+        <value>Ces interrupteurs déterminent ce que les autres utilisateurs de la liste peuvent faire. Le super administrateur peut toujours utiliser toutes les commandes (toujours avec ID utilisateur, rôle et confirmation). Qui peut utiliser une commande ne change pas : ID utilisateur et rôle.</value>
     </data>
     <data name="DiscordBotLevelRead" xml:space="preserve">
         <value>Lecture</value>
@@ -1708,13 +1708,13 @@ Losques des séquences sont utilisé, cela n'inclus que la mise en ligne et la d
         <value>Critique</value>
     </data>
     <data name="DiscordBotLevelCriticalText" xml:space="preserve">
-        <value>Tout utilisateur autorisé, avec un bouton de confirmation. Désactivé par défaut et limité par serveur.</value>
+        <value>Tout utilisateur autorisé dont l'interrupteur est activé, avec un bouton de confirmation. Désactivé par défaut et limité par serveur. Le super administrateur le peut toujours.</value>
     </data>
     <data name="DiscordBotLevelSuperAdmin" xml:space="preserve">
         <value>Super administrateur</value>
     </data>
     <data name="DiscordBotLevelSuperAdminText" xml:space="preserve">
-        <value>Uniquement le super administrateur, avec un bouton de confirmation.</value>
+        <value>Démarrer, mise à jour et définir le salon d'administration : uniquement le super administrateur, toujours disponible, avec un bouton de confirmation.</value>
     </data>
     <data name="DiscordBotCommandStatus" xml:space="preserve">
         <value>Statut (/status)</value>
@@ -1738,13 +1738,13 @@ Losques des séquences sont utilisé, cela n'inclus que la mise en ligne et la d
         <value>Redémarrer maintenant (/restart now)</value>
     </data>
     <data name="DiscordBotCommandRestartNowText" xml:space="preserve">
-        <value>Redémarre un serveur en cours, avec les avertissements habituels aux joueurs.</value>
+        <value>Redémarre un serveur en cours. Le bouton demande d'abord le délai (immédiatement jusqu'à 2 h), les joueurs sont avertis comme d'habitude.</value>
     </data>
     <data name="DiscordBotCommandStop" xml:space="preserve">
         <value>Arrêter (/stop)</value>
     </data>
     <data name="DiscordBotCommandStopText" xml:space="preserve">
-        <value>Arrête un serveur en cours, avec les avertissements habituels aux joueurs.</value>
+        <value>Arrête un serveur en cours. Le bouton demande d'abord le délai (immédiatement jusqu'à 1 h), les joueurs sont avertis comme d'habitude.</value>
     </data>
     <data name="DiscordBotCommandStart" xml:space="preserve">
         <value>Démarrer (/start)</value>
@@ -1920,6 +1920,7 @@ Dans ce salon, le bot a besoin des permissions « Voir le salon », « Envoyer d
     <data name="DiscordBotHelpStep7Text" xml:space="preserve">
         <value>Section « Connexion » : collez le jeton et enregistrez-le, puis saisissez l’ID du serveur. Après l’enregistrement, le jeton n’est plus jamais affiché.
 Section « Sécurité » : saisissez votre ID utilisateur comme « Super administrateur » (obligatoire, l’entrée ne peut pas être supprimée). Saisissez l’ID du rôle sous « Rôles autorisés ». Ajoutez les IDs d’autres personnes sous « Utilisateurs autorisés ».
+Section « Serveurs » : cochez les serveurs que le bot doit gérer et donnez-leur, si vous le souhaitez, un nom. Le bot utilise ce nom dans ses messages, sinon il affiche les données serveur. Un serveur non coché n’existe pas pour le bot.
 Cliquez sur « Enregistrer » en haut. Si quelque chose est invalide ou manque, le haut indique en rouge exactement quoi, et rien n’est enregistré.
 Facultatif : saisissez l’ID d’un salon comme « Salon d’audit » où le bot signale les actions critiques et les blocages.</value>
     </data>
@@ -1949,8 +1950,9 @@ Libérer à nouveau le salon (tous les salons) n’est possible qu’ici dans le
         <value>Régler les commandes et les boutons</value>
     </data>
     <data name="DiscordBotHelpStep10Text" xml:space="preserve">
-        <value>Section « Commandes » : activés par défaut : état, reporter, libérer à nouveau et définir le salon. Désactivés : redémarrer maintenant, arrêter, démarrer et mise à jour.
-Pour avoir redémarrer et arrêter comme boutons, activez-les ici et enregistrez. Ces actions demandent encore une fois confirmation avant de s’exécuter (« Confirmer »). Seul le super administrateur peut démarrer et mettre à jour.
+        <value>Le message d’état affiche toujours les boutons qui correspondent au serveur : Démarrer (arrêté), Redémarrer et Arrêter (en cours), Reporter, Libérer à nouveau et « Rechercher les mises à jour ». Le bot modifie ce seul message tout de suite quand quelque chose change et toutes les 5 minutes pour contrôle.
+Redémarrer et Arrêter demandent d’abord le délai d’avertissement (immédiatement, 1, 5, 10, 15, 30 min, 1 h, pour le redémarrage aussi 2 h), comme la boîte de dialogue de Trebuchet, puis encore la confirmation. « Rechercher les mises à jour » interroge seulement Steam sur les mises à jour des mods et une nouvelle version du serveur et n’installe rien.
+Le super administrateur peut utiliser chaque bouton sans rien activer. Section « Commandes » : les interrupteurs décident seulement de ce que les autres utilisateurs peuvent faire. Activés par défaut : état, reporter, libérer à nouveau et rechercher les mises à jour. Désactivés : redémarrer maintenant et arrêter. Démarrer, mise à jour et définir le salon appartiennent au seul super administrateur.
 Vous réglez les limites dans la section « Sécurité » : délai entre commandes, nombre d’actions critiques autorisées, le report maximal et les choix (par ex. 15 min, 30 min, 1 h).</value>
     </data>
     <data name="DiscordBotHelpStep10Hint" xml:space="preserve">
@@ -1977,5 +1979,29 @@ Le bot ne répond pas dans le salon : le salon d’administration est-il défini
     </data>
     <data name="DiscordBotHelpStep12Hint" xml:space="preserve">
         <value>Rien n’y fait : arrêtez le bot, regardez « Vérifier la sécurité » et ouvrez le guide dans le navigateur (bouton ci-dessous).</value>
+    </data>
+    <data name="DiscordBotCommandCheckUpdates" xml:space="preserve">
+        <value>Rechercher les mises à jour (/updatecheck, bouton)</value>
+    </data>
+    <data name="DiscordBotCommandCheckUpdatesText" xml:space="preserve">
+        <value>Demande à Steam si des mods ou le serveur ont besoin d'une mise à jour et indique le résultat. Rien n'est installé.</value>
+    </data>
+    <data name="DiscordBotSectionServers" xml:space="preserve">
+        <value>Serveurs</value>
+    </data>
+    <data name="DiscordBotServersText" xml:space="preserve">
+        <value>Choisissez les serveurs que le bot gère et donnez-leur un nom si vous le souhaitez. Le bot l'affiche dans ses messages à la place des données serveur. Un serveur non choisi n'apparaît nulle part dans le bot, même pas pour le super administrateur.</value>
+    </data>
+    <data name="DiscordBotServersEmpty" xml:space="preserve">
+        <value>Aucun serveur n'est encore configuré.</value>
+    </data>
+    <data name="DiscordBotServerInstance" xml:space="preserve">
+        <value>Instance {0}</value>
+    </data>
+    <data name="DiscordBotServerManaged" xml:space="preserve">
+        <value>Géré par le bot</value>
+    </data>
+    <data name="DiscordBotServerNameWatermark" xml:space="preserve">
+        <value>Nom dans le bot (vide : données serveur)</value>
     </data>
 </root>

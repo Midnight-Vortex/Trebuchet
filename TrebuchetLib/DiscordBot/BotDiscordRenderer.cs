@@ -67,6 +67,8 @@ internal static class BotDiscordRenderer
             builder.AddField(NonEmpty(Cut(field.Name, MaxFieldName)), NonEmpty(Cut(field.Value, MaxFieldValue)), field.Inline);
         if (!string.IsNullOrWhiteSpace(message.Footer))
             builder.WithFooter(Cut(message.Footer, MaxFooter));
+        if (message.UpdatedUtc is { } updated)
+            builder.WithTimestamp(new DateTimeOffset(DateTime.SpecifyKind(updated, DateTimeKind.Utc)));
         while (builder.Length > MaxEmbedTotal && builder.Fields.Count > 0)
             builder.Fields.RemoveAt(builder.Fields.Count - 1);
         return builder.Build();
@@ -126,7 +128,8 @@ internal static class BotDiscordRenderer
         return new ButtonBuilder()
             .WithLabel(NonEmpty(Cut(label, MaxLabel)))
             .WithCustomId(button.CustomId)
-            .WithStyle(StyleOf(button.Style));
+            .WithStyle(StyleOf(button.Style))
+            .WithDisabled(button.Disabled);
     }
 
     private static ActionRowBuilder? QuestionRow(BotQuestion? question)

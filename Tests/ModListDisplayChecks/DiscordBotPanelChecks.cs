@@ -178,6 +178,57 @@ public static class DiscordBotPanelChecks
         check(editor.Save(config).Count == 0 && config.IsEnabled(BotCommand.Stop) && !config.IsEnabled(BotCommand.Status)
               && !config.EnabledCommands.Contains("Kill"), "Commands are switched on and off by saving");
 
+        // Servers: until a choice is made every instance is managed; the first choice starts from all of them.
+        editor.Load(config);
+        check(config.ManagedInstances is null && editor.IsInstanceManaged(0) && editor.IsInstanceManaged(2) && !editor.IsDirty,
+            "Without a choice every server is managed");
+        editor.SetInstanceManaged(1, false, 3);
+        check(editor.IsDirty && editor.IsInstanceManaged(0) && !editor.IsInstanceManaged(1) && editor.IsInstanceManaged(2),
+            "The first choice starts from all servers and takes one away");
+        editor.SetInstanceManaged(1, true, 3);
+        check(editor.IsDirty, "Ticking everything again is still a choice (a new server then stays out until it is chosen)");
+        editor.SetInstanceManaged(1, false, 3);
+        editor.SetInstanceName(0, "  Haupt <@123> [Server] {x}  ");
+        editor.SetInstanceName(2, "   ");
+        editor.SetInstanceName(7, "x".PadRight(500, 'y'));
+        editor.SetInstanceManaged(100, true, 3);
+        editor.SetInstanceManaged(-1, true, 3);
+        check(editor.GetInstanceName(0) == "Haupt <@123> [Server] {x}" && editor.GetInstanceName(2).Length == 0 && editor.GetInstanceName(7).Length <= 80
+              && !editor.IsInstanceManaged(100), "Names are kept as typed (trimmed), out of range instances are ignored");
+        check(editor.Save(config).Count == 0 && config.ManagedInstances!.SequenceEqual([0, 2])
+              && config.InstanceNames[0] == "Haupt 123 Server x" && !config.InstanceNames.ContainsKey(2) && config.InstanceNames[7].Length <= BotInputRules.MaxNameLength,
+            "Saving keeps the chosen servers and the names cleaned of mentions, links, braces and anything too long");
+        var named = BotPolicy.Create(config).Policy!;
+        check(named.IsManaged(0) && !named.IsManaged(1) && named.ServerLabel(0) == "Haupt 123 Server x" && named.ServerLabel(1) == "1",
+            "The bot uses what was saved");
+        editor.Load(config);
+        check(!editor.IsDirty && editor.GetInstanceName(0) == "Haupt 123 Server x" && !editor.IsInstanceManaged(1), "The saved choice comes back after loading");
+        editor.SetInstanceName(0, "Haupt 123 Server x ");
+        check(!editor.IsDirty, "Spaces at the end of a name are no edit");
+        editor.SetInstanceName(0, "Anderer");
+        check(editor.IsDirty, "Another name is an edit");
+        editor.Load(config);
+        editor.SetInstanceManaged(1, true, 3);
+        editor.SetInstanceManaged(2, false, 3);
+        check(editor.Save(config).Count == 0 && config.ManagedInstances!.SequenceEqual([0, 1]), "Choosing and un-choosing servers saves a list");
+        check(config.InstanceNames.TryAdd(900, "x") && BotPolicy.Create(config).Policy!.InstanceNames.ContainsKey(900) == false,
+            "A name for an instance a Discord option can not carry is dropped by the bot");
+
+        // The rows of the list of servers write into the editor and say that something was edited; locked ones do nothing.
+        editor.Load(config);
+        var rowEdits = 0;
+        var row = new BotInstanceRow(1, editor, 3, true, () => rowEdits++);
+        row.IsManaged = false;
+        row.Name = "Zweiter";
+        row.Name = "Zweiter";
+        check(rowEdits == 2 && !row.IsManaged && row.Name == "Zweiter" && editor.GetInstanceName(1) == "Zweiter" && row.Title.Contains('1')
+              && row.MaxNameLength == BotInputRules.MaxNameLength && row.Watermark.Length > 0, "A row of the list of servers edits the settings");
+        var lockedRow = new BotInstanceRow(0, editor, 3, false, () => rowEdits++);
+        lockedRow.IsManaged = false;
+        lockedRow.Name = "Gesperrt";
+        check(rowEdits == 2 && editor.IsInstanceManaged(0) && editor.GetInstanceName(0) != "Gesperrt", "A row of settings that can not be edited does nothing");
+        editor.Load(config);
+
         // The admin channel: Discord narrows it, only the panel widens it, the panel never undoes a channel set meanwhile.
         config.SetAdminChannel(Channel);
         config.StatusMessageIds[0] = 900000000000000001;

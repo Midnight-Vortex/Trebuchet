@@ -65,7 +65,12 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
         _pending = pending;
         _logger = loggerFactory.CreateLogger<DiscordBotService>();
         _channel = new DiscordNetChannelClient(new SocketChannelTransport(() => CurrentSession?.Client), () => VerifiedGuildId, _logger);
+        _actions.StatusChanged += OnServerStatusChanged;
     }
+
+    // A server started, went online, is stopping, stopped or crashed (or a countdown began): look at it now. Runs on
+    // whatever thread noticed it and only wakes the loop.
+    private void OnServerStatusChanged(object? sender, EventArgs e) => Wake(CurrentSession);
 
     public event EventHandler? StateChanged;
 
@@ -286,6 +291,7 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
             if (_disposed) return;
             _disposed = true;
         }
+        _actions.StatusChanged -= OnServerStatusChanged;
         await StopAsync().ConfigureAwait(false);
     }
 
@@ -642,6 +648,10 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
         var token = session.Cancel.Token;
         while (!token.IsCancellationRequested)
         {
+            // Not connected yet: look again soon. Once the messages are kept up to date the board says when it wants
+            // to be called next (a calm server every five minutes, a changing one more often); events wake the loop
+            // earlier.
+            var wait = RefreshInterval;
             try
             {
                 // The commands could not be registered at ready (e.g. a missing invite scope): try again every minute.
@@ -652,8 +662,10 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
                 if (session.Verified && State == DiscordBotState.Connected && _board is { } board)
                 {
                     var force = Interlocked.Exchange(ref session.ForceRefresh, 0) == 1;
-                    await board.RefreshAsync(token, force).ConfigureAwait(false);
+                    wait = await board.RefreshAsync(token, force).ConfigureAwait(false);
                 }
+                // The commands are not registered yet: the next attempt is due.
+                if (session.Verified && !session.CommandsRegistered && wait > CommandRetryInterval) wait = CommandRetryInterval;
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
             {
@@ -666,7 +678,7 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
 
             try
             {
-                await session.Wake.WaitAsync(RefreshInterval, token).ConfigureAwait(false);
+                await session.Wake.WaitAsync(wait, token).ConfigureAwait(false);
             }
             catch (OperationCanceledException)
             {

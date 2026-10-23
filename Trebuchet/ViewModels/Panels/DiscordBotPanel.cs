@@ -20,6 +20,7 @@ using Trebuchet.ViewModels.InnerContainer;
 using Trebuchet.ViewModels.SettingFields;
 using Trebuchet.Windows;
 using TrebuchetLib.DiscordBot;
+using TrebuchetLib.Services;
 using Resources = Trebuchet.Assets.Resources;
 
 namespace Trebuchet.ViewModels.Panels;
@@ -37,6 +38,7 @@ public sealed class DiscordBotPanel : ReactiveObject, IBottomPanel, ITickingPane
     private static readonly TimeSpan CheckTimeout = TimeSpan.FromSeconds(30);
 
     private readonly DiscordBotHost _host;
+    private readonly AppSetup _setup;
     private readonly DiscordBotSettingsFile _settings;
     private readonly BotAuditLog _audit;
     private readonly DialogueBox _box;
@@ -73,6 +75,7 @@ public sealed class DiscordBotPanel : ReactiveObject, IBottomPanel, ITickingPane
 
     public DiscordBotPanel(
         DiscordBotHost host,
+        AppSetup setup,
         DiscordBotSettingsFile settings,
         BotTokenStore tokens,
         BotAuditLog audit,
@@ -80,6 +83,7 @@ public sealed class DiscordBotPanel : ReactiveObject, IBottomPanel, ITickingPane
         ILogger<DiscordBotPanel> logger)
     {
         _host = host;
+        _setup = setup;
         _settings = settings;
         _audit = audit;
         _box = box;
@@ -179,12 +183,13 @@ public sealed class DiscordBotPanel : ReactiveObject, IBottomPanel, ITickingPane
             .SetDefault(() => string.Equals(defaults.Language, @"en", StringComparison.OrdinalIgnoreCase) ? 1 : 0)
             .SetEnabled(CanEdit));
 
+        // The super admin always may use every command, so the commands of that level have no switch: its note says so.
         CommandGroups = Enum.GetValues<BotLevel>()
             .Select(level => new BotCommandGroup(level, Enum.GetValues<BotCommand>()
-                .Where(command => BotCommands.LevelOf(command) == level)
+                .Where(command => BotCommands.LevelOf(command) == level && level != BotLevel.SuperAdmin)
                 .Select(CommandField)
                 .ToList()))
-            .Where(group => group.Fields.Count > 0)
+            .Where(group => group.Fields.Count > 0 || group.Level == BotLevel.SuperAdmin)
             .ToList();
 
 
@@ -407,6 +412,11 @@ public sealed class DiscordBotPanel : ReactiveObject, IBottomPanel, ITickingPane
 
     public bool HasTokenHint => !string.IsNullOrEmpty(TokenHint);
 
+    // --- servers
+    /// <summary>One row per server instance: managed by the bot or not, and the name the bot uses.</summary>
+    public ObservableCollection<BotInstanceRow> InstanceRows { get; } = [];
+    public bool HasNoInstances => InstanceRows.Count == 0;
+
     // --- commands, audit, setup
     public IReadOnlyList<BotCommandGroup> CommandGroups { get; }
     public ObservableCollection<AuditEntryRow> AuditEntries { get; } = [];
@@ -516,11 +526,23 @@ public sealed class DiscordBotPanel : ReactiveObject, IBottomPanel, ITickingPane
             field.Update.Execute().Subscribe();
         Users.Refresh();
         Roles.Refresh();
+        ShowInstances();
         SuperAdminText = _editor.SuperAdminUserId == 0
             ? Resources.DiscordBotSuperAdminNotSet
             : _editor.SuperAdminUserId.ToString(CultureInfo.InvariantCulture);
         ShowAdminChannel();
         IsDirty = _editor.IsDirty;
+    }
+
+    // The rows follow the number of server instances of Trebuchet. Rebuilt only when the editor shows its values, never
+    // while typing: the text box keeps its focus.
+    private void ShowInstances()
+    {
+        var count = Math.Clamp(_setup.Config.ServerInstanceCount, 0, BotInputRules.MaxInstance + 1);
+        InstanceRows.Clear();
+        for (var instance = 0; instance < count; instance++)
+            InstanceRows.Add(new BotInstanceRow(instance, _editor, count, CanEdit, OnEdited));
+        this.RaisePropertyChanged(nameof(HasNoInstances));
     }
 
     private void ShowAdminChannel()

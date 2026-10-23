@@ -5845,7 +5845,7 @@ namespace Trebuchet.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Required. The only user allowed to use the super admin commands. Needs one of the allowed roles too. Can not be removed, only replaced..
+        ///   Looks up a localized string similar to Required. Always has every right: all commands work for this user without switching them on. Needs one of the allowed roles too. Can not be removed, only replaced..
         /// </summary>
         public static string DiscordBotSuperAdminText {
             get {
@@ -6646,7 +6646,7 @@ namespace Trebuchet.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Only switched on commands work. Who may use them stays the same: user ID and role..
+        ///   Looks up a localized string similar to These switches decide what the other listed users may do. The super admin can always use every command (still with user ID, role and confirmation). Who may use a command stays the same: user ID and role..
         /// </summary>
         public static string DiscordBotCommandsText {
             get {
@@ -6700,7 +6700,7 @@ namespace Trebuchet.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Every allowed user, with a confirmation button. Off by default and limited per server..
+        ///   Looks up a localized string similar to Every allowed user whose switch is on, with a confirmation button. Off by default and limited per server. The super admin always may..
         /// </summary>
         public static string DiscordBotLevelCriticalText {
             get {
@@ -6718,7 +6718,7 @@ namespace Trebuchet.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Only the super admin, with a confirmation button..
+        ///   Looks up a localized string similar to Start, update and setting the admin channel: only the super admin, always available, with a confirmation button..
         /// </summary>
         public static string DiscordBotLevelSuperAdminText {
             get {
@@ -6790,7 +6790,7 @@ namespace Trebuchet.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Restarts a running server, with the usual warnings to the players..
+        ///   Looks up a localized string similar to Restarts a running server. The button asks for the warning time first (right away up to 2 hours), the players are warned as usual..
         /// </summary>
         public static string DiscordBotCommandRestartNowText {
             get {
@@ -6808,7 +6808,7 @@ namespace Trebuchet.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Stops a running server, with the usual warnings to the players..
+        ///   Looks up a localized string similar to Stops a running server. The button asks for the warning time first (right away up to 1 hour), the players are warned as usual..
         /// </summary>
         public static string DiscordBotCommandStopText {
             get {
@@ -7267,7 +7267,7 @@ namespace Trebuchet.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Section "Connection": paste the token and save it, then enter the server ID. After saving,.
+        ///   Looks up a localized string similar to Section "Connection": paste the token and save it, then enter the server ID. After saving, the token is never shown again..
         /// </summary>
         public static string DiscordBotHelpStep7Text {
             get {
@@ -7339,7 +7339,7 @@ namespace Trebuchet.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Section "Commands": on by default are status, postpone, release again and set channel. Off.
+        ///   Looks up a localized string similar to The status message always shows the buttons that fit the server: Start (stopped), Restart and Stop (running), Postpone and Release again, and "Check updates". The bot edits this one message right away when something changes and every 5 minutes as a check..
         /// </summary>
         public static string DiscordBotHelpStep10Text {
             get {
@@ -7398,6 +7398,78 @@ namespace Trebuchet.Assets {
         public static string DiscordBotHelpStep12Hint {
             get {
                 return ResourceManager.GetString("DiscordBotHelpStep12Hint", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Check for updates (/updatecheck, button).
+        /// </summary>
+        public static string DiscordBotCommandCheckUpdates {
+            get {
+                return ResourceManager.GetString("DiscordBotCommandCheckUpdates", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Asks Steam whether mods or the server need an update and reports the result. Nothing is installed..
+        /// </summary>
+        public static string DiscordBotCommandCheckUpdatesText {
+            get {
+                return ResourceManager.GetString("DiscordBotCommandCheckUpdatesText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Servers.
+        /// </summary>
+        public static string DiscordBotSectionServers {
+            get {
+                return ResourceManager.GetString("DiscordBotSectionServers", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Choose which servers the bot manages and give them a name if you like. The bot shows it in its messages instead of the server save. A server that is not chosen does not appear in the bot at all, not even for the super admin..
+        /// </summary>
+        public static string DiscordBotServersText {
+            get {
+                return ResourceManager.GetString("DiscordBotServersText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to No servers set up yet..
+        /// </summary>
+        public static string DiscordBotServersEmpty {
+            get {
+                return ResourceManager.GetString("DiscordBotServersEmpty", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Instance {0}.
+        /// </summary>
+        public static string DiscordBotServerInstance {
+            get {
+                return ResourceManager.GetString("DiscordBotServerInstance", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Managed by the bot.
+        /// </summary>
+        public static string DiscordBotServerManaged {
+            get {
+                return ResourceManager.GetString("DiscordBotServerManaged", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Name in the bot (empty: server save).
+        /// </summary>
+        public static string DiscordBotServerNameWatermark {
+            get {
+                return ResourceManager.GetString("DiscordBotServerNameWatermark", resourceCulture);
             }
         }
         

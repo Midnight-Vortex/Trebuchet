@@ -20,22 +20,25 @@ public sealed record BotServerStatus(
 /// <summary>The colors of Discord for buttons: green, red, blue and grey are all it offers.</summary>
 public enum BotButtonStyle { Success, Danger, Primary, Secondary }
 
-public sealed record BotButton(string CustomId, string Label, BotButtonStyle Style, BotCommand Command);
+/// <param name="Disabled">Shown greyed out, it can not be clicked (the server is changing its state).</param>
+public sealed record BotButton(string CustomId, string Label, BotButtonStyle Style, BotCommand Command, bool Disabled = false);
 
 public sealed record BotField(string Name, string Value, bool Inline = true);
 
 /// <summary>The embed of a server: color by state, a few fields and the buttons that fit the state.</summary>
+/// <param name="UpdatedUtc">When the state was read. Discord shows it next to the footer: a stale time means the bot is not checking.</param>
 public sealed record BotStatusMessage(
     string Title,
     uint Color,
     IReadOnlyList<BotField> Fields,
     IReadOnlyList<BotButton> Buttons,
-    string Footer);
+    string Footer,
+    DateTime? UpdatedUtc = null);
 
 /// <summary>
-/// Builds the status message of a server instance. This is plain data, Discord.Net turns it into the real embed. A
-/// button only shows when its command is switched on and it fits the state: it is a convenience, the click is checked
-/// like every other request.
+/// Builds the status message of a server instance. This is plain data, Discord.Net turns it into the real embed. The
+/// buttons always fit the state of the server, whatever the command switches say: the message is the same for everybody
+/// and the super admin may do everything. A button is a convenience, the click is checked like every other request.
 /// </summary>
 public static class BotStatusMessageBuilder
 {
@@ -44,7 +47,7 @@ public static class BotStatusMessageBuilder
     public const uint Red = 0xE74C3C;
     public const uint Blue = 0x3498DB;
 
-    public static BotStatusMessage Build(BotServerStatus status, BotPolicy policy, BotTexts texts, DateTime utcNow)
+    public static BotStatusMessage Build(BotServerStatus status, BotTexts texts, DateTime utcNow)
     {
         var fields = new List<BotField>
         {
@@ -67,8 +70,9 @@ public static class BotStatusMessageBuilder
             $"{status.Name} · {texts.Instance} {status.Instance}",
             ColorOf(status, utcNow),
             fields,
-            ButtonsOf(status, policy, texts, utcNow),
-            texts.UpdatedFooter);
+            ButtonsOf(status, texts, utcNow),
+            texts.UpdatedFooter,
+            utcNow);
     }
 
     public static uint ColorOf(BotServerStatus status, DateTime utcNow)
@@ -88,14 +92,11 @@ public static class BotStatusMessageBuilder
         }
     }
 
-    private static List<BotButton> ButtonsOf(BotServerStatus status, BotPolicy policy, BotTexts texts, DateTime utcNow)
+    private static List<BotButton> ButtonsOf(BotServerStatus status, BotTexts texts, DateTime utcNow)
     {
         var buttons = new List<BotButton>();
-        void Add(BotCommand command, string label, BotButtonStyle style)
-        {
-            if (policy.IsCommandEnabled(command))
-                buttons.Add(new BotButton(BotCustomId.ForAction(command, status.Instance), label, style, command));
-        }
+        void Add(BotCommand command, string label, BotButtonStyle style, bool disabled = false) =>
+            buttons.Add(new BotButton(BotCustomId.ForAction(command, status.Instance), label, style, command, disabled));
 
         switch (status.State)
         {
@@ -112,8 +113,13 @@ public static class BotStatusMessageBuilder
                 if (status.PausedUntilUtc is { } paused && paused > utcNow)
                     Add(BotCommand.Resume, texts.Resume, BotButtonStyle.Secondary);
                 break;
-            // Stopping: nothing to click until it is down.
+            case BotServerState.Stopping:
+                // Nothing to click until it is down: the button of the next step waits greyed out.
+                Add(BotCommand.Start, texts.Start, BotButtonStyle.Success, disabled: true);
+                break;
         }
+        // Not about this server alone: the check asks Steam about the mods and the server build and installs nothing.
+        Add(BotCommand.CheckUpdates, texts.CheckUpdates, BotButtonStyle.Secondary);
         return buttons;
     }
 

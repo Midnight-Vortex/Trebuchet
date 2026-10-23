@@ -56,8 +56,13 @@ Die Rolle `@everyone` ist **nicht erlaubt** (jeder hat sie), Trebuchet lehnt sie
 3. **Super-Admin:** deine User-ID. Sie ist Pflicht und lässt sich nicht entfernen.
 4. **Erlaubte Rollen:** die Rollen-ID.
 5. **Erlaubte User:** die User-IDs weiterer Personen.
-6. **Sicherheit prüfen** drücken. Alle Punkte müssen grün sein.
-7. **Starten**.
+6. **Server:** wähle, welche Server der Bot verwaltet, und gib ihnen auf Wunsch einen **Namen**. Den Namen benutzt der
+   Bot in seinen Meldungen (sonst steht dort der Speicherstand). Ein Server, der nicht angehakt ist, kommt im Bot nicht vor.
+7. **Sicherheit prüfen** drücken. Alle Punkte müssen grün sein.
+8. **Starten**.
+
+Der **Super-Admin hat immer alle Rechte**: unter *Befehle* musst du für ihn nichts einschalten. Die Schalter dort gelten
+nur für die anderen Nutzer in der Liste.
 
 Ohne Token, Server-ID, Super-Admin **und** mindestens eine Rolle startet der Bot nicht.
 
@@ -78,14 +83,23 @@ Den Kanal wieder freigeben (alle Kanäle) geht nur im Launcher, nie über Discor
 
 ## 7. Benutzen
 
-Die Status-Meldung zeigt den Zustand (grün online, gelb es steht etwas an, blau verschoben, rot gestoppt).
+Die Status-Meldung zeigt den Zustand (grün online, gelb es steht etwas an, blau verschoben, rot gestoppt). Der Bot
+**bearbeitet immer diese eine Meldung**: sofort, wenn sich etwas ändert (Start, online laut Server-Log, Stopp, Absturz,
+Countdown, Verschiebung, auch direkt nach deinem Klick), und zur Kontrolle **alle 5 Minuten**. Die Zeit neben „Aktualisiert“
+zeigt, wann zuletzt geprüft wurde. Die Buttons passen immer zum Zustand:
 
+- **Starten:** wenn der Server gestoppt oder abgestürzt ist (beim Herunterfahren grau).
+- **Neustart / Stoppen:** erst die **Wartezeit** wählen (Sofort, 1, 5, 10, 15, 30 Min, 1 Std, beim Neustart auch 2 Std,
+  wie im Dialog in Trebuchet), dann bestätigen. Die Spieler werden wie gewohnt gewarnt.
 - **Neustart verschieben / Stopp verschieben / Update verschieben:** erscheint, wenn gerade etwas ansteht. Nach dem
   Klick wählst du aus: **15 Min, 30 Min, 1 Std, 2 Std, 3 Std, 6 Std**. Ingame steht danach „Der Neustart von
   {servername} wurde um X Minuten verschoben.“
 - **Wieder freigeben:** hebt die Verschiebung auf.
-- **Neustart, Stoppen, Starten:** sind zuerst **ausgeschaltet**. Im Launcher unter *Befehle* einschaltbar. Dann
-  fragt der Bot vor der Ausführung noch einmal per Knopf nach. Starten dürfen nur Super-Admins.
+- **Updates prüfen:** fragt Steam, ob Mods oder der Server ein Update brauchen, und sagt dir das Ergebnis. Es wird
+  **nichts installiert**. (Auch als Befehl `/updatecheck`.)
+
+Als Super-Admin darfst du alles. Andere Nutzer dürfen Neustart und Stopp nur, wenn du das im Launcher unter *Befehle*
+einschaltest; ohne Recht klicken sie ins Leere („Keine Berechtigung“). Starten und `/update` darf nur der Super-Admin.
 
 ## 8. Sicherheit auf einen Blick
 

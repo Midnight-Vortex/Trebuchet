@@ -318,6 +318,41 @@
                     <ContentControl Content="{Binding GuildField}" ClipToBounds="False" />
                     <ContentControl Content="{Binding LanguageField}" ClipToBounds="False" />
 
+                    <!-- (d0) Servers: which instances the bot manages and the name it uses for them -->
+                    <TextBlock Classes="Title Section" Text="{x:Static a:Resources.DiscordBotSectionServers}" />
+                    <Border Classes="HSeparator" />
+                    <Border Classes="Panel Shadowed" Padding="12" Margin="0,0,0,12">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="{x:Static a:Resources.DiscordBotServersText}" Classes="SubText" TextWrapping="Wrap" />
+                            <TextBlock Text="{x:Static a:Resources.DiscordBotServersEmpty}" Classes="SubText" FontStyle="Italic"
+                                       IsVisible="{Binding HasNoInstances}" />
+                            <ItemsControl ItemsSource="{Binding InstanceRows}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Spacing="6" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="bot:BotInstanceRow">
+                                        <StackPanel Orientation="Horizontal" Spacing="12">
+                                            <CheckBox Width="260" VerticalAlignment="Center" IsEnabled="{Binding CanEdit}"
+                                                      IsChecked="{Binding IsManaged, Mode=TwoWay}">
+                                                <StackPanel Spacing="0">
+                                                    <TextBlock Text="{Binding Title}" FontWeight="Bold" />
+                                                    <TextBlock Text="{x:Static a:Resources.DiscordBotServerManaged}" Classes="SubText" />
+                                                </StackPanel>
+                                            </CheckBox>
+                                            <TextBox Width="320" Height="25" VerticalContentAlignment="Center" VerticalAlignment="Center"
+                                                     MaxLength="{Binding MaxNameLength}" IsEnabled="{Binding CanEdit}"
+                                                     PlaceholderText="{Binding Watermark}"
+                                                     Text="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+
                     <!-- (d) Commands -->
                     <TextBlock Classes="Title Section" Text="{x:Static a:Resources.DiscordBotSectionCommands}" />
                     <Border Classes="HSeparator" />

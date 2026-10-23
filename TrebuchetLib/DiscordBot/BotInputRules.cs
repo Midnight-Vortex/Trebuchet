@@ -11,6 +11,47 @@ public static class BotInputRules
 {
     public const int MaxReasonLength = 100;
     public const int MaxLogTextLength = 200;
+    /// <summary>The name a server instance gets in the messages of the bot.</summary>
+    public const int MaxNameLength = 40;
+    /// <summary>The highest instance number Discord options and button IDs can carry.</summary>
+    public const int MaxInstance = 99;
+
+    // The warning times of the menu of a restart or stop, like the buttons of the dialog in Trebuchet.
+    private static readonly IReadOnlyList<int> RestartDelays = [0, 1, 5, 10, 15, 30, 60, 120];
+    private static readonly IReadOnlyList<int> StopDelays = [0, 1, 5, 10, 15, 30, 60];
+
+    /// <summary>The longest warning time of a restart (two hours) or stop (one hour) started from Discord.</summary>
+    public static int MaxDelayMinutes(BotCommand command) => command == BotCommand.RestartNow ? RestartDelays[^1] : StopDelays[^1];
+
+    /// <summary>The warning times offered for a restart or stop. 0 is "right away".</summary>
+    public static IReadOnlyList<int> DelayChoices(BotCommand command) => command == BotCommand.RestartNow ? RestartDelays : StopDelays;
+
+    /// <summary>The picked value of the menu has to be one of the offered warning times.</summary>
+    public static bool TryParseDelayChoice(string? value, BotCommand command, out int minutes)
+    {
+        minutes = 0;
+        if (command is not (BotCommand.RestartNow or BotCommand.Stop)) return false;
+        if (string.IsNullOrEmpty(value) || value.Length > 3 || !value.All(char.IsAsciiDigit)) return false;
+        if (!int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var parsed)) return false;
+        if (!DelayChoices(command).Contains(parsed)) return false;
+        minutes = parsed;
+        return true;
+    }
+
+    /// <summary>
+    /// A name for a server instance: one clean line of at most <see cref="MaxNameLength"/> characters without anything
+    /// that Discord would turn into a mention, a link, a channel or formatting, and without the braces of the macros.
+    /// </summary>
+    public static string SanitizeName(string? text)
+    {
+        var clean = Clean(text, MaxNameLength * 3);
+        var builder = new StringBuilder(clean.Length);
+        foreach (var c in clean)
+            if ("{}<>@#[]`|*~\\:".IndexOf(c) < 0)
+                builder.Append(c);
+        // Taking characters out can leave two spaces next to each other.
+        return Truncate(Clean(builder.ToString(), MaxNameLength * 3).Trim(), MaxNameLength);
+    }
 
     /// <summary>The server instance has to exist. The list shown in Discord is only a convenience.</summary>
     public static bool TryParseInstance(long value, int instanceCount, out int instance)

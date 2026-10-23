@@ -41,7 +41,8 @@ public readonly record struct BotDecision(bool Allowed, BotDenyReason Reason)
 /// <summary>
 /// The double check: a request is allowed only when it comes from the right server, the right channel and a user whose
 /// ID is on the list <b>and</b> who has one of the allowed roles. Every check has to pass, in this order, and any
-/// error means "no". Used for commands, for button clicks and again for each confirmation.
+/// error means "no". Used for commands, for button clicks and again for each confirmation. The command switches
+/// limit the other users; the super admin always may use every command.
 /// </summary>
 public static class BotAuthorizer
 {
@@ -67,10 +68,12 @@ public static class BotAuthorizer
                 return BotDecision.Deny(BotDenyReason.NotListedUser);
             // 6. And the user needs one of the allowed roles. Both checks are needed, either alone is not enough.
             if (!HasAllowedRole(policy, request.RoleIds)) return BotDecision.Deny(BotDenyReason.MissingRole);
-            // 7. The command has to be switched on.
-            if (!policy.IsCommandEnabled(request.Command)) return BotDecision.Deny(BotDenyReason.CommandDisabled);
+            // 7. The command has to be switched on for the other users. The super admin always has every right (the
+            //    checks above, the confirmation and the limits still apply to the super admin).
+            var isSuperAdmin = request.UserId == policy.SuperAdminUserId;
+            if (!isSuperAdmin && !policy.IsCommandEnabled(request.Command)) return BotDecision.Deny(BotDenyReason.CommandDisabled);
             // 8. Super admin commands only for the super admin.
-            if (BotCommands.LevelOf(request.Command) == BotLevel.SuperAdmin && request.UserId != policy.SuperAdminUserId)
+            if (BotCommands.LevelOf(request.Command) == BotLevel.SuperAdmin && !isSuperAdmin)
                 return BotDecision.Deny(BotDenyReason.LevelTooLow);
 
             return BotDecision.Allow;

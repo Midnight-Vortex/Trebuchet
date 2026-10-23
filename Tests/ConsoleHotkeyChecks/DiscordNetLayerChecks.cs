@@ -67,6 +67,14 @@ static class DiscordNetLayerChecks
     private sealed class FakeActions : IBotActions
     {
         public int InstanceCount => 2;
+        private EventHandler? _handlers;
+        public int Subscribers { get; private set; }
+        public event EventHandler? StatusChanged
+        {
+            add { _handlers += value; Subscribers++; }
+            remove { _handlers -= value; Subscribers--; }
+        }
+        public void Raise() => _handlers?.Invoke(this, EventArgs.Empty);
         public Task<IReadOnlyList<BotServerStatus>> GetStatusesAsync(CancellationToken token) => Task.FromResult<IReadOnlyList<BotServerStatus>>([]);
         public Task<BotActionResult> PostponeAsync(int instance, int minutes, string reason, CancellationToken token) => Done();
         public Task<BotActionResult> ResumeAsync(int instance, CancellationToken token) => Done();
@@ -74,6 +82,7 @@ static class DiscordNetLayerChecks
         public Task<BotActionResult> StopAsync(int instance, TimeSpan delay, string reason, CancellationToken token) => Done();
         public Task<BotActionResult> StartAsync(int instance, CancellationToken token) => Done();
         public Task<BotActionResult> UpdateAsync(CancellationToken token) => Done();
+        public Task<BotActionResult> CheckUpdatesAsync(CancellationToken token) => Done();
         private static Task<BotActionResult> Done() => Task.FromResult(new BotActionResult(BotActionOutcome.Done));
     }
 
@@ -249,6 +258,10 @@ static class DiscordNetLayerChecks
         {
             var realBuilders = DiscordNetCommandRegistrar.BuildCommands(real);
             Check(realBuilders.Count > 0 && realBuilders.All(x => x.Build() is not null), "The commands of the handler map to valid Discord commands");
+            Check(realBuilders.Any(x => x.Name == "updatecheck" && x.Build().Options.IsSpecified == false || x.Name == "updatecheck" && x.Build().Options.Value.Count == 0)
+                  && real.Any(x => x.Path == "update") && real.Single(x => x.Path == "restart now").Options.Single(o => o.Name == "delay").Max == 120
+                  && real.Single(x => x.Path == "stop").Options.Single(o => o.Name == "delay").Max == 60,
+                "The check for updates has its own command, the delay of a restart goes up to two hours and that of a stop to one");
         }
 
         // --- embeds and buttons
@@ -263,7 +276,7 @@ static class DiscordNetLayerChecks
         foreach (var command in Enum.GetValues<BotCommand>()) allOn.SetEnabled(command, true);
         var allOnPolicy = PolicyOf(allOn);
         var server = new BotServerStatus(1, "Exiled Lands", BotServerState.Online, 12, 40, t0.AddHours(-3), BotPendingAction.Restart, t0.AddMinutes(10), t0.AddHours(1));
-        var model = BotStatusMessageBuilder.Build(server, allOnPolicy, BotTexts.German, t0);
+        var model = BotStatusMessageBuilder.Build(server, BotTexts.German, t0);
         var status = BotDiscordRenderer.RenderStatus(model);
         var embed = status.Embeds.Single();
         Check(embed.Title == model.Title && embed.Color!.Value.RawValue == model.Color && embed.Footer!.Value.Text == model.Footer,
@@ -275,6 +288,13 @@ static class DiscordNetLayerChecks
         Check(statusButtons.All(b => BotCustomId.TryParse(b.CustomId, 2, out var kind, out _, out var instance, out _) && kind == BotCustomIdKind.Action && instance == 1),
             "Every button reads back to its server");
         Check(status.Text.Length == 0 && NoMentions(status), "The status message has no text and no mentions");
+        Check(embed.Timestamp == new DateTimeOffset(t0, TimeSpan.Zero), "The embed carries the time of the check");
+        var down = BotStatusMessageBuilder.Build(server with { State = BotServerState.Stopping }, BotTexts.German, t0);
+        var downButtons = ButtonsOf(BotDiscordRenderer.RenderStatus(down).Components);
+        Check(downButtons.Count == 2 && downButtons[0].IsDisabled && downButtons[0].CustomId == BotCustomId.ForAction(BotCommand.Start, 1) && !downButtons[1].IsDisabled
+              && statusButtons.All(b => !b.IsDisabled), "A button that waits for the server to go down is greyed out, the others can be clicked");
+        Check(statusButtons.Any(b => b.CustomId == BotCustomId.ForAction(BotCommand.CheckUpdates, 1)) && statusButtons.Count <= 5,
+            "The update check is a button of the status message, and the row still fits");
 
         var many = Status(Enumerable.Range(0, 12).Select(i => new BotButton(BotCustomId.ForAction(BotCommand.Postpone, i), "P" + i, BotButtonStyle.Secondary, BotCommand.Postpone)).ToArray());
         var manyRows = RowsOf(BotDiscordRenderer.RenderStatus(many).Components);
@@ -313,7 +333,7 @@ static class DiscordNetLayerChecks
         Check(RowsOf(BotDiscordRenderer.Render(new BotReply("x", Question: new BotConfirmQuestion("bad nonce!", "a", "b"))).Components).Count == 0,
             "A question with a broken code gets no buttons");
 
-        var second = BotStatusMessageBuilder.Build(server with { Instance = 0 }, allOnPolicy, BotTexts.German, t0);
+        var second = BotStatusMessageBuilder.Build(server with { Instance = 0 }, BotTexts.German, t0);
         var both = BotDiscordRenderer.Render(new BotReply("Status", [second, model]));
         var bothRows = RowsOf(both.Components);
         Check(both.Embeds.Length == 2 && bothRows.Count == 2 && bothRows[0].OfType<ButtonComponent>().All(b => b.Label.StartsWith("#0 "))
@@ -608,9 +628,20 @@ static class DiscordNetLayerChecks
         try
         {
             var serviceLogs = new CapturingLoggerFactory();
+            FakeActions? lastActions = null;
             DiscordBotService Service(DiscordBotConfig config, string? token) => new(config,
                 new BotTokenStore(Path.Combine(folder, "bot.token"), new ReversingProtector(), _ => token),
-                new BotAuditLog(Path.Combine(folder, "audit")), new FakeActions(), new BotGuard(new BotRateLimiter()), new BotPendingActions(), serviceLogs);
+                new BotAuditLog(Path.Combine(folder, "audit")), lastActions = new FakeActions(), new BotGuard(new BotRateLimiter()), new BotPendingActions(), serviceLogs);
+
+            // The service listens for changes of the servers (to refresh the status messages at once) for as long as it lives.
+            var listening = Service(ValidConfig(), null);
+            var announcer = lastActions!;
+            Check(announcer.Subscribers == 1, "The service listens for changes of the servers");
+            announcer.Raise();
+            Check(listening.State == DiscordBotState.Stopped, "A change before the bot runs is noted and does nothing");
+            await listening.DisposeAsync();
+            Check(announcer.Subscribers == 0, "A disposed service no longer listens");
+            announcer.Raise();
 
             var invalid = ValidConfig();
             invalid.AllowedRoleIds.Clear();

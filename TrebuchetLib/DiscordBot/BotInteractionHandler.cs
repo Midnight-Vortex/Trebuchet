@@ -23,7 +23,6 @@ public sealed record BotSlashCommand(string Path, string Description, IReadOnlyL
 public sealed class BotInteractionHandler
 {
     private const int MaxEmbeds = 10;
-    private const int MaxDelayMinutes = 60;
     private static readonly TimeSpan SelectLifetime = TimeSpan.FromMinutes(2);
     private static readonly TimeSpan ConfirmLifetime = BotPendingActions.DefaultLifetime;
 
@@ -36,6 +35,7 @@ public sealed class BotInteractionHandler
         ["stop"] = BotCommand.Stop,
         ["start"] = BotCommand.Start,
         ["update"] = BotCommand.Update,
+        ["updatecheck"] = BotCommand.CheckUpdates,
         ["bot channel set"] = BotCommand.SetChannel
     };
 
@@ -79,12 +79,15 @@ public sealed class BotInteractionHandler
         new("restart resume", "End a postponement: automatic restarts run again", [Instance(true)]),
         new("restart now", "Restart a server (players are warned first)", [
             Instance(true),
-            new BotSlashOption("delay", "Warning time in minutes (default: from the settings)", BotOptionType.Integer, false, 0, MaxDelayMinutes)]),
+            new BotSlashOption("delay", "Warning time in minutes (default: from the settings)", BotOptionType.Integer, false, 0,
+                BotInputRules.MaxDelayMinutes(BotCommand.RestartNow))]),
         new("stop", "Stop a server (players are warned first)", [
             Instance(true),
-            new BotSlashOption("delay", "Warning time in minutes (default: from the settings)", BotOptionType.Integer, false, 0, MaxDelayMinutes)]),
+            new BotSlashOption("delay", "Warning time in minutes (default: from the settings)", BotOptionType.Integer, false, 0,
+                BotInputRules.MaxDelayMinutes(BotCommand.Stop))]),
         new("start", "Start a stopped server", [Instance(true)]),
         new("update", "Check for updates and install them", []),
+        new("updatecheck", "Check for mod and server updates (installs nothing)", []),
         new("bot channel set", "Make this channel the admin channel of the bot", [])
     ];
 
@@ -117,11 +120,11 @@ public sealed class BotInteractionHandler
         var now = _clock();
 
         // 1. Read what was asked. No decision is made on it yet.
-        var ask = Read(i, now);
+        var ask = Read(i, now, policy);
 
         // 2. The gate: nothing below runs for anyone it does not let through.
         var request = new BotRequest(i.UserId, i.GuildId, i.ChannelId, i.RoleIds ?? [], i.IsHuman, ask.GuardCommand, i.InteractionId);
-        var gate = _guard.Evaluate(policy, request, ask.Instance, ask.FollowUp, ask.CountDenial);
+        var gate = _guard.Evaluate(policy, request, ask.Instance, ask.FollowUp, ask.CountDenial, !ask.NotFinal);
         switch (gate.Outcome)
         {
             case BotGuardOutcome.Ignored:
@@ -165,7 +168,7 @@ public sealed class BotInteractionHandler
                 await ConfirmedAsync(i, ask, allowedPolicy, messages, responder, token).ConfigureAwait(false);
                 return;
             case Step.PostponeChoice:
-                await PostponePickedAsync(i, ask, allowedPolicy, messages, responder, token).ConfigureAwait(false);
+                await ChoicePickedAsync(i, ask, allowedPolicy, messages, responder, token).ConfigureAwait(false);
                 return;
         }
 
@@ -183,6 +186,13 @@ public sealed class BotInteractionHandler
                 else
                     await RunAsync(i, ask, BotCommand.Resume, ask.Instance!.Value, 0, allowedPolicy, messages, responder, false, token).ConfigureAwait(false);
                 break;
+            case BotCommand.CheckUpdates:
+                await RunAsync(i, ask, BotCommand.CheckUpdates, -1, 0, allowedPolicy, messages, responder, false, token).ConfigureAwait(false);
+                break;
+            case BotCommand.RestartNow or BotCommand.Stop when i.Kind == BotInteractionKind.Button:
+                // The buttons of the status message ask for the warning time first, like the dialog in Trebuchet.
+                await AskDelayAsync(i, ask, allowedPolicy, messages, responder).ConfigureAwait(false);
+                break;
             default:
                 await AskConfirmationAsync(i, ask, allowedPolicy, messages, responder).ConfigureAwait(false);
                 break;
@@ -199,9 +209,15 @@ public sealed class BotInteractionHandler
     {
         /// <summary>False for a cancel or an expired question: a refusal there does not count toward the lock out.</summary>
         public bool CountDenial { get; init; } = true;
+
+        /// <summary>The menu in front of a confirmation: it does not use up the limit of critical actions, the confirmation does.</summary>
+        public bool NotFinal { get; init; }
     }
 
-    private Ask Read(BotInteraction i, DateTime now)
+    // The bot only knows the instances chosen in its settings: any other one is answered like one that does not exist.
+    private static bool IsManaged(BotPolicy? policy, int instance) => policy is null || policy.IsManaged(instance);
+
+    private Ask Read(BotInteraction i, DateTime now, BotPolicy? policy)
     {
         var numbers = i.Numbers;
         long? raw(string key) => numbers is not null && numbers.TryGetValue(key, out var v) ? v : null;
@@ -214,7 +230,7 @@ public sealed class BotInteractionHandler
             if (!Paths.TryGetValue(path, out var command))
                 return Unknown(false);
             var rawInstance = raw("instance");
-            int? instance = rawInstance is { } r && BotInputRules.TryParseInstance(r, count, out var parsed) ? parsed : null;
+            int? instance = rawInstance is { } r && BotInputRules.TryParseInstance(r, count, out var parsed) && IsManaged(policy, parsed) ? parsed : null;
             var reason = BotInputRules.SanitizeReason(text("reason"));
             return new Ask(command, command, Step.Initial, instance, false, false, false, false, null, rawInstance, raw("minutes"), raw("delay"),
                 reason, Describe(command, rawInstance, raw("minutes"), raw("delay"), reason));
@@ -229,8 +245,8 @@ public sealed class BotInteractionHandler
         switch (kind)
         {
             case BotCustomIdKind.Action:
-                return new Ask(buttonCommand, buttonCommand, Step.Initial, buttonInstance, false, false, false, false, null, buttonInstance, null, null,
-                    string.Empty, Describe(buttonCommand, buttonInstance, null, null, string.Empty));
+                return new Ask(buttonCommand, buttonCommand, Step.Initial, IsManaged(policy, buttonInstance) ? buttonInstance : null, false, false, false, false,
+                    null, buttonInstance, null, null, string.Empty, Describe(buttonCommand, buttonInstance, null, null, string.Empty));
             default:
             {
                 var step = kind switch
@@ -252,11 +268,12 @@ public sealed class BotInteractionHandler
                 var guardCommand = step == Step.Cancel
                     ? (pending.Command == BotCommand.SetChannel ? BotCommand.SetChannel : BotCommand.Status)
                     : pending.Command;
-                int? instance = pending.Instance >= 0 && pending.Instance < count ? pending.Instance : null;
+                int? instance = pending.Instance >= 0 && pending.Instance < count && IsManaged(policy, pending.Instance) ? pending.Instance : null;
                 return new Ask(pending.Command, guardCommand, step, instance, true, false, false, true, pending, pending.Instance, pending.Minutes, null, null,
                     Describe(pending.Command, pending.Instance, pending.Minutes, null, string.Empty) + $" step={step}")
                 {
-                    CountDenial = step != Step.Cancel
+                    CountDenial = step != Step.Cancel,
+                    NotFinal = step == Step.PostponeChoice && pending.Command != BotCommand.Postpone
                 };
             }
         }
@@ -303,9 +320,9 @@ public sealed class BotInteractionHandler
         var texts = BotTexts.For(policy.Language);
         var now = _clock();
         var embeds = statuses
-            .Where(x => ask.Instance is null || x.Instance == ask.Instance)
+            .Where(x => policy.IsManaged(x.Instance) && (ask.Instance is null || x.Instance == ask.Instance))
             .Take(MaxEmbeds)
-            .Select(x => BotStatusMessageBuilder.Build(x, policy, texts, now))
+            .Select(x => BotStatusMessageBuilder.Build(policy.Named(x), texts, now))
             .ToList();
         await AnswerAsync(responder, new BotReply(embeds.Count == 0 ? messages.NoServers : messages.StatusTitle, embeds), false).ConfigureAwait(false);
         Audit(i, BotAuditResult.Executed, ask, $"{embeds.Count} servers");
@@ -338,6 +355,43 @@ public sealed class BotInteractionHandler
             new BotReply(messages.PostponePlaceholder, Question: new BotSelectQuestion(nonce, messages.PostponePlaceholder, choices)), false).ConfigureAwait(false);
     }
 
+    private async Task AskDelayAsync(BotInteraction i, Ask ask, BotPolicy policy, BotMessages messages, IBotResponder responder)
+    {
+        if (!TryInstance(ask, messages, out var error))
+        {
+            await AnswerAsync(responder, error!, false).ConfigureAwait(false);
+            return;
+        }
+        var command = ask.Command;
+        var instance = ask.Instance!.Value;
+        var nonce = _pending.Create(i.UserId, command, instance, _clock(), SelectLifetime, 0, i.ChannelId ?? 0);
+        var choices = BotInputRules.DelayChoices(command)
+            .Select(m => new BotChoice(m == 0 ? messages.NowChoice : messages.FormatMinutes(m), m.ToString(CultureInfo.InvariantCulture)))
+            .ToList();
+        var text = string.Format(CultureInfo.InvariantCulture, command == BotCommand.RestartNow ? messages.AskRestartDelay : messages.AskStopDelay,
+            policy.ServerLabel(instance));
+        await AnswerAsync(responder, new BotReply(text, Question: new BotSelectQuestion(nonce, messages.DelayPlaceholder, choices)), false).ConfigureAwait(false);
+    }
+
+    // The answer of a menu: the minutes of a postponement (done at once) or the warning time of a restart or stop (the
+    // confirmation follows).
+    private async Task ChoicePickedAsync(BotInteraction i, Ask ask, BotPolicy policy, BotMessages messages, IBotResponder responder, CancellationToken token)
+    {
+        if (ask.Command is BotCommand.RestartNow or BotCommand.Stop)
+        {
+            if (ask.Instance is null || i.Kind != BotInteractionKind.Select
+                || (ask.Pending is { ChannelId: not 0 } asked && i.ChannelId != asked.ChannelId)
+                || i.Values is not { Count: 1 } picked || !BotInputRules.TryParseDelayChoice(picked[0], ask.Command, out var delay))
+            {
+                await AnswerAsync(responder, new BotReply(messages.InvalidInput), true).ConfigureAwait(false);
+                return;
+            }
+            await AskConfirmationAsync(i, ask, policy, messages, responder, update: true, chosenDelay: delay).ConfigureAwait(false);
+            return;
+        }
+        await PostponePickedAsync(i, ask, policy, messages, responder, token).ConfigureAwait(false);
+    }
+
     private async Task PostponePickedAsync(BotInteraction i, Ask ask, BotPolicy policy, BotMessages messages, IBotResponder responder, CancellationToken token)
     {
         if (ask.Command != BotCommand.Postpone || ask.Instance is not { } instance
@@ -351,12 +405,13 @@ public sealed class BotInteractionHandler
         await RunAsync(i, ask, BotCommand.Postpone, instance, minutes, policy, messages, responder, true, token).ConfigureAwait(false);
     }
 
-    private async Task AskConfirmationAsync(BotInteraction i, Ask ask, BotPolicy policy, BotMessages messages, IBotResponder responder)
+    private async Task AskConfirmationAsync(BotInteraction i, Ask ask, BotPolicy policy, BotMessages messages, IBotResponder responder,
+        bool update = false, int? chosenDelay = null)
     {
         var command = ask.Command;
         if (!BotCommands.NeedsConfirmation(command))
         {
-            await AnswerAsync(responder, new BotReply(messages.UnknownRequest), false).ConfigureAwait(false);
+            await AnswerAsync(responder, new BotReply(messages.UnknownRequest), update).ConfigureAwait(false);
             return;
         }
 
@@ -366,17 +421,19 @@ public sealed class BotInteractionHandler
         {
             if (!TryInstance(ask, messages, out var error))
             {
-                await AnswerAsync(responder, error!, false).ConfigureAwait(false);
+                await AnswerAsync(responder, error!, update).ConfigureAwait(false);
                 return;
             }
             if (command != BotCommand.Start)
             {
                 delayMinutes = (int)Math.Round(policy.ActionDelay.TotalMinutes);
-                if (ask.RawDelay is { } rawDelay)
+                if (chosenDelay is { } chosen)
+                    delayMinutes = chosen;
+                else if (ask.RawDelay is { } rawDelay)
                 {
-                    if (rawDelay < 0 || rawDelay > MaxDelayMinutes)
+                    if (rawDelay < 0 || rawDelay > BotInputRules.MaxDelayMinutes(command))
                     {
-                        await AnswerAsync(responder, new BotReply(messages.InvalidInput), false).ConfigureAwait(false);
+                        await AnswerAsync(responder, new BotReply(messages.InvalidInput), update).ConfigureAwait(false);
                         return;
                     }
                     delayMinutes = (int)rawDelay;
@@ -385,11 +442,11 @@ public sealed class BotInteractionHandler
         }
         if (command == BotCommand.SetChannel && (i.ChannelId is not { } channel || !BotId.IsValid(channel)))
         {
-            await AnswerAsync(responder, new BotReply(messages.InvalidInput), false).ConfigureAwait(false);
+            await AnswerAsync(responder, new BotReply(messages.InvalidInput), update).ConfigureAwait(false);
             return;
         }
 
-        var server = instance.ToString(CultureInfo.InvariantCulture);
+        var server = policy.ServerLabel(instance);
         var warning = delayMinutes == 0 ? messages.Now : messages.FormatMinutes(delayMinutes);
         var text = command switch
         {
@@ -400,7 +457,7 @@ public sealed class BotInteractionHandler
             _ => messages.AskChannel
         };
         var nonce = _pending.Create(i.UserId, command, instance, _clock(), ConfirmLifetime, delayMinutes, i.ChannelId ?? 0);
-        await AnswerAsync(responder, new BotReply(text, Question: new BotConfirmQuestion(nonce, messages.Confirm, messages.Cancel)), false).ConfigureAwait(false);
+        await AnswerAsync(responder, new BotReply(text, Question: new BotConfirmQuestion(nonce, messages.Confirm, messages.Cancel)), update).ConfigureAwait(false);
     }
 
     private async Task ConfirmedAsync(BotInteraction i, Ask ask, BotPolicy policy, BotMessages messages, IBotResponder responder, CancellationToken token)
@@ -483,6 +540,7 @@ public sealed class BotInteractionHandler
                 BotCommand.Stop => _actions.StopAsync(instance, delay, "Discord", token),
                 BotCommand.Start => _actions.StartAsync(instance, token),
                 BotCommand.Update => _actions.UpdateAsync(token),
+                BotCommand.CheckUpdates => _actions.CheckUpdatesAsync(token),
                 _ => Task.FromResult(new BotActionResult(BotActionOutcome.Failed, "not an action"))
             };
 
@@ -517,7 +575,7 @@ public sealed class BotInteractionHandler
             var target = instance >= 0 ? $" server {instance.ToString(CultureInfo.InvariantCulture)}" : string.Empty;
             await NoteAsync(policy, $"{command}{target} by user {UserTag(i)}.").ConfigureAwait(false);
         }
-        var answer = ResultText(command, instance, minutes, result, messages);
+        var answer = ResultText(command, policy.ServerLabel(instance), minutes, result, messages);
         if (command == BotCommand.Postpone && result.Success && minutes < requestedMinutes)
             answer = string.Format(CultureInfo.InvariantCulture, messages.PostponedLimited, messages.FormatMinutes(minutes));
         await AnswerAsync(responder, new BotReply(answer), update).ConfigureAwait(false);
@@ -553,9 +611,8 @@ public sealed class BotInteractionHandler
         }
     }
 
-    private static string ResultText(BotCommand command, int instance, int minutes, BotActionResult result, BotMessages messages)
+    private static string ResultText(BotCommand command, string server, int minutes, BotActionResult result, BotMessages messages)
     {
-        var server = instance.ToString(CultureInfo.InvariantCulture);
         return result.Outcome switch
         {
             BotActionOutcome.Done => command switch
@@ -566,6 +623,8 @@ public sealed class BotInteractionHandler
                 BotCommand.Stop => string.Format(CultureInfo.InvariantCulture, messages.DoneStop, server),
                 BotCommand.Start => string.Format(CultureInfo.InvariantCulture, messages.DoneStart, server),
                 BotCommand.Update => messages.DoneUpdate,
+                BotCommand.CheckUpdates => string.Format(CultureInfo.InvariantCulture, messages.DoneCheckUpdates, result.Updates?.OutdatedMods ?? 0,
+                    result.Updates?.ServerUpdate == true ? messages.ServerNewVersion : messages.ServerCurrent),
                 _ => messages.Failed
             },
             BotActionOutcome.NotRunning => messages.NotRunning,

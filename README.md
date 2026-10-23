@@ -2,6 +2,15 @@
 
 After installing, launch Trebuchet from the Start menu or desktop shortcut. The installer deliberately does not launch it: on affected Windows versions, a process started by Setup can inherit RedirectionGuard and fail to traverse Trebuchet's Saved/profile junctions. Conan then reports that it cannot ensure `Saved/ExtractedMods` exists, even when the directory is present. If this happens after an older setup, fully close Trebuchet and relaunch it from the Start menu; reinstalling mods is not required for this directory-access error.
 
+## Unreleased: Discord bot follow-ups
+
+- The **super admin always has every right** (the command switches only limit the other users). The status message always shows the buttons that fit the server state, whatever the switches say; every click is still checked.
+- The status message is edited **right away on every real change** (start, online according to the Conan server log, stopping, stopped, crashed, countdowns, postponements, any action from Discord) and **every 5 minutes** as a check (every 15 seconds while a server starts or stops). The embed shows the time of the last check.
+- **Restart and Stop buttons ask for the warning time first** (right away, 1, 5, 10, 15, 30 min, 1 h, restart also 2 h), like the dialog in Trebuchet, then for the confirmation.
+- New **Updates check** button and `/updatecheck`: asks Steam about mod updates and a new server build, installs nothing.
+- Bot settings: choose **which server instances the bot manages** and give each a **name** the bot uses in its messages.
+- The Discord Bot panel has a **setup help** window (button next to Revert) that explains every step.
+
 ## 0.9.20 Discord bot
 
 - New menu entry **Discord Bot** (below Dashboard): a bot that runs inside Trebuchet and lets authorized people postpone a restart, stop or update, and optionally restart, stop or start servers, from Discord. A status message per server with colored buttons is kept up to date in an admin channel.

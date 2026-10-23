@@ -66,7 +66,7 @@ static class CrashBotChecks
             Exception? error = null;
             try
             {
-                foreach (var status in statuses) models.Add(BotStatusMessageBuilder.Build(status, policy, texts, DateTime.UtcNow));
+                foreach (var status in statuses) models.Add(BotStatusMessageBuilder.Build(status, texts, DateTime.UtcNow));
                 foreach (var model in models) BotDiscordRenderer.RenderStatus(model);
                 var all = BotDiscordRenderer.Render(new BotReply(odd, models));
                 Check(all.Text.Length <= BotDiscordRenderer.MaxTextLength && all.Embeds.Length <= BotDiscordRenderer.MaxEmbeds

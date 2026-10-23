@@ -2033,7 +2033,7 @@ unten in den Server-Speicherständen und gelten für jedes Profil.
         <value>Super-Admin</value>
     </data>
     <data name="DiscordBotSuperAdminText" xml:space="preserve">
-        <value>Pflicht. Der einzige Nutzer, der die Super-Admin-Befehle verwenden darf. Braucht ebenfalls eine der erlaubten Rollen. Lässt sich nicht entfernen, nur ersetzen.</value>
+        <value>Pflicht. Hat immer alle Rechte: Alle Befehle funktionieren für diesen Nutzer, ohne dass man sie einschalten muss. Braucht ebenfalls eine der erlaubten Rollen. Lässt sich nicht entfernen, nur ersetzen.</value>
     </data>
     <data name="DiscordBotSuperAdminNotSet" xml:space="preserve">
         <value>Nicht festgelegt</value>
@@ -2300,7 +2300,7 @@ unten in den Server-Speicherständen und gelten für jedes Profil.
         <value>Befehle</value>
     </data>
     <data name="DiscordBotCommandsText" xml:space="preserve">
-        <value>Nur eingeschaltete Befehle funktionieren. Wer sie benutzen darf, bleibt gleich: User-ID und Rolle.</value>
+        <value>Diese Schalter bestimmen, was die übrigen Nutzer der Liste dürfen. Der Super-Admin darf immer alle Befehle (weiterhin mit User-ID, Rolle und Bestätigung). Wer einen Befehl benutzen darf, bleibt gleich: User-ID und Rolle.</value>
     </data>
     <data name="DiscordBotLevelRead" xml:space="preserve">
         <value>Lesen</value>
@@ -2318,13 +2318,13 @@ unten in den Server-Speicherständen und gelten für jedes Profil.
         <value>Kritisch</value>
     </data>
     <data name="DiscordBotLevelCriticalText" xml:space="preserve">
-        <value>Alle berechtigten Nutzer, mit Bestätigungsknopf. Standardmäßig aus und pro Server begrenzt.</value>
+        <value>Alle berechtigten Nutzer, wenn der Schalter an ist, mit Bestätigungsknopf. Standardmäßig aus und pro Server begrenzt. Der Super-Admin darf immer.</value>
     </data>
     <data name="DiscordBotLevelSuperAdmin" xml:space="preserve">
         <value>Super-Admin</value>
     </data>
     <data name="DiscordBotLevelSuperAdminText" xml:space="preserve">
-        <value>Nur der Super-Admin, mit Bestätigungsknopf.</value>
+        <value>Starten, Update und Admin-Kanal festlegen: nur der Super-Admin, immer verfügbar, mit Bestätigungsknopf.</value>
     </data>
     <data name="DiscordBotCommandStatus" xml:space="preserve">
         <value>Status (/status)</value>
@@ -2348,13 +2348,13 @@ unten in den Server-Speicherständen und gelten für jedes Profil.
         <value>Neustart jetzt (/restart now)</value>
     </data>
     <data name="DiscordBotCommandRestartNowText" xml:space="preserve">
-        <value>Startet einen laufenden Server neu, mit den üblichen Warnungen an die Spieler.</value>
+        <value>Startet einen laufenden Server neu. Der Knopf fragt zuerst nach der Wartezeit (sofort bis 2 Std), die Spieler werden wie üblich gewarnt.</value>
     </data>
     <data name="DiscordBotCommandStop" xml:space="preserve">
         <value>Stoppen (/stop)</value>
     </data>
     <data name="DiscordBotCommandStopText" xml:space="preserve">
-        <value>Stoppt einen laufenden Server, mit den üblichen Warnungen an die Spieler.</value>
+        <value>Stoppt einen laufenden Server. Der Knopf fragt zuerst nach der Wartezeit (sofort bis 1 Std), die Spieler werden wie üblich gewarnt.</value>
     </data>
     <data name="DiscordBotCommandStart" xml:space="preserve">
         <value>Starten (/start)</value>
@@ -2530,6 +2530,7 @@ Der Bot braucht in diesem Kanal die Rechte „Kanal ansehen“, „Nachrichten s
     <data name="DiscordBotHelpStep7Text" xml:space="preserve">
         <value>Abschnitt „Verbindung“: Token einfügen und speichern, dann die Server-ID eintragen. Der Token wird nach dem Speichern nie mehr angezeigt.
 Abschnitt „Sicherheit“: bei „Super-Admin“ deine Benutzer-ID eintragen (Pflicht, der Eintrag kann nicht entfernt werden). Bei „Erlaubte Rollen“ die Rollen-ID eintragen. Bei „Erlaubte Nutzer“ die IDs weiterer Personen hinzufügen.
+Abschnitt „Server“: hake die Server an, die der Bot verwalten soll, und gib ihnen auf Wunsch einen Namen. Den Namen benutzt der Bot in seinen Meldungen, sonst zeigt er den Speicherstand. Ein Server, der nicht angehakt ist, existiert für den Bot nicht.
 Oben auf „Speichern“ klicken. Ist etwas ungültig oder fehlt etwas, steht oben in Rot genau was, und es wird nichts gespeichert.
 Optional: bei „Audit-Kanal“ die ID eines Kanals eintragen, in den der Bot kritische Aktionen und Sperren meldet.</value>
     </data>
@@ -2559,8 +2560,9 @@ Den Kanal wieder freigeben (alle Kanäle) geht nur hier im Trebuchet-Panel, nie 
         <value>Befehle und Buttons einstellen</value>
     </data>
     <data name="DiscordBotHelpStep10Text" xml:space="preserve">
-        <value>Abschnitt „Befehle“: Standardmäßig an sind Status, Verschieben, Wieder freigeben und Kanal setzen. Aus sind Neustart jetzt, Stoppen, Starten und Update.
-Wer Neustart und Stopp per Knopf möchte, schaltet sie hier ein und speichert. Diese Aktionen fragen vor der Ausführung immer noch einmal nach („Bestätigen“). Starten und Update darf nur der Super-Admin.
+        <value>Die Status-Meldung zeigt immer die Buttons, die zum Server passen: Starten (gestoppt), Neustart und Stoppen (läuft), Verschieben, Wieder freigeben und „Updates prüfen“. Der Bot bearbeitet diese eine Meldung sofort, wenn sich etwas ändert, und alle 5 Minuten zur Kontrolle.
+Neustart und Stoppen fragen zuerst nach der Wartezeit (Sofort, 1, 5, 10, 15, 30 Min, 1 Std, beim Neustart auch 2 Std), wie der Dialog in Trebuchet, und dann noch einmal nach der Bestätigung. „Updates prüfen“ fragt nur Steam nach Mod-Updates und einer neuen Server-Version und installiert nichts.
+Der Super-Admin darf jeden Button benutzen, ohne dass du etwas einschalten musst. Abschnitt „Befehle“: die Schalter bestimmen nur, was die anderen Nutzer dürfen. Standardmäßig an sind Status, Verschieben, Wieder freigeben und Updates prüfen. Aus sind Neustart jetzt und Stoppen. Starten, Update und Kanal setzen gehören allein dem Super-Admin.
 Grenzen stellst du im Abschnitt „Sicherheit“ ein: Wartezeit zwischen Befehlen, wie viele kritische Aktionen erlaubt sind, die längste Verschiebung und die Auswahlzeiten (z. B. 15 Min, 30 Min, 1 Std).</value>
     </data>
     <data name="DiscordBotHelpStep10Hint" xml:space="preserve">
@@ -2587,5 +2589,29 @@ Bei „Token bereits in Verwendung“ läuft ein Bot mit demselben Token schon i
     </data>
     <data name="DiscordBotHelpStep12Hint" xml:space="preserve">
         <value>Hilft alles nichts: Bot stoppen, Seite „Sicherheit prüfen“ ansehen und die Anleitung im Browser öffnen (Button unten).</value>
+    </data>
+    <data name="DiscordBotCommandCheckUpdates" xml:space="preserve">
+        <value>Updates prüfen (/updatecheck, Knopf)</value>
+    </data>
+    <data name="DiscordBotCommandCheckUpdatesText" xml:space="preserve">
+        <value>Fragt Steam, ob Mods oder der Server ein Update brauchen, und meldet das Ergebnis. Es wird nichts installiert.</value>
+    </data>
+    <data name="DiscordBotSectionServers" xml:space="preserve">
+        <value>Server</value>
+    </data>
+    <data name="DiscordBotServersText" xml:space="preserve">
+        <value>Wähle, welche Server der Bot verwaltet, und gib ihnen auf Wunsch einen Namen. Der Bot zeigt ihn in seinen Meldungen statt des Server-Speicherstands. Ein Server, der nicht ausgewählt ist, taucht im Bot nirgends auf, auch nicht für den Super-Admin.</value>
+    </data>
+    <data name="DiscordBotServersEmpty" xml:space="preserve">
+        <value>Es sind noch keine Server eingerichtet.</value>
+    </data>
+    <data name="DiscordBotServerInstance" xml:space="preserve">
+        <value>Instanz {0}</value>
+    </data>
+    <data name="DiscordBotServerManaged" xml:space="preserve">
+        <value>Vom Bot verwalten</value>
+    </data>
+    <data name="DiscordBotServerNameWatermark" xml:space="preserve">
+        <value>Name im Bot (leer: Speicherstand)</value>
     </data>
 </root>

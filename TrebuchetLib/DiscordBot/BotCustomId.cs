@@ -8,7 +8,7 @@ public enum BotCustomIdKind
     Action,
     Confirm,
     Cancel,
-    /// <summary>The selection of the minutes of a postponement.</summary>
+    /// <summary>A menu to pick from: the minutes of a postponement, the warning time of a restart or stop.</summary>
     PostponeSelect
 }
 
@@ -27,7 +27,8 @@ public static partial class BotCustomId
         (BotCommand.Stop, "stop"),
         (BotCommand.RestartNow, "restart"),
         (BotCommand.Postpone, "postpone"),
-        (BotCommand.Resume, "resume")
+        (BotCommand.Resume, "resume"),
+        (BotCommand.CheckUpdates, "check")
     ];
 
     public static string ForAction(BotCommand command, int instance)

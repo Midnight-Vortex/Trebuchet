@@ -2041,7 +2041,7 @@ of Server Saves and apply to every profile.
         <value>Super admin</value>
     </data>
     <data name="DiscordBotSuperAdminText" xml:space="preserve">
-        <value>Required. The only user allowed to use the super admin commands. Needs one of the allowed roles too. Can not be removed, only replaced.</value>
+        <value>Required. Always has every right: all commands work for this user without switching them on. Needs one of the allowed roles too. Can not be removed, only replaced.</value>
     </data>
     <data name="DiscordBotSuperAdminNotSet" xml:space="preserve">
         <value>Not set</value>
@@ -2308,7 +2308,7 @@ of Server Saves and apply to every profile.
         <value>Commands</value>
     </data>
     <data name="DiscordBotCommandsText" xml:space="preserve">
-        <value>Only switched on commands work. Who may use them stays the same: user ID and role.</value>
+        <value>These switches decide what the other listed users may do. The super admin can always use every command (still with user ID, role and confirmation). Who may use a command stays the same: user ID and role.</value>
     </data>
     <data name="DiscordBotLevelRead" xml:space="preserve">
         <value>Read</value>
@@ -2326,13 +2326,13 @@ of Server Saves and apply to every profile.
         <value>Critical</value>
     </data>
     <data name="DiscordBotLevelCriticalText" xml:space="preserve">
-        <value>Every allowed user, with a confirmation button. Off by default and limited per server.</value>
+        <value>Every allowed user whose switch is on, with a confirmation button. Off by default and limited per server. The super admin always may.</value>
     </data>
     <data name="DiscordBotLevelSuperAdmin" xml:space="preserve">
         <value>Super admin</value>
     </data>
     <data name="DiscordBotLevelSuperAdminText" xml:space="preserve">
-        <value>Only the super admin, with a confirmation button.</value>
+        <value>Start, update and setting the admin channel: only the super admin, always available, with a confirmation button.</value>
     </data>
     <data name="DiscordBotCommandStatus" xml:space="preserve">
         <value>Status (/status)</value>
@@ -2356,13 +2356,13 @@ of Server Saves and apply to every profile.
         <value>Restart now (/restart now)</value>
     </data>
     <data name="DiscordBotCommandRestartNowText" xml:space="preserve">
-        <value>Restarts a running server, with the usual warnings to the players.</value>
+        <value>Restarts a running server. The button asks for the warning time first (right away up to 2 hours), the players are warned as usual.</value>
     </data>
     <data name="DiscordBotCommandStop" xml:space="preserve">
         <value>Stop (/stop)</value>
     </data>
     <data name="DiscordBotCommandStopText" xml:space="preserve">
-        <value>Stops a running server, with the usual warnings to the players.</value>
+        <value>Stops a running server. The button asks for the warning time first (right away up to 1 hour), the players are warned as usual.</value>
     </data>
     <data name="DiscordBotCommandStart" xml:space="preserve">
         <value>Start (/start)</value>
@@ -2538,6 +2538,7 @@ In this channel the bot needs the permissions "View Channel", "Send Messages" an
     <data name="DiscordBotHelpStep7Text" xml:space="preserve">
         <value>Section "Connection": paste the token and save it, then enter the server ID. After saving, the token is never shown again.
 Section "Security": enter your user ID as "Super admin" (required, the entry cannot be removed). Enter the role ID under "Allowed roles". Add the IDs of other people under "Allowed users".
+Section "Servers": tick the servers the bot should manage and, if you like, give each one a name. The bot uses the name in its messages, otherwise it shows the server save. A server that is not ticked does not exist for the bot.
 Click "Save" at the top. If something is invalid or missing, the top shows in red exactly what, and nothing is saved.
 Optional: enter the ID of a channel as "Audit channel" where the bot reports critical actions and lock-outs.</value>
     </data>
@@ -2567,8 +2568,9 @@ Releasing the channel again (all channels) is only possible here in the Trebuche
         <value>Set the commands and buttons</value>
     </data>
     <data name="DiscordBotHelpStep10Text" xml:space="preserve">
-        <value>Section "Commands": on by default are status, postpone, release again and set channel. Off are restart now, stop, start and update.
-To get restart and stop as buttons, switch them on here and save. These actions still ask once more before they run ("Confirm"). Only the super admin may start and update.
+        <value>The status message always shows the buttons that fit the server: Start (stopped), Restart and Stop (running), Postpone and Release again, and "Check updates". The bot edits this one message right away when something changes and every 5 minutes as a check.
+Restart and Stop first ask for the warning time (right away, 1, 5, 10, 15, 30 min, 1 h, restart also 2 h), like the dialog in Trebuchet, and then once more for the confirmation. "Check updates" only asks Steam about mod updates and a new server version and installs nothing.
+The super admin may use every button without switching anything on. Section "Commands": the switches only decide what the other users may do. On by default are status, postpone, release again and check updates. Off are restart now and stop. Start, update and set channel belong to the super admin alone.
 You set the limits in the section "Security": wait between commands, how many critical actions are allowed, the longest postponement and the choices (e.g. 15 min, 30 min, 1 h).</value>
     </data>
     <data name="DiscordBotHelpStep10Hint" xml:space="preserve">
@@ -2595,5 +2597,29 @@ The bot does not answer in the channel: is the admin channel set, and do you use
     </data>
     <data name="DiscordBotHelpStep12Hint" xml:space="preserve">
         <value>If nothing helps: stop the bot, look at "Check security" and open the guide in the browser (button below).</value>
+    </data>
+    <data name="DiscordBotCommandCheckUpdates" xml:space="preserve">
+        <value>Check for updates (/updatecheck, button)</value>
+    </data>
+    <data name="DiscordBotCommandCheckUpdatesText" xml:space="preserve">
+        <value>Asks Steam whether mods or the server need an update and reports the result. Nothing is installed.</value>
+    </data>
+    <data name="DiscordBotSectionServers" xml:space="preserve">
+        <value>Servers</value>
+    </data>
+    <data name="DiscordBotServersText" xml:space="preserve">
+        <value>Choose which servers the bot manages and give them a name if you like. The bot shows it in its messages instead of the server save. A server that is not chosen does not appear in the bot at all, not even for the super admin.</value>
+    </data>
+    <data name="DiscordBotServersEmpty" xml:space="preserve">
+        <value>No servers set up yet.</value>
+    </data>
+    <data name="DiscordBotServerInstance" xml:space="preserve">
+        <value>Instance {0}</value>
+    </data>
+    <data name="DiscordBotServerManaged" xml:space="preserve">
+        <value>Managed by the bot</value>
+    </data>
+    <data name="DiscordBotServerNameWatermark" xml:space="preserve">
+        <value>Name in the bot (empty: server save)</value>
     </data>
 </root>

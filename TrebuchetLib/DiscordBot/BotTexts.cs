@@ -24,9 +24,12 @@ public sealed record BotTexts
     public required string PostponeStop { get; init; }
     public required string PostponeUpdate { get; init; }
     public required string Resume { get; init; }
+    public required string CheckUpdates { get; init; }
     public required string UpdatedFooter { get; init; }
     /// <summary>Title of an old status message after the admin channel moved: no buttons, no state.</summary>
     public required string MovedTitle { get; init; }
+    /// <summary>Title of an old status message of a server that is no longer managed by the bot.</summary>
+    public required string NotManagedTitle { get; init; }
 
     public static BotTexts German { get; } = new()
     {
@@ -51,8 +54,10 @@ public sealed record BotTexts
         PostponeStop = "Stopp verschieben",
         PostponeUpdate = "Update verschieben",
         Resume = "Wieder freigeben",
+        CheckUpdates = "Updates prüfen",
         UpdatedFooter = "Aktualisiert",
-        MovedTitle = "Der Admin-Kanal wurde gewechselt. Diese Meldung gilt nicht mehr."
+        MovedTitle = "Der Admin-Kanal wurde gewechselt. Diese Meldung gilt nicht mehr.",
+        NotManagedTitle = "Dieser Server wird nicht mehr vom Bot verwaltet. Diese Meldung gilt nicht mehr."
     };
 
     public static BotTexts English { get; } = new()
@@ -78,8 +83,10 @@ public sealed record BotTexts
         PostponeStop = "Postpone stop",
         PostponeUpdate = "Postpone update",
         Resume = "Release again",
+        CheckUpdates = "Check updates",
         UpdatedFooter = "Updated",
-        MovedTitle = "The admin channel was changed. This message is no longer used."
+        MovedTitle = "The admin channel was changed. This message is no longer used.",
+        NotManagedTitle = "This server is no longer managed by the bot. This message is no longer used."
     };
 
     public static BotTexts For(string? language) =>

@@ -34,7 +34,9 @@ public sealed class BotGuard(BotRateLimiter limiter, Func<DateTime>? clock = nul
     /// <param name="instance">The server instance the request is about, for the limit of critical actions.</param>
     /// <param name="followUp">The click on a confirmation or selection the bot offered itself.</param>
     /// <param name="countDenial">False for a cancel or an expired question: a refusal there does not count toward the lock out.</param>
-    public BotGuardResult Evaluate(BotPolicy? policy, BotRequest request, int? instance, bool followUp = false, bool countDenial = true)
+    /// <param name="finalStep">False for a menu in front of the confirmation (the warning time): only the confirmed action uses up the limit.</param>
+    public BotGuardResult Evaluate(BotPolicy? policy, BotRequest request, int? instance, bool followUp = false, bool countDenial = true,
+        bool finalStep = true)
     {
         try
         {
@@ -54,7 +56,7 @@ public sealed class BotGuard(BotRateLimiter limiter, Func<DateTime>? clock = nul
                 return new BotGuardResult(BotGuardOutcome.Denied, decision.Reason, LockedOutNow: lockedOut);
             }
 
-            var throttle = Limiter.TryAcquire(request.UserId, request.Command, instance, followUp, now, policy);
+            var throttle = Limiter.TryAcquire(request.UserId, request.Command, instance, followUp, now, policy, finalStep);
             return throttle == BotThrottle.None
                 ? new BotGuardResult(BotGuardOutcome.Allowed)
                 : new BotGuardResult(BotGuardOutcome.Throttled, Throttle: throttle);

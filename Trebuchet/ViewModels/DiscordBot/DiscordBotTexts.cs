@@ -142,6 +142,7 @@ public static class DiscordBotTexts
         BotCommand.Stop => Resources.DiscordBotCommandStop,
         BotCommand.Start => Resources.DiscordBotCommandStart,
         BotCommand.Update => Resources.DiscordBotCommandUpdate,
+        BotCommand.CheckUpdates => Resources.DiscordBotCommandCheckUpdates,
         BotCommand.SetChannel => Resources.DiscordBotCommandSetChannel,
         _ => command.ToString()
     };
@@ -155,6 +156,7 @@ public static class DiscordBotTexts
         BotCommand.Stop => Resources.DiscordBotCommandStopText,
         BotCommand.Start => Resources.DiscordBotCommandStartText,
         BotCommand.Update => Resources.DiscordBotCommandUpdateText,
+        BotCommand.CheckUpdates => Resources.DiscordBotCommandCheckUpdatesText,
         BotCommand.SetChannel => Resources.DiscordBotCommandSetChannelText,
         _ => string.Empty
     };

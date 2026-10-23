@@ -151,6 +151,9 @@ static class LauncherBotActionsChecks
         var ui = new UiThread();
         var log = new ListLogger<LauncherBotActions>();
         var actions = new LauncherBotActions(launcher, setup, files, ui, log);
+        // Every change the status messages show is announced, from whatever thread noticed it.
+        var changes = 0;
+        actions.StatusChanged += (_, _) => Interlocked.Increment(ref changes);
         var standIns = new List<Process>();
         var savesCreated = false;
 
@@ -192,14 +195,18 @@ static class LauncherBotActionsChecks
                 "A server process that does not answer queries yet is starting: " + running);
 
             check((await actions.ResumeAsync(0, none)).Outcome == BotActionOutcome.NothingPending, "Nothing to release without a pause");
+            var changesBefore = Volatile.Read(ref changes);
             var postpone = await actions.PostponeAsync(0, 30, "Event {servername}\n@here", none);
             check(postpone.Success && await OnLauncher(() => launcher.GetAutomaticRestartsPause(0)) is { } until
                                    && Near(until, DateTime.UtcNow.AddMinutes(30)),
                 "Postponing with nothing pending pauses the automatic restarts for the minutes: " + postpone);
             check((await StatusOf(0))?.PausedUntilUtc is { } shown && Near(shown, DateTime.UtcNow.AddMinutes(30)), "The status shows the pause");
             check(log.Contains("reason: Event servername @here") && !log.Contains("{servername}"), "The reason goes cleaned into the log");
+            check(Volatile.Read(ref changes) > changesBefore, "A pause is announced to the status messages at once");
+            changesBefore = Volatile.Read(ref changes);
             check((await actions.ResumeAsync(0, none)).Success && await OnLauncher(() => launcher.GetAutomaticRestartsPause(0)) is null,
                 "Release ends the pause");
+            check(Volatile.Read(ref changes) > changesBefore, "The end of a pause is announced as well");
 
             check((await actions.PostponeAsync(1, 30, "", none)).Outcome == BotActionOutcome.NotRunning
                   && (await actions.RestartAsync(1, TimeSpan.Zero, "", none)).Outcome == BotActionOutcome.NotRunning
@@ -234,6 +241,12 @@ static class LauncherBotActionsChecks
             check((await actions.UpdateAsync(none)).Success, "The update runs (nothing outdated, the running server keeps running)");
             config.AutoUpdateStatus = AutoUpdateStatus.Never;
 
+            // The check for updates asks Steam and installs nothing (here no mod lists and no installed servers: no network).
+            var scanned = await actions.CheckUpdatesAsync(none);
+            check(scanned is { Outcome: BotActionOutcome.Done, Updates.OutdatedMods: 0 }, "The check for updates reports what it found: " + scanned);
+            check(await OnLauncher(() => launcher.GetAutomaticRestartsPause(0)) is null && (await StatusOf(0))?.State == BotServerState.Starting,
+                "The check changes nothing about the servers");
+
             // Work the caller gave up on never runs: the caller was told it did not happen.
             var held = new HeldDispatcher();
             var heldActions = new LauncherBotActions(launcher, setup, files, held, log);
@@ -250,7 +263,8 @@ static class LauncherBotActionsChecks
             check((await broken.PostponeAsync(0, 30, "", none)).Outcome == BotActionOutcome.Failed
                   && (await broken.GetStatusesAsync(none)).Count == 0
                   && (await broken.StartAsync(1, none)).Outcome == BotActionOutcome.Failed
-                  && (await broken.UpdateAsync(none)).Outcome == BotActionOutcome.Failed,
+                  && (await broken.UpdateAsync(none)).Outcome == BotActionOutcome.Failed
+                  && (await broken.CheckUpdatesAsync(none)).Outcome == BotActionOutcome.Failed,
                 "A broken launcher thread gives failures, never an exception");
 
             // Countdowns and starts need saves on disk. They are written to the save folder of Trebuchet, so only where
@@ -263,6 +277,7 @@ static class LauncherBotActionsChecks
                 await SaveChecks();
             }
 
+            changesBefore = Volatile.Read(ref changes);
             var stopNow = await actions.StopAsync(0, TimeSpan.Zero, "Wartung", none);
             var stopping = await StatusOf(0);
             check(stopNow.Success && stopping?.State == BotServerState.Stopping, "A stop now stops the server: " + stopNow + " " + stopping);
@@ -271,6 +286,15 @@ static class LauncherBotActionsChecks
                   && (await actions.RestartAsync(0, TimeSpan.Zero, "", none)).Outcome == BotActionOutcome.Busy,
                 "A stopping server is busy for postpone, start and restart");
             check(await HasExited(standIns[0]), "The stand-in server process was stopped");
+            for (var i = 0; i < 100 && Volatile.Read(ref changes) <= changesBefore; i++) await Task.Delay(50);
+            check(Volatile.Read(ref changes) > changesBefore, "A server that is stopping is announced to the status messages");
+            actions.Dispose();
+            await Task.Delay(300);
+            var afterDispose = Volatile.Read(ref changes);
+            var launcherEvents = 0;
+            launcher.ServerStatusChanged += (_, _) => Interlocked.Increment(ref launcherEvents);
+            await ui.InvokeAsync(async () => { await launcher.PauseAutomaticRestarts(0, TimeSpan.FromMinutes(5)); return true; });
+            check(launcherEvents > 0 && Volatile.Read(ref changes) == afterDispose, "A disposed bridge no longer listens to the launcher");
         }
         finally
         {

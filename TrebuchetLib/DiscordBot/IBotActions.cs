@@ -14,8 +14,12 @@ public enum BotActionOutcome
     Failed
 }
 
+/// <summary>What the check for updates found.</summary>
+public sealed record BotUpdateInfo(int OutdatedMods, bool ServerUpdate);
+
 /// <param name="Detail">Short text for the log. Never a path, password or token.</param>
-public sealed record BotActionResult(BotActionOutcome Outcome, string Detail = "")
+/// <param name="Updates">What the check for updates found, null for every other action.</param>
+public sealed record BotActionResult(BotActionOutcome Outcome, string Detail = "", BotUpdateInfo? Updates = null)
 {
     public bool Success => Outcome == BotActionOutcome.Done;
 }
@@ -32,6 +36,13 @@ public interface IBotActions
 
     /// <summary>One entry per instance, an immutable copy. Nothing in it can reach back into the launcher.</summary>
     Task<IReadOnlyList<BotServerStatus>> GetStatusesAsync(CancellationToken token);
+
+    /// <summary>
+    /// Something a status message shows has changed: a server started, went online (its game log says so), is stopping,
+    /// stopped or crashed, a countdown began or ended, a postponement was set. Can be raised on any thread; a listener
+    /// only takes note and asks for the statuses afterwards.
+    /// </summary>
+    event EventHandler? StatusChanged;
 
     /// <summary>
     /// Postpones what is pending for the instance (restart, stop or update) by the minutes: pauses the automatic restarts
@@ -52,4 +63,7 @@ public interface IBotActions
 
     /// <summary>Check for server and mod updates and install them (<c>Launcher.PerformCatapultUpdates</c>).</summary>
     Task<BotActionResult> UpdateAsync(CancellationToken token);
+
+    /// <summary>Ask Steam whether mods or the server need an update and say what it found. Installs nothing (<c>Launcher.CheckForUpdatesNow</c>).</summary>
+    Task<BotActionResult> CheckUpdatesAsync(CancellationToken token);
 }

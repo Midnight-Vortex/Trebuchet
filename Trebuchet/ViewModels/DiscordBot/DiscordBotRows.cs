@@ -1,5 +1,8 @@
+using System;
 using System.Collections.Generic;
 using System.Globalization;
+using ReactiveUI;
+using Trebuchet.Assets;
 using Trebuchet.ViewModels.SettingFields;
 using TrebuchetLib.DiscordBot;
 
@@ -51,6 +54,43 @@ public sealed class AuditEntryRow(BotAuditEntry entry)
     }
 
     private static string Clean(string? text) => BotInputRules.SanitizeForLog(BotLogRedactor.Redact(text));
+}
+
+/// <summary>
+/// A server instance in the list of servers: whether the bot manages it and the name it uses for it in its messages.
+/// The values live in the editor; setting one marks the settings as edited.
+/// </summary>
+public sealed class BotInstanceRow(int instance, DiscordBotSettingsEditor editor, int instanceCount, bool canEdit, Action edited) : ReactiveObject
+{
+    public int Instance { get; } = instance;
+    public bool CanEdit { get; } = canEdit;
+    public string Title => string.Format(CultureInfo.CurrentCulture, Resources.DiscordBotServerInstance, Instance);
+    public string Watermark => Resources.DiscordBotServerNameWatermark;
+    public int MaxNameLength => BotInputRules.MaxNameLength;
+
+    public bool IsManaged
+    {
+        get => editor.IsInstanceManaged(Instance);
+        set
+        {
+            if (!CanEdit || value == editor.IsInstanceManaged(Instance)) return;
+            editor.SetInstanceManaged(Instance, value, instanceCount);
+            this.RaisePropertyChanged();
+            edited();
+        }
+    }
+
+    public string Name
+    {
+        get => editor.GetInstanceName(Instance);
+        set
+        {
+            if (!CanEdit || (value ?? string.Empty).Trim() == editor.GetInstanceName(Instance)) return;
+            editor.SetInstanceName(Instance, value);
+            this.RaisePropertyChanged();
+            edited();
+        }
+    }
 }
 
 /// <summary>The commands of one level with the note what the level means.</summary>

@@ -86,6 +86,9 @@ Regeln dazu:
 - **Super-Admin** ist genau **eine** User-ID. Sie ist Pflicht (ohne sie startet der Bot nicht), steht ganz oben
   in der Liste und lässt sich dort **nicht entfernen**. Ändern geht nur über ein eigenes Feld mit Bestätigung.
 - Der Super-Admin muss **ebenfalls die Rolle haben** (strenger Doppelcheck, siehe Entscheidung 1).
+- **Der Super-Admin hat immer alle Rechte**: die Schalter pro Befehl (siehe unten) gelten nur für die übrigen Nutzer
+  der Liste, für den Super-Admin muss man nichts einschalten. Alles andere gilt weiter: Server, Kanal, User-ID,
+  Rolle, Bestätigung bei kritischen Befehlen und die Begrenzungen.
 - Die Rechte aller Nutzer **ändert nur der Launcher**, nie ein Discord-Befehl. Wer Discord hat, kann also keine
   Rechte vergeben oder entziehen.
 - **Einzige Ausnahme: der Admin-Kanal.** `/bot channel set` (nur Super-Admin, mit Bestätigung, im Audit-Protokoll)
@@ -97,11 +100,12 @@ Regeln dazu:
 | Stufe | Wer | Beispiele |
 |---|---|---|
 | **Lesen** | alle Berechtigten | `/status` |
-| **Verwalten** | alle Berechtigten | Neustart verschieben, wieder freigeben |
-| **Kritisch** | alle Berechtigten, **nur wenn in den Einstellungen eingeschaltet**, mit Bestätigung | Neustart jetzt, Stopp |
-| **Super-Admin** | nur Super-Admin, mit Bestätigung | Server starten, Updates anstoßen, Admin-Kanal setzen |
+| **Verwalten** | alle Berechtigten | Neustart verschieben, wieder freigeben, Updates prüfen |
+| **Kritisch** | alle Berechtigten, **nur wenn in den Einstellungen eingeschaltet** (der Super-Admin immer), mit Bestätigung | Neustart jetzt, Stopp |
+| **Super-Admin** | nur Super-Admin, **immer an**, mit Bestätigung | Server starten, Updates anstoßen, Admin-Kanal setzen |
 
-Pro Befehl lässt sich einstellen: aus / Stufe. „Kritisch“ und „Super-Admin“ sind standardmäßig **aus**.
+Pro Befehl lässt sich für die **übrigen Nutzer** einstellen: an / aus. „Kritisch“ ist standardmäßig **aus**. Die Befehle
+der Stufe Super-Admin haben keinen Schalter: sie gehören immer nur dem Super-Admin.
 
 ### 1.5 Eingaben und Ausgaben
 
@@ -190,10 +194,11 @@ Zeit, User-ID, Anzeigename (nur zur Info), Server-/Kanal-ID, Befehl, Parameter, 
 | `/status [instanz]` | liest Zustand, Spieler, Laufzeit, Pause, offenes Update | Lesen |
 | `/restart postpone instanz minuten [grund]` | `PauseAutomaticRestarts(instance, minuten)`: bricht den Countdown ab, schiebt den Neustart, Ingame-Meldung „verschoben um X Minuten“ | Verwalten |
 | `/restart resume instanz` | `ResumeAutomaticRestarts(instance)` | Verwalten |
-| `/restart now instanz [verzögerung]` | `RestartServerIn(instance, delay)` mit Warnungen | Kritisch + Bestätigung |
-| `/stop instanz [verzögerung]` | `CloseServerIn(instance, delay)` | Kritisch + Bestätigung |
+| `/restart now instanz [verzögerung]` | `RestartServerIn(instance, delay)` mit Warnungen, Verzögerung 0 bis 120 Minuten | Kritisch + Bestätigung |
+| `/stop instanz [verzögerung]` | `CloseServerIn(instance, delay)`, Verzögerung 0 bis 60 Minuten | Kritisch + Bestätigung |
 | `/start instanz` | `CatapultServer(instance)` | Super-Admin + Bestätigung |
-| `/update` | Update-Prüfung/Update anstoßen | Super-Admin + Bestätigung, später |
+| `/update` | Update-Prüfung/Update anstoßen | Super-Admin + Bestätigung |
+| `/updatecheck` | `CheckForUpdatesNow()`: fragt Steam nach Mod-Updates und einer neuen Server-Version und meldet das Ergebnis. **Installiert nichts** | Verwalten |
 | `/bot channel set` | macht den aktuellen Kanal zum Admin-Kanal und legt dort die Status-Meldungen an | Super-Admin + Bestätigung |
 
 Nicht enthalten, mit Absicht: harter Kill, RCon, Skripte, Mods, Einstellungen, Rechteverwaltung (außer dem
@@ -201,12 +206,24 @@ Admin-Kanal, siehe 1.4).
 
 ### 2.1 Status-Meldung mit Buttons (im Admin-Kanal)
 
-Pro Server-Instanz postet der Bot **eine Meldung als Embed** und ändert sie laufend (ändert nur bei Änderung,
-höchstens alle ~10 Sekunden). Die Nachricht-ID steht in den Einstellungen, damit der Bot nach einem Neustart die
-alte Meldung weiter benutzt statt eine neue zu posten.
+Pro Server-Instanz postet der Bot **eine Meldung als Embed** und **bearbeitet immer diese eine Meldung** (er postet nur
+neu, wenn sie gelöscht wurde). Die Nachricht-ID steht in den Einstellungen, damit der Bot nach einem Neustart die alte
+Meldung weiter benutzt.
+
+**Wann sie bearbeitet wird:**
+
+- **Sofort bei jeder echten Änderung**: Der Launcher meldet jede Änderung (`Launcher.ServerStatusChanged`): Start, Server
+  ist online (laut Log/Abfrage des Conan-Servers), wird gestoppt, ist gestoppt, abgestürzt, ein Countdown beginnt oder
+  endet, eine Verschiebung wird gesetzt oder aufgehoben. Auch nach jeder Aktion aus Discord. Zwischen zwei Bearbeitungen
+  derselben Meldung liegen mindestens 5 Sekunden (Discord begrenzt das), eine Änderung dazwischen wird danach nachgeholt.
+- **Alle 5 Minuten als Kontrolle**, auch ohne Änderung: Die Zeit der Meldung („Aktualisiert · …“) zeigt, dass die
+  Kontrolle läuft, und eine gelöschte Meldung fällt auf. Solange ein Server **startet oder stoppt**, wird der Zustand
+  alle 15 Sekunden gelesen (falls ein Ereignis verloren ging). Kein Antwort vom Launcher: nach 15 Sekunden erneut.
+- Ein Server, der **nicht mehr in den Einstellungen ausgewählt** ist, bekommt einmal eine Notiz ohne Buttons.
 
 Das Embed zeigt: Name und Instanz, Zustand, Spieler (nur online), Laufzeit, Geplantes („Neustart in …“), „Verschoben
-bis …“. Es zeigt **keine** Pfade, IPs oder Passwörter. Die Farbe des Embeds folgt dem Zustand:
+bis …“. Es zeigt **keine** Pfade, IPs oder Passwörter. Der **Name** ist der in den Einstellungen gewählte Name der
+Instanz (sonst der Speicherstand). Die Farbe des Embeds folgt dem Zustand:
 
 | Zustand | Farbe |
 |---|---|
@@ -215,19 +232,22 @@ bis …“. Es zeigt **keine** Pfade, IPs oder Passwörter. Die Farbe des Embeds
 | Neustarts verschoben | blau |
 | gestoppt, abgestürzt | rot |
 
-Darunter stehen die Buttons, nur die, die zum Zustand passen **und** deren Befehl eingeschaltet ist
-(Discord kennt nur diese vier Farben):
+Darunter stehen **immer die Buttons, die zum Zustand passen**, unabhängig von den Befehlsschaltern (die Meldung ist
+für alle gleich, und der Super-Admin darf alles). Wer auf einen Button klickt, den er nicht benutzen darf, bekommt die
+neutrale Antwort „Keine Berechtigung“. Discord kennt nur diese vier Farben:
 
 | Button | Farbe | Wann |
 |---|---|---|
-| **Starten** | grün | Server ist gestoppt oder abgestürzt (Super-Admin, aus) |
-| **Neustart** | blau | Server läuft (kritisch, aus) |
-| **Stoppen** | rot | Server läuft (kritisch, aus) |
+| **Starten** | grün | Server ist gestoppt oder abgestürzt. Beim Herunterfahren grau und gesperrt |
+| **Neustart** | blau | Server startet oder läuft |
+| **Stoppen** | rot | Server startet oder läuft |
 | **Neustart verschieben** / **Stopp verschieben** / **Update verschieben** | grau | nur wenn gerade etwas ansteht. Der Text sagt, was ansteht |
 | **Wieder freigeben** | grau | wenn verschoben wurde |
+| **Updates prüfen** | grau | immer. Fragt Steam nach Mod-Updates und neuer Server-Version, installiert nichts |
 
-Nach der Entscheidung 2 sind Starten, Neustart und Stoppen zuerst **aus**. Dann zeigt die Meldung nur den
-Verschieben-Button, wenn etwas ansteht. Die anderen Buttons erscheinen, sobald sie im Launcher eingeschaltet werden.
+**Neustart und Stoppen** fragen per Auswahl nach der **Wartezeit**, wie der Dialog in Trebuchet: **Sofort, 1, 5, 10, 15,
+30 Min, 1 Std** (beim Neustart zusätzlich **2 Std**). Erst danach kommt die Bestätigung mit der gewählten Zeit. Die
+Wartezeit der Slash-Befehle ohne Angabe kommt aus den Einstellungen („Vorwarnzeit“).
 
 **Verschieben**: Der Klick öffnet eine **Auswahl nur für den Klickenden** (ephemeral) mit Vorgaben: **15 Min, 30 Min,
 1 Std, 2 Std, 3 Std, 6 Std**. Die Vorgaben und die längste Zeit stellt man im Launcher ein. Nach der Auswahl wird
@@ -237,8 +257,16 @@ Verschieben-Button, wenn etwas ansteht. Die anderen Buttons erscheinen, sobald s
 **Sicherheit der Buttons**: Die Meldung liegt im Kanal, jeder dort kann auf die Buttons klicken. Deshalb wird **jeder
 Klick** wie ein Befehl geprüft (Server, Kanal, User-ID **und** Rolle, Befehl an, Stufe, Wartezeit). Die Button-IDs sind
 nur Namen (`tb1:a:stop:0`), sie geben keine Rechte. Starten, Neustart und Stoppen verlangen danach noch den
-Bestätigungsknopf mit Zufallscode (nur für den, der geklickt hat, 30 Sekunden, einmal). Die Auswahl der Minuten läuft
-über denselben Mechanismus und prüft, dass der Wert eine der angebotenen Vorgaben ist.
+Bestätigungsknopf mit Zufallscode (nur für den, der geklickt hat, 30 Sekunden, einmal). Die Auswahl der Minuten und die
+der Wartezeit laufen über denselben Mechanismus und prüfen, dass der Wert eine der angebotenen Vorgaben **dieses
+Befehls** ist (ein Stopp nimmt keine 2 Std an). Die Auswahl der Wartezeit verbraucht das Limit kritischer Aktionen
+nicht, erst die bestätigte Aktion zählt.
+
+**Welche Server der Bot verwaltet**: In den Einstellungen (Abschnitt „Server“) wählt man pro Instanz, ob der Bot sie
+verwaltet, und gibt ihr auf Wunsch einen **Namen**, den der Bot in Meldungen und Antworten benutzt (bereinigt: keine
+Erwähnungen, Links, Formatierung, höchstens 40 Zeichen). Ein nicht gewählter Server existiert für den Bot nicht:
+keine Meldung, `/status` zeigt ihn nicht, jeder Befehl und Button dafür antwortet „Diesen Server gibt es nicht.“, auch
+dem Super-Admin. Ohne Auswahl (ältere Einstellungen) werden alle Server verwaltet.
 
 ---
 
@@ -347,8 +375,9 @@ ausgeliefert, bevor die Sicherheitstests grün sind.
 Alle fünf sind getroffen:
 
 1. **Super-Admin braucht auch die Rolle: ja.** Strenger Doppelcheck für alle.
-2. **Neustart jetzt, Stopp (und Start): zuerst aus, im Launcher einschaltbar.** Ohne diese Befehle zeigen die
-   Meldungen keine Buttons dafür.
+2. **Neustart jetzt, Stopp (und Start): für andere Nutzer zuerst aus, im Launcher einschaltbar.** Der Super-Admin darf
+   sie immer (geändert nach einem Test: die Schalter hatten die Buttons für den Super-Admin versteckt). Die Buttons
+   stehen immer in der Meldung, jeder Klick wird geprüft.
 3. **Admin-Kanal: ja.** Gesetzt mit `/bot channel set` aus dem Kanal selbst. Die Einrichtung steht in
    `docs/INSTALLME.md`.
 4. **Längste Verschiebung: 6 Stunden** (einstellbar bis 24 Stunden). Das ist die längste Zeit, um die man einen

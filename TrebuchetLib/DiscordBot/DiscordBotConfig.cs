@@ -22,6 +22,7 @@ public sealed class DiscordBotConfig : ConfigFile<DiscordBotConfig>
     private List<ulong> _allowedChannelIds = [];
     private List<int> _postponeChoices = [15, 30, 60, 120, 180, 360];
     private Dictionary<int, ulong> _statusMessageIds = [];
+    private Dictionary<int, string> _instanceNames = [];
     private List<string> _enabledCommands = BotCommands.EnabledByDefault.Select(x => x.ToString()).ToList();
     private string _language = "de";
 
@@ -92,6 +93,19 @@ public sealed class DiscordBotConfig : ConfigFile<DiscordBotConfig>
     {
         get => _postponeChoices;
         set => _postponeChoices = value ?? [];
+    }
+
+    /// <summary>
+    /// The server instances the bot shows and controls. Null (not chosen yet): all of them. A list: only these, an empty
+    /// list means none. An instance that is not managed has no status message and no button or command can reach it.
+    /// </summary>
+    public List<int>? ManagedInstances { get; set; }
+
+    /// <summary>The names the bot uses for server instances in its messages ("Main server"). Without a name the save is shown.</summary>
+    public Dictionary<int, string> InstanceNames
+    {
+        get => _instanceNames;
+        set => _instanceNames = value ?? [];
     }
 
     /// <summary>Message of the status embed per server instance, so the bot edits it instead of posting a new one.</summary>
