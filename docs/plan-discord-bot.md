@@ -357,11 +357,31 @@ Alle fünf sind getroffen:
 
 Noch offen: Sollen Instanz-Kanäle getrennt sein (ein Admin-Kanal pro Server)? Vorerst ein Kanal für alle Server.
 
-## 8. Risiken
+## 8. Stand der Prüfung, offene Punkte und Risiken
 
-- Discord.Net: Ob die Rollen eines Nutzers ohne den Members-Intent in der Befehls-Nachricht ankommen, muss vor
-  Phase 2 am echten Server gezeigt werden. Ersatz: REST-Abfrage pro Befehl.
-- Launcher-Threading (siehe Abschnitt 3): der UI-Thread muss jeden Zugriff erhalten, auch im Boulder-Betrieb
-  (dort gibt es keinen UI-Thread, der Zugriff läuft über eine eigene Warteschlange).
-- Slash-Befehle brauchen nach Änderungen kurz Zeit, bis Discord sie anzeigt. Beim Start einmal registrieren.
-- Nicht getestet am echten Conan-Server: erst nach Phase 2 mit einem Testserver und einem Test-Discord.
+Geprüft: Sicherheitskern, Befehlslogik, Launcher-Anbindung, Discord-Schicht und Panel haben zusammen über 2300 automatische
+Prüfungen (Windows-Build in GitHub Actions grün). Die Sicherheitsprüfung durch einen unabhängigen Reviewer hat keinen Weg
+gefunden, wie ein Nichtberechtigter etwas auslösen kann, und keinen Weg, wie der Token in Dateien, Logs oder die Oberfläche
+gelangt. Seine Funde sind behoben: Verschieben ist nach oben begrenzt, ein Stopp wird nur nach hinten geschoben, Null-Listen
+in der Konfiguration sind „nichts“, eine beschädigte Datei wird nicht aus dem Backup repariert, Abbrechen und abgelaufene
+Rückfragen zählen nicht als Ablehnung, Notizen enthalten keine freien Namen, das Minuten-Menü gilt nur im eigenen Kanal.
+
+**Noch nicht an einem echten Discord-Server getestet** (nur mit Fakes und der dekompilierten Bibliothek geprüft):
+- Ob Discord die Slash-Befehle mit `contexts`/`integration_types` für einen Server annimmt (sonst registriert der Bot sie ohne).
+- Ob ein Klick auf einen Button der öffentlichen Meldung wirklich eine neue private Antwort anlegt und die Bestätigung die
+  eigene private Frage ersetzt.
+- Dass eine entzogene Rolle sofort wirkt, das Verlassen fremder Server, Wiederverbindung nach Ausfall, falscher Token.
+- Windows-Verschlüsselung des Tokens auf einem echten Konto, das Fenster mit dem Panel (nur als Bild im Testfenster geprüft).
+- Alles zusammen mit einem echten Conan-Server (Neustart, Stopp, Verschieben): bitte zuerst mit einem Test-Save.
+
+**Bewusst offen gelassen** (klein, siehe Reviewer-Bericht):
+- Die Slash-Befehle sind für alle Mitglieder sichtbar (Trebuchet prüft jeden Aufruf selbst). Wer sie verstecken will, stellt sie
+  in Discord unter Servereinstellungen → Integrationen auf die Rolle ein.
+- Die Umgebungsvariable `TREBUCHET_DISCORD_TOKEN` wird an Kindprozesse vererbt. Unter Windows besser den verschlüsselten Token
+  im Panel speichern.
+- Verschiebt man einen Server mitten in einer gemeinsamen Update-Runde, können die anderen zweimal neu starten.
+- Buttons von Befehlen, die ein Nutzer nicht darf, zählen beim Klick als Ablehnung für dessen Sperre.
+
+**Ohne Fenster (`boulder bot`)**: ersetzt das Fenster für diese Installation und startet nicht, solange das Fenster läuft.
+Nicht übernommen: „System wach halten“, der Selbst-Neustart nach hängenden Ticks, das Schließen des Konsolenfensters beendet
+den Bot nicht sauber (die Server laufen weiter).
