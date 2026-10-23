@@ -2,7 +2,7 @@
 
 After installing, launch Trebuchet from the Start menu or desktop shortcut. The installer deliberately does not launch it: on affected Windows versions, a process started by Setup can inherit RedirectionGuard and fail to traverse Trebuchet's Saved/profile junctions. Conan then reports that it cannot ensure `Saved/ExtractedMods` exists, even when the directory is present. If this happens after an older setup, fully close Trebuchet and relaunch it from the Start menu; reinstalling mods is not required for this directory-access error.
 
-## Unreleased: Discord bot follow-ups
+## 0.9.21 Discord bot follow-ups
 
 - The **super admin always has every right** (the command switches only limit the other users). The status message always shows the buttons that fit the server state, whatever the switches say; every click is still checked.
 - The status message is edited **right away on every real change** (start, online according to the Conan server log, stopping, stopped, crashed, countdowns, postponements, any action from Discord) and **every 5 minutes** as a check (every 15 seconds while a server starts or stops). The embed shows the time of the last check.
