@@ -51,6 +51,21 @@ static class BotAccountIdentityChecks
         }
     }
 
+    private sealed class DroppingAvatars(CancellationTokenSource source) : IBotAvatarSource
+    {
+        public bool Drop { get; set; } = true;
+
+        public Task<BotAvatarImage> FetchAsync(string url, CancellationToken token)
+        {
+            if (Drop)
+            {
+                source.Cancel();
+                token.ThrowIfCancellationRequested();
+            }
+            return Task.FromResult(new BotAvatarImage(Png, "image/png"));
+        }
+    }
+
     private sealed class LogLines : ILogger
     {
         public List<string> Lines { get; } = [];
@@ -207,6 +222,19 @@ static class BotAccountIdentityChecks
         await new BotAccountIdentity(refused, new FakeAvatars(), null, () => now, refusedLog).ApplyAsync(policy, CancellationToken.None);
         check(refusedLog.Lines.Count(x => x.StartsWith("Warning:", StringComparison.Ordinal)) == 1 && refused.Calls.Count == 1, "A picture that Discord refuses is one warning");
 
+        // The connection dropped half way (the call was cancelled while the picture was fetched): the next look must do the rest, not
+        // wait the minutes that are for settings that were looked at.
+        using var dropped = new CancellationTokenSource();
+        var droppedAccount = new FakeAccount { Username = "Old" };
+        var droppingAvatars = new DroppingAvatars(dropped);
+        var droppedIdentity = new BotAccountIdentity(droppedAccount, droppingAvatars, null, () => now, null);
+        check(await Capture(() => droppedIdentity.ApplyAsync(policy, dropped.Token)) is OperationCanceledException && droppedAccount.Calls.SequenceEqual(["name Schatten und Licht Server"]),
+            "The name is set, the picture is interrupted");
+        droppingAvatars.Drop = false;
+        now = now.AddMinutes(1);
+        await droppedIdentity.ApplyAsync(policy, CancellationToken.None);
+        check(droppedAccount.Calls.Count == 2 && droppedAccount.Calls[1].StartsWith("avatar", StringComparison.Ordinal), "A look that was interrupted is done again at the next one: " + string.Join(" | ", droppedAccount.Calls));
+
         using var cancelled = new CancellationTokenSource();
         await cancelled.CancelAsync();
         var cancelAccount = new FakeAccount { Username = "Old" };
@@ -264,6 +292,17 @@ static class BotAccountIdentityChecks
 
     private static async Task SourceChecks(Action<bool, string> check)
     {
+        // The real client (no fake): addresses that are this computer or the network at home never get a connection, however they are written.
+        using (var real = new HttpBotAvatarSource())
+        {
+            foreach (var host in new[] { "127.0.0.1", "localhost", "LOCALHOST.", "127.1", "0x7f.1", "2130706433", "017700000001", "0", "[::1]", "[::ffff:127.0.0.1]", "[::ffff:7f00:1]",
+                         "169.254.169.254", "10.0.0.5", "192.168.0.1", "[64:ff9b::7f00:1]", "[fe80::1]" })
+            {
+                var refusal = await Capture(() => real.FetchAsync($"https://{host}/a.png", CancellationToken.None));
+                check(refusal is BotAccountException, $"The real client does not connect to {host}: " + refusal?.GetType().Name + " " + refusal?.Message);
+            }
+        }
+
         var http = new FakeHttp();
         using var source = new HttpBotAvatarSource(http);
         var png = await source.FetchAsync(AvatarLink, CancellationToken.None);
@@ -316,10 +355,14 @@ static class BotAccountIdentityChecks
                  {
                      "127.0.0.1", "127.5.5.5", "::1", "10.0.0.5", "172.16.0.1", "172.31.255.255", "192.168.1.1", "169.254.1.1", "100.64.0.1", "100.127.255.255", "0.0.0.0", "0.1.2.3",
                      "224.0.0.1", "239.255.255.255", "255.255.255.255", "198.18.0.1", "198.19.0.1", "192.0.0.1", "::ffff:10.0.0.1", "::ffff:127.0.0.1", "fe80::1", "fc00::1", "fd12:3456::1",
-                     "ff02::1", "::"
+                     "ff02::1", "::",
+                     // forms that carry an IPv4 address or lead somewhere else
+                     "64:ff9b::a00:5", "64:ff9b::7f00:1", "64:ff9b::c0a8:101", "64:ff9b:1::1", "2002:0a00:0005::1", "2002:7f00:0001::1", "2002:c0a8:0101::1",
+                     "::10.0.0.5", "::7f00:1", "::ffff:0:10.0.0.5", "2001:0:4136:e378:8000:63bf:3fff:fdd2", "2001:db8::1", "100::1"
                  })
             check(!HttpBotAvatarSource.IsPublicAddress(IPAddress.Parse(address)), "Not an address on the internet: " + address);
-        foreach (var address in new[] { "8.8.8.8", "1.1.1.1", "172.15.0.1", "172.32.0.1", "192.169.0.1", "100.63.255.255", "100.128.0.1", "198.17.0.1", "198.20.0.1", "2606:4700:4700::1111", "::ffff:8.8.8.8" })
+        foreach (var address in new[] { "8.8.8.8", "1.1.1.1", "172.15.0.1", "172.32.0.1", "192.169.0.1", "100.63.255.255", "100.128.0.1", "198.17.0.1", "198.20.0.1", "2606:4700:4700::1111", "::ffff:8.8.8.8",
+                     "64:ff9b::808:808", "2002:0808:0808::1" })
             check(HttpBotAvatarSource.IsPublicAddress(IPAddress.Parse(address)), "An address on the internet: " + address);
         check(HttpBotAvatarSource.ImageType([]) is null && HttpBotAvatarSource.ImageType([0x89, 0x50]) is null && HttpBotAvatarSource.ImageType("RIFF\0\0\0\0WAVE"u8) is null
               && HttpBotAvatarSource.ImageType("GIF90a"u8) is null, "Short or wrong bytes are no picture");

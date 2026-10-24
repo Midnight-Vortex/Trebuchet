@@ -59,6 +59,12 @@ public static class BotCommands
     /// <summary>Critical and super admin commands run only after the confirmation button.</summary>
     public static bool NeedsConfirmation(BotCommand command) => LevelOf(command) >= BotLevel.Critical;
 
+    /// <summary>
+    /// How long the automatic restarts wait after somebody cancelled a countdown that the schedule or an update started on its own
+    /// (otherwise the next tick would begin it again). It counts against the postponement chain of the server like a postponement.
+    /// </summary>
+    public const int CancelHoldMinutes = 30;
+
     /// <summary>Counts against the limit of critical actions.</summary>
     public static bool IsLimited(BotCommand command) => command is BotCommand.RestartNow or BotCommand.Stop or BotCommand.Start or BotCommand.Update;
 

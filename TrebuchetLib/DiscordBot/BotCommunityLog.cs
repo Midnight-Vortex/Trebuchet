@@ -151,7 +151,8 @@ public sealed class BotCommunityLog : IDisposable
     // An announcement is only taken back when it was still this far ahead, and when the launcher showed nothing planned at two
     // looks in a row (it shows nothing for a moment while it changes over from one countdown to the next).
     private static readonly TimeSpan CancelFarEnough = TimeSpan.FromMinutes(1);
-    private static readonly TimeSpan CancelConfirmAfter = TimeSpan.FromSeconds(10);
+    // (A restart or stop "now" can take a good while to show itself: the Discord notice of the launcher takes up to 15 seconds.)
+    private static readonly TimeSpan CancelConfirmAfter = TimeSpan.FromSeconds(25);
     // Longer than the calm interval plus the time a look may take: more silence than this means the bot was away (off,
     // no Discord connection), and what happened meanwhile is old news.
     private static readonly TimeSpan StaleAfter = TimeSpan.FromMinutes(11);
@@ -405,6 +406,13 @@ public sealed class BotCommunityLog : IDisposable
         }
         if (status.Pending == BotPendingAction.None)
         {
+            // A sequence of the save that is no countdown (a restart "now" with a stopping sequence of its own) shows nothing planned
+            // while it runs: that is the server going down, not a cancellation.
+            if (status.Sequence)
+            {
+                memory.CancelSeenAt = null;
+                return due;
+            }
             memory.CancelSeenAt ??= now;
             if (now - memory.CancelSeenAt < CancelConfirmAfter) return due < BusyInterval ? due : BusyInterval;
             var stop = memory.ShownAction == BotPendingAction.Stop;
@@ -416,10 +424,23 @@ public sealed class BotCommunityLog : IDisposable
             return due;
         }
         memory.CancelSeenAt = null;
+        // Another kind of action than the one that was told (a stop instead of the restart): the one told does not happen, and the new one
+        // is told when it comes within the lead time. Nearer than that its announcement says it.
+        if ((status.Pending == BotPendingAction.Stop) != (memory.ShownAction == BotPendingAction.Stop))
+        {
+            if (status.PendingAtUtc is not { } newAt || newAt - now > policy.CommunityLead)
+            {
+                var wasStop = memory.ShownAction == BotPendingAction.Stop;
+                Enqueue(Embed(wasStop ? texts.CancelledStopTitle : texts.CancelledRestartTitle,
+                    wasStop ? texts.CancelledStopBody : texts.CancelledRestartBody, Green, now, status, several));
+                memory.AnnouncedAt = null;
+                memory.ShownAt = null;
+            }
+            return due;
+        }
         // Later than told, and still further away than the lead time: the regular announcement would come too late to say so.
         // (Within the lead time the announcement of the new time says it.) Another kind of action is a new plan, not a postponement.
-        if (status.PendingAtUtc is { } moved && (status.Pending == BotPendingAction.Stop) == (memory.ShownAction == BotPendingAction.Stop)
-            && moved - shown > SameEventTolerance && moved - now > policy.CommunityLead)
+        if (status.PendingAtUtc is { } moved && moved - shown > SameEventTolerance && moved - now > policy.CommunityLead)
         {
             Enqueue(Postponed(status, moved, texts, now, several));
             memory.ShownAt = moved;

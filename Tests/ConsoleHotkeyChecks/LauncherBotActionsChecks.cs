@@ -416,6 +416,32 @@ static class LauncherBotActionsChecks
             check((await actions.CancelAsync(0, none)).Outcome == BotActionOutcome.NothingPending && (await actions.CancelAsync(7, none)).Outcome == BotActionOutcome.Failed,
                 "Without a countdown there is nothing to cancel, a server that does not exist is refused");
 
+            // A restart the launcher started on its own (schedule, update) would begin again with the next tick: cancelling it holds the
+            // automatic restarts for a while, also after it was postponed and taken back (it stays what it was).
+            await ui.InvokeAsync(() => Task.FromResult(files.Server.Get(saveA).UseRestartWarnings = true));
+            await ui.InvokeAsync(() => { launcher.RestartServer(0); return Task.FromResult(true); });
+            var automatic = await WaitFor(0, x => x is { Countdown: true, Automatic: true });
+            check(automatic is { Countdown: true, Automatic: true, Pending: BotPendingAction.Restart }, "A restart the launcher started on its own is shown as automatic: " + automatic);
+            check((await actions.PostponeAsync(0, 45, "Event", none)).Success, "The automatic restart can be postponed");
+            var autoHeld = await WaitFor(0, x => x?.PausedUntilUtc is not null && x.Countdown == false);
+            check(autoHeld is { PausedUntilUtc: not null }, "...and then waits for the pause: " + autoHeld);
+            // Postponing again puts the pause off by the minutes (a new pause of the minutes from now would end sooner than this one).
+            var pauseBefore = autoHeld!.PausedUntilUtc!.Value;
+            check((await actions.PostponeAsync(0, 15, "Event", none)).Success, "A second postponement is accepted");
+            var extended = await WaitFor(0, x => x?.PausedUntilUtc is { } u && u > pauseBefore.AddMinutes(10));
+            check(extended?.PausedUntilUtc is { } extendedUntil && Near(extendedUntil, pauseBefore.AddMinutes(15)),
+                "A second postponement adds to the pause that runs, it never brings the restart forward: " + extended?.PausedUntilUtc + " after " + pauseBefore);
+            check((await actions.ResumeAsync(0, none)).Success, "The postponement is lifted");
+            var autoAgain = await WaitFor(0, x => x is { Countdown: true, PausedUntilUtc: null });
+            check(autoAgain is { Automatic: true }, "A postponed automatic restart that is taken back is still an automatic one: " + autoAgain);
+            var autoCancel = await actions.CancelAsync(0, none);
+            var autoAfter = await WaitFor(0, x => x?.PausedUntilUtc is not null && x.Countdown == false);
+            check(autoCancel is { Success: true, Detail: "hold=30" } && autoAfter?.PausedUntilUtc is { } holdUntil && Near(holdUntil, DateTime.UtcNow.AddMinutes(30)),
+                "Cancelling it holds the automatic restarts for 30 minutes: " + autoCancel + " " + autoAfter);
+            check((await actions.ResumeAsync(0, none)).Success && await StatusOf(0) is { PausedUntilUtc: null },
+                "The hold can be lifted");
+            await ui.InvokeAsync(() => Task.FromResult(files.Server.Get(saveA).UseRestartWarnings = false));
+
             // Instances 0 and 1 installed (the binaries only), instance 1 on the save of the running instance 0.
             foreach (var instance in new[] { 0, 1 })
             {

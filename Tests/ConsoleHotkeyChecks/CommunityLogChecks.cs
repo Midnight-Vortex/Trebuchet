@@ -780,6 +780,8 @@ static class CommunityLogChecks
             var wait = await scene.Log.RefreshAsync(CancellationToken.None);
             check(wait <= BotCommunityLog.BusyInterval, "While it waits to be sure it looks again soon: " + wait);
             await scene.Look(calm, 15);
+            check(scene.Hooks.Messages.Length == 1, "...and 15 seconds are not yet sure (a restart now can take a while to show itself)");
+            await scene.Look(calm, 15);
             var cancelled = scene.Hooks.Messages.Select(x => x.Embed!).ToArray();
             check(cancelled.Length == 2 && cancelled[1].Title == "✅ Der Neustart fällt aus" && cancelled[1].Color == BotCommunityLog.Green
                   && cancelled[1].Description == "Der angekündigte Neustart findet nicht statt – der Server bleibt online.",
@@ -819,7 +821,10 @@ static class CommunityLogChecks
             // Changed into a stop for much later, further away than the lead time: no "postponed restart", the plan is a different one.
             var stop = scene.Launcher(TrebuchetLib.ProcessState.ONLINE, x => x with { CountdownRunning = true, CountdownEndsUtc = scene.Now.AddMinutes(90), SequenceRunning = true });
             await scene.Look(stop, 60);
-            check(scene.Hooks.Messages.Length == 1, "A stop planned instead of a restart is no postponement: " + string.Join(" | ", scene.Titles()));
+            check(scene.Titles().SequenceEqual(["⏰ Der Server startet in 20 Minuten neu", "✅ Der Neustart fällt aus"]),
+                "A stop planned instead of a restart (further away than the lead time) says the restart does not happen: " + string.Join(" | ", scene.Titles()));
+            await scene.Look(stop, 60);
+            check(scene.Hooks.Messages.Length == 2, "...once, and a stop is no postponement");
             // The announced restart goes down at its time: that is not a cancellation, whatever the launcher shows meanwhile.
         }
         using (var scene = new Scene())
@@ -834,6 +839,34 @@ static class CommunityLogChecks
             await scene.Look(scene.Launcher(TrebuchetLib.ProcessState.ONLINE), 20);
             await scene.Look(scene.Launcher(null, x => x with { ShuttingDown = true }), 20);
             check(!scene.Titles().Any(x => x.Contains("fällt aus", StringComparison.Ordinal)), "The restart that happens as announced is never called cancelled: " + string.Join(" | ", scene.Titles()));
+        }
+
+        // A restart "now" while one was announced, with a stopping sequence of the save of its own: the launcher shows nothing planned
+        // while that sequence runs. That is the server going down, never a cancellation.
+        using (var scene = new Scene())
+        {
+            var restartAt = scene.Now.AddMinutes(20);
+            await scene.Look(scene.Launcher(TrebuchetLib.ProcessState.ONLINE, x => x with
+            {
+                CountdownRunning = true, CountdownRestarts = true, CountdownEndsUtc = restartAt, SequenceRunning = true
+            }), 0);
+            var inSequence = scene.Launcher(TrebuchetLib.ProcessState.ONLINE, x => x with { SequenceRunning = true });
+            for (var i = 0; i < 4; i++) await scene.Look(inSequence, 30);
+            check(scene.Titles().SequenceEqual(["⏰ Der Server startet in 20 Minuten neu"]), "A sequence of the save that runs is no cancellation: " + string.Join(" | ", scene.Titles()));
+            await scene.Look(scene.Launcher(TrebuchetLib.ProcessState.STOPPING, x => x with { ProcessRestarts = true, SequenceRunning = true }), 20);
+            check(scene.Titles().SequenceEqual(["⏰ Der Server startet in 20 Minuten neu", "🔄 Der Server startet jetzt neu"]), "...the restart is told when it begins: " + string.Join(" | ", scene.Titles()));
+        }
+        // The same when the launcher is slow to start it (the Discord notice of the save takes a while): shorter than the time to be sure.
+        using (var scene = new Scene())
+        {
+            var stopAt = scene.Now.AddMinutes(15);
+            await scene.Look(scene.Launcher(TrebuchetLib.ProcessState.ONLINE, x => x with { CountdownRunning = true, CountdownEndsUtc = stopAt, SequenceRunning = true }), 0);
+            var calm = scene.Launcher(TrebuchetLib.ProcessState.ONLINE);
+            await scene.Look(calm, 5);
+            await scene.Look(calm, 15);
+            await scene.Look(scene.Launcher(TrebuchetLib.ProcessState.STOPPING), 5);
+            check(scene.Titles().SequenceEqual(["⏰ Der Server wird in 15 Minuten gestoppt", "⏹️ Der Server wird jetzt gestoppt"]),
+                "A stop now that takes 20 seconds to show itself is no cancellation either: " + string.Join(" | ", scene.Titles()));
         }
 
         // A postponement within the lead time is told by the new countdown announcement alone.

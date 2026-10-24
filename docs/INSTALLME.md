@@ -159,9 +159,13 @@ zeigt, wann zuletzt geprüft wurde. Die Buttons passen immer zum Zustand:
 - **Neustart abbrechen / Stopp abbrechen / Update abbrechen:** erscheint nur, solange ein **Countdown** läuft (auch als
   Befehl `/restart cancel`). Er wird sofort beendet, ohne Rückfrage; die Spieler lesen ingame „fällt aus“, und der
   Community-Log meldet es auch. Einen Neustart, den der Zeitplan oder ein Update von allein gestartet hat, würde der
-  nächste Takt gleich wieder beginnen: Die automatischen Neustarts warten deshalb kurz (bis das tägliche Fenster des
-  Zeitplans vorbei ist, in der Meldung steht dann „Verschoben bis“). Von Hand gestartete Countdowns enden einfach. Wer
-  verschieben darf, darf auch abbrechen (ausschaltbar wie jeder Befehl).
+  nächste Takt gleich wieder beginnen: Die automatischen Neustarts warten deshalb **30 Minuten** (die Antwort sagt es, in
+  der Status-Meldung steht „Verschoben bis“, mit „Wieder freigeben“ geht es früher). Das zählt wie ein Verschieben gegen
+  die längste Verschiebung (Standard 6 Std pro Serverstart), damit niemand ein Update durch ständiges Abbrechen für immer
+  aufschieben kann. Von Hand gestartete Countdowns (Discord, Fenster) enden einfach, ohne Wartezeit. Wer verschieben darf,
+  darf auch abbrechen (ausschaltbar wie jeder Befehl).
+- **Noch einmal verschieben**, solange schon verschoben ist: Die Minuten kommen zur laufenden Pause dazu (nie früher als
+  vorher), und die Restzeit zählt gegen die längste Verschiebung.
 - **Updates prüfen:** fragt Steam, ob Mods oder der Server ein Update brauchen, und sagt dir das Ergebnis. Es wird
   **nichts installiert**. (Auch als Befehl `/updatecheck`.)
 

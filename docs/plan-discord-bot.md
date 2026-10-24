@@ -212,8 +212,8 @@ Zeit, User-ID, Anzeigename (nur zur Info), Server-/Kanal-ID, Befehl, Parameter, 
   (`LauncherServerStatus.ProcessRestarts`) oder daran, dass der Server um die zuletzt gemeldete Zeit eines Neustarts herunterfährt
   (ein Stopp von Hand eine Stunde davor ist ein Stopp; eine Update-Runde allein macht keinen Neustart), kündigt dasselbe Ereignis nur
   einmal an (die Zeit weicht um Sekunden ab, eine Verschiebung um mehr), weckt sich genau zum Beginn der Vorlaufzeit und sagt zu
-  Abstürzen nichts. Was angekündigt war und nicht kommt, sagt er auch (`Replanned`): Nichts mehr geplant (ab dem zweiten Blick, mindestens
-  10 s später, weil der Launcher beim Wechsel zwischen zwei Countdowns kurz nichts zeigt, und nur wenn die Zeit noch mehr als eine
+  Abstürzen nichts. Was angekündigt war und nicht kommt, sagt er auch (`Replanned`; läuft eine Sequenz des Speicherstands, die kein Countdown ist, etwa ein Neustart „jetzt“ mit eigener Stopp-Sequenz, ist das der Server, der herunterfährt, keine Absage): Nichts mehr geplant (ab dem zweiten Blick, mindestens
+  25 s später, weil der Launcher beim Wechsel zwischen zwei Countdowns kurz nichts zeigt, und nur wenn die Zeit noch mehr als eine
   Minute weg war) heißt „✅ fällt aus“; eine spätere Zeit als angekündigt (mehr als 2 Minuten, weiter weg als die Vorlaufzeit, dieselbe Art
   von Aktion) „⏸️ wurde verschoben“ mit der neuen Zeit. Beide vergessen die letzte Ankündigung, damit die Erinnerung kurz vorher
   (auch mit der alten Zeit nach „Wieder freigeben“) kommt. Ein verschobener Neustart nennt das Ende der Pause plus die Vorwarnzeit des Speicherstands
@@ -243,7 +243,7 @@ Zeit, User-ID, Anzeigename (nur zur Info), Server-/Kanal-ID, Befehl, Parameter, 
 | `/status [instanz]` | liest Zustand, Spieler, Laufzeit, Pause, offenes Update | Lesen |
 | `/restart postpone instanz minuten [grund]` | Ein laufender Neustart-Countdown: `PostponeRestart(instance, minuten)` (Ende = altes Ende + Minuten, nie früher; die Pause endet eine Vorwarnzeit vorher, `PlanRestartPostponement`; kürzer als eine Minute: neuer Countdown bis zum neuen Ende). Sonst `PauseAutomaticRestarts(instance, minuten)`. Ingame-Meldung „verschoben um X Minuten“ (die gewählten Minuten) | Verwalten |
 | `/restart resume instanz` | `ResumeAutomaticRestarts(instance)`: hebt die Pause auf; ein verschobener Neustart läuft sofort zu seiner alten Zeit (`RestartServerIn` mit der Restzeit), nicht mit einem neuen vollen Countdown | Verwalten |
-| `/restart cancel instanz` | `CancelCountdown(instance)`: beendet den Countdown, Ingame-Meldung „fällt aus“. Ein von Zeitplan/Update gestarteter Neustart-Countdown (nicht von Hand: `_manualCountdowns`) hält die automatischen Neustarts bis zum Ende des täglichen Fensters an | Verwalten |
+| `/restart cancel instanz` | `CancelCountdown(instance)`: beendet den Countdown, Ingame-Meldung „fällt aus“. Ein von Zeitplan/Update gestarteter Neustart-Countdown (nicht von Hand: `_manualCountdowns`, `BotServerStatus.Automatic`; das bleibt auch nach Verschieben und Freigeben so) hält die automatischen Neustarts `BotCommands.CancelHoldMinutes` (30) an und zählt dafür gegen die Verschiebe-Kette (`BotPostponeBudget`) | Verwalten |
 | `/restart now instanz [verzögerung]` | `RestartServerIn(instance, delay)` mit Warnungen, Verzögerung 0 bis 120 Minuten | Kritisch + Bestätigung |
 | `/stop instanz [verzögerung]` | `CloseServerIn(instance, delay)`, Verzögerung 0 bis 60 Minuten | Kritisch + Bestätigung |
 | `/start instanz` | `CatapultServer(instance)` | Super-Admin + Bestätigung |

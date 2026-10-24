@@ -582,8 +582,25 @@ public sealed class BotInteractionHandler
         var text = typed.Length == 0 ? "Discord" : "Discord: " + typed;
         var requestedMinutes = minutes;
         BotPostponeBudget.Snapshot budgetBefore = default;
+        var budgeted = false;
+        if (command == BotCommand.Cancel && await IsAutomaticCountdownAsync(instance, token).ConfigureAwait(false))
+        {
+            // Cancelling a restart that the schedule or an update started on its own holds the automatic restarts for a while: that puts it
+            // off like a postponement does, so it counts against the same chain (or cancelling again and again would put an update off for ever).
+            budgetBefore = _budget.Save(instance);
+            budgeted = true;
+            var granted = await ReserveHoldAsync(instance, BotCommands.CancelHoldMinutes, policy, token).ConfigureAwait(false);
+            if (granted < BotCommands.CancelHoldMinutes)
+            {
+                _budget.Restore(instance, budgetBefore);
+                Audit(i, BotAuditResult.Throttled, ask, "PostponeLimit");
+                await AnswerAsync(responder, new BotReply(messages.PostponeLimit), update).ConfigureAwait(false);
+                return;
+            }
+        }
         if (command == BotCommand.Postpone)
         {
+            budgeted = true;
             budgetBefore = _budget.Save(instance);
             // Postponing can not go on for ever: a chain of postponements ends at the longest one of the settings.
             var granted = await ReservePostponeAsync(instance, minutes, policy, token).ConfigureAwait(false);
@@ -639,13 +656,26 @@ public sealed class BotInteractionHandler
         }
 
         // Refused (busy, not running, failed): nothing was postponed, so none of the budget is used.
-        if (command == BotCommand.Postpone && !result.Success) _budget.Restore(instance, budgetBefore);
+        if (budgeted && !result.Success) _budget.Restore(instance, budgetBefore);
         Audit(i, result.Success ? BotAuditResult.Executed : BotAuditResult.Failed, ask, $"{result.Outcome} {result.Detail}".Trim());
         var answer = ResultText(command, instance >= 0 ? await ServerLabelAsync(instance, token).ConfigureAwait(false) : string.Empty, minutes, result, messages);
         if (command == BotCommand.Postpone && result.Success && minutes < requestedMinutes)
             answer = string.Format(CultureInfo.InvariantCulture, messages.PostponedLimited, messages.FormatMinutes(minutes));
         await AnswerAsync(responder, new BotReply(answer), update).ConfigureAwait(false);
         if (result.Success) await RefreshAsync(token).ConfigureAwait(false);
+    }
+
+    private async Task<bool> IsAutomaticCountdownAsync(int instance, CancellationToken token)
+    {
+        var statuses = await _actions.GetStatusesAsync(token).ConfigureAwait(false);
+        return statuses.FirstOrDefault(x => x.Instance == instance) is { Automatic: true };
+    }
+
+    private async Task<int> ReserveHoldAsync(int instance, int minutes, BotPolicy policy, CancellationToken token)
+    {
+        var statuses = await _actions.GetStatusesAsync(token).ConfigureAwait(false);
+        var status = statuses.FirstOrDefault(x => x.Instance == instance);
+        return _budget.Reserve(instance, status?.StartedUtc, minutes, policy.MaxPause, _clock());
     }
 
     private async Task<int> ReservePostponeAsync(int instance, int minutes, BotPolicy policy, CancellationToken token)
@@ -655,9 +685,13 @@ public sealed class BotInteractionHandler
         var now = _clock();
         // A pending stop is moved back from its end (the action adds the minutes to the time that is left), not from now:
         // the time left counts against the chain like the minutes do, or postponing a stop again and again adds up for ever.
-        var left = status is { Pending: BotPendingAction.Stop, PendingAtUtc: { } end } && end > now
-            ? (int)Math.Ceiling((end - now).TotalMinutes)
-            : 0;
+        // A restart countdown is moved the same way (its end plus the minutes), and so is a pause that already runs.
+        var left = status switch
+        {
+            { Countdown: true, PendingAtUtc: { } end } when end > now => (int)Math.Ceiling((end - now).TotalMinutes),
+            { PausedUntilUtc: { } until } when until > now => (int)Math.Ceiling((until - now).TotalMinutes),
+            _ => 0
+        };
         // A server that is not running or not known is refused by the action, which gives the reservation back.
         var granted = _budget.Reserve(instance, status?.StartedUtc, minutes + left, policy.MaxPause, now);
         return Math.Max(0, granted - left);
@@ -685,7 +719,10 @@ public sealed class BotInteractionHandler
             {
                 BotCommand.Postpone => string.Format(CultureInfo.InvariantCulture, messages.Postponed, messages.FormatMinutes(minutes)),
                 BotCommand.Resume => messages.Resumed,
-                BotCommand.Cancel => messages.CountdownCancelled,
+                BotCommand.Cancel => result.Detail.StartsWith("hold=", StringComparison.Ordinal)
+                                     && int.TryParse(result.Detail.AsSpan(5), NumberStyles.None, CultureInfo.InvariantCulture, out var held)
+                    ? string.Format(CultureInfo.InvariantCulture, messages.CountdownCancelledHeld, messages.FormatMinutes(held))
+                    : messages.CountdownCancelled,
                 BotCommand.RestartNow => string.Format(CultureInfo.InvariantCulture, messages.DoneRestart, server),
                 BotCommand.Stop => string.Format(CultureInfo.InvariantCulture, messages.DoneStop, server),
                 BotCommand.Start => string.Format(CultureInfo.InvariantCulture, messages.DoneStart, server),

@@ -15,6 +15,8 @@ public sealed record BotMessages
     public required string StatusTitle { get; init; }
     public required string Resumed { get; init; }
     public required string CountdownCancelled { get; init; }
+    /// <summary>{0} how long the automatic restarts wait.</summary>
+    public required string CountdownCancelledHeld { get; init; }
     public required string NothingToCancel { get; init; }
     public required string NotRunning { get; init; }
     public required string AlreadyRunning { get; init; }
@@ -80,6 +82,7 @@ public sealed record BotMessages
         StatusTitle = "Status",
         Resumed = "Die automatischen Neustarts laufen wieder.",
         CountdownCancelled = "Abgebrochen: Der angekündigte Neustart oder Stopp findet nicht statt, die Spieler wurden informiert.",
+        CountdownCancelledHeld = "Abgebrochen: Der angekündigte Neustart oder Stopp findet nicht statt, die Spieler wurden informiert. Die automatischen Neustarts warten {0}, sonst würde er gleich wieder beginnen.",
         NothingToCancel = "Es läuft kein Countdown, der abgebrochen werden könnte.",
         NotRunning = "Der Server läuft nicht.",
         AlreadyRunning = "Der Server läuft bereits.",
@@ -135,6 +138,7 @@ public sealed record BotMessages
         StatusTitle = "Status",
         Resumed = "Automatic restarts run again.",
         CountdownCancelled = "Cancelled: the announced restart or stop does not happen, the players were told.",
+        CountdownCancelledHeld = "Cancelled: the announced restart or stop does not happen, the players were told. The automatic restarts wait {0}, or it would begin again at once.",
         NothingToCancel = "No countdown is running that could be cancelled.",
         NotRunning = "The server is not running.",
         AlreadyRunning = "The server is already running.",

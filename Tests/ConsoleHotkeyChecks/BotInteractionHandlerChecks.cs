@@ -710,7 +710,7 @@ static class BotInteractionHandlerChecks
             // stop again and again would add up for ever.
             rig = new Rig(folder, Config());
             var stopEnd = rig.Clock.Now.AddMinutes(30);
-            rig.Actions.Statuses[0] = rig.Actions.Statuses[0] with { Pending = BotPendingAction.Stop, PendingAtUtc = stopEnd };
+            rig.Actions.Statuses[0] = rig.Actions.Statuses[0] with { Pending = BotPendingAction.Stop, PendingAtUtc = stopEnd, Countdown = true };
             var stopMoved = await rig.Do(rig.Slash("restart postpone", numbers: Rig.N(0, 360)));
             Check(rig.Actions.Done.Last().StartsWith("postpone 0 330", StringComparison.Ordinal) && stopMoved.Last.Text.StartsWith("Verschoben um 5 Std 30 Min", StringComparison.Ordinal),
                 "The time left of a pending stop is taken from the minutes that may be postponed");
@@ -718,6 +718,49 @@ static class BotInteractionHandlerChecks
             var stopAgain = await rig.Do(rig.Slash("restart postpone", numbers: Rig.N(0, 30)));
             Check(stopAgain.Last.Text == BotMessages.German.PostponeLimit && rig.Actions.Done.Last().StartsWith("postpone 0 330", StringComparison.Ordinal),
                 "A stop that already reaches the end of the chain can not be moved back again");
+
+            // A restart countdown is moved the same way (its end plus the minutes): its time left counts against the chain too.
+            rig = new Rig(folder, Config());
+            rig.Actions.Statuses[0] = rig.Actions.Statuses[0] with { Pending = BotPendingAction.Restart, PendingAtUtc = rig.Clock.Now.AddMinutes(120), Countdown = true };
+            var restartMoved = await rig.Do(rig.Slash("restart postpone", numbers: Rig.N(0, 360)));
+            Check(rig.Actions.Done.Last().StartsWith("postpone 0 240", StringComparison.Ordinal) && restartMoved.Last.Text.StartsWith("Verschoben um 4 Std", StringComparison.Ordinal),
+                "The time left of a restart countdown counts against the chain like that of a stop: " + rig.Actions.Done.Last());
+            // ...and so does a pause that already runs (a second postponement adds to it).
+            rig = new Rig(folder, Config());
+            rig.Actions.Statuses[0] = rig.Actions.Statuses[0] with { Pending = BotPendingAction.Restart, PendingAtUtc = rig.Clock.Now.AddMinutes(150), PausedUntilUtc = rig.Clock.Now.AddMinutes(145) };
+            await rig.Do(rig.Slash("restart postpone", numbers: Rig.N(0, 360)));
+            Check(rig.Actions.Done.Last().StartsWith("postpone 0 215", StringComparison.Ordinal), "The time a pause still has left counts too: " + rig.Actions.Done.Last());
+
+            // Cancelling a restart that the schedule or an update started on its own holds the automatic restarts: that puts it off like a
+            // postponement and counts against the same chain, or an update could be put off for ever. A countdown somebody started by hand just ends.
+            rig = new Rig(folder, Config());
+            rig.Actions.Statuses[0] = rig.Actions.Statuses[0] with { Pending = BotPendingAction.Restart, PendingAtUtc = rig.Clock.Now.AddMinutes(10), Countdown = true, Automatic = true };
+            rig.Actions.Result = new BotActionResult(BotActionOutcome.Done, "hold=30");
+            var held = await rig.Do(rig.Button(BotCustomId.ForAction(BotCommand.Cancel, 0)));
+            Check(held.Last.Text == string.Format(CultureInfo.InvariantCulture, BotMessages.German.CountdownCancelledHeld, BotMessages.German.FormatMinutes(30)) && held.Last.Text.Contains("30 Min"),
+                "The answer says that the automatic restarts wait: " + held.Last.Text);
+            // Pressed again and again (each press holds the restarts for 30 minutes) it stops at the end of the chain of the server.
+            var cancels = 1;
+            var cancelRefused = string.Empty;
+            for (var k = 0; k < 20 && cancelRefused.Length == 0; k++)
+            {
+                var pressed = await rig.Do(rig.Button(BotCustomId.ForAction(BotCommand.Cancel, 0)), advanceSeconds: 29 * 60);
+                if (pressed.Last.Text == BotMessages.German.PostponeLimit) cancelRefused = pressed.Last.Text;
+                else cancels++;
+            }
+            Check(cancelRefused == BotMessages.German.PostponeLimit && cancels == 12 && rig.Actions.Done.Count(x => x == "cancel 0") == 12,
+                "A cancel that holds the restarts again and again ends at the end of the chain (6 hours): " + cancels);
+            rig.Actions.Statuses[0] = rig.Actions.Statuses[0] with { Automatic = false };
+            rig.Actions.Result = new BotActionResult(BotActionOutcome.Done);
+            Check((await rig.Do(rig.Button(BotCustomId.ForAction(BotCommand.Cancel, 0)))).Last.Text == BotMessages.German.CountdownCancelled && rig.Actions.Done.Count(x => x == "cancel 0") == 13,
+                "A countdown that was started by hand is cancelled whatever is left of the chain");
+            rig = new Rig(folder, Config());
+            rig.Actions.Statuses[0] = rig.Actions.Statuses[0] with { Pending = BotPendingAction.Restart, PendingAtUtc = rig.Clock.Now.AddMinutes(10), Countdown = true, Automatic = true };
+            rig.Actions.Result = new BotActionResult(BotActionOutcome.Busy);
+            await rig.Do(rig.Button(BotCustomId.ForAction(BotCommand.Cancel, 0)));
+            rig.Actions.Result = new BotActionResult(BotActionOutcome.Done, "hold=30");
+            Check((await rig.Do(rig.Button(BotCustomId.ForAction(BotCommand.Cancel, 0)), advanceSeconds: 10)).Last.Text.StartsWith("Abgebrochen", StringComparison.Ordinal),
+                "A cancel the launcher refused used none of the chain");
 
             // A postponement the launcher refused (busy) used none of the budget.
             rig = new Rig(folder, Config());

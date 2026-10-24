@@ -118,9 +118,10 @@ public sealed class BotAccountIdentity
             // The same settings were looked at a moment ago (a reconnect): once is enough.
             var target = name + "\n" + url + "\n" + _account.UserId;
             if (_checked is { } last && last.Target == target && now - last.AtUtc < RecheckAfter) return;
-            _checked = (target, now);
             await ApplyNameAsync(name, now, token).ConfigureAwait(false);
             await ApplyAvatarAsync(url, now, token).ConfigureAwait(false);
+            // Only once it was done (or failed on its own): a session that dropped half way must try again.
+            _checked = (target, now);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
@@ -265,7 +266,19 @@ public sealed class HttpBotAvatarSource : IBotAvatarSource, IDisposable
         }
         if (address.AddressFamily != AddressFamily.InterNetworkV6) return false;
         // fe80::/10 link local, fc00::/7 unique local, ff00::/8 multicast.
-        return !(address.IsIPv6LinkLocal || address.IsIPv6SiteLocal || address.IsIPv6Multicast || (b[0] & 0xFE) == 0xFC);
+        if (address.IsIPv6LinkLocal || address.IsIPv6SiteLocal || address.IsIPv6Multicast || (b[0] & 0xFE) == 0xFC) return false;
+        // Forms that carry an IPv4 address (or lead somewhere else): the address inside is the one that counts, or they are refused.
+        bool Zeros(int from, int to) => b.Skip(from).Take(to - from).All(x => x == 0);
+        if (Zeros(0, 12)) return false;                                                  // ::/96 (IPv4 compatible, deprecated)
+        if (Zeros(0, 8) && b[8] == 0 && b[9] == 0 && b[10] == 0xFF && b[11] == 0xFF) return false;   // ::ffff:0:0/96 left over after the mapping
+        if (Zeros(0, 8) && b[8] == 0xFF && b[9] == 0xFF && Zeros(10, 12)) return false;   // ::ffff:0:a.b.c.d (translated)
+        if (b[0] == 0x00 && b[1] == 0x64 && b[2] == 0xFF && b[3] == 0x9B)               // 64:ff9b::/96 NAT64 and 64:ff9b:1::/48
+            return b[4] == 0 && b[5] == 0 && Zeros(4, 12) && IsPublicAddress(new IPAddress(b[12..16]));
+        if (b[0] == 0x20 && b[1] == 0x02) return IsPublicAddress(new IPAddress(b[2..6]));   // 2002::/16 6to4
+        if (b[0] == 0x20 && b[1] == 0x01 && b[2] == 0 && b[3] == 0) return false;        // 2001::/32 Teredo
+        if (b[0] == 0x20 && b[1] == 0x01 && b[2] == 0x0D && b[3] == 0xB8) return false;  // 2001:db8::/32 documentation
+        if (b[0] == 0x01 && Zeros(1, 8)) return false;                                   // 100::/64 discard
+        return true;
     }
 
     // The name is looked up here and only an address that passed the check is connected to: no second look-up that could answer

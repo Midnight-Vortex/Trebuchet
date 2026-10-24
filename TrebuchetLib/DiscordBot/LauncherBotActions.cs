@@ -101,6 +101,13 @@ public sealed class LauncherBotActions : IBotActions, IDisposable
                 if (!(replan.IsCompletedSuccessfully && !await replan))
                     return await FinishAsync(replan, "postpone", instance, wait: true, t);
             }
+            // Already postponed: the pause is put off by the minutes (a new pause of the minutes from now could end sooner than the one that runs).
+            if (status.PausedUntilUtc is { } until && until > DateTime.UtcNow)
+            {
+                var extend = _launcher.ExtendAutomaticRestartsPause(instance, pause);
+                if (!(extend.IsCompletedSuccessfully && !await extend))
+                    return await FinishAsync(extend, "postpone", instance, wait: true, t);
+            }
             // Anything else automatic waits for the end of the pause.
             return await FinishAsync(_launcher.PauseAutomaticRestarts(instance, pause), "postpone", instance, wait: true, t);
         }, token);
@@ -124,8 +131,16 @@ public sealed class LauncherBotActions : IBotActions, IDisposable
             if (Unavailable(status) is { } refused) return refused;
             if (!status.CountdownRunning) return new BotActionResult(BotActionOutcome.NothingPending);
             var cancel = _launcher.CancelCountdown(instance);
-            if (cancel.IsCompletedSuccessfully && !await cancel) return new BotActionResult(BotActionOutcome.NothingPending);
-            return await FinishAsync(cancel, "cancel", instance, wait: true, t);
+            if (cancel.IsCompletedSuccessfully && await cancel is null) return new BotActionResult(BotActionOutcome.NothingPending);
+            var done = await FinishAsync(cancel, "cancel", instance, wait: true, t);
+            if (!done.Success || !cancel.IsCompletedSuccessfully) return done;
+            // A restart the schedule or an update started on its own holds the automatic restarts for a while: the answer says so.
+            return cancel.Result switch
+            {
+                null => new BotActionResult(BotActionOutcome.NothingPending),
+                { } hold when hold > TimeSpan.Zero => new BotActionResult(BotActionOutcome.Done, $"hold={(int)Math.Round(hold.TotalMinutes)}"),
+                _ => done
+            };
         }, token);
     }
 
@@ -248,7 +263,9 @@ public sealed class LauncherBotActions : IBotActions, IDisposable
             pendingAt,
             status.PausedUntilUtc is { } paused && paused > utcNow ? paused : null,
             status.ProcessRestarts || status.RestartRequested || (status.CountdownRunning && status.CountdownRestarts),
-            status.CountdownRunning);
+            status.CountdownRunning,
+            status.CountdownRunning && status.CountdownRestarts && status.CountdownAutomatic,
+            status.SequenceRunning && !status.CountdownRunning);
     }
 
     private static BotServerState StateOf(LauncherServerStatus status) => status.State switch

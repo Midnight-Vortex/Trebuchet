@@ -33,6 +33,8 @@ public sealed record LauncherServerStatus
     public bool CountdownRunning { get; init; }
     /// <summary>The running countdown ends with a restart (otherwise with a stop).</summary>
     public bool CountdownRestarts { get; init; }
+    /// <summary>The running restart countdown was started by the schedule or an update, not by somebody by hand.</summary>
+    public bool CountdownAutomatic { get; init; }
     /// <summary>When the running countdown stops or restarts the server, unless it empties before.</summary>
     public DateTime? CountdownEndsUtc { get; init; }
     /// <summary>An automatic restart is on its way (countdown or the restart itself).</summary>
