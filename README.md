@@ -2,6 +2,11 @@
 
 After installing, launch Trebuchet from the Start menu or desktop shortcut. The installer deliberately does not launch it: on affected Windows versions, a process started by Setup can inherit RedirectionGuard and fail to traverse Trebuchet's Saved/profile junctions. Conan then reports that it cannot ensure `Saved/ExtractedMods` exists, even when the directory is present. If this happens after an older setup, fully close Trebuchet and relaunch it from the Start menu; reinstalling mods is not required for this directory-access error.
 
+## 0.9.24 audit channel in plain words
+
+- **The audit channel now reads like normal sentences**, in the language of the bot: "🔔 @User asks: Stop server: Server Main (instance 0)", "✅ Done: Stop server: Server Main (instance 0), warning 5 min – under way (by @User)", "🔄 Server Main (instance 0): 🟡 Stopping → 🔴 Stopped". Refused, slowed down, locked out and cancelled requests are told the same way. The technical values (`instance=0 step=Confirm`), the user ID next to the mention and the IDs of buttons no longer show; the exact reason of a refusal stays in the log file.
+- **A stop is told once, not three times.** The launcher reported the server as stopped for a moment before it had marked its aftermath (backup, scripts) as running, so the bot saw "Stopping -> Stopped -> Stopping -> Stopped". That is fixed, and the bot also only tells a new state once it held for 10 seconds, so a flicker between two steps is never news.
+
 ## 0.9.23 server names and audit channel
 
 - **The name of a server is the "Server name" of its server save** (first field of the server saves), no longer a name set in the Discord Bot panel. The bot (status message, answers, questions), the Trebuchet log ("Stopping server 0 (Main server)", restarts, postponements, crashes) and the audit channel use it. While the save keeps the default name, the name of the save is shown; the log then shows the number only. The name field in the bot settings is gone, old settings files still load.
