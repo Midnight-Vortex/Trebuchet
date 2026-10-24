@@ -99,6 +99,7 @@ static class DiscordNetLayerChecks
         public Task RespondUpdateAsync(BotOutgoingMessage message) => Record("respond-update", message);
         public Task RespondNewAsync(BotOutgoingMessage message) => Record("respond-new", message);
         public Task DeferUpdateAsync() => Record("defer", null);
+        public Task DeferNewAsync() => Record("defer-new", null);
 
         private Task Record(string kind, BotOutgoingMessage? message)
         {
@@ -406,9 +407,17 @@ static class DiscordNetLayerChecks
 
         // --- which acknowledgment: never write into a public message
         var actionId = BotCustomId.ForAction(BotCommand.Postpone, 0);
-        Check(BotInteractionMapper.ChooseAck(BotInteractionKind.Slash, null, true) == BotAckKind.NewPrivateMessage, "A command answers in a new private message");
-        Check(BotInteractionMapper.ChooseAck(BotInteractionKind.Button, actionId, false) == BotAckKind.NewPrivateMessage
-              && BotInteractionMapper.ChooseAck(BotInteractionKind.Button, actionId, true) == BotAckKind.NewPrivateMessage, "A status button answers in a new private message");
+        Check(BotInteractionMapper.ChooseAck(BotInteractionKind.Slash, null, true) == BotAckKind.LazyPrivate
+              && BotInteractionMapper.ChooseAck(BotInteractionKind.Slash, null, false) == BotAckKind.LazyPrivate,
+            "A command answers with a new private message, not acknowledged before (one trip to Discord)");
+        Check(BotInteractionMapper.ChooseAck(BotInteractionKind.Button, actionId, false) == BotAckKind.LazyPrivate
+              && BotInteractionMapper.ChooseAck(BotInteractionKind.Button, actionId, true) == BotAckKind.NewPrivateMessage,
+            "A status button (on the public message) answers with a new private message the same way; one that sits on a private message is junk");
+        Check(BotInteractionMapper.ChooseAck(BotInteractionKind.Button, BotCustomId.ForAction(BotCommand.Cancel, 0), false) == BotAckKind.LazyPrivate
+              && BotInteractionMapper.ChooseAck(BotInteractionKind.Select, actionId, false) == BotAckKind.NewPrivateMessage
+              && BotInteractionMapper.ChooseAck(BotInteractionKind.Modal, actionId, false) == BotAckKind.NewPrivateMessage
+              && BotInteractionMapper.ChooseAck(BotInteractionKind.Button, "tb1:a:stop:", false) == BotAckKind.NewPrivateMessage,
+            "Only a real action button is answered lazily, everything else on a public message is acknowledged first");
         Check(BotInteractionMapper.ChooseAck(BotInteractionKind.Button, BotCustomId.ForConfirm(nonce), true) == BotAckKind.UpdateQuestion
               && BotInteractionMapper.ChooseAck(BotInteractionKind.Button, BotCustomId.ForCancel(nonce), true) == BotAckKind.UpdateQuestion
               && BotInteractionMapper.ChooseAck(BotInteractionKind.Modal, BotCustomId.ForReasonModal(nonce), true) == BotAckKind.UpdateQuestion,
@@ -450,6 +459,41 @@ static class DiscordNetLayerChecks
         var silent = new FakeInteractionTransport();
         await new DiscordNetResponder(silent, BotAckKind.NewPrivateMessage, logger).FinishAsync();
         Check(silent.Calls.Select(x => x.Kind).SequenceEqual(["delete"]), "No answer at all removes the thinking message");
+        // A command or a button of the status message: not acknowledged before, the first answer is the acknowledgment (one call, not two).
+        var quick = new FakeInteractionTransport();
+        var quickResponder = new DiscordNetResponder(quick, BotAckKind.LazyPrivate, logger);
+        await quickResponder.ReplyAsync(new BotReply("Erledigt"));
+        await quickResponder.UpdateAsync(new BotReply("nie ersetzen"));
+        await quickResponder.ReplyAsync(new BotReply("Noch etwas"));
+        await quickResponder.FinishAsync();
+        Check(quick.Calls.Select(x => x.Kind).SequenceEqual(["respond-new", "followup", "followup"]) && quick.Calls.All(x => x.Message is not null && NoMentions(x.Message)),
+            "A quick answer is one call (a new private message), later ones are new messages, none replaces the clicked message and none mentions anyone");
+        var quickUpdate = new FakeInteractionTransport();
+        await new DiscordNetResponder(quickUpdate, BotAckKind.LazyPrivate, logger).UpdateAsync(new BotReply("x"));
+        Check(quickUpdate.Calls.Select(x => x.Kind).SequenceEqual(["respond-new"]), "Even an update as the first answer never replaces the public message");
+        var slowQuick = new FakeInteractionTransport();
+        var slowQuickResponder = new DiscordNetResponder(slowQuick, BotAckKind.LazyPrivate, logger);
+        await slowQuickResponder.AcknowledgeAsync();
+        await slowQuickResponder.AcknowledgeAsync();
+        await slowQuickResponder.ReplyAsync(new BotReply("Spät"));
+        await slowQuickResponder.ReplyAsync(new BotReply("Noch etwas"));
+        await slowQuickResponder.FinishAsync();
+        Check(slowQuick.Calls.Select(x => x.Kind).SequenceEqual(["defer-new", "modify", "followup"]), "Too slow: acknowledged with thinking once, the answer fills it");
+        var quickSilent = new FakeInteractionTransport();
+        await new DiscordNetResponder(quickSilent, BotAckKind.LazyPrivate, logger).FinishAsync();
+        Check(quickSilent.Calls.Select(x => x.Kind).SequenceEqual(["defer-new", "delete"]), "A command nobody answers is acknowledged and its thinking message removed");
+        var quickDeferredSilent = new FakeInteractionTransport();
+        var quickDeferredSilentResponder = new DiscordNetResponder(quickDeferredSilent, BotAckKind.LazyPrivate, logger);
+        await quickDeferredSilentResponder.AcknowledgeAsync();
+        await quickDeferredSilentResponder.FinishAsync();
+        Check(quickDeferredSilent.Calls.Select(x => x.Kind).SequenceEqual(["defer-new", "delete"]), "...also when the watchdog acknowledged it before");
+        Check(!await new DiscordNetResponder(new FakeInteractionTransport(), BotAckKind.LazyPrivate, logger).ShowModalAsync(new BotReasonModal(nonce, "t", "l", "p", 100)),
+            "A command or a status button can not open the window");
+        var quickBroken = new FakeInteractionTransport { Failure = new InvalidOperationException("Unknown interaction, token " + SampleToken) };
+        var quickBrokenResponder = new DiscordNetResponder(quickBroken, BotAckKind.LazyPrivate, logger);
+        await quickBrokenResponder.ReplyAsync(new BotReply("x"));
+        Check(!logs.All.Contains(SampleToken), "A lazy answer that fails throws nothing and logs no token");
+
         var update = new FakeInteractionTransport();
         var updateResponder = new DiscordNetResponder(update, BotAckKind.UpdateQuestion, logger);
         await updateResponder.UpdateAsync(new BotReply("Erledigt"));

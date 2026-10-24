@@ -9,7 +9,8 @@ public enum BotPendingAction { None, Restart, Stop, Update }
 /// <param name="Restarting">The server is going down to be started again (a restart is on its way), not to stay down.</param>
 /// <param name="Countdown">A countdown with warnings to the players runs: it can be cancelled.</param>
 /// <param name="Automatic">That countdown is a restart the schedule or an update started on its own (cancelling it holds the automatic restarts).</param>
-/// <param name="Sequence">A starting or stopping sequence of the save runs that is no countdown (nothing is shown as planned meanwhile).</param>
+/// <param name="Sequence">A starting or stopping sequence of the save runs that is no countdown, or a stop or restart without countdown is under way (nothing is shown as planned meanwhile).</param>
+/// <param name="CancelledAtUtc">When somebody cancelled the countdown (until a new one begins): a countdown that is gone was cancelled, not lost.</param>
 public sealed record BotServerStatus(
     int Instance,
     string Name,
@@ -23,7 +24,8 @@ public sealed record BotServerStatus(
     bool Restarting = false,
     bool Countdown = false,
     bool Automatic = false,
-    bool Sequence = false);
+    bool Sequence = false,
+    DateTime? CancelledAtUtc = null);
 
 /// <summary>The colors of Discord for buttons: green, red, blue and grey are all it offers.</summary>
 public enum BotButtonStyle { Success, Danger, Primary, Secondary }

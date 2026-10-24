@@ -35,6 +35,10 @@ public sealed record LauncherServerStatus
     public bool CountdownRestarts { get; init; }
     /// <summary>The running restart countdown was started by the schedule or an update, not by somebody by hand.</summary>
     public bool CountdownAutomatic { get; init; }
+    /// <summary>When somebody cancelled the countdown of the instance (the last time, as long as no new countdown began).</summary>
+    public DateTime? CountdownCancelledUtc { get; init; }
+    /// <summary>A stop or restart without countdown is under way (the notice to the players, the stopping sequence): the server goes down.</summary>
+    public bool GoingDownNow { get; init; }
     /// <summary>When the running countdown stops or restarts the server, unless it empties before.</summary>
     public DateTime? CountdownEndsUtc { get; init; }
     /// <summary>An automatic restart is on its way (countdown or the restart itself).</summary>

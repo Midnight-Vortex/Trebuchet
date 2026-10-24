@@ -79,6 +79,29 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     private static readonly TimeSpan MinimumPause = TimeSpan.FromMinutes(1);
     // Countdowns somebody started by hand (the window, Discord): the schedule and the updates did not start them.
     private readonly HashSet<int> _manualCountdowns = [];
+    // When somebody cancelled the countdown of an instance (until a new countdown begins or the server is gone).
+    private readonly Dictionary<int, DateTime> _countdownCancelledUtc = [];
+    // Stops and restarts without countdown that are under way (counted: two may overlap), for GetServerStatuses.
+    private readonly Dictionary<int, int> _goingDown = [];
+
+    private IDisposable GoingDown(int instance)
+    {
+        _goingDown[instance] = _goingDown.GetValueOrDefault(instance) + 1;
+        return new GoingDownScope(this, instance);
+    }
+
+    private sealed class GoingDownScope(Launcher launcher, int instance) : IDisposable
+    {
+        private int _done;
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _done, 1) != 0) return;
+            var left = launcher._goingDown.GetValueOrDefault(instance) - 1;
+            if (left <= 0) launcher._goingDown.Remove(instance);
+            else launcher._goingDown[instance] = left;
+        }
+    }
     // Automatic restarts (schedule, updates, RequiresRestart.txt) paused per instance, e.g. during an RP event.
     private readonly Dictionary<int, DateTime> _automaticRestartsPausedUntil = [];
     public const int CrashRestartLimit = 3;
@@ -449,6 +472,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     /// <param name="reason">Reason for the messages, null for the manual shutdown reason of the settings.</param>
     public async Task CloseServer(int instance, string? reason = null)
     {
+        using var goingDown = GoingDown(instance);
         _logger.LogInformation("Close server {Server}", GetInstanceLabel(instance));
         _manualStopsUtc[instance] = DateTime.UtcNow;
         if (_serverProcesses.TryGetValue(instance, out var watcher))
@@ -507,6 +531,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     /// <param name="manual">Somebody asked for it by hand (the window, the web panel): cancelling its countdown just ends it.</param>
     public async Task RestartServerAsync(int instance, bool manual = false)
     {
+        using var goingDown = GoingDown(instance);
         // The reason shows in the log why a server restarted (schedule, server update, mod update, ...).
         if (string.IsNullOrEmpty(_lastRestartReason))
             _logger.LogInformation("Restarting server {Server}", GetInstanceLabel(instance));
@@ -688,6 +713,8 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             return;
         }
 
+        // Counted before the countdown is dropped: the status never shows "nothing planned" while the server is on its way down.
+        using var goingDown = GoingDown(instance);
         if (_countdownInstances.Contains(instance))
             await CancelServerSequence(instance);
         if (profile is not null && !_serverSequences.ContainsKey(instance))
@@ -719,7 +746,12 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     /// instance (schedule, server and mod updates, RequiresRestart.txt) for <paramref name="pause"/>, e.g. during an RP
     /// event. Manual stops and restarts still work, outdated mods are updated with the first restart after the pause.
     /// </summary>
-    public Task PauseAutomaticRestarts(int instance, TimeSpan pause) => PauseAutomaticRestartsCore(instance, pause, pause);
+    /// <param name="waitForNotice">
+    /// False: returns once the state is changed, without waiting for the notice to the players (RCon, Discord) that goes on in the
+    /// background (the Discord bot answers its user at once, the notice reaches the players a moment later).
+    /// </param>
+    public Task PauseAutomaticRestarts(int instance, TimeSpan pause, bool waitForNotice = true) =>
+        PauseAutomaticRestartsCore(instance, pause, pause, waitForNotice: waitForNotice);
 
     /// <summary>
     /// When a restart countdown is postponed by <paramref name="shift"/> and the restart that follows the pause goes down at the new
@@ -745,7 +777,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     /// automatic restarts are paused until the countdown that leads to it begins; lifting the pause early brings the old time back.
     /// </summary>
     /// <returns>False at once when no restart countdown runs.</returns>
-    public async Task<bool> PostponeRestart(int instance, TimeSpan shift)
+    public async Task<bool> PostponeRestart(int instance, TimeSpan shift, bool waitForNotice = true)
     {
         if (shift <= TimeSpan.Zero || !_serverProcesses.ContainsKey(instance) || !_countdownInstances.Contains(instance)
             || !_restartCountdownReasons.TryGetValue(instance, out var reason))
@@ -755,7 +787,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         var (pause, newEnd) = PlanRestartPostponement(plannedEnd, now, shift, GetInstanceRestartWarningLead(instance));
         if (pause is { } wait)
         {
-            await PauseAutomaticRestartsCore(instance, wait, shift);
+            await PauseAutomaticRestartsCore(instance, wait, shift, waitForNotice: waitForNotice);
             return true;
         }
         // Too close for a pause: a countdown that ends at the new time (its first warning tells the players when). It stays what it was:
@@ -774,12 +806,12 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     /// restarts wait until the daily window of the schedule has passed (a restart somebody started by hand just ends).
     /// </summary>
     /// <returns>False at once when no countdown runs.</returns>
-    public async Task<TimeSpan?> CancelCountdown(int instance)
+    public async Task<TimeSpan?> CancelCountdown(int instance, bool waitForNotice = true)
     {
         if (!_countdownInstances.Contains(instance)) return null;
         var startedItself = _restartCountdownReasons.ContainsKey(instance) && !_manualCountdowns.Contains(instance);
         var hold = startedItself ? TimeSpan.FromMinutes(BotCommands.CancelHoldMinutes) : TimeSpan.Zero;
-        await PauseAutomaticRestartsCore(instance, hold, TimeSpan.Zero, postpone: false);
+        await PauseAutomaticRestartsCore(instance, hold, TimeSpan.Zero, postpone: false, waitForNotice: waitForNotice);
         return hold;
     }
 
@@ -788,7 +820,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     /// as a new pause of the shift from now would). The players hear of it when a restart was postponed.
     /// </summary>
     /// <returns>False at once when the automatic restarts are not paused.</returns>
-    public async Task<bool> ExtendAutomaticRestartsPause(int instance, TimeSpan shift)
+    public async Task<bool> ExtendAutomaticRestartsPause(int instance, TimeSpan shift, bool waitForNotice = true)
     {
         if (shift <= TimeSpan.Zero || !_automaticRestartsPausedUntil.TryGetValue(instance, out var until) || until <= DateTime.UtcNow) return false;
         _automaticRestartsPausedUntil[instance] = until + shift;
@@ -796,11 +828,35 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         _logger.LogInformation("Pause of the automatic restarts of server {Server} extended by {Minutes} minutes", GetInstanceLabel(instance), minutes);
         OnServerStatusChanged();
         if (_postponedRestarts.ContainsKey(instance))
-            await BroadcastMessage(instance, _setup.Config.NotificationRestartPostponed.Replace("{minutes}", minutes.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+            await Notice(instance, _setup.Config.NotificationRestartPostponed.Replace("{minutes}", minutes.ToString(System.Globalization.CultureInfo.InvariantCulture)), waitForNotice);
         return true;
     }
 
-    private async Task PauseAutomaticRestartsCore(int instance, TimeSpan pause, TimeSpan announcedShift, bool postpone = true)
+    // The notice to the players: awaited, or started and left to finish (a failure is only logged then).
+    private async Task Notice(int instance, string message, bool wait)
+    {
+        var notice = BroadcastMessage(instance, message);
+        if (wait)
+        {
+            await notice;
+            return;
+        }
+        _ = ObserveNoticeAsync(notice, instance);
+    }
+
+    private async Task ObserveNoticeAsync(Task notice, int instance)
+    {
+        try
+        {
+            await notice;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "The notice to the players of server {Server} failed", GetInstanceLabel(instance));
+        }
+    }
+
+    private async Task PauseAutomaticRestartsCore(int instance, TimeSpan pause, TimeSpan announcedShift, bool postpone = true, bool waitForNotice = true)
     {
         if (pause > TimeSpan.Zero)
         {
@@ -820,6 +876,9 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         var manualCountdown = _manualCountdowns.Contains(instance);
         if (postpone && pause > TimeSpan.Zero && _restartCountdownReasons.TryGetValue(instance, out var reason))
             postponedReason = reason;
+        // Cancelled for good (not postponed): marked before the countdown is dropped, so that whoever looks at the status knows it was
+        // cancelled and does not have to wait to be sure.
+        if (postponedReason is null) _countdownCancelledUtc[instance] = DateTime.UtcNow;
         await CancelServerSequence(instance);
         if (postponedReason is not null)
         {
@@ -827,12 +886,12 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             OnServerStatusChanged();
             var minutes = Math.Max(1, (int)Math.Round(announcedShift.TotalMinutes));
             _logger.LogInformation("Restart of server {Server} postponed by {Minutes} minutes", GetInstanceLabel(instance), minutes);
-            await BroadcastMessage(instance, _setup.Config.NotificationRestartPostponed.Replace("{minutes}",
-                minutes.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+            await Notice(instance, _setup.Config.NotificationRestartPostponed.Replace("{minutes}",
+                minutes.ToString(System.Globalization.CultureInfo.InvariantCulture)), waitForNotice);
             return;
         }
         _logger.LogInformation("Countdown of server {Server} cancelled", GetInstanceLabel(instance));
-        await BroadcastMessage(instance, _setup.Config.NotificationCountdownCancelled);
+        await Notice(instance, _setup.Config.NotificationCountdownCancelled, waitForNotice);
     }
 
     public void ResumeAutomaticRestarts(int instance)
@@ -943,6 +1002,8 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             CountdownRunning = countdown,
             CountdownRestarts = countdown && _restartCountdownReasons.ContainsKey(instance),
             CountdownAutomatic = countdown && _restartCountdownReasons.ContainsKey(instance) && !_manualCountdowns.Contains(instance),
+            CountdownCancelledUtc = _countdownCancelledUtc.TryGetValue(instance, out var cancelled) ? cancelled : null,
+            GoingDownNow = _goingDown.ContainsKey(instance),
             CountdownEndsUtc = countdown && _countdownEndsUtc.TryGetValue(instance, out var end) ? end : null,
             RestartRequested = _restartsPending.Contains(instance),
             ProcessRestarts = process?.RequestRestart ?? false,
@@ -1796,6 +1857,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         var reason = _lastRestartReason;
         if (isCountdown) _countdownInstances.Add(instance);
         if (isCountdown && manual) _manualCountdowns.Add(instance);
+        if (isCountdown) _countdownCancelledUtc.Remove(instance);
         if (isCountdown && isRestart) _restartCountdownReasons[instance] = reason;
         if (isCountdown)
             _countdownEndsUtc[instance] = DateTime.UtcNow
@@ -2704,6 +2766,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
                 server.Value.State,
                 exitCodeText);
             _serverProcesses.Remove(server.Key);
+            _countdownCancelledUtc.Remove(server.Key);
             _postponedRestarts.Remove(server.Key);
             if (server.Value.State == ProcessState.CRASHED) _crashedInstances.Add(server.Key);
             else _crashedInstances.Remove(server.Key);

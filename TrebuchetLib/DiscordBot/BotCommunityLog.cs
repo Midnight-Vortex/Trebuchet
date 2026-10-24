@@ -148,11 +148,11 @@ public sealed class BotCommunityLog : IDisposable
     // The server is gone for a restart when it goes down around the time the restart was planned for (a stop pressed an
     // hour before a planned restart is a stop).
     private static readonly TimeSpan PlannedWindow = CalmInterval;
-    // An announcement is only taken back when it was still this far ahead, and when the launcher showed nothing planned at two
-    // looks in a row (it shows nothing for a moment while it changes over from one countdown to the next).
+    // An announcement is only taken back when it was still this far ahead. A cancel the launcher reports (CancelledAtUtc) is told at
+    // once; a countdown that is merely gone (not reported, not on its way down) has to stay gone for a moment: the launcher shows
+    // nothing planned while it changes over from one countdown to the next.
     private static readonly TimeSpan CancelFarEnough = TimeSpan.FromMinutes(1);
-    // (A restart or stop "now" can take a good while to show itself: the Discord notice of the launcher takes up to 15 seconds.)
-    private static readonly TimeSpan CancelConfirmAfter = TimeSpan.FromSeconds(25);
+    private static readonly TimeSpan CancelConfirmAfter = TimeSpan.FromSeconds(8);
     // Longer than the calm interval plus the time a look may take: more silence than this means the bot was away (off,
     // no Discord connection), and what happened meanwhile is old news.
     private static readonly TimeSpan StaleAfter = TimeSpan.FromMinutes(11);
@@ -177,6 +177,8 @@ public sealed class BotCommunityLog : IDisposable
         // when the launcher shows nothing planned any more.
         public DateTime? ShownAt;
         public BotPendingAction ShownAction;
+        // When the announcement was made (by the clock of the log): a cancel before it is not a cancel of this announcement.
+        public DateTime ShownObservedAt;
         public DateTime? CancelSeenAt;
         public DateTime? OfflineSince;
         public bool Told;
@@ -376,6 +378,7 @@ public sealed class BotCommunityLog : IDisposable
                             memory.AnnouncedAt = at;
                             memory.ShownAt = at;
                             memory.ShownAction = status.Pending;
+                            memory.ShownObservedAt = now;
                             Enqueue(Countdown(status, at, remaining, texts, now, several));
                         }
                         // Looked at again when the server goes down, at the latest.
@@ -413,8 +416,13 @@ public sealed class BotCommunityLog : IDisposable
                 memory.CancelSeenAt = null;
                 return due;
             }
-            memory.CancelSeenAt ??= now;
-            if (now - memory.CancelSeenAt < CancelConfirmAfter) return due < BusyInterval ? due : BusyInterval;
+            // The launcher says it was cancelled (after the announcement was made): no need to wait to be sure.
+            var reported = status.CancelledAtUtc is { } cancelledAt && cancelledAt >= memory.ShownObservedAt - TimeSpan.FromSeconds(5);
+            if (!reported)
+            {
+                memory.CancelSeenAt ??= now;
+                if (now - memory.CancelSeenAt < CancelConfirmAfter) return due < BusyInterval ? due : BusyInterval;
+            }
             var stop = memory.ShownAction == BotPendingAction.Stop;
             Enqueue(Embed(stop ? texts.CancelledStopTitle : texts.CancelledRestartTitle,
                 stop ? texts.CancelledStopBody : texts.CancelledRestartBody, Green, now, status, several));

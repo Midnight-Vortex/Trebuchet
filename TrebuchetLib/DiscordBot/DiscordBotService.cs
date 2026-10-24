@@ -626,7 +626,7 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
         {
             var responder = new DiscordNetResponder(new SocketInteractionTransport(interaction), captured.Ack, _logger);
             using var watchdog = new CancellationTokenSource();
-            if (captured.Ack == BotAckKind.Lazy)
+            if (captured.Ack is BotAckKind.Lazy or BotAckKind.LazyPrivate)
             {
                 // The menu answers with the window for the reason, which has to be the first answer, so it is not acknowledged
                 // up front. Discord wants an answer within three seconds: when the handler is not done by then, it is
@@ -722,14 +722,26 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
                     Apply(session, BotConnectionEvent.ReadyVerified);
                 if (session.Verified && State == DiscordBotState.Connected)
                 {
+                    // The status messages and the community log look at the same moments (an event, the time they asked for). They do
+                    // not wait for each other: the one that writes to Discord must not hold up the other (the edit of a message takes
+                    // a trip to Discord), and both join the same read of the servers.
+                    Task<TimeSpan>? boardRefresh = null;
                     if (_board is { } board)
                     {
                         var force = Interlocked.Exchange(ref session.ForceRefresh, 0) == 1;
-                        wait = await board.RefreshAsync(token, force).ConfigureAwait(false);
+                        boardRefresh = board.RefreshAsync(token, force);
                     }
-                    // The community log looks at the same moments (an event, the time it asked for), but needs no admin channel.
-                    var communityWait = await _community.RefreshAsync(token).ConfigureAwait(false);
-                    if (communityWait < wait) wait = communityWait;
+                    var communityRefresh = _community.RefreshAsync(token);
+                    try
+                    {
+                        await Task.WhenAll(boardRefresh ?? Task.CompletedTask, communityRefresh).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        // One that failed must not hide the other's time.
+                        if (boardRefresh is { IsCompletedSuccessfully: true }) wait = boardRefresh.Result;
+                        if (communityRefresh.IsCompletedSuccessfully && communityRefresh.Result < wait) wait = communityRefresh.Result;
+                    }
                 }
                 // The commands are not registered yet: the next attempt is due.
                 if (session.Verified && !session.CommandsRegistered && wait > CommandRetryInterval) wait = CommandRetryInterval;

@@ -27,6 +27,9 @@ internal interface IBotInteractionTransport
 
     /// <summary>Acknowledges without any visible change (type 6): later answers replace the message of the menu.</summary>
     Task DeferUpdateAsync();
+
+    /// <summary>Acknowledges with "thinking" in a new private message (type 5): the first answer fills it.</summary>
+    Task DeferNewAsync();
 }
 
 internal enum BotReplyTarget { Original, Followup }
@@ -40,7 +43,7 @@ internal sealed class DiscordNetResponder(IBotInteractionTransport transport, Bo
     private readonly SemaphoreSlim _gate = new(1, 1);
     private bool _originalUsed;
     // A lazy interaction is acknowledged by its first answer (or by the watchdog of the Discord layer).
-    private bool _acked = ack != BotAckKind.Lazy;
+    private bool _acked = ack is not (BotAckKind.Lazy or BotAckKind.LazyPrivate);
 
     public BotAckKind Ack => ack;
 
@@ -53,8 +56,8 @@ internal sealed class DiscordNetResponder(IBotInteractionTransport transport, Bo
         await _gate.WaitAsync().ConfigureAwait(false);
         try
         {
-            // A window is only possible as the first answer: afterwards Discord refuses it.
-            if (_acked) return false;
+            // A window is only possible as the first answer: afterwards Discord refuses it. And only on the menu of a question.
+            if (_acked || ack == BotAckKind.LazyPrivate) return false;
             await transport.RespondModalAsync(modal).ConfigureAwait(false);
             _acked = true;
             _originalUsed = true;
@@ -81,7 +84,9 @@ internal sealed class DiscordNetResponder(IBotInteractionTransport transport, Bo
         try
         {
             if (_acked) return;
-            await transport.DeferUpdateAsync().ConfigureAwait(false);
+            // A command or a button of the status message: "thinking" in a new private message that the answer fills.
+            if (ack == BotAckKind.LazyPrivate) await transport.DeferNewAsync().ConfigureAwait(false);
+            else await transport.DeferUpdateAsync().ConfigureAwait(false);
             _acked = true;
         }
         catch (Exception ex)
@@ -109,8 +114,16 @@ internal sealed class DiscordNetResponder(IBotInteractionTransport transport, Bo
         await _gate.WaitAsync().ConfigureAwait(false);
         try
         {
-            if (ack == BotAckKind.NewPrivateMessage && !_originalUsed)
+            if (ack is BotAckKind.NewPrivateMessage or BotAckKind.LazyPrivate && !_originalUsed)
+            {
+                // Nothing to say: the "thinking" message goes (a lazy interaction that was not acknowledged yet gets it first).
+                if (!_acked)
+                {
+                    await transport.DeferNewAsync().ConfigureAwait(false);
+                    _acked = true;
+                }
                 await transport.DeleteOriginalAsync().ConfigureAwait(false);
+            }
             else if (!_acked)
             {
                 // Nobody was answered (not allowed and ignored): the menu still has to be acknowledged.
@@ -136,8 +149,9 @@ internal sealed class DiscordNetResponder(IBotInteractionTransport transport, Bo
             var message = BotDiscordRenderer.Render(reply);
             if (!_acked)
             {
-                // The first answer of a lazy interaction is its acknowledgment.
-                if (update) await transport.RespondUpdateAsync(message).ConfigureAwait(false);
+                // The first answer of a lazy interaction is its acknowledgment. A command or a button of the status message never
+                // replaces the message that was clicked (it is public): its answer is a new private message.
+                if (update && ack == BotAckKind.Lazy) await transport.RespondUpdateAsync(message).ConfigureAwait(false);
                 else await transport.RespondNewAsync(message).ConfigureAwait(false);
                 _acked = true;
                 _originalUsed = true;
@@ -208,5 +222,9 @@ internal sealed class SocketInteractionTransport(SocketInteraction interaction) 
 
     public Task DeferUpdateAsync() => interaction is SocketMessageComponent component
         ? component.DeferAsync()
+        : interaction.DeferAsync(ephemeral: true);
+
+    public Task DeferNewAsync() => interaction is SocketMessageComponent component
+        ? component.DeferLoadingAsync(ephemeral: true)
         : interaction.DeferAsync(ephemeral: true);
 }

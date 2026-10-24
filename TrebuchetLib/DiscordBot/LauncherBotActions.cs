@@ -42,6 +42,8 @@ public sealed class LauncherBotActions : IBotActions, IDisposable
 
     private void OnLauncherStatusChanged(object? sender, EventArgs e)
     {
+        // Whatever was read before is old now.
+        InvalidateStatuses();
         try
         {
             StatusChanged?.Invoke(this, EventArgs.Empty);
@@ -54,7 +56,70 @@ public sealed class LauncherBotActions : IBotActions, IDisposable
 
     public int InstanceCount => Math.Max(0, _setup.Config.ServerInstanceCount);
 
+    // The state of the servers is read once and shared: a button press, the status message and the community log all ask for it within
+    // a moment, and every read is a trip to the launcher thread (and reads the files of the mod lists). A read that is under way is
+    // joined; a finished one is reused for a short time, unless the launcher said something changed (or an action ran) since.
+    private sealed class StatusRead
+    {
+        public Task<IReadOnlyList<BotServerStatus>> Task = null!;
+        public long Version;
+        public long DoneTicks;
+    }
+
+    private readonly object _statusLock = new();
+    private StatusRead? _statusRead;
+    private long _statusVersion;
+
+    /// <summary>How long a state that was read is reused (zero: only a read that is under way is joined).</summary>
+    public TimeSpan StatusReuse { get; init; } = TimeSpan.FromMilliseconds(400);
+
+    private void InvalidateStatuses() => Interlocked.Increment(ref _statusVersion);
+
     public async Task<IReadOnlyList<BotServerStatus>> GetStatusesAsync(CancellationToken token)
+    {
+        if (token.IsCancellationRequested) return [];
+        Task<IReadOnlyList<BotServerStatus>> shared;
+        lock (_statusLock)
+        {
+            var version = Interlocked.Read(ref _statusVersion);
+            if (_statusRead is { } current && current.Version == version
+                && (!current.Task.IsCompleted || DateTime.UtcNow.Ticks - Interlocked.Read(ref current.DoneTicks) < StatusReuse.Ticks))
+            {
+                shared = current.Task;
+            }
+            else
+            {
+                var read = new StatusRead { Version = version };
+                // Not tied to the caller: others join it. Its own limit is the one of every launcher call.
+                read.Task = ReadStatusesAsync(read);
+                _statusRead = read;
+                shared = read.Task;
+            }
+        }
+        try
+        {
+            return await shared.WaitAsync(token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            return [];
+        }
+    }
+
+    private async Task<IReadOnlyList<BotServerStatus>> ReadStatusesAsync(StatusRead read)
+    {
+        // Let the caller that created it return the task first (it is stored under the lock).
+        await Task.Yield();
+        var statuses = await ReadStatusesUncachedAsync(CancellationToken.None).ConfigureAwait(false);
+        Interlocked.Exchange(ref read.DoneTicks, DateTime.UtcNow.Ticks);
+        // Nothing came back although there are servers: the launcher did not answer, the next caller asks again.
+        if (statuses.Count == 0 && InstanceCount > 0)
+            lock (_statusLock)
+                if (ReferenceEquals(_statusRead, read)) _statusRead = null;
+        return statuses;
+    }
+
+    private async Task<IReadOnlyList<BotServerStatus>> ReadStatusesUncachedAsync(CancellationToken token)
     {
         var run = await DispatchAsync("status", _ => Task.FromResult(_launcher.GetServerStatuses()), token);
         if (run.End != DispatchEnd.Ran || run.Value is not { } statuses) return [];
@@ -97,19 +162,19 @@ public sealed class LauncherBotActions : IBotActions, IDisposable
             // the pause is over, earlier if the pause is lifted.
             if (status.CountdownRunning && status.CountdownRestarts)
             {
-                var replan = _launcher.PostponeRestart(instance, pause);
+                var replan = _launcher.PostponeRestart(instance, pause, waitForNotice: false);
                 if (!(replan.IsCompletedSuccessfully && !await replan))
                     return await FinishAsync(replan, "postpone", instance, wait: true, t);
             }
             // Already postponed: the pause is put off by the minutes (a new pause of the minutes from now could end sooner than the one that runs).
             if (status.PausedUntilUtc is { } until && until > DateTime.UtcNow)
             {
-                var extend = _launcher.ExtendAutomaticRestartsPause(instance, pause);
+                var extend = _launcher.ExtendAutomaticRestartsPause(instance, pause, waitForNotice: false);
                 if (!(extend.IsCompletedSuccessfully && !await extend))
                     return await FinishAsync(extend, "postpone", instance, wait: true, t);
             }
             // Anything else automatic waits for the end of the pause.
-            return await FinishAsync(_launcher.PauseAutomaticRestarts(instance, pause), "postpone", instance, wait: true, t);
+            return await FinishAsync(_launcher.PauseAutomaticRestarts(instance, pause, waitForNotice: false), "postpone", instance, wait: true, t);
         }, token);
     }
 
@@ -130,7 +195,7 @@ public sealed class LauncherBotActions : IBotActions, IDisposable
         {
             if (Unavailable(status) is { } refused) return refused;
             if (!status.CountdownRunning) return new BotActionResult(BotActionOutcome.NothingPending);
-            var cancel = _launcher.CancelCountdown(instance);
+            var cancel = _launcher.CancelCountdown(instance, waitForNotice: false);
             if (cancel.IsCompletedSuccessfully && await cancel is null) return new BotActionResult(BotActionOutcome.NothingPending);
             var done = await FinishAsync(cancel, "cancel", instance, wait: true, t);
             if (!done.Success || !cancel.IsCompletedSuccessfully) return done;
@@ -265,7 +330,8 @@ public sealed class LauncherBotActions : IBotActions, IDisposable
             status.ProcessRestarts || status.RestartRequested || (status.CountdownRunning && status.CountdownRestarts),
             status.CountdownRunning,
             status.CountdownRunning && status.CountdownRestarts && status.CountdownAutomatic,
-            status.SequenceRunning && !status.CountdownRunning);
+            (status.SequenceRunning && !status.CountdownRunning) || status.GoingDownNow,
+            status.CountdownCancelledUtc);
     }
 
     private static BotServerState StateOf(LauncherServerStatus status) => status.State switch
@@ -347,6 +413,8 @@ public sealed class LauncherBotActions : IBotActions, IDisposable
         var shown = instance ?? -1;
         if (instance is { } checkedInstance && (checkedInstance < 0 || checkedInstance >= InstanceCount))
             return Report(action, shown, parameters, Fail("invalid instance"));
+        // What follows (the answer, the status message, the log of the community) must see the state after the action.
+        InvalidateStatuses();
 
         var serverName = string.Empty;
         var run = await DispatchAsync(action, async t =>
@@ -359,6 +427,7 @@ public sealed class LauncherBotActions : IBotActions, IDisposable
             return await act(status ?? new LauncherServerStatus { Instance = -1, SaveName = string.Empty }, all, t);
         }, token);
 
+        InvalidateStatuses();
         var result = run.End switch
         {
             DispatchEnd.Ran => run.Value ?? Fail("no result"),

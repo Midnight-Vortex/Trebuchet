@@ -222,6 +222,18 @@ Zeit, User-ID, Anzeigename (nur zur Info), Server-/Kanal-ID, Befehl, Parameter, 
   kommt „wieder online“ ohne Offline-Zeit (die kennt der Bot nicht). Ein Neustart gilt auch, wenn er erst bis zu 11 Minuten später
   auffällt (die geplante Zeit liegt zwischen dem letzten Blick und jetzt) oder zuletzt „Neustart angefordert“ zu sehen war. Zwei
   Blicke gleichzeitig laufen nacheinander.
+- **Schnelligkeit:** Ein Befehl und ein Button der Status-Meldung werden nicht vorab bestätigt (`BotAckKind.LazyPrivate`): Die erste Antwort
+  ist die Bestätigung (eine neue private Nachricht, Typ 4), ein Aufruf zu Discord statt zwei und der Handler startet sofort; dauert er
+  länger als 2 s, bestätigt der Wächter mit „denkt nach“ (Typ 5) und die Antwort füllt diese Nachricht. Nicht vorab bestätigt wird nur,
+  was keine Befehle/Aktions-Buttons sind (Müll, Fragen auf öffentlichen Nachrichten) und weiter die Bestätigungen der privaten Fragen.
+  `LauncherBotActions.GetStatusesAsync` liest den Zustand der Server einmal für alle, die gleichzeitig fragen (Button, Status-Meldung,
+  Community-Log), und nutzt ihn 400 ms weiter; jede Änderung des Launchers (`ServerStatusChanged`) und jede Aktion macht ihn ungültig
+  (eine Änderung an Dateien des Speicherstands meldet der Launcher nicht: dafür die 400 ms). Status-Meldungen und Community-Log laufen in
+  der Aktualisierungsschleife gleichzeitig, nicht nacheinander (die Bearbeitung einer Discord-Nachricht ist ein Aufruf zum Netz).
+  `MinEditInterval` der Status-Meldung ist 2 s (war 5 s). Die Antworten des Bots warten nicht auf die Meldung an die Spieler (RCon,
+  Discord-Hinweis, `waitForNotice: false`), sie läuft im Hintergrund weiter. Ein Abbruch ist im Status des Launchers markiert
+  (`CountdownCancelledUtc`) und ein Stopp/Neustart „jetzt“ ebenso (`GoingDownNow`): Der Community-Log meldet den Abbruch sofort und
+  wartet nur bei einem Countdown, der ohne Meldung verschwindet, 8 s.
 - **Das Bot-Konto selbst** (`BotAccountIdentity`, Einstellung `BotTakesCommunityIdentity`, aus): Die Status-Meldung schreibt das Bot-Konto, nur ein
   Webhook kann den Namen je Nachricht ändern. Eingeschaltet übernimmt das Bot-Konto per `SocketSelfUser.ModifyAsync` Name und Bild des
   Community-Logs, im Hintergrund beim Verbinden und beim Anwenden der Einstellungen. Nur was abweicht (Name gleich: nichts; Bild: Hash der

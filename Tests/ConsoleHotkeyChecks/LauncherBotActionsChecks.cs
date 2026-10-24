@@ -159,7 +159,8 @@ static class LauncherBotActionsChecks
             launcherLog);
         var ui = new UiThread();
         var log = new ListLogger<LauncherBotActions>();
-        var actions = new LauncherBotActions(launcher, setup, files, ui, log);
+        // Nothing is reused here: the checks change settings of the saves that the launcher does not announce, and read the state at once.
+        var actions = new LauncherBotActions(launcher, setup, files, ui, log) { StatusReuse = TimeSpan.Zero };
         // Every change the status messages show is announced, from whatever thread noticed it.
         var changes = 0;
         actions.StatusChanged += (_, _) => Interlocked.Increment(ref changes);
@@ -256,9 +257,41 @@ static class LauncherBotActionsChecks
             check(await OnLauncher(() => launcher.GetAutomaticRestartsPause(0)) is null && (await StatusOf(0))?.State == BotServerState.Starting,
                 "The check changes nothing about the servers");
 
+            // The state of the servers is read once and shared: a button press, the status message and the community log ask within a moment,
+            // and every read is a trip to the launcher thread.
+            using (var shared = new LauncherBotActions(launcher, setup, files, ui, log))
+            {
+                var readsBefore = ui.Invocations;
+                var burst = await Task.WhenAll(Enumerable.Range(0, 6).Select(_ => shared.GetStatusesAsync(none)));
+                check(ui.Invocations == readsBefore + 1 && burst.All(x => x.Count == burst[0].Count && x.Count > 0),
+                    "Six asks at once are one trip to the launcher: " + (ui.Invocations - readsBefore));
+                await shared.GetStatusesAsync(none);
+                check(ui.Invocations == readsBefore + 1, "...and one right after reuses it");
+                await ui.InvokeAsync(async () => { await launcher.PauseAutomaticRestarts(0, TimeSpan.FromMinutes(5)); return true; });
+                var afterEvent = ui.Invocations;
+                var pausedState = await shared.GetStatusesAsync(none);
+                check(ui.Invocations == afterEvent + 1 && pausedState.FirstOrDefault(x => x.Instance == 0)?.PausedUntilUtc is not null,
+                    "A change of the launcher makes the next ask read again (and see the change)");
+                await shared.ResumeAsync(0, none);
+                var afterAction = ui.Invocations;
+                var resumedState = await shared.GetStatusesAsync(none);
+                await shared.GetStatusesAsync(none);
+                check(ui.Invocations == afterAction + 1 && resumedState.FirstOrDefault(x => x.Instance == 0)?.PausedUntilUtc is null,
+                    "After an action the next read is fresh, and shared again");
+                await Task.Delay(500);
+                var staleReads = ui.Invocations;
+                await shared.GetStatusesAsync(none);
+                check(ui.Invocations == staleReads + 1, "A read that is older than the reuse time is not used");
+                using var gone = new CancellationTokenSource();
+                await gone.CancelAsync();
+                var reads = ui.Invocations;
+                check((await shared.GetStatusesAsync(gone.Token)).Count == 0 && ui.Invocations == reads && (await shared.GetStatusesAsync(none)).Count > 0,
+                    "A caller that gave up gets nothing and does not spoil the read for the others");
+            }
+
             // Work the caller gave up on never runs: the caller was told it did not happen.
             var held = new HeldDispatcher();
-            var heldActions = new LauncherBotActions(launcher, setup, files, held, log);
+            var heldActions = new LauncherBotActions(launcher, setup, files, held, log) { StatusReuse = TimeSpan.Zero };
             using (var timeout = new CancellationTokenSource(TimeSpan.FromMilliseconds(200)))
                 check(await heldActions.PostponeAsync(0, 30, "", timeout.Token) is { Outcome: BotActionOutcome.Failed } given
                       && given.Detail.Contains("cancel"), "An action the launcher thread did not take in time is given up");
@@ -268,7 +301,7 @@ static class LauncherBotActionsChecks
             check(held.Ran == 2 && await OnLauncher(() => launcher.GetAutomaticRestartsPause(0)) is null,
                 "Work released after the caller gave up does nothing");
 
-            var broken = new LauncherBotActions(launcher, setup, files, new BrokenDispatcher(), log);
+            var broken = new LauncherBotActions(launcher, setup, files, new BrokenDispatcher(), log) { StatusReuse = TimeSpan.Zero };
             check((await broken.PostponeAsync(0, 30, "", none)).Outcome == BotActionOutcome.Failed
                   && (await broken.GetStatusesAsync(none)).Count == 0
                   && (await broken.StartAsync(1, none)).Outcome == BotActionOutcome.Failed
@@ -438,8 +471,16 @@ static class LauncherBotActionsChecks
             var autoAfter = await WaitFor(0, x => x?.PausedUntilUtc is not null && x.Countdown == false);
             check(autoCancel is { Success: true, Detail: "hold=30" } && autoAfter?.PausedUntilUtc is { } holdUntil && Near(holdUntil, DateTime.UtcNow.AddMinutes(30)),
                 "Cancelling it holds the automatic restarts for 30 minutes: " + autoCancel + " " + autoAfter);
+            check(autoAfter is { CancelledAtUtc: { } markedAt } && Near(markedAt, DateTime.UtcNow), "A cancel is marked in the status (the community log tells it at once): " + autoAfter?.CancelledAtUtc);
             check((await actions.ResumeAsync(0, none)).Success && await StatusOf(0) is { PausedUntilUtc: null },
                 "The hold can be lifted");
+            // A new countdown clears the marker; a cancel of a countdown somebody started by hand holds nothing and is marked too.
+            check((await actions.RestartAsync(0, TimeSpan.FromMinutes(20), "Test", none)).Success, "A restart by hand starts a countdown");
+            var handCountdown = await WaitFor(0, x => x is { Countdown: true });
+            check(handCountdown is { CancelledAtUtc: null, Automatic: false }, "...a new countdown clears the mark and is not automatic: " + handCountdown);
+            var handCancel = await actions.CancelAsync(0, none);
+            var handAfter = await WaitFor(0, x => x is { Countdown: false });
+            check(handCancel is { Success: true, Detail: "" } && handAfter is { CancelledAtUtc: { }, PausedUntilUtc: null }, "...cancelling it holds nothing, but is marked: " + handCancel + " " + handAfter);
             await ui.InvokeAsync(() => Task.FromResult(files.Server.Get(saveA).UseRestartWarnings = false));
 
             // Instances 0 and 1 installed (the binaries only), instance 1 on the save of the running instance 0.

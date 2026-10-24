@@ -877,9 +877,12 @@ static class BotInteractionHandlerChecks
         check(channel.Posts.Count == 2 && channel.Edits.Count == 0, "Nothing is written when nothing changed");
 
         actions.Statuses[0] = actions.Statuses[0] with { Pending = BotPendingAction.Restart, PendingAtUtc = clock.Now.AddMinutes(10) };
-        clock.Now = clock.Now.AddSeconds(2);
+        clock.Now = clock.Now.AddSeconds(1);
+        var soon = await board.RefreshAsync(CancellationToken.None);
+        check(channel.Edits.Count == 0 && soon <= TimeSpan.FromSeconds(2), "A change right after a write waits for the minimum time between two edits (2 seconds): " + soon);
+        clock.Now = clock.Now.AddSeconds(1.5);
         await board.RefreshAsync(CancellationToken.None);
-        check(channel.Edits.Count == 0, "A change right after a write waits a few seconds");
+        check(channel.Edits.Count == 1, "...and is written as soon as it is over, not seconds later");
         clock.Now = clock.Now.AddSeconds(10);
         await board.RefreshAsync(CancellationToken.None);
         check(channel.Edits.Count == 1 && channel.Edits[0].Id == settings.Ids[0] && channel.Edits[0].Message.Buttons.Any(b => b.Label == "Neustart verschieben")
@@ -996,11 +999,11 @@ static class BotInteractionHandlerChecks
         check(stoppingWait == beatBoard.SettleTime && beatChannel.Edits[^1].Message.Buttons[0] is { Command: BotCommand.Start, Disabled: true },
             "While a server is stopping the next look is due when the new state has settled and the buttons wait greyed out");
         beatActions.Statuses[0] = beatActions.Statuses[0] with { State = BotServerState.Stopped, StartedUtc = null, Players = 0 };
-        beat.Now = beat.Now.AddSeconds(2);
+        beat.Now = beat.Now.AddSeconds(1);
         var tooSoon = await beatBoard.RefreshAsync(CancellationToken.None);
         var editsNow = beatChannel.Edits.Count;
-        check(tooSoon == TimeSpan.FromSeconds(3), "A change right after an edit is due as soon as the pause between edits is over");
-        beat.Now = beat.Now.AddSeconds(3);
+        check(tooSoon == TimeSpan.FromSeconds(1), "A change right after an edit is due as soon as the pause between edits is over: " + tooSoon);
+        beat.Now = beat.Now.AddSeconds(1);
         await beatBoard.RefreshAsync(CancellationToken.None);
         check(beatChannel.Edits.Count == editsNow + 1 && beatChannel.Edits[^1].Message.Buttons[0] is { Command: BotCommand.Start, Disabled: false },
             "Then the stopped server shows its start button");

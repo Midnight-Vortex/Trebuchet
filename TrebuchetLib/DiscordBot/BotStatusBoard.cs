@@ -59,7 +59,7 @@ public sealed class BotStatusBoard
     public TimeSpan SettleTime { get; init; } = TimeSpan.FromSeconds(10);
 
     /// <summary>Shortest time between two edits of the same message (Discord limits edits).</summary>
-    public TimeSpan MinEditInterval { get; init; } = TimeSpan.FromSeconds(5);
+    public TimeSpan MinEditInterval { get; init; } = TimeSpan.FromSeconds(2);
 
     /// <summary>The longest time a message stays untouched: the regular check of a calm server.</summary>
     public TimeSpan HeartbeatInterval { get; init; } = TimeSpan.FromMinutes(5);

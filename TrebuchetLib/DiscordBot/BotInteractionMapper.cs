@@ -15,10 +15,18 @@ internal sealed record BotRawUser(ulong Id, string DisplayName, bool IsBot, bool
 internal enum BotAckKind
 {
     /// <summary>
-    /// "Thinking" in a new private message (type 5, ephemeral). Every answer goes into that new message or a further
-    /// private one. Commands and clicks on public messages: the public status message is never touched.
+    /// "Thinking" in a new private message (type 5, ephemeral) before anything is done. Every answer goes into that new
+    /// message or a further private one. What is not a command or a button of the status message (junk, a question that
+    /// sits on a public message): nothing is done unless Discord took the acknowledgment.
     /// </summary>
     NewPrivateMessage,
+    /// <summary>
+    /// Not acknowledged before the handler runs: its first answer is a new private message (type 4, ephemeral), one trip to
+    /// Discord instead of two (first "thinking", then the answer), and the handler starts at once. When it takes too long
+    /// the Discord layer acknowledges with "thinking" and the answer fills that message. Commands and the buttons of the
+    /// status message: the public status message is never touched.
+    /// </summary>
+    LazyPrivate,
     /// <summary>
     /// The click on a question of the bot in one of its own private messages (type 6): an update replaces that message,
     /// a reply is a new private message.
@@ -114,7 +122,13 @@ internal static class BotInteractionMapper
     /// </summary>
     public static BotAckKind ChooseAck(BotInteractionKind kind, string? customId, bool messageIsPrivate)
     {
-        if (kind == BotInteractionKind.Slash || !messageIsPrivate) return BotAckKind.NewPrivateMessage;
+        // A command, or a button of the status message (a public message): answered with a new private message.
+        if (kind == BotInteractionKind.Slash) return BotAckKind.LazyPrivate;
+        if (!messageIsPrivate)
+            return kind == BotInteractionKind.Button
+                   && BotCustomId.TryParse(customId, AnyInstance, out var publicKind, out _, out _, out _) && publicKind == BotCustomIdKind.Action
+                ? BotAckKind.LazyPrivate
+                : BotAckKind.NewPrivateMessage;
         if (!BotCustomId.TryParse(customId, AnyInstance, out var idKind, out _, out _, out _) || idKind == BotCustomIdKind.Action)
             return BotAckKind.NewPrivateMessage;
         // The menu answers with the window for the reason: that has to be the first answer, so nothing is acknowledged before.
@@ -131,7 +145,7 @@ internal static class BotInteractionMapper
             case SocketSlashCommand slash:
                 return new BotCapturedInteraction(
                     FromSlash(slash.Id, user, slash.GuildId, slash.ChannelId, slash.Data.Name, slash.Data.Options?.Select(OptionOf).ToList()),
-                    BotAckKind.NewPrivateMessage, user.RoleIds is null);
+                    BotAckKind.LazyPrivate, user.RoleIds is null);
             case SocketMessageComponent component:
             {
                 var kind = component.Data.Type == ComponentType.Button ? BotInteractionKind.Button : BotInteractionKind.Select;

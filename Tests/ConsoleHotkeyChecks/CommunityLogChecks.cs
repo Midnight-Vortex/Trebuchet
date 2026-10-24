@@ -762,7 +762,31 @@ static class CommunityLogChecks
                 "When the postponement is lifted the old time is announced again: " + string.Join(" | ", back.Select(x => x.Title)));
         }
 
-        // Cancelled: told at the second look (a changeover shows nothing planned for a moment), once.
+        // Cancelled and reported by the launcher: told at the very first look, no waiting to be sure.
+        using (var scene = new Scene())
+        {
+            var end = scene.Now.AddMinutes(20);
+            var counting = scene.Launcher(TrebuchetLib.ProcessState.ONLINE, x => x with
+            {
+                CountdownRunning = true, CountdownRestarts = true, CountdownEndsUtc = end, SequenceRunning = true
+            });
+            await scene.Look(counting, 0);
+            await scene.Look(scene.Launcher(TrebuchetLib.ProcessState.ONLINE, x => x with { CountdownCancelledUtc = scene.Now.AddSeconds(25) }), 30);
+            var reported = scene.Hooks.Messages.Select(x => x.Embed!).ToArray();
+            check(reported.Length == 2 && reported[1].Title == "✅ Der Neustart fällt aus" && reported[1].TimestampUtc == scene.Now,
+                "A cancel the launcher reports is told at the first look: " + string.Join(" | ", reported.Select(x => x.Title)));
+            // A cancel from before the announcement is not a cancel of this announcement.
+            using var older = new Scene();
+            var olderEnd = older.Now.AddMinutes(20);
+            await older.Look(older.Launcher(TrebuchetLib.ProcessState.ONLINE, x => x with
+            {
+                CountdownRunning = true, CountdownRestarts = true, CountdownEndsUtc = olderEnd, SequenceRunning = true, CountdownCancelledUtc = older.Now.AddHours(-3)
+            }), 0);
+            await older.Look(older.Launcher(TrebuchetLib.ProcessState.ONLINE, x => x with { CountdownCancelledUtc = older.Now.AddHours(-3) }), 3);
+            check(older.Hooks.Messages.Length == 1, "An old cancel marker says nothing about the countdown that was announced after it");
+        }
+
+        // Gone without a report: told when it stays gone for a few seconds (a changeover shows nothing planned for a moment), once.
         using (var scene = new Scene())
         {
             var end = scene.Now.AddMinutes(20);
@@ -774,14 +798,14 @@ static class CommunityLogChecks
             await scene.Look(counting, 0);
             await scene.Look(calm, 30);
             check(scene.Hooks.Messages.Length == 1, "A countdown that is gone is not called cancelled at the first look");
-            await scene.Look(counting, 15);
-            await scene.Look(calm, 15);
+            await scene.Look(counting, 3);
+            await scene.Look(calm, 3);
             check(scene.Hooks.Messages.Length == 1, "...and a gap of a moment is no cancellation");
             var wait = await scene.Log.RefreshAsync(CancellationToken.None);
             check(wait <= BotCommunityLog.BusyInterval, "While it waits to be sure it looks again soon: " + wait);
-            await scene.Look(calm, 15);
-            check(scene.Hooks.Messages.Length == 1, "...and 15 seconds are not yet sure (a restart now can take a while to show itself)");
-            await scene.Look(calm, 15);
+            await scene.Look(calm, 5);
+            check(scene.Hooks.Messages.Length == 1, "...and 5 seconds are not yet sure");
+            await scene.Look(calm, 5);
             var cancelled = scene.Hooks.Messages.Select(x => x.Embed!).ToArray();
             check(cancelled.Length == 2 && cancelled[1].Title == "✅ Der Neustart fällt aus" && cancelled[1].Color == BotCommunityLog.Green
                   && cancelled[1].Description == "Der angekündigte Neustart findet nicht statt – der Server bleibt online.",
@@ -856,17 +880,21 @@ static class CommunityLogChecks
             await scene.Look(scene.Launcher(TrebuchetLib.ProcessState.STOPPING, x => x with { ProcessRestarts = true, SequenceRunning = true }), 20);
             check(scene.Titles().SequenceEqual(["⏰ Der Server startet in 20 Minuten neu", "🔄 Der Server startet jetzt neu"]), "...the restart is told when it begins: " + string.Join(" | ", scene.Titles()));
         }
-        // The same when the launcher is slow to start it (the Discord notice of the save takes a while): shorter than the time to be sure.
+        // A stop "now" while one was announced: the launcher says it is going down (its notice to the players can take a long time), that is no
+        // cancellation however long it takes.
         using (var scene = new Scene())
         {
             var stopAt = scene.Now.AddMinutes(15);
             await scene.Look(scene.Launcher(TrebuchetLib.ProcessState.ONLINE, x => x with { CountdownRunning = true, CountdownEndsUtc = stopAt, SequenceRunning = true }), 0);
-            var calm = scene.Launcher(TrebuchetLib.ProcessState.ONLINE);
-            await scene.Look(calm, 5);
-            await scene.Look(calm, 15);
+            var goingDown = scene.Launcher(TrebuchetLib.ProcessState.ONLINE, x => x with { GoingDownNow = true });
+            await scene.Look(goingDown, 5);
+            await scene.Look(goingDown, 15);
+            await scene.Look(goingDown, 20);
             await scene.Look(scene.Launcher(TrebuchetLib.ProcessState.STOPPING), 5);
             check(scene.Titles().SequenceEqual(["⏰ Der Server wird in 15 Minuten gestoppt", "⏹️ Der Server wird jetzt gestoppt"]),
-                "A stop now that takes 20 seconds to show itself is no cancellation either: " + string.Join(" | ", scene.Titles()));
+                "A stop now that takes 40 seconds to show itself is no cancellation either: " + string.Join(" | ", scene.Titles()));
+            check(LauncherBotActions.ToBotStatus(goingDown, scene.Now) is { Sequence: true, Pending: BotPendingAction.None },
+                "The launcher's 'going down now' reaches the status of the bot");
         }
 
         // A postponement within the lead time is told by the new countdown announcement alone.
