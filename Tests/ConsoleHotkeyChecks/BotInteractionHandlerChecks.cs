@@ -352,8 +352,8 @@ static class BotInteractionHandlerChecks
             var pickedBy = await rig.Do(rig.Select(BotCustomId.ForPostponeSelect(select!.Nonce), "60"));
             var reasonWindow = pickedBy.Modals.SingleOrDefault();
             Check(reasonWindow is not null && pickedBy.Replies.Count == 0 && rig.Actions.Executed == 0 && reasonWindow.Title == "Verschieben um 1 Std – Grund"
-                  && reasonWindow.MaxLength == BotInputRules.MaxReasonLength && rig.Pending.Count == 1,
-                "Picking minutes answers with the window for the reason, nothing is postponed yet");
+                  && reasonWindow.MaxLength == BotInputRules.MaxReasonLength && rig.Pending.Count == 2,
+                "Picking minutes answers with the window for the reason, nothing is postponed yet (the menu stays valid until it runs out)");
             var submitted = await rig.Do(rig.Modal(reasonWindow!.Nonce, "Wartung am Abend"));
             Check(rig.Actions.Done.SequenceEqual(["postpone 1 60 Discord: Wartung am Abend"]) && submitted.Replies[0].Update && submitted.Last.Text == "Verschoben um 1 Std."
                   && submitted.Last.Question is null && submitted.Modals.Count == 0,
@@ -362,8 +362,10 @@ static class BotInteractionHandlerChecks
                 "The audit channel says who postponed, by how much and why");
             Check((await rig.Do(rig.Modal(reasonWindow.Nonce, "again"))).Last.Text == BotMessages.German.Expired && rig.Actions.Executed == 1,
                 "A window works once");
-            Check((await rig.Do(rig.Select(BotCustomId.ForPostponeSelect(select.Nonce), "60"))).Last.Text == BotMessages.German.Expired && rig.Actions.Executed == 1,
-                "A menu works once");
+            // The menu stays valid until it runs out: a closed window needs it again. The action still needs the code of a window.
+            var pickedAgain = await rig.Do(rig.Select(BotCustomId.ForPostponeSelect(select.Nonce), "60"));
+            Check(pickedAgain.Modals.Count == 1 && pickedAgain.Modals[0].Nonce != reasonWindow.Nonce && rig.Actions.Executed == 1,
+                "A menu can be picked again after the window was closed, the action still needs a window");
 
             // Left empty the window just confirms.
             select = (await rig.Do(rig.Button(BotCustomId.ForAction(BotCommand.Postpone, 1)))).Last.Question as BotSelectQuestion;
@@ -406,6 +408,23 @@ static class BotInteractionHandlerChecks
                 Texts: new Dictionary<string, string> { ["reason"] = "x" }));
             Check(forgedWindow.Last.Text == BotMessages.German.UnknownRequest && rig.Actions.Executed == before61, "A window with the ID of a confirmation is no question of ours");
 
+            // A code only answers the kind of question it was made for (and a wrong try does not use it up).
+            select = (await rig.Do(rig.Button(BotCustomId.ForAction(BotCommand.Postpone, 1)))).Last.Question as BotSelectQuestion;
+            var kindWindow = (await rig.Do(rig.Select(BotCustomId.ForPostponeSelect(select!.Nonce), "30"))).Modals.Single();
+            var kindBefore = rig.Actions.Executed;
+            Check((await rig.Do(rig.Modal(select.Nonce, "x"))).Last.Text == BotMessages.German.Expired
+                  && (await rig.Do(rig.Button(BotCustomId.ForConfirm(kindWindow.Nonce)))).Last.Text == BotMessages.German.Expired
+                  && (await rig.Do(rig.Button(BotCustomId.ForConfirm(select.Nonce)))).Last.Text == BotMessages.German.Expired
+                  && (await rig.Do(rig.Select(BotCustomId.ForPostponeSelect(kindWindow.Nonce), "30"))).Last.Text == BotMessages.German.Expired
+                  && rig.Actions.Executed == kindBefore,
+                "The code of a menu is no window, the code of a window is no confirmation and no menu");
+            await rig.Do(rig.Modal(kindWindow.Nonce, null));
+            Check(rig.Actions.Executed == kindBefore + 1, "...and the right code still works after those tries");
+            var slashAsk = (await rig.Do(rig.Slash("restart now", SuperAdmin, numbers: Rig.N(1, delay: 10)))).Last.Question;
+            var viaWindow = await rig.Do(rig.Modal(slashAsk!.Nonce, "x", SuperAdmin));
+            Check(viaWindow.Last.Text == BotMessages.German.Expired && rig.Actions.Executed == kindBefore + 1,
+                "The confirmation of a command can not be answered with a window: no confirmation is skipped");
+
             // The reason is cleaned and kept short; it is never a macro or a line break.
             select = (await rig.Do(rig.Button(BotCustomId.ForAction(BotCommand.Postpone, 1)))).Last.Question as BotSelectQuestion;
             var longReason = (await rig.Do(rig.Select(BotCustomId.ForPostponeSelect(select!.Nonce), "30"))).Modals.Single();
@@ -413,13 +432,24 @@ static class BotInteractionHandlerChecks
             var cleaned = rig.Actions.Done.Last();
             Check(!cleaned.Contains('{') && !cleaned.Contains('\n') && cleaned.Length <= "postpone 1 30 Discord: ".Length + BotInputRules.MaxReasonLength,
                 "A long reason is cut and cleaned of braces and line breaks: " + cleaned.Length);
+            // What reaches the launcher is plain words: its macros feed warnings, the webhook, RCon, REST and program arguments.
+            select = (await rig.Do(rig.Button(BotCustomId.ForAction(BotCommand.Postpone, 1)))).Last.Question as BotSelectQuestion;
+            var hostile = (await rig.Do(rig.Select(BotCustomId.ForPostponeSelect(select!.Nonce), "30"))).Modals.Single();
+            await rig.Do(rig.Modal(hostile.Nonce, "x\" & calc.exe & \" @everyone <@&1> | $(id)"));
+            Check(rig.Actions.Done.Last() == "postpone 1 30 Discord: x calc.exe everyone 1 (id)",
+                "A typed reason is cleaned of quotes, &, |, $, mentions and markup before it reaches the launcher: " + rig.Actions.Done.Last());
+            var stopRig = new Rig(folder, AllOn());
+            var stopMenuHostile = (await stopRig.Do(stopRig.Button(BotCustomId.ForAction(BotCommand.Stop, 0)))).Last.Question as BotSelectQuestion;
+            var stopWindow = (await stopRig.Do(stopRig.Select(BotCustomId.ForPostponeSelect(stopMenuHostile!.Nonce), "5"))).Modals.Single();
+            await stopRig.Do(stopRig.Modal(stopWindow.Nonce, "Wartung \"; calc | &"));
+            Check(stopRig.Actions.Done.Last() == "stop 0 5 Wartung calc", "The reason of a stop is plain words when it reaches the launcher: " + stopRig.Actions.Done.Last());
 
             // A window that can not be shown (the answer was too slow) does nothing and leaves nothing open.
             select = (await rig.Do(rig.Button(BotCustomId.ForAction(BotCommand.Postpone, 1)))).Last.Question as BotSelectQuestion;
             var tooLate = new FakeResponder { ModalPossible = false };
             var pendingBefore = rig.Pending.Count;
             await rig.Handler.HandleAsync(rig.Select(BotCustomId.ForPostponeSelect(select!.Nonce), "30"), tooLate, CancellationToken.None);
-            Check(tooLate.Last.Text == BotMessages.German.Failed && tooLate.Replies[0].Update && rig.Pending.Count == pendingBefore - 1,
+            Check(tooLate.Last.Text == BotMessages.German.Failed && tooLate.Replies[0].Update && rig.Pending.Count == pendingBefore,
                 "When the window can not be shown the user is told and nothing stays open");
             Check((await rig.Do(rig.Button(BotCustomId.ForAction(BotCommand.Postpone, 1), Stranger))).Last.Text == BotDecision.PublicMessage, "A stranger can not click the postpone button");
             Check((await rig.Do(rig.Button("tb1:a:postpone:5"))).Last.Text == BotMessages.German.UnknownRequest, "A button of a server that does not exist is unknown");

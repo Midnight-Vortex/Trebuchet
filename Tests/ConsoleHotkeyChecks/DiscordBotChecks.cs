@@ -400,15 +400,25 @@ static class DiscordBotChecks
         var pending = new BotPendingActions();
         var nonce = pending.Create(Operator, BotCommand.Stop, 2, t0);
         Check(nonce.Length == 22 && nonce.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '_'), "The code is random text");
-        Check(!pending.TryTake(nonce, Stranger, t0, out _), "Another user can not answer the question");
-        Check(pending.TryTake(nonce, Operator, t0.AddSeconds(5), out var taken) && taken.Command == BotCommand.Stop && taken.Instance == 2, "The right user can");
-        Check(!pending.TryTake(nonce, Operator, t0.AddSeconds(6), out _), "A question is answered once");
+        Check(!pending.TryTake(nonce, Stranger, t0, BotPendingKind.Confirm, out _), "Another user can not answer the question");
+        Check(pending.TryTake(nonce, Operator, t0.AddSeconds(5), BotPendingKind.Confirm, out var taken) && taken.Command == BotCommand.Stop && taken.Instance == 2, "The right user can");
+        Check(!pending.TryTake(nonce, Operator, t0.AddSeconds(6), BotPendingKind.Confirm, out _), "A question is answered once");
         var late = pending.Create(Operator, BotCommand.Stop, 0, t0);
-        Check(!pending.TryTake(late, Operator, t0.AddSeconds(31), out _), "A question runs out");
+        Check(!pending.TryTake(late, Operator, t0.AddSeconds(31), BotPendingKind.Confirm, out _), "A question runs out");
         var discarded = pending.Create(Operator, BotCommand.Stop, 0, t0);
-        Check(!pending.Discard(discarded, Stranger) && pending.Discard(discarded, Operator) && !pending.TryTake(discarded, Operator, t0, out _), "Cancel drops the question");
-        Check(!pending.TryTake(null, Operator, t0, out _) && !pending.TryTake("nonsense", Operator, t0, out _), "Unknown codes do nothing");
+        Check(!pending.Discard(discarded, Stranger) && pending.Discard(discarded, Operator) && !pending.TryTake(discarded, Operator, t0, BotPendingKind.Confirm, out _), "Cancel drops the question");
+        Check(!pending.TryTake(null, Operator, t0, BotPendingKind.Confirm, out _) && !pending.TryTake("nonsense", Operator, t0, BotPendingKind.Confirm, out _), "Unknown codes do nothing");
         Check(pending.Create(Operator, BotCommand.Stop, 0, t0) != pending.Create(Operator, BotCommand.Stop, 0, t0), "Codes are different every time");
+        // A code only answers the kind of question it was made for, and a wrong try does not use it up.
+        var menuCode = pending.Create(Operator, BotCommand.Stop, 1, t0, kind: BotPendingKind.Menu);
+        Check(!pending.TryTake(menuCode, Operator, t0, BotPendingKind.Reason, out _) && !pending.TryTake(menuCode, Operator, t0, BotPendingKind.Confirm, out _),
+            "The code of a menu is no confirmation and no window");
+        Check(pending.TryTake(menuCode, Operator, t0, BotPendingKind.Menu, out var menuTaken, consume: false) && menuTaken.Instance == 1
+              && pending.TryTake(menuCode, Operator, t0.AddSeconds(1), BotPendingKind.Menu, out _), "A menu can be answered again, and the wrong tries did not use it up");
+        Check(!pending.TryTake(menuCode, Operator, t0.AddSeconds(2), BotPendingKind.Menu, out _), "...until it was taken");
+        var reasonCode = pending.Create(Operator, BotCommand.Stop, 1, t0, kind: BotPendingKind.Reason);
+        Check(!pending.TryTake(reasonCode, Operator, t0, BotPendingKind.Confirm, out _) && !pending.TryTake(reasonCode, Operator, t0, BotPendingKind.Menu, out _)
+              && pending.TryTake(reasonCode, Operator, t0, BotPendingKind.Reason, out _), "The code of a window answers only the window");
         for (var i = 0; i < 700; i++) pending.Create(Operator, BotCommand.Stop, 0, t0);
         Check(pending.Count <= 500, "Open questions are limited");
 
@@ -467,6 +477,8 @@ static class DiscordBotChecks
         upgraded.SaveFile();
         var chosen = DiscordBotConfig.LoadStrict(limitsPath);
         Check(chosen.CriticalLimit == 3 && chosen.LimitsVersion == 2, "Three chosen afterwards stays three");
+        File.WriteAllText(limitsPath, "{ \"CriticalLimit\": 3, \"CriticalWindowMinutes\": 5 }");
+        Check(DiscordBotConfig.LoadStrict(limitsPath).CriticalLimit == 3, "A changed window shows the limits were set on purpose: nothing is touched");
         File.WriteAllText(limitsPath, "{ \"CriticalLimit\": 5 }");
         Check(DiscordBotConfig.LoadStrict(limitsPath).CriticalLimit == 5, "Another value of an old file is a choice and stays");
         File.WriteAllText(limitsPath, "{ }");
@@ -509,6 +521,22 @@ static class DiscordBotChecks
         Check(BotInputRules.SanitizeReason("a‮b​c\u0000d") == "abcd", "Text direction, zero width and control characters are removed");
         Check(BotInputRules.SanitizeReason("   a   b   ") == "a b", "Spaces are tidied");
         Check(BotInputRules.SanitizeReason(null) == string.Empty && BotInputRules.SanitizeReason("{}") == string.Empty, "Nothing stays nothing");
+        // A reason that goes on to the launcher (its macros: warnings, webhook, RCon, REST, arguments of programs) is plain words only.
+        void Sanitized(string? input, string expected, string message)
+        {
+            var actual = BotInputRules.SanitizeLauncherReason(input);
+            Check(actual == expected, actual == expected ? message : $"{message}: expected \"{expected}\", got \"{actual}\"");
+        }
+        Sanitized("x\" & calc.exe & \"", "x calc.exe", "Quotes and the & of a command line are dropped");
+        Sanitized("@everyone <@&123456789012345678> | $(whoami) `id` ; %PATH% ^ ~ #", "everyone 123456789012345678 (whoami) id PATH",
+            "Mentions, pipes, shell and batch syntax and markdown are dropped");
+        Sanitized("\", \"admin\": true, [click](http://evil.example)", ", admin: true, click(http:evil.example)",
+            "JSON quotes and the brackets of a masked link are dropped");
+        Sanitized("Wartung am Abend (Mod-Update), bitte nicht stören: Jörg ist ß-dran?", "Wartung am Abend (Mod-Update), bitte nicht stören: Jörg ist ß-dran?",
+            "Normal words with umlauts and light punctuation stay");
+        Sanitized("{servername}\r\nzwei   drei\u202e\u200b", "servername zwei drei", "Macros, line breaks and invisible characters go");
+        Check(BotInputRules.SanitizeLauncherReason(new string('x', 500)).Length == BotInputRules.MaxReasonLength && BotInputRules.SanitizeLauncherReason(null).Length == 0
+              && BotInputRules.SanitizeLauncherReason("   ").Length == 0 && BotInputRules.SanitizeLauncherReason("&|;").Length == 0, "Long and empty reasons"); 
         var longReason = BotInputRules.SanitizeReason(new string('x', 500));
         Check(longReason.Length == BotInputRules.MaxReasonLength, "A reason is cut to 100 characters");
         var surrogates = BotInputRules.SanitizeReason(new string('x', BotInputRules.MaxReasonLength - 1) + "😀😀");

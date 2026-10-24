@@ -17,6 +17,7 @@ public sealed class DiscordBotConfig : ConfigFile<DiscordBotConfig>
     public const int DefaultCriticalLimit = 10;
     // The limits of files written before the limit was raised: only these are replaced by the new default.
     private const int OldDefaultCriticalLimit = 3;
+    private const int OldDefaultCriticalWindowMinutes = 10;
     private const int LimitsVersionCurrent = 2;
     public const int MaxPostponeChoices = 25;
 
@@ -129,7 +130,8 @@ public sealed class DiscordBotConfig : ConfigFile<DiscordBotConfig>
     public void UpgradeLimits()
     {
         if (LimitsVersion >= LimitsVersionCurrent) return;
-        if (CriticalLimit == OldDefaultCriticalLimit) CriticalLimit = DefaultCriticalLimit;
+        // A changed window shows that the limits were set on purpose: then nothing is touched.
+        if (CriticalLimit == OldDefaultCriticalLimit && CriticalWindowMinutes == OldDefaultCriticalWindowMinutes) CriticalLimit = DefaultCriticalLimit;
         LimitsVersion = LimitsVersionCurrent;
     }
 

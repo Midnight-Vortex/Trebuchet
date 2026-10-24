@@ -94,6 +94,26 @@ public static class BotInputRules
         return Truncate(clean.Trim(), MaxReasonLength);
     }
 
+    // What a reason for the launcher may hold besides letters, digits and spaces.
+    private const string LauncherReasonPunctuation = ".,:-()?";
+
+    /// <summary>
+    /// A reason that a user typed and that goes on to the launcher: it ends up in its macros (<c>{reason}</c>), so in warnings
+    /// to the players, in the webhook of the server, in RCon commands, REST bodies and in the arguments of programs of a
+    /// sequence. Only letters, digits, spaces and <c>. , : - ( ) ?</c> stay, everything else is dropped: no quotes, no
+    /// <c>&amp; | ; $ % ` ^ &lt; &gt;</c>, nothing that is a mention, a link or markdown. At most <see cref="MaxReasonLength"/> characters.
+    /// </summary>
+    public static string SanitizeLauncherReason(string? text)
+    {
+        var clean = Clean(text, MaxReasonLength * 4);
+        var builder = new StringBuilder(clean.Length);
+        foreach (var c in clean)
+            if (char.IsLetterOrDigit(c) || c == ' ' || LauncherReasonPunctuation.Contains(c, StringComparison.Ordinal))
+                builder.Append(c);
+        // Taking characters out can leave two spaces next to each other.
+        return Truncate(Clean(builder.ToString(), MaxReasonLength * 4).Trim(), MaxReasonLength);
+    }
+
     /// <summary>A text for the log, e.g. a display name: one line, no way to fake a log line.</summary>
     public static string SanitizeForLog(string? text) => Truncate(Clean(text, MaxLogTextLength * 2).Trim(), MaxLogTextLength);
 

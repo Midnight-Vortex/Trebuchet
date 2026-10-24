@@ -103,7 +103,8 @@ zeigt, wann zuletzt geprüft wurde. Die Buttons passen immer zum Zustand:
   wie im Dialog in Trebuchet). Danach öffnet sich ein kleines Fenster für den **Grund**: leer lassen oder etwas
   eintippen und **Absenden**. Das führt die Aktion sofort aus, es kommt keine weitere Rückfrage. Der Grund steht im
   Protokoll und kann in den Warnungen für die Spieler vorkommen (Makro `{reason}`); bleibt er leer, gilt der Grund aus
-  den Einstellungen von Trebuchet.
+  den Einstellungen von Trebuchet. Aus Sicherheitsgründen bleiben nur Buchstaben, Ziffern, Leerzeichen und `. , : - ( ) ?`
+  stehen (der Grund landet in Makros für Warnungen, Webhook, RCon und Programme einer Sequenz), alles andere wird entfernt.
   Die Spieler werden wie gewohnt gewarnt.
 - **Neustart verschieben / Stopp verschieben / Update verschieben:** erscheint, wenn gerade etwas ansteht. Nach dem
   Klick wählst du aus: **15 Min, 30 Min, 1 Std, 2 Std, 3 Std, 6 Std**, danach kommt wieder das Fenster für den Grund

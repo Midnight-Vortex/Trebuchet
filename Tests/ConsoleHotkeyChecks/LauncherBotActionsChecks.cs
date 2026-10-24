@@ -209,7 +209,7 @@ static class LauncherBotActionsChecks
                                    && Near(until, DateTime.UtcNow.AddMinutes(30)),
                 "Postponing with nothing pending pauses the automatic restarts for the minutes: " + postpone);
             check((await StatusOf(0))?.PausedUntilUtc is { } shown && Near(shown, DateTime.UtcNow.AddMinutes(30)), "The status shows the pause");
-            check(log.Contains("reason: Event servername @here") && !log.Contains("{servername}"), "The reason goes cleaned into the log");
+            check(log.Contains("reason: Event servername here") && !log.Contains("{servername}") && !log.Contains("@here"), "The reason goes cleaned into the log (no macro, no mention)");
             check(Volatile.Read(ref changes) > changesBefore, "A pause is announced to the status messages at once");
             changesBefore = Volatile.Read(ref changes);
             check((await actions.ResumeAsync(0, none)).Success && await OnLauncher(() => launcher.GetAutomaticRestartsPause(0)) is null,

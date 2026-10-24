@@ -233,7 +233,8 @@ public sealed class BotInteractionHandler
                 return Unknown(false);
             var rawInstance = raw("instance");
             int? instance = rawInstance is { } r && BotInputRules.TryParseInstance(r, count, out var parsed) && IsManaged(policy, parsed) ? parsed : null;
-            var reason = BotInputRules.SanitizeReason(text("reason"));
+            // The reason goes on to the launcher (its macros): only plain words, see SanitizeLauncherReason.
+            var reason = BotInputRules.SanitizeLauncherReason(text("reason"));
             return new Ask(command, command, Step.Initial, instance, false, false, false, false, null, rawInstance, raw("minutes"), raw("delay"),
                 reason, Describe(command, rawInstance, raw("minutes"), raw("delay"), reason));
         }
@@ -261,7 +262,14 @@ public sealed class BotInteractionHandler
                     BotCustomIdKind.ReasonModal => Step.ReasonSubmit,
                     _ => Step.PostponeChoice
                 };
-                if (!_pending.TryTake(nonce, i.UserId, now, out var pending))
+                // A code only answers the question it was made for; a menu may be answered again (the window may have been closed).
+                var pendingKind = kind switch
+                {
+                    BotCustomIdKind.ReasonModal => BotPendingKind.Reason,
+                    BotCustomIdKind.PostponeSelect => BotPendingKind.Menu,
+                    _ => BotPendingKind.Confirm
+                };
+                if (!_pending.TryTake(nonce, i.UserId, now, pendingKind, out var pending, consume: pendingKind != BotPendingKind.Menu))
                 {
                     // Expired, used before, or not this user's: the user is still checked as a user of the bot.
                     return new Ask(BotCommand.Status, BotCommand.Status, step, null, true, false, true, true, null, null, null, null, null, $"code={kind}")
@@ -276,7 +284,7 @@ public sealed class BotInteractionHandler
                     : pending.Command;
                 int? instance = pending.Instance >= 0 && pending.Instance < count && IsManaged(policy, pending.Instance) ? pending.Instance : null;
                 // What was typed into the window: a free text, cleaned, and last in the audit line (it may hold spaces).
-                var typed = step == Step.ReasonSubmit ? BotInputRules.SanitizeReason(text(BotDiscordRenderer.ReasonFieldId)) : null;
+                var typed = step == Step.ReasonSubmit ? BotInputRules.SanitizeLauncherReason(text(BotDiscordRenderer.ReasonFieldId)) : null;
                 var parameters = Describe(pending.Command, pending.Instance, pending.Minutes, null, string.Empty) + $" step={(step == Step.ReasonSubmit ? "Reason" : step)}"
                                  + (string.IsNullOrEmpty(typed) ? string.Empty : $" reason={typed}");
                 return new Ask(pending.Command, guardCommand, step, instance, true, false, false, true, pending, pending.Instance, pending.Minutes, null, typed,
@@ -360,7 +368,7 @@ public sealed class BotInteractionHandler
         }
 
         // The button of the status message: the user picks the minutes from the offered ones.
-        var nonce = _pending.Create(i.UserId, BotCommand.Postpone, instance, _clock(), SelectLifetime, 0, i.ChannelId ?? 0);
+        var nonce = _pending.Create(i.UserId, BotCommand.Postpone, instance, _clock(), SelectLifetime, 0, i.ChannelId ?? 0, BotPendingKind.Menu);
         var choices = policy.PostponeChoices.Select(m => new BotChoice(messages.FormatMinutes(m), m.ToString(CultureInfo.InvariantCulture))).ToList();
         await AnswerAsync(responder,
             new BotReply(messages.PostponePlaceholder, Question: new BotSelectQuestion(nonce, messages.PostponePlaceholder, choices)), false).ConfigureAwait(false);
@@ -375,7 +383,7 @@ public sealed class BotInteractionHandler
         }
         var command = ask.Command;
         var instance = ask.Instance!.Value;
-        var nonce = _pending.Create(i.UserId, command, instance, _clock(), SelectLifetime, 0, i.ChannelId ?? 0);
+        var nonce = _pending.Create(i.UserId, command, instance, _clock(), SelectLifetime, 0, i.ChannelId ?? 0, BotPendingKind.Menu);
         var choices = BotInputRules.DelayChoices(command)
             .Select(m => new BotChoice(m == 0 ? messages.NowChoice : messages.FormatMinutes(m), m.ToString(CultureInfo.InvariantCulture)))
             .ToList();
@@ -415,7 +423,7 @@ public sealed class BotInteractionHandler
             BotCommand.Stop => messages.ModalStop,
             _ => messages.ModalPostpone
         }, time);
-        var nonce = _pending.Create(i.UserId, ask.Command, ask.Instance!.Value, _clock(), ReasonLifetime, minutes, i.ChannelId ?? 0);
+        var nonce = _pending.Create(i.UserId, ask.Command, ask.Instance!.Value, _clock(), ReasonLifetime, minutes, i.ChannelId ?? 0, BotPendingKind.Reason);
         var modal = new BotReasonModal(nonce, title, messages.ReasonLabel, messages.ReasonPlaceholder, BotInputRules.MaxReasonLength);
         if (!await responder.ShowModalAsync(modal).ConfigureAwait(false))
         {
@@ -508,7 +516,7 @@ public sealed class BotInteractionHandler
             BotCommand.Update => messages.AskUpdate,
             _ => messages.AskChannel
         };
-        var nonce = _pending.Create(i.UserId, command, instance, _clock(), ConfirmLifetime, delayMinutes, i.ChannelId ?? 0);
+        var nonce = _pending.Create(i.UserId, command, instance, _clock(), ConfirmLifetime, delayMinutes, i.ChannelId ?? 0, BotPendingKind.Confirm);
         await AnswerAsync(responder, new BotReply(text, Question: new BotConfirmQuestion(nonce, messages.Confirm, messages.Cancel)), false).ConfigureAwait(false);
     }
 
@@ -562,7 +570,7 @@ public sealed class BotInteractionHandler
     {
         // The reason the user gave (empty: the reason of the settings of Trebuchet is used). Only the log of a postponement
         // says where it came from.
-        var typed = BotInputRules.SanitizeReason(reason);
+        var typed = BotInputRules.SanitizeLauncherReason(reason);
         var text = typed.Length == 0 ? "Discord" : "Discord: " + typed;
         var requestedMinutes = minutes;
         BotPostponeBudget.Snapshot budgetBefore = default;

@@ -276,8 +276,14 @@ die **erste** Antwort auf die Auswahl sein kann, wird die Auswahl nicht vorab be
 Handler länger als 2 Sekunden, bestätigt die Discord-Schicht selbst (dann ist kein Fenster mehr möglich, der Nutzer
 bekommt eine Meldung und beginnt neu). Die Auswahl der Minuten und die der Wartezeit prüfen, dass der Wert eine der
 angebotenen Vorgaben **dieses Befehls** ist (ein Stopp nimmt keine 2 Std an). Die Auswahl verbraucht das Limit kritischer
-Aktionen nicht, erst das Absenden des Fensters zählt. Der Grund wird bereinigt (keine Klammern, eine Zeile) und geht als
-Grund des Stopps oder Neustarts an den Launcher; leer gilt der Grund aus den Einstellungen von Trebuchet.
+Aktionen nicht, erst das Absenden des Fensters zählt. Jeder Code gehört zu **einer Art** von Frage (`BotPendingKind`:
+Bestätigung, Menü, Fenster): ein Code beantwortet nur seine Frage, ein falscher Versuch verbraucht ihn nicht; das Menü
+bleibt bis zum Ablauf gültig (ein geschlossenes Fenster braucht es noch einmal), die Aktion braucht aber immer den Code
+eines Fensters. Der Grund geht als Grund des Stopps oder Neustarts an den Launcher und landet dort in den Makros
+(`{reason}`: Warnungen, Webhook, RCon, REST, Argumente von Programmen einer Sequenz). Deshalb lässt
+`BotInputRules.SanitizeLauncherReason` nur Buchstaben, Ziffern, Leerzeichen und `. , : - ( ) ?` durch (höchstens 100
+Zeichen), auch beim Slash-Befehl und noch einmal an der Grenze zum Launcher (`LauncherBotActions`); leer gilt der Grund
+aus den Einstellungen von Trebuchet.
 
 **Welche Server der Bot verwaltet**: In den Einstellungen (Abschnitt „Server“) wählt man pro Instanz, ob der Bot sie
 verwaltet, und gibt ihr auf Wunsch einen **Namen**, den der Bot in Meldungen und Antworten benutzt (bereinigt: keine

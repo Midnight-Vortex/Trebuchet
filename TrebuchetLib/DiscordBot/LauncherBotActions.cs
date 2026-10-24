@@ -74,7 +74,7 @@ public sealed class LauncherBotActions : IBotActions, IDisposable
 
     public Task<BotActionResult> PostponeAsync(int instance, int minutes, string reason, CancellationToken token)
     {
-        var text = BotInputRules.SanitizeReason(reason);
+        var text = BotInputRules.SanitizeLauncherReason(reason);
         var parameters = $"{minutes} min, reason: {text}";
         if (minutes < 1 || TimeSpan.FromMinutes(minutes) > MaxDelay)
             return Task.FromResult(Report("postpone", instance, parameters, Fail("invalid minutes")));
@@ -111,7 +111,7 @@ public sealed class LauncherBotActions : IBotActions, IDisposable
 
     public Task<BotActionResult> RestartAsync(int instance, TimeSpan delay, string reason, CancellationToken token)
     {
-        var text = BotInputRules.SanitizeReason(reason);
+        var text = BotInputRules.SanitizeLauncherReason(reason);
         var parameters = $"in {(int)Math.Ceiling(delay.TotalMinutes)} min, reason: {text}";
         if (delay < TimeSpan.Zero || delay > MaxDelay)
             return Task.FromResult(Report("restart", instance, parameters, Fail("invalid delay")));
@@ -125,7 +125,7 @@ public sealed class LauncherBotActions : IBotActions, IDisposable
 
     public Task<BotActionResult> StopAsync(int instance, TimeSpan delay, string reason, CancellationToken token)
     {
-        var text = BotInputRules.SanitizeReason(reason);
+        var text = BotInputRules.SanitizeLauncherReason(reason);
         var parameters = $"in {(int)Math.Ceiling(delay.TotalMinutes)} min, reason: {text}";
         if (delay < TimeSpan.Zero || delay > MaxDelay)
             return Task.FromResult(Report("stop", instance, parameters, Fail("invalid delay")));
