@@ -2,6 +2,13 @@
 
 After installing, launch Trebuchet from the Start menu or desktop shortcut. The installer deliberately does not launch it: on affected Windows versions, a process started by Setup can inherit RedirectionGuard and fail to traverse Trebuchet's Saved/profile junctions. Conan then reports that it cannot ensure `Saved/ExtractedMods` exists, even when the directory is present. If this happens after an older setup, fully close Trebuchet and relaunch it from the Start menu; reinstalling mods is not required for this directory-access error.
 
+## 0.9.25 reason window and higher limit
+
+- **Restart, Stop and Postpone from the buttons of the status message now ask for a reason.** After the choice of the time a small window opens with one text field. It may stay empty; submitting it runs the action at once, there is no further confirmation. The reason goes to the log, the audit channel and the warnings of the server (`{reason}`); left empty, the reason from the settings of Trebuchet is used (it used to say "Discord"). The slash commands `/stop` and `/restart now` still ask for a confirmation.
+- **The reason is plain words.** Because it ends up in the macros of the launcher (warnings, webhook, RCon, REST, arguments of programs of a sequence), only letters, digits, spaces and `. , : - ( ) ?` are kept, at most 100 characters.
+- **Higher limit of critical actions:** 10 per server in 10 minutes by default (was 3), up to 50 can be set. A settings file that still holds the old default gets the new one once.
+- Security fixes found by a review: a code of a question only answers that kind of question (a window can not use the code of a menu or of a confirmation), and the menu stays usable when the window was closed.
+
 ## 0.9.24 audit channel in plain words
 
 - **The audit channel now reads like normal sentences**, in the language of the bot: "🔔 @User asks: Stop server: Server Main (instance 0)", "✅ Done: Stop server: Server Main (instance 0), warning 5 min – under way (by @User)", "🔄 Server Main (instance 0): 🟡 Stopping → 🔴 Stopped". Refused, slowed down, locked out and cancelled requests are told the same way. The technical values (`instance=0 step=Confirm`), the user ID next to the mention and the IDs of buttons no longer show; the exact reason of a refusal stays in the log file.
