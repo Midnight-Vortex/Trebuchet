@@ -18,7 +18,7 @@ public sealed partial class BotAuditChannelFeed : IDisposable
     /// <summary>More than this waiting at once: the oldest are dropped.</summary>
     public const int QueueLimit = 100;
     public static readonly TimeSpan DefaultSpacing = TimeSpan.FromMilliseconds(1200);
-    private static readonly TimeSpan PostTimeout = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan ChannelTimeout = TimeSpan.FromSeconds(10);
 
     private readonly BotAuditLog _audit;
     private readonly IBotChannelClient _channel;
@@ -60,6 +60,9 @@ public sealed partial class BotAuditChannelFeed : IDisposable
 
     /// <summary>How long the webhook read from its protected file is used before it is read again.</summary>
     public TimeSpan WebhookCacheTime { get; init; } = TimeSpan.FromSeconds(5);
+
+    /// <summary>How long one line may take through the webhook in all, then the audit channel gets it.</summary>
+    public TimeSpan WebhookBudget { get; init; } = TimeSpan.FromSeconds(10);
 
     /// <summary>The audit webhook, null when none is set or it can not be read.</summary>
     private string? Webhook()
@@ -186,7 +189,7 @@ public sealed partial class BotAuditChannelFeed : IDisposable
             // The webhook first; when it does not work the bot writes into the audit channel (when one is set) under its own name.
             if (Webhook() is { } url && _webhooks is not null && await TryWebhookAsync(url, policy, text, token).ConfigureAwait(false)) return;
             if (policy.AuditChannelId == 0) return;
-            await _channel.PostNoteAsync(policy.AuditChannelId, text).WaitAsync(PostTimeout, token).ConfigureAwait(false);
+            await _channel.PostNoteAsync(policy.AuditChannelId, text).WaitAsync(ChannelTimeout, token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
@@ -206,7 +209,8 @@ public sealed partial class BotAuditChannelFeed : IDisposable
         {
             var name = string.IsNullOrWhiteSpace(policy.AuditName) ? null : policy.AuditName;
             var avatar = string.IsNullOrWhiteSpace(policy.AuditAvatarUrl) ? null : policy.AuditAvatarUrl;
-            await _webhooks!.SendAsync(url, new BotWebhookMessage(name, avatar, text, null), policy.GuildId, token).WaitAsync(PostTimeout, token).ConfigureAwait(false);
+            // The call is cancelled when the time is up (not just given up on): a line is never delivered twice, through the webhook and the channel.
+            await _webhooks!.SendWithinAsync(url, new BotWebhookMessage(name, avatar, text, null), policy.GuildId, WebhookBudget, token).ConfigureAwait(false);
             Volatile.Write(ref _webhookFailing, false);
             return true;
         }

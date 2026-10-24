@@ -96,7 +96,8 @@ Die Rolle `@everyone` ist **nicht erlaubt** (jeder hat sie), Trebuchet lehnt sie
    Servern steht der Name des Servers in der ersten Zeile. Der Community-Log läuft, solange der Bot läuft; zeigt dein
    Speicherstand schon eigene Meldungen über einen Webhook an, solltest du nur eines von beiden benutzen, sonst steht
    alles doppelt im Kanal. Ein Stopp von Hand kurz vor einem geplanten Neustart wird als Stopp gemeldet, nicht als
-   Neustart. War der Bot eine Weile weg (aus, keine Verbindung zu Discord), erzählt er danach nichts Altes als „jetzt“.
+   Neustart. War der Bot länger als ein paar Minuten weg (aus, keine Verbindung zu Discord), erzählt er danach nichts Altes als
+   „jetzt“; hatte er einen Stopp oder Neustart schon gemeldet, meldet er auch „wieder online“, nur ohne Offline-Zeit.
 9. **Sicherheit prüfen** drücken. Alle Punkte müssen grün sein.
 10. **Starten**.
 

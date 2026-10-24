@@ -122,7 +122,6 @@ public sealed class BotCommunityLog : IDisposable
     public static readonly TimeSpan DefaultSpacing = TimeSpan.FromMilliseconds(1200);
     public static readonly TimeSpan CalmInterval = TimeSpan.FromMinutes(5);
     public static readonly TimeSpan BusyInterval = TimeSpan.FromSeconds(15);
-    private static readonly TimeSpan SendTimeout = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan SameEventTolerance = TimeSpan.FromMinutes(2);
     // The server is gone for a restart when it goes down around the time the restart was planned for (a stop pressed an
     // hour before a planned restart is a stop).
@@ -141,12 +140,16 @@ public sealed class BotCommunityLog : IDisposable
         public DateTime SeenAt;
         public BotPendingAction LastPending;
         public DateTime? LastPendingAt;
+        // The last look at the running server saw a restart under way (countdown, restart requested, process restarting).
+        public bool LastRestarting;
         // The time the announced restart or stop was told for: the same event comes with a time that differs by seconds
         // (the schedule says 06:00:00, the countdown ends at 06:00:02), a postponement by much more.
         public DateTime? AnnouncedAt;
         public DateTime? OfflineSince;
         public bool Told;
         public bool ToldRestart;
+        // The bot was away after the players were told: when the server is back is known, how long it was down is not.
+        public bool UnknownDuration;
     }
 
     private readonly IBotActions _actions;
@@ -183,6 +186,9 @@ public sealed class BotCommunityLog : IDisposable
 
     /// <summary>Pause between two messages.</summary>
     public TimeSpan Spacing { get; init; } = DefaultSpacing;
+
+    /// <summary>How long one message may take in all (asking the webhook, sending, waiting for the limit of Discord).</summary>
+    public TimeSpan SendBudget { get; init; } = TimeSpan.FromSeconds(15);
 
     /// <summary>How long the webhook read from its protected file is used before it is read again.</summary>
     public TimeSpan WebhookCacheTime { get; init; } = TimeSpan.FromSeconds(5);
@@ -273,8 +279,11 @@ public sealed class BotCommunityLog : IDisposable
         var due = status.State is BotServerState.Starting or BotServerState.Stopping ? BusyInterval : CalmInterval;
         lock (_lock)
         {
-            if (!_memory.TryGetValue(status.Instance, out var memory) || now - memory.SeenAt > StaleAfter)
+            if (!_memory.TryGetValue(status.Instance, out var memory))
                 _memory[status.Instance] = memory = new Memory();
+            else if (now - memory.SeenAt > StaleAfter)
+                _memory[status.Instance] = memory = Forgotten(memory);
+            var previousLook = memory.SeenAt;
             memory.SeenAt = now;
             var before = memory.Last;
             memory.Last = status.State;
@@ -286,9 +295,10 @@ public sealed class BotCommunityLog : IDisposable
                 // A crash says nothing: the launcher did not plan it.
                 if (status.State != BotServerState.Crashed)
                 {
+                    // Planned for a time between the last look and now (give or take a little), or already under way: a restart.
                     var plannedRestart = memory.LastPending is BotPendingAction.Restart or BotPendingAction.Update
-                                         && memory.LastPendingAt is { } planned && (now - planned).Duration() <= PlannedWindow;
-                    var restart = status.Restarting || plannedRestart;
+                                         && memory.LastPendingAt is { } planned && planned - now <= PlannedWindow && planned >= previousLook - PlannedWindow;
+                    var restart = status.Restarting || memory.LastRestarting || plannedRestart;
                     Enqueue(restart
                         ? Embed(texts.RestartingTitle, texts.RestartingBody, Red, now, status, several)
                         : Embed(texts.StoppingTitle, texts.StoppingBody, Red, now, status, several));
@@ -301,18 +311,25 @@ public sealed class BotCommunityLog : IDisposable
             {
                 if (memory.Told && memory.OfflineSince is { } since)
                 {
-                    var body = string.Format(CultureInfo.InvariantCulture, memory.ToldRestart ? texts.OnlineAfterRestartBody : texts.OnlineAfterStopBody,
-                        texts.Duration(now - since));
+                    var template = memory.ToldRestart ? texts.OnlineAfterRestartBody : texts.OnlineAfterStopBody;
+                    // The offline time is the second line: it is left out when the bot did not see how long it was.
+                    var body = memory.UnknownDuration
+                        ? template.Split('\n', 2)[0]
+                        : string.Format(CultureInfo.InvariantCulture, template, texts.Duration(now - since));
                     Enqueue(Embed(texts.OnlineTitle, body, Green, now, status, several));
                 }
                 memory.Told = false;
+                memory.UnknownDuration = false;
                 memory.OfflineSince = null;
             }
 
             if (status.State == BotServerState.Online)
             {
+                memory.LastRestarting = status.Restarting;
+                // The same action with no time for a moment (the launcher is about to count down) keeps the time it had.
+                if (status.Pending == BotPendingAction.None || status.Pending != memory.LastPending || status.PendingAtUtc is not null)
+                    memory.LastPendingAt = status.PendingAtUtc;
                 memory.LastPending = status.Pending;
-                memory.LastPendingAt = status.PendingAtUtc;
                 if (status.Pending != BotPendingAction.None && status.PendingAtUtc is { } at && at > now)
                 {
                     var remaining = at - now;
@@ -337,6 +354,11 @@ public sealed class BotCommunityLog : IDisposable
         }
         return due;
     }
+
+    // After a long silence only one thing is kept: the players were told the server goes down and not yet that it is back.
+    private static Memory Forgotten(Memory old) => old.Told
+        ? new Memory { Last = BotServerState.Stopped, Told = true, ToldRestart = old.ToldRestart, OfflineSince = old.OfflineSince, UnknownDuration = true }
+        : new Memory();
 
     private static BotWebhookEmbed Countdown(BotServerStatus status, DateTime at, TimeSpan remaining, BotCommunityTexts texts, DateTime now, bool several)
     {
@@ -409,7 +431,7 @@ public sealed class BotCommunityLog : IDisposable
             if (policy is not { CommunityEnabled: true } || url is null) return;
             var name = string.IsNullOrWhiteSpace(policy.CommunityName) ? null : policy.CommunityName;
             var avatar = string.IsNullOrWhiteSpace(policy.CommunityAvatarUrl) ? null : policy.CommunityAvatarUrl;
-            await _client.SendAsync(url, new BotWebhookMessage(name, avatar, null, embed), policy.GuildId, token).WaitAsync(SendTimeout, token).ConfigureAwait(false);
+            await _client.SendWithinAsync(url, new BotWebhookMessage(name, avatar, null, embed), policy.GuildId, SendBudget, token).ConfigureAwait(false);
             _failing = false;
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)

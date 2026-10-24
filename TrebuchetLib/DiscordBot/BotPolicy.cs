@@ -184,8 +184,14 @@ public sealed class BotPolicy
     private static void CheckName(List<BotConfigIssue> issues, string field, string? name)
     {
         if (string.IsNullOrWhiteSpace(name)) return;
-        if (ContainsSecret(name) || ForbiddenNameParts.Any(x => name.Contains(x, StringComparison.OrdinalIgnoreCase)))
+        // What is checked is also what is sent: the invisible characters (a zero-width space in "Dis cord") are gone from the
+        // name before it goes out, so both the text as typed and the cleaned text are looked at.
+        foreach (var text in new[] { name, CleanIdentityName(name) })
+        {
+            if (!ContainsSecret(text) && !ForbiddenNameParts.Any(x => text.Contains(x, StringComparison.OrdinalIgnoreCase))) continue;
             issues.Add(new BotConfigIssue(BotConfigIssueKind.InvalidName, field));
+            return;
+        }
     }
 
     private static bool ContainsSecret(string text) => BotWebhook.Contains(text) || BotLogRedactor.Redact(text) != text;

@@ -23,12 +23,25 @@ static class CommunityLogChecks
     {
         public List<(string Url, BotWebhookMessage Message, ulong Guild)> Sent { get; } = [];
         public Exception? Failure { get; set; }
+        public bool Hang { get; set; }
+        public int Cancelled;
 
-        public Task SendAsync(string webhookUrl, BotWebhookMessage message, ulong expectedGuildId, CancellationToken token)
+        public async Task SendAsync(string webhookUrl, BotWebhookMessage message, ulong expectedGuildId, CancellationToken token)
         {
-            if (Failure is not null) return Task.FromException(Failure);
+            if (Hang)
+            {
+                try
+                {
+                    await Task.Delay(Timeout.Infinite, token);
+                }
+                catch (OperationCanceledException)
+                {
+                    Interlocked.Increment(ref Cancelled);
+                    throw;
+                }
+            }
+            if (Failure is not null) throw Failure;
             lock (Sent) Sent.Add((webhookUrl, message, expectedGuildId));
-            return Task.CompletedTask;
         }
 
         public BotWebhookMessage[] Messages
@@ -43,6 +56,8 @@ static class CommunityLogChecks
         public List<(HttpMethod Method, string Url, string Body)> Requests { get; } = [];
         public string GuildAnswer { get; set; } = $"{{\"id\":\"123456789012345678\",\"type\":1,\"guild_id\":\"{Guild}\",\"channel_id\":\"{Channel}\"}}";
         public Func<int, HttpResponseMessage>? PostAnswer { get; set; }
+        public TimeSpan Delay { get; set; }
+        public int Cancelled;
         public Exception? NetworkFailure { get; set; }
         public int Posts => Requests.Count(x => x.Method == HttpMethod.Post);
         public int Gets => Requests.Count(x => x.Method == HttpMethod.Get);
@@ -50,10 +65,29 @@ static class CommunityLogChecks
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
             var body = request.Content is null ? string.Empty : await request.Content.ReadAsStringAsync(cancellationToken);
-            lock (Requests) Requests.Add((request.Method, request.RequestUri!.ToString(), body));
-            if (NetworkFailure is not null) throw NetworkFailure;
+            if (NetworkFailure is not null)
+            {
+                lock (Requests) Requests.Add((request.Method, request.RequestUri!.ToString(), body));
+                throw NetworkFailure;
+            }
             if (request.Method == HttpMethod.Get)
+            {
+                lock (Requests) Requests.Add((request.Method, request.RequestUri!.ToString(), body));
                 return new HttpResponseMessage(System.Net.HttpStatusCode.OK) { Content = new StringContent(GuildAnswer) };
+            }
+            if (Delay > TimeSpan.Zero)
+            {
+                try
+                {
+                    await Task.Delay(Delay, cancellationToken);
+                }
+                catch (OperationCanceledException)
+                {
+                    Interlocked.Increment(ref Cancelled);
+                    throw;
+                }
+            }
+            lock (Requests) Requests.Add((request.Method, request.RequestUri!.ToString(), body));
             return PostAnswer?.Invoke(Posts) ?? new HttpResponseMessage(System.Net.HttpStatusCode.NoContent);
         }
     }
@@ -147,13 +181,14 @@ static class CommunityLogChecks
             // ...and it is told once (not once per look), again after it worked in between
             var unreadable = new LogLines();
             var source = store.AsSource("community", unreadable);
+            Check(source() is null && unreadable.Lines.Count == 0, "...not at the first look (the file may just be replaced)");
             Check(source() is null && source() is null && source() is null && unreadable.Lines.Count == 1
                   && unreadable.Lines[0].StartsWith("Warning: Discord bot: the community webhook is saved but can not be read here", StringComparison.Ordinal)
                   && !unreadable.Lines[0].Contains("abcdefghijklmnop"), "A saved webhook that can not be read is one warning, not silence: " + string.Join("|", unreadable.Lines));
             store.Save(WebhookUrl);
             Check(source() == WebhookUrl && unreadable.Lines.Count == 1, "...and nothing when it works");
             File.WriteAllBytes(path, [9, 9]);
-            Check(source() is null && unreadable.Lines.Count == 2, "...and again when it breaks again");
+            Check(source() is null && source() is null && unreadable.Lines.Count == 2, "...and again when it breaks again");
             store.Delete();
             Check(!store.HasWebhook && source() is null && unreadable.Lines.Count == 2, "The webhook can be removed, and none set is no warning");
             var unprotected = new BotWebhookStore(Path.Combine(folder, "none"), null);
@@ -214,14 +249,20 @@ static class CommunityLogChecks
                 Check(BotPolicy.Create(Config(c => c.AuditName = forbidden)).Issues.Any(x => x.Kind == BotConfigIssueKind.InvalidName && x.Detail == nameof(DiscordBotConfig.AuditName))
                       && BotPolicy.Create(Config(c => c.CommunityName = forbidden)).Issues.Any(x => x.Kind == BotConfigIssueKind.InvalidName), "Discord does not take this name: " + forbidden);
             Check(BotPolicy.Create(Config(c => { c.AuditName = "Dis cord"; c.CommunityName = "Wächter ⚔️"; })).IsValid, "Other names are fine");
+            // invisible characters are removed from the name before it is sent: the name that is sent is the one that is checked
+            foreach (var hidden in new[] { "Dis\u200Bcord Log", "Cly\u00ADde", "DIS\u2060CORD", "Wächter " + token.Insert(20, "\u200B"), "\u200D" + knownSecret })
+                Check(BotPolicy.Create(Config(c => c.CommunityName = hidden)).Issues.Any(x => x.Kind == BotConfigIssueKind.InvalidName)
+                      && BotPolicy.Create(Config(c => c.AuditName = hidden)).Issues.Any(x => x.Kind == BotConfigIssueKind.InvalidName), "A name is not clean because of a hidden character: " + hidden.Length);
 
             // the cut at 80 characters never splits an emoji (a pair of surrogates)
             var cutAtEmoji = PolicyOf(Config(c => c.CommunityName = new string('a', 79) + "😀 tail")).CommunityName;
             Check(cutAtEmoji == new string('a', 79) && NoLoneSurrogate(cutAtEmoji), "An emoji over the border is left out whole, not split: " + cutAtEmoji.Length);
             var emojiFits = PolicyOf(Config(c => c.CommunityName = new string('a', 78) + "😀😀")).CommunityName;
             Check(emojiFits == new string('a', 78) + "😀" && NoLoneSurrogate(emojiFits), "...and one that fits is kept");
-            var family = PolicyOf(Config(c => c.CommunityName = new string('a', 74) + "👨‍👩‍👧‍👦 x")).CommunityName;
-            Check(NoLoneSurrogate(family) && family.Length <= 80 && family.StartsWith(new string('a', 74), StringComparison.Ordinal), "A row of emoji over the border is cut between two of them: " + family.Length);
+            var flag = PolicyOf(Config(c => c.CommunityName = new string('a', 78) + "🇩🇪 tail")).CommunityName;
+            Check(flag == new string('a', 78), "A flag (two letters of symbols) over the border is left out whole: " + flag.Length);
+            var thumb = PolicyOf(Config(c => c.CommunityName = new string('a', 78) + "👍🏽 tail")).CommunityName;
+            Check(thumb == new string('a', 78), "...and an emoji with a skin tone, too: " + thumb.Length);
             Check(!BotPolicy.Create(Config(c => c.CommunityLeadMinutes = 0)).IsValid && !BotPolicy.Create(Config(c => c.CommunityLeadMinutes = 61)).IsValid
                   && BotPolicy.Create(Config(c => c.CommunityLeadMinutes = 1)).IsValid && BotPolicy.Create(Config(c => c.CommunityLeadMinutes = 60)).IsValid,
                 "The lead time is 1 to 60 minutes");
@@ -278,6 +319,20 @@ static class CommunityLogChecks
                 Check(channel.Notes.Count == notesBefore + 1 && hooks.Messages.Length == 3, "A webhook that refuses a line: the audit channel gets it instead");
             }
 
+            // A webhook that hangs: after its budget the call is cancelled and the line goes to the audit channel once, not twice.
+            var hangingHooks = new FakeWebhook { Hang = true };
+            var hangingChannel = new RecordingChannel();
+            var hangingLog = new LogLines();
+            using (var feed = new BotAuditChannelFeed(audit, hangingChannel, () => policy, _ => "Haupt", hangingLog, hangingHooks, () => WebhookUrl)
+                   { Spacing = TimeSpan.Zero, WebhookCacheTime = TimeSpan.Zero, WebhookBudget = TimeSpan.FromMilliseconds(200) })
+            {
+                feed.Start();
+                audit.Write(new BotAuditEntry(DateTime.UtcNow, BotAuditResult.Executed, Operator, "x", Guild, Channel, BotCommand.Stop, "instance=0", "Done"));
+                await feed.FlushAsync(TimeSpan.FromSeconds(5));
+            }
+            Check(hangingChannel.Notes.Count == 1 && hangingHooks.Messages.Length == 0 && hangingHooks.Cancelled == 1
+                  && hangingLog.Lines.Count(x => x.StartsWith("Warning: Discord bot: the audit webhook refused", StringComparison.Ordinal)) == 1, "A webhook that takes too long is cancelled, and the line is delivered once (to the channel)");
+
             // The address of a webhook never reaches the log, whatever the source of it is (not only a saved one).
             var foreignUrl = "https://discord.com/api/webhooks/987654321098765432/ZYXWVUTSRQPONMLKJIHGFEDCBA9876543210zyxw";
             var feedLog = new LogLines();
@@ -296,6 +351,7 @@ static class CommunityLogChecks
             // --- the automatic restarts of the launcher (schedule, countdown, update round), from its own status
             await AutomaticAsync(Check);
             await ManualStopAsync(Check);
+            await RestartSeenLateAsync(Check);
             await PostponedAsync(Check);
             await AwayAsync(Check);
             await GateAsync(Check);
@@ -320,8 +376,9 @@ static class CommunityLogChecks
         var post = http.Requests.Single(x => x.Method == HttpMethod.Post);
         var json = System.Text.Json.Nodes.JsonNode.Parse(post.Body)!.AsObject();
         var sentEmbed = json["embeds"]!.AsArray().Single()!.AsObject();
-        check(http.Gets == 1 && http.Requests[0].Url == WebhookUrl, "The webhook is asked which server it belongs to, without the thread");
-        check(post.Url == WebhookUrl + "?thread_id=" + ThreadId, "The message goes to the thread of the address");
+        check(http.Gets == 1 && http.Requests[0].Url == HttpBotWebhookClient.Versioned(WebhookUrl) && http.Requests[0].Url.Contains("/api/v10/webhooks/", StringComparison.Ordinal),
+            "The webhook is asked which server it belongs to (by the named version of the API), without the thread");
+        check(post.Url == HttpBotWebhookClient.Versioned(WebhookUrl) + "?thread_id=" + ThreadId, "The message goes to the thread of the address");
         check(json["username"]!.GetValue<string>() == "Schatten und Licht Server" && json["avatar_url"]!.GetValue<string>() == "https://example.org/logo.png"
               && json["content"] is null && json["allowed_mentions"]!["parse"]!.AsArray().Count == 0,
             "The name and picture of the settings are sent, and no mention pings: " + post.Body[..Math.Min(200, post.Body.Length)]);
@@ -331,7 +388,7 @@ static class CommunityLogChecks
 
         await client.SendAsync(WebhookUrl, new BotWebhookMessage(null, null, new string('x', 3000), null), Guild, CancellationToken.None);
         var second = System.Text.Json.Nodes.JsonNode.Parse(http.Requests[^1].Body)!.AsObject();
-        check(http.Gets == 1 && http.Requests[^1].Url == WebhookUrl && second["username"] is null && second["avatar_url"] is null && second["embeds"] is null
+        check(http.Gets == 1 && http.Requests[^1].Url == HttpBotWebhookClient.Versioned(WebhookUrl) && second["username"] is null && second["avatar_url"] is null && second["embeds"] is null
               && second["content"]!.GetValue<string>().Length <= 2000, "A text goes as content with the name of the webhook, and the server is asked once, not per message");
 
         var before = http.Posts;
@@ -377,6 +434,30 @@ static class CommunityLogChecks
         var down = await Capture(() => client.SendAsync(WebhookUrl, new BotWebhookMessage(null, null, "x", null), Guild, CancellationToken.None));
         http.NetworkFailure = null;
         check(down is BotWebhookException && !down.Message.Contains("abcdefghijklmnop"), "A lost connection is an error without the address: " + down?.Message);
+
+        // One time budget for all of it: when it is up the call is cancelled, not left running to deliver later.
+        var slowHttp = new FakeDiscordHttp { Delay = TimeSpan.FromSeconds(5) };
+        using (var slowClient = new HttpBotWebhookClient(null, slowHttp))
+        {
+            var started = DateTime.UtcNow;
+            var late = await Capture(() => slowClient.SendWithinAsync(WebhookUrl, new BotWebhookMessage(null, null, "x", null), Guild, TimeSpan.FromMilliseconds(300), CancellationToken.None));
+            await Task.Delay(300);
+            check(late is BotWebhookException && DateTime.UtcNow - started < TimeSpan.FromSeconds(3) && slowHttp.Posts == 0 && slowHttp.Cancelled >= 1,
+                "A call that is slower than its budget is cancelled and ends in an error, not delivered later: " + late?.GetType().Name);
+            using var outer = new CancellationTokenSource(100);
+            check(await Capture(() => slowClient.SendWithinAsync(WebhookUrl, new BotWebhookMessage(null, null, "x", null), Guild, TimeSpan.FromSeconds(30), outer.Token)) is OperationCanceledException,
+                "...but a cancel from outside stays a cancel");
+        }
+        var limitedHttp = new FakeDiscordHttp
+        {
+            PostAnswer = n => n == 1 ? Answer(System.Net.HttpStatusCode.TooManyRequests, "{\"retry_after\":9.5}") : new HttpResponseMessage(System.Net.HttpStatusCode.NoContent)
+        };
+        using (var limitedClient = new HttpBotWebhookClient(null, limitedHttp))
+        {
+            var limited = await Capture(() => limitedClient.SendWithinAsync(WebhookUrl, new BotWebhookMessage(null, null, "x", null), Guild, TimeSpan.FromMilliseconds(400), CancellationToken.None));
+            await Task.Delay(300);
+            check(limited is BotWebhookException && limitedHttp.Posts == 1, "Waiting for the limit of Discord is part of the budget: " + limited?.GetType().Name + " " + limitedHttp.Posts);
+        }
 
         // Wrong answers about the server, a wrong address, a cancelled call.
         using var broken = new HttpBotWebhookClient(null, new FakeDiscordHttp { GuildAnswer = "{\"id\":\"1\"}" });
@@ -638,10 +719,58 @@ static class CommunityLogChecks
         // The same stop seen at the usual pace is told.
         await scene.Look(scene.Launcher(TrebuchetLib.ProcessState.STOPPING), 240);
         check(scene.Titles().SequenceEqual(["⏹️ Der Server wird jetzt gestoppt"]), "...while a stop seen at the usual pace is: " + string.Join(" | ", scene.Titles()));
-        // Away while it was down, back when it is up: the end of the stop is not told either (it was not part of what players read).
+        // The players were told it goes down, the bot was away while it came back: the end is told late, without a made-up offline time.
         scene.Now = scene.Now.AddHours(2);
         await scene.Look(scene.Launcher(TrebuchetLib.ProcessState.ONLINE), 0);
-        check(scene.Hooks.Messages.Length == 1, "...and a server that came back while the bot was away is not announced late");
+        var late = scene.Hooks.Messages.Select(x => x.Embed!).ToArray();
+        check(late.Length == 2 && late[1].Title == "🟢 Der Server ist wieder online" && late[1].Description == "Ihr könnt euch wieder einloggen.",
+            "A server that came back while the bot was away is told late, without the offline time: " + string.Join(" | ", late.Select(x => x.Title + "/" + x.Description)));
+        await scene.Look(scene.Launcher(TrebuchetLib.ProcessState.ONLINE), 120);
+        check(scene.Hooks.Messages.Length == 2, "...once");
+    }
+
+    // The restart of a server is a restart even when the log sees it late or only half of it.
+    private static async Task RestartSeenLateAsync(Action<bool, string> check)
+    {
+        // The bot lost Discord shortly before the planned restart and is back 7 minutes after it, the process already starting.
+        using (var scene = new Scene())
+        {
+            var restartAt = scene.Now.AddMinutes(35);
+            var planned = scene.Launcher(TrebuchetLib.ProcessState.ONLINE, x => x with { NextScheduledRestartUtc = restartAt });
+            await scene.Look(planned, 0);
+            await scene.Look(planned, 5 * 60);
+            await scene.Look(planned, (restartAt - scene.Now).TotalSeconds - 60);
+            scene.Now = scene.Now.AddMinutes(7);
+            await scene.Look(scene.Launcher(null, x => x with { Starting = true }), 0);
+            check(scene.Titles().SequenceEqual(["⏰ Der Server startet in 30 Minuten neu", "🔄 Der Server startet jetzt neu"]),
+                "A restart seen 7 minutes late is still a restart: " + string.Join(" | ", scene.Titles()));
+            scene.Now = scene.Now.AddMinutes(20);
+            await scene.Look(scene.Launcher(TrebuchetLib.ProcessState.ONLINE), 0);
+            check(scene.Hooks.Messages.Length == 3 && scene.Hooks.Messages[2].Embed!.Description == "Der Neustart ist durch – ihr könnt euch wieder einloggen.",
+                "...and its end, told after another gap, says it is done without a time: " + scene.Hooks.Messages[^1].Embed!.Description);
+        }
+
+        // The pause is over, the launcher has not begun to count down yet (no time for a moment): the planned time is not forgotten.
+        using (var scene = new Scene())
+        {
+            var pauseEnd = scene.Now.AddMinutes(40);
+            var paused = scene.Launcher(TrebuchetLib.ProcessState.ONLINE, x => x with { RestartPostponed = true, PausedUntilUtc = pauseEnd });
+            await scene.Look(paused, 0);
+            await scene.Look(paused, (pauseEnd - scene.Now).TotalSeconds - 120);
+            await scene.Look(scene.Launcher(TrebuchetLib.ProcessState.ONLINE, x => x with { RestartPostponed = true }), 150);
+            await scene.Look(scene.Launcher(null, x => x with { ShuttingDown = true }), 20);
+            check(scene.Titles().SequenceEqual(["⏰ Der Server startet in 30 Minuten neu", "🔄 Der Server startet jetzt neu"]),
+                "A postponed restart that goes down right after the pause is a restart: " + string.Join(" | ", scene.Titles()));
+        }
+
+        // A restart is requested (no time to name), and only the end of it is seen: still a restart.
+        using (var scene = new Scene())
+        {
+            await scene.Look(scene.Launcher(TrebuchetLib.ProcessState.ONLINE), 0);
+            await scene.Look(scene.Launcher(TrebuchetLib.ProcessState.ONLINE, x => x with { RestartRequested = true }), 60);
+            await scene.Look(scene.Launcher(null, x => x with { ShuttingDown = true }), 20);
+            check(scene.Titles().SequenceEqual(["🔄 Der Server startet jetzt neu"]), "A restart that was requested and is seen going down is a restart: " + string.Join(" | ", scene.Titles()));
+        }
     }
 
     // Two looks at once (an old loop that is ending, a new one) are one after the other, not interleaved.

@@ -97,6 +97,28 @@ public interface IBotWebhookClient
     Task SendAsync(string webhookUrl, BotWebhookMessage message, ulong expectedGuildId, CancellationToken token);
 }
 
+public static class BotWebhookClientExtensions
+{
+    /// <summary>
+    /// Sends with one time budget for everything (asking the webhook, the message, waiting for the limit of Discord). When the
+    /// time is up the call is cancelled, so a message the caller gave up on is not delivered later.
+    /// </summary>
+    public static async Task SendWithinAsync(this IBotWebhookClient client, string webhookUrl, BotWebhookMessage message, ulong expectedGuildId,
+        TimeSpan budget, CancellationToken token)
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
+        timeout.CancelAfter(budget);
+        try
+        {
+            await client.SendAsync(webhookUrl, message, expectedGuildId, timeout.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (!token.IsCancellationRequested)
+        {
+            throw new BotWebhookException("Discord did not answer in time.");
+        }
+    }
+}
+
 /// <summary>
 /// The real webhook client: plain HTTPS to the webhook URL with one shared connection (no new client and no blocking call
 /// per message). Before the first message the webhook is asked which server it belongs to, and that is remembered.
@@ -115,7 +137,8 @@ public sealed class HttpBotWebhookClient : IBotWebhookClient, IDisposable
     public HttpBotWebhookClient(ILogger? logger = null, HttpMessageHandler? handler = null)
     {
         _logger = logger;
-        _http = handler is null ? new HttpClient() : new HttpClient(handler, disposeHandler: false);
+        // No redirects: the address is fixed, and an answer from somewhere else is no answer.
+        _http = handler is null ? new HttpClient(new SocketsHttpHandler { AllowAutoRedirect = false }) : new HttpClient(handler, disposeHandler: false);
         _http.Timeout = Timeout.InfiniteTimeSpan;
         _http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("DiscordBot", null));
         _http.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("(https://github.com/Midnight-Vortex/Trebuchet)"));
@@ -197,7 +220,8 @@ public sealed class HttpBotWebhookClient : IBotWebhookClient, IDisposable
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
         timeout.CancelAfter(RequestTimeout);
-        using var request = new HttpRequestMessage(method, url);
+        // The version of the API is named: the unversioned address stands for an old default.
+        using var request = new HttpRequestMessage(method, Versioned(url));
         if (payload is not null) request.Content = new StringContent(payload, Encoding.UTF8, "application/json");
         try
         {
@@ -208,6 +232,8 @@ public sealed class HttpBotWebhookClient : IBotWebhookClient, IDisposable
             throw new BotWebhookException("Discord did not answer in time.");
         }
     }
+
+    internal static string Versioned(string url) => url.Replace("/api/webhooks/", "/api/v10/webhooks/", StringComparison.Ordinal);
 
     private static TimeSpan? RetryAfter(HttpResponseMessage response, string body)
     {
@@ -336,16 +362,17 @@ public sealed class BotWebhookStore
     /// </summary>
     public Func<string?> AsSource(string name, ILogger? logger)
     {
-        var warned = 0;
+        var failures = 0;
         return () =>
         {
             var url = Load();
             if (url is not null)
             {
-                Volatile.Write(ref warned, 0);
+                Volatile.Write(ref failures, 0);
                 return url;
             }
-            if (HasWebhook && Interlocked.Exchange(ref warned, 1) == 0)
+            // Told at the second look in a row: the file may just be replaced by the settings at this very moment.
+            if (HasWebhook && Interlocked.Increment(ref failures) == 2)
                 logger?.LogWarning("Discord bot: the {Name} webhook is saved but can not be read here (another Windows user, or a damaged file): save it again in the settings", name);
             return null;
         };
