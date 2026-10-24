@@ -9,7 +9,9 @@ public enum BotCustomIdKind
     Confirm,
     Cancel,
     /// <summary>A menu to pick from: the minutes of a postponement, the warning time of a restart or stop.</summary>
-    PostponeSelect
+    PostponeSelect,
+    /// <summary>The window for the reason that follows the menu: submitting it runs the action.</summary>
+    ReasonModal
 }
 
 /// <summary>
@@ -41,6 +43,7 @@ public static partial class BotCustomId
     public static string ForConfirm(string nonce) => $"{Prefix}:ok:{nonce}";
     public static string ForCancel(string nonce) => $"{Prefix}:no:{nonce}";
     public static string ForPostponeSelect(string nonce) => $"{Prefix}:pp:{nonce}";
+    public static string ForReasonModal(string nonce) => $"{Prefix}:rs:{nonce}";
 
     /// <summary>Strict: anything that is not exactly one of the forms above is rejected.</summary>
     public static bool TryParse(string? customId, int instanceCount, out BotCustomIdKind kind, out BotCommand command,
@@ -70,6 +73,7 @@ public static partial class BotCustomId
         {
             "ok" => BotCustomIdKind.Confirm,
             "no" => BotCustomIdKind.Cancel,
+            "rs" => BotCustomIdKind.ReasonModal,
             _ => BotCustomIdKind.PostponeSelect
         };
         nonce = question.Groups[2].Value;
@@ -80,6 +84,6 @@ public static partial class BotCustomId
     [GeneratedRegex("^tb1:a:([a-z]{4,10}):([0-9]{1,3})\\z")]
     private static partial Regex ActionPattern();
 
-    [GeneratedRegex("^tb1:(ok|no|pp):([A-Za-z0-9_-]{22})\\z")]
+    [GeneratedRegex("^tb1:(ok|no|pp|rs):([A-Za-z0-9_-]{22})\\z")]
     private static partial Regex QuestionPattern();
 }

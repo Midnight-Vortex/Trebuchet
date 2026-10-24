@@ -94,6 +94,10 @@ static class DiscordNetLayerChecks
         public Task ModifyOriginalAsync(BotOutgoingMessage message) => Record("modify", message);
         public Task FollowupAsync(BotOutgoingMessage message) => Record("followup", message);
         public Task DeleteOriginalAsync() => Record("delete", null);
+        public Task RespondModalAsync(BotReasonModal modal) => Record("modal:" + modal.Title, null);
+        public Task RespondUpdateAsync(BotOutgoingMessage message) => Record("respond-update", message);
+        public Task RespondNewAsync(BotOutgoingMessage message) => Record("respond-new", message);
+        public Task DeferUpdateAsync() => Record("defer", null);
 
         private Task Record(string kind, BotOutgoingMessage? message)
         {
@@ -406,8 +410,19 @@ static class DiscordNetLayerChecks
               && BotInteractionMapper.ChooseAck(BotInteractionKind.Button, actionId, true) == BotAckKind.NewPrivateMessage, "A status button answers in a new private message");
         Check(BotInteractionMapper.ChooseAck(BotInteractionKind.Button, BotCustomId.ForConfirm(nonce), true) == BotAckKind.UpdateQuestion
               && BotInteractionMapper.ChooseAck(BotInteractionKind.Button, BotCustomId.ForCancel(nonce), true) == BotAckKind.UpdateQuestion
-              && BotInteractionMapper.ChooseAck(BotInteractionKind.Select, BotCustomId.ForPostponeSelect(nonce), true) == BotAckKind.UpdateQuestion,
-            "Our private question is replaced by the answer");
+              && BotInteractionMapper.ChooseAck(BotInteractionKind.Modal, BotCustomId.ForReasonModal(nonce), true) == BotAckKind.UpdateQuestion,
+            "Our private question is replaced by the answer (also after the window for the reason)");
+        Check(BotInteractionMapper.ChooseAck(BotInteractionKind.Select, BotCustomId.ForPostponeSelect(nonce), true) == BotAckKind.Lazy
+              && BotInteractionMapper.ChooseAck(BotInteractionKind.Select, BotCustomId.ForPostponeSelect(nonce), false) == BotAckKind.NewPrivateMessage
+              && BotInteractionMapper.ChooseAck(BotInteractionKind.Modal, BotCustomId.ForReasonModal(nonce), false) == BotAckKind.NewPrivateMessage
+              && BotInteractionMapper.ChooseAck(BotInteractionKind.Modal, BotCustomId.ForConfirm(nonce), true) == BotAckKind.UpdateQuestion
+              && BotInteractionMapper.ChooseAck(BotInteractionKind.Modal, "nonsense", true) == BotAckKind.NewPrivateMessage,
+            "A menu choice is not acknowledged up front (the window for the reason has to be the first answer), and only on our private question");
+        var modalInteraction = BotInteractionMapper.FromModal(33, Human(Operator, Role), Guild, Channel, BotCustomId.ForReasonModal(nonce),
+            new Dictionary<string, string> { ["reason"] = new string('r', 900), ["a"] = "1", ["b"] = "2", ["c"] = "3", ["d"] = "4", ["e"] = "5" });
+        Check(modalInteraction.Kind == BotInteractionKind.Modal && modalInteraction.Name == BotCustomId.ForReasonModal(nonce) && modalInteraction.Texts!.Count == 5
+              && modalInteraction.Texts["reason"].Length == 500 && modalInteraction.RoleIds!.SequenceEqual([Role]),
+            "A submitted window: its ID, at most five fields, each cut");
         Check(BotInteractionMapper.ChooseAck(BotInteractionKind.Button, BotCustomId.ForConfirm(nonce), false) == BotAckKind.NewPrivateMessage
               && BotInteractionMapper.ChooseAck(BotInteractionKind.Select, BotCustomId.ForPostponeSelect(nonce), false) == BotAckKind.NewPrivateMessage,
             "A question on a public message is never edited");
@@ -441,6 +456,44 @@ static class DiscordNetLayerChecks
         await updateResponder.FinishAsync();
         Check(update.Calls.Select(x => x.Kind).SequenceEqual(["modify", "followup"]), "An update replaces the question, a reply is new, nothing is deleted");
         Check(update.Calls[0].Message!.Components.Components.Count == 0 && update.Calls[0].Message!.Text == "Erledigt", "The old buttons of the question go away");
+        // A menu choice answered with the window for the reason: that is the first answer and the acknowledgment.
+        var lazyWindow = new FakeInteractionTransport();
+        var lazyWindowResponder = new DiscordNetResponder(lazyWindow, BotAckKind.Lazy, logger);
+        var shown = await lazyWindowResponder.ShowModalAsync(new BotReasonModal(nonce, "Stopp (5 Min) – Grund", "Grund", "z. B.", 100));
+        await lazyWindowResponder.FinishAsync();
+        Check(shown && lazyWindow.Calls.Select(x => x.Kind).SequenceEqual(["modal:Stopp (5 Min) – Grund"]), "The window is the first answer, nothing else is sent");
+        var lazyTwice = new DiscordNetResponder(new FakeInteractionTransport(), BotAckKind.Lazy, logger);
+        await lazyTwice.AcknowledgeAsync();
+        Check(!await lazyTwice.ShowModalAsync(new BotReasonModal(nonce, "t", "l", "p", 100)), "After the acknowledgment no window is possible");
+        var lazyAnswer = new FakeInteractionTransport();
+        var lazyAnswerResponder = new DiscordNetResponder(lazyAnswer, BotAckKind.Lazy, logger);
+        await lazyAnswerResponder.UpdateAsync(new BotReply("Ungültig"));
+        await lazyAnswerResponder.ReplyAsync(new BotReply("Noch etwas"));
+        await lazyAnswerResponder.FinishAsync();
+        Check(lazyAnswer.Calls.Select(x => x.Kind).SequenceEqual(["respond-update", "followup"]), "Without a window the first answer is the acknowledgment (it replaces the menu), later ones are new");
+        var lazyReply = new FakeInteractionTransport();
+        var lazyReplyResponder = new DiscordNetResponder(lazyReply, BotAckKind.Lazy, logger);
+        await lazyReplyResponder.ReplyAsync(new BotReply("Neu"));
+        await lazyReplyResponder.UpdateAsync(new BotReply("Ersetzt"));
+        Check(lazyReply.Calls.Select(x => x.Kind).SequenceEqual(["respond-new", "modify"]) && lazyReply.Calls.All(x => x.Message is null || NoMentions(x.Message)),
+            "A first reply is a new private message, no answer mentions anyone");
+        var lazySilent = new FakeInteractionTransport();
+        await new DiscordNetResponder(lazySilent, BotAckKind.Lazy, logger).FinishAsync();
+        Check(lazySilent.Calls.Select(x => x.Kind).SequenceEqual(["defer"]), "A menu choice nobody answers is still acknowledged");
+        var lazyWatchdog = new FakeInteractionTransport();
+        var lazyWatchdogResponder = new DiscordNetResponder(lazyWatchdog, BotAckKind.Lazy, logger);
+        await lazyWatchdogResponder.AcknowledgeAsync();
+        await lazyWatchdogResponder.UpdateAsync(new BotReply("Spät"));
+        await lazyWatchdogResponder.FinishAsync();
+        Check(lazyWatchdog.Calls.Select(x => x.Kind).SequenceEqual(["defer", "modify"]), "Acknowledged because it took long: the answer then replaces the menu");
+        var windowFails = new FakeInteractionTransport { Failure = new InvalidOperationException("Unknown interaction") };
+        Check(!await new DiscordNetResponder(windowFails, BotAckKind.Lazy, logger).ShowModalAsync(new BotReasonModal(nonce, "t", "l", "p", 100)),
+            "A window that Discord refuses is reported as not shown");
+        var notAMenu = new DiscordNetResponder(new FakeInteractionTransport(), BotAckKind.NewPrivateMessage, logger);
+        Check(!await notAMenu.ShowModalAsync(new BotReasonModal(nonce, "t", "l", "p", 100)), "Only a menu choice can open the window");
+        var modalLimits = BotDiscordRenderer.RenderModal(new BotReasonModal(nonce, new string('T', 90), new string('L', 90), new string('P', 300), 5000));
+        Check(modalLimits.Title.Length <= 45 && modalLimits.CustomId == BotCustomId.ForReasonModal(nonce) && modalLimits.CustomId.Length <= BotCustomId.MaxLength,
+            "The window stays inside the limits of Discord");
         var broken = new FakeInteractionTransport { Failure = new InvalidOperationException("Unknown interaction, token " + SampleToken) };
         var brokenResponder = new DiscordNetResponder(broken, BotAckKind.NewPrivateMessage, logger);
         await brokenResponder.ReplyAsync(new BotReply("x"));

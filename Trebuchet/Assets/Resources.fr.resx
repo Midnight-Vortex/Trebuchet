@@ -1951,7 +1951,7 @@ Libérer à nouveau le salon (tous les salons) n’est possible qu’ici dans le
     </data>
     <data name="DiscordBotHelpStep10Text" xml:space="preserve">
         <value>Le message d’état affiche toujours les boutons qui correspondent au serveur : Démarrer (arrêté), Redémarrer et Arrêter (en cours), Reporter, Libérer à nouveau et « Rechercher les mises à jour ». Le bot modifie ce seul message tout de suite quand quelque chose change et toutes les 5 minutes pour contrôle.
-Redémarrer et Arrêter demandent d’abord le délai d’avertissement (immédiatement, 1, 5, 10, 15, 30 min, 1 h, pour le redémarrage aussi 2 h), comme la boîte de dialogue de Trebuchet, puis encore la confirmation. « Rechercher les mises à jour » interroge seulement Steam sur les mises à jour des mods et une nouvelle version du serveur et n’installe rien.
+Redémarrer et Arrêter demandent d’abord le délai d’avertissement (immédiatement, 1, 5, 10, 15, 30 min, 1 h, pour le redémarrage aussi 2 h), comme la boîte de dialogue de Trebuchet. Ensuite une petite fenêtre s’ouvre pour la raison (elle peut rester vide) : l’envoyer exécute l’action tout de suite, sans autre question. « Rechercher les mises à jour » interroge seulement Steam sur les mises à jour des mods et une nouvelle version du serveur et n’installe rien.
 Le super administrateur peut utiliser chaque bouton sans rien activer. Section « Commandes » : les interrupteurs décident seulement de ce que les autres utilisateurs peuvent faire. Activés par défaut : état, reporter, libérer à nouveau et rechercher les mises à jour. Désactivés : redémarrer maintenant et arrêter. Démarrer, mise à jour et définir le salon appartiennent au seul super administrateur.
 Vous réglez les limites dans la section « Sécurité » : délai entre commandes, nombre d’actions critiques autorisées, le report maximal et les choix (par ex. 15 min, 30 min, 1 h).</value>
     </data>
@@ -1963,7 +1963,7 @@ Vous réglez les limites dans la section « Sécurité » : délai entre command
     </data>
     <data name="DiscordBotHelpStep11Text" xml:space="preserve">
         <value>Le message d’état montre l’état par serveur : vert = en marche, jaune = quelque chose est prévu, bleu = reporté, rouge = arrêté ou planté.
-Quand un redémarrage, un arrêt ou une mise à jour est prévu, le bouton « … reporter » apparaît. Un clic ouvre un choix (par ex. 15 min à 6 h). En jeu, les joueurs reçoivent le message du report.
+Quand un redémarrage, un arrêt ou une mise à jour est prévu, le bouton « … reporter » apparaît. Un clic ouvre un choix (par ex. 15 min à 6 h), puis une petite fenêtre pour la raison (elle peut rester vide). En jeu, les joueurs reçoivent le message du report.
 « Libérer à nouveau » met fin à un report. Au total, on ne peut reporter que jusqu’au report maximal (6 h par défaut), ensuite seulement après le redémarrage.
 Tout ce que le bot fait ou refuse figure dans la section « Journal ».</value>
     </data>

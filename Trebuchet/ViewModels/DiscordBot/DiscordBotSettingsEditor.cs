@@ -27,7 +27,7 @@ public sealed record BotLimitRange(int Min, int Max);
 public static class DiscordBotLimits
 {
     public static readonly BotLimitRange Cooldown = new(1, 300);
-    public static readonly BotLimitRange CriticalLimit = new(1, 20);
+    public static readonly BotLimitRange CriticalLimit = new(1, DiscordBotConfig.MaxCriticalLimit);
     public static readonly BotLimitRange CriticalWindow = new(1, 120);
     public static readonly BotLimitRange LockoutAttempts = new(1, 50);
     public static readonly BotLimitRange LockoutMinutes = new(1, DiscordBotConfig.HardMaxPauseMinutes);
@@ -341,6 +341,7 @@ public sealed class DiscordBotSettingsEditor
         to.CooldownSeconds = from.CooldownSeconds;
         to.CriticalLimit = from.CriticalLimit;
         to.CriticalWindowMinutes = from.CriticalWindowMinutes;
+        to.LimitsVersion = from.LimitsVersion;
         to.LockoutAttempts = from.LockoutAttempts;
         to.LockoutMinutes = from.LockoutMinutes;
         to.MaxPauseMinutes = from.MaxPauseMinutes;

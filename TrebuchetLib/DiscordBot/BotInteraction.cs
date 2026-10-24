@@ -1,6 +1,6 @@
 namespace TrebuchetLib.DiscordBot;
 
-public enum BotInteractionKind { Slash, Button, Select }
+public enum BotInteractionKind { Slash, Button, Select, Modal }
 
 /// <summary>
 /// A command, button click or menu choice, reduced to what the bot decides on. The Discord layer fills it from the
@@ -8,7 +8,7 @@ public enum BotInteractionKind { Slash, Button, Select }
 /// </summary>
 /// <param name="Name">Slash: the command path ("status", "restart postpone", "bot channel set"). Button/Select: the custom ID.</param>
 /// <param name="Numbers">Slash options that are whole numbers by name ("instance", "minutes", "delay").</param>
-/// <param name="Texts">Slash options that are text by name ("reason").</param>
+/// <param name="Texts">Slash options that are text by name ("reason"), or the fields of a modal that was submitted.</param>
 /// <param name="Values">Select: the values the user picked.</param>
 public sealed record BotInteraction(
     ulong InteractionId,
@@ -25,6 +25,12 @@ public sealed record BotInteraction(
     IReadOnlyList<string>? Values = null);
 
 public sealed record BotChoice(string Label, string Value);
+
+/// <summary>
+/// The small window with one optional text field that opens after a menu choice: the reason of a stop, restart or
+/// postponement. Submitting it is the last step, the action follows at once.
+/// </summary>
+public sealed record BotReasonModal(string Nonce, string Title, string Label, string Placeholder, int MaxLength);
 
 /// <summary>A question the bot asks with components: buttons to confirm, or a menu to pick from.</summary>
 public abstract record BotQuestion(string Nonce);
@@ -47,6 +53,12 @@ public interface IBotResponder
 
     /// <summary>Replace the private message of the button or menu that was used (its old components are gone).</summary>
     Task UpdateAsync(BotReply reply);
+
+    /// <summary>
+    /// Answers a menu choice with the window for the reason. Only possible as the very first answer of the interaction.
+    /// </summary>
+    /// <returns>False when the window could not be shown (the interaction was answered or acknowledged already).</returns>
+    Task<bool> ShowModalAsync(BotReasonModal modal);
 }
 
 public enum BotEditResult { Edited, Gone, Failed }

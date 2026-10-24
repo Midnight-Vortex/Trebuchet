@@ -57,6 +57,12 @@ public sealed record BotMessages
     public required string HoursFormat { get; init; }
     /// <summary>{0} hours, {1} minutes.</summary>
     public required string HoursMinutesFormat { get; init; }
+    /// <summary>Title of the window for the reason, {0} the warning time or the postponement (at most 45 characters in all).</summary>
+    public required string ModalStop { get; init; }
+    public required string ModalRestart { get; init; }
+    public required string ModalPostpone { get; init; }
+    public required string ReasonLabel { get; init; }
+    public required string ReasonPlaceholder { get; init; }
 
     public static BotMessages German { get; } = new()
     {
@@ -103,7 +109,12 @@ public sealed record BotMessages
         NowChoice = "Sofort",
         MinutesFormat = "{0} Min",
         HoursFormat = "{0} Std",
-        HoursMinutesFormat = "{0} Std {1} Min"
+        HoursMinutesFormat = "{0} Std {1} Min",
+        ModalStop = "Stopp ({0}) – Grund",
+        ModalRestart = "Neustart ({0}) – Grund",
+        ModalPostpone = "Verschieben um {0} – Grund",
+        ReasonLabel = "Grund (kann leer bleiben)",
+        ReasonPlaceholder = "z. B. Wartung, Update, Absprache"
     };
 
     public static BotMessages English { get; } = new()
@@ -151,7 +162,12 @@ public sealed record BotMessages
         NowChoice = "Right away",
         MinutesFormat = "{0} min",
         HoursFormat = "{0} h",
-        HoursMinutesFormat = "{0} h {1} min"
+        HoursMinutesFormat = "{0} h {1} min",
+        ModalStop = "Stop ({0}) – reason",
+        ModalRestart = "Restart ({0}) – reason",
+        ModalPostpone = "Postpone by {0} – reason",
+        ReasonLabel = "Reason (may stay empty)",
+        ReasonPlaceholder = "e.g. maintenance, update, agreed with the team"
     };
 
     public static BotMessages For(string? language) =>

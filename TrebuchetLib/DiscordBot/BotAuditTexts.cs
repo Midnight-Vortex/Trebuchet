@@ -256,7 +256,7 @@ public sealed partial class BotAuditTexts
         var tail = outcome.Length > 0 ? " – " + outcome : string.Empty;
         var template = entry.Result switch
         {
-            BotAuditResult.Allowed => request.Step switch { "Confirm" => Confirmed, "PostponeChoice" => ChoseTime, _ => Asked },
+            BotAuditResult.Allowed => request.Step switch { "Confirm" or "Reason" => Confirmed, "PostponeChoice" => ChoseTime, _ => Asked },
             BotAuditResult.Executed => Done,
             BotAuditResult.Failed => Failed,
             BotAuditResult.Denied => Denied,

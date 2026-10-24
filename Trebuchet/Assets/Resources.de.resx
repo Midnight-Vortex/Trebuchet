@@ -2561,7 +2561,7 @@ Den Kanal wieder freigeben (alle Kanäle) geht nur hier im Trebuchet-Panel, nie 
     </data>
     <data name="DiscordBotHelpStep10Text" xml:space="preserve">
         <value>Die Status-Meldung zeigt immer die Buttons, die zum Server passen: Starten (gestoppt), Neustart und Stoppen (läuft), Verschieben, Wieder freigeben und „Updates prüfen“. Der Bot bearbeitet diese eine Meldung sofort, wenn sich etwas ändert, und alle 5 Minuten zur Kontrolle.
-Neustart und Stoppen fragen zuerst nach der Wartezeit (Sofort, 1, 5, 10, 15, 30 Min, 1 Std, beim Neustart auch 2 Std), wie der Dialog in Trebuchet, und dann noch einmal nach der Bestätigung. „Updates prüfen“ fragt nur Steam nach Mod-Updates und einer neuen Server-Version und installiert nichts.
+Neustart und Stoppen fragen zuerst nach der Wartezeit (Sofort, 1, 5, 10, 15, 30 Min, 1 Std, beim Neustart auch 2 Std), wie der Dialog in Trebuchet. Danach öffnet sich ein kleines Fenster für den Grund (darf leer bleiben): Absenden führt die Aktion sofort aus, es gibt keine weitere Rückfrage. „Updates prüfen“ fragt nur Steam nach Mod-Updates und einer neuen Server-Version und installiert nichts.
 Der Super-Admin darf jeden Button benutzen, ohne dass du etwas einschalten musst. Abschnitt „Befehle“: die Schalter bestimmen nur, was die anderen Nutzer dürfen. Standardmäßig an sind Status, Verschieben, Wieder freigeben und Updates prüfen. Aus sind Neustart jetzt und Stoppen. Starten, Update und Kanal setzen gehören allein dem Super-Admin.
 Grenzen stellst du im Abschnitt „Sicherheit“ ein: Wartezeit zwischen Befehlen, wie viele kritische Aktionen erlaubt sind, die längste Verschiebung und die Auswahlzeiten (z. B. 15 Min, 30 Min, 1 Std).</value>
     </data>
@@ -2573,7 +2573,7 @@ Grenzen stellst du im Abschnitt „Sicherheit“ ein: Wartezeit zwischen Befehle
     </data>
     <data name="DiscordBotHelpStep11Text" xml:space="preserve">
         <value>Die Status-Meldung zeigt pro Server den Zustand: grün = läuft, gelb = es steht etwas an, blau = verschoben, rot = gestoppt oder abgestürzt.
-Steht ein Neustart, Stopp oder Update an, erscheint der Button „… verschieben“. Ein Klick öffnet eine Auswahl (z. B. 15 Min bis 6 Std). Ingame bekommen die Spieler die Meldung, dass verschoben wurde.
+Steht ein Neustart, Stopp oder Update an, erscheint der Button „… verschieben“. Ein Klick öffnet eine Auswahl (z. B. 15 Min bis 6 Std), danach ein kleines Fenster für den Grund (darf leer bleiben). Ingame bekommen die Spieler die Meldung, dass verschoben wurde.
 „Wieder freigeben“ hebt eine Verschiebung auf. Insgesamt kann nur bis zur längsten Verschiebung (Standard 6 Std) aufgeschoben werden, danach erst wieder nach dem Neustart.
 Alles, was der Bot tut oder ablehnt, steht im Abschnitt „Protokoll“.</value>
     </data>

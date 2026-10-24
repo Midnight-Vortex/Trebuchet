@@ -22,6 +22,8 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
     private static readonly TimeSpan LoginTimeout = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan ShutdownTimeout = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan RoleFetchTimeout = TimeSpan.FromSeconds(5);
+    // A menu choice that opens the window for the reason is not acknowledged up front: after this long it is, on its own.
+    private static readonly TimeSpan LazyAckLimit = TimeSpan.FromSeconds(2);
     private const int MaxInteractionsInFlight = 32;
 
     private readonly DiscordBotConfig _config;
@@ -450,6 +452,7 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
         client.SlashCommandExecuted += command => OnInteraction(session, command);
         client.ButtonExecuted += component => OnInteraction(session, component);
         client.SelectMenuExecuted += component => OnInteraction(session, component);
+        client.ModalSubmitted += modal => OnInteraction(session, modal);
     }
 
     /// <summary>Every message of Discord.Net, as one line without the token, into the log of Trebuchet.</summary>
@@ -583,17 +586,30 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
         var request = captured.Interaction;
         try
         {
-            // 1. Discord wants an acknowledgment within three seconds. Without it nothing is done at all.
-            try
+            var responder = new DiscordNetResponder(new SocketInteractionTransport(interaction), captured.Ack, _logger);
+            using var watchdog = new CancellationTokenSource();
+            if (captured.Ack == BotAckKind.Lazy)
             {
-                await AcknowledgeAsync(interaction, captured.Ack).ConfigureAwait(false);
+                // The menu answers with the window for the reason, which has to be the first answer, so it is not acknowledged
+                // up front. Discord wants an answer within three seconds: when the handler is not done by then, it is
+                // acknowledged here (no window is possible after that, the handler answers with a message instead).
+                _ = Task.Delay(LazyAckLimit, watchdog.Token).ContinueWith(_ => responder.AcknowledgeAsync(), watchdog.Token,
+                    TaskContinuationOptions.OnlyOnRanToCompletion, TaskScheduler.Default);
             }
-            catch (Exception ex)
+            else
             {
-                _logger.LogWarning("Discord bot: interaction of user {User} not acknowledged, nothing done: {Error}", request.UserId, DiscordNetLog.Describe(ex));
-                _audit.Write(new BotAuditEntry(DateTime.UtcNow, BotAuditResult.Failed, request.UserId, request.UserName, request.GuildId ?? 0,
-                    request.ChannelId ?? 0, null, request.Name, "not acknowledged in time, nothing done"));
-                return;
+                // 1. Discord wants an acknowledgment within three seconds. Without it nothing is done at all.
+                try
+                {
+                    await AcknowledgeAsync(interaction, captured.Ack).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning("Discord bot: interaction of user {User} not acknowledged, nothing done: {Error}", request.UserId, DiscordNetLog.Describe(ex));
+                    _audit.Write(new BotAuditEntry(DateTime.UtcNow, BotAuditResult.Failed, request.UserId, request.UserName, request.GuildId ?? 0,
+                        request.ChannelId ?? 0, null, request.Name, "not acknowledged in time, nothing done"));
+                    return;
+                }
             }
 
             // 2. No member object in the interaction: fetch the roles fresh (only for the configured server).
@@ -601,7 +617,6 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
                 request = request with { RoleIds = await FetchRolesAsync(session, guildId, request.UserId).ConfigureAwait(false) };
 
             // 3. Everything else is the handler's: gate, questions, action, audit, answer.
-            var responder = new DiscordNetResponder(new SocketInteractionTransport(interaction), captured.Ack, _logger);
             try
             {
                 if (_handler is not { } handler) throw new InvalidOperationException("No handler");
@@ -612,6 +627,7 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
                 _logger.LogError("Discord bot: the interaction of user {User} failed: {Error}", request.UserId, DiscordNetLog.Describe(ex));
                 await responder.ReplyAsync(new BotReply(BotDecision.PublicMessage)).ConfigureAwait(false);
             }
+            watchdog.Cancel();
             await responder.FinishAsync().ConfigureAwait(false);
         }
         catch (Exception ex)
@@ -624,6 +640,8 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
     {
         // Our own private question: the answer replaces it later (type 6, no loading state).
         SocketMessageComponent component when ack == BotAckKind.UpdateQuestion => component.DeferAsync(),
+        // The window for the reason was submitted from our private question: its answer replaces that message (type 6).
+        SocketModal modal when ack == BotAckKind.UpdateQuestion => modal.DeferAsync(),
         // A public message (or anything else): "thinking" in a new private message (type 5), the clicked message stays as it is.
         SocketMessageComponent component => component.DeferLoadingAsync(ephemeral: true),
         _ => interaction.DeferAsync(ephemeral: true)

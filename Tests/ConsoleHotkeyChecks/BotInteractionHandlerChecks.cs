@@ -53,7 +53,18 @@ static class BotInteractionHandlerChecks
     private sealed class FakeResponder : IBotResponder
     {
         public List<(bool Update, BotReply Reply)> Replies { get; } = [];
+        public List<BotReasonModal> Modals { get; } = [];
         public bool Throws { get; set; }
+        /// <summary>False: the window can not be shown any more (the interaction was acknowledged already).</summary>
+        public bool ModalPossible { get; set; } = true;
+
+        public Task<bool> ShowModalAsync(BotReasonModal modal)
+        {
+            if (Throws) throw new InvalidOperationException("discord is down");
+            if (!ModalPossible) return Task.FromResult(false);
+            Modals.Add(modal);
+            return Task.FromResult(true);
+        }
 
         public Task ReplyAsync(BotReply reply)
         {
@@ -199,6 +210,11 @@ static class BotInteractionHandlerChecks
         public BotInteraction Select(string customId, string value, ulong user = Operator, ulong[]? roles = null, ulong channel = Channel) =>
             new(++_id, BotInteractionKind.Select, user, "User" + user, true, Guild, channel, roles ?? [Role], customId, Values: [value]);
 
+        /// <summary>The window for the reason, submitted (the field stays out when no reason was typed).</summary>
+        public BotInteraction Modal(string nonce, string? reason, ulong user = Operator, ulong[]? roles = null, ulong channel = Channel) =>
+            new(++_id, BotInteractionKind.Modal, user, "User" + user, true, Guild, channel, roles ?? [Role], BotCustomId.ForReasonModal(nonce),
+                Texts: reason is null ? new Dictionary<string, string>() : new Dictionary<string, string> { [BotDiscordRenderer.ReasonFieldId] = reason });
+
         public BotInteraction Click(BotQuestion question, bool confirm, ulong user = Operator, ulong channel = Channel) =>
             Button(confirm ? BotCustomId.ForConfirm(question.Nonce) : BotCustomId.ForCancel(question.Nonce), user, null, channel);
 
@@ -227,9 +243,10 @@ static class BotInteractionHandlerChecks
         return result.Policy ?? throw new Exception("settings of the check are invalid: " + string.Join(", ", result.Issues.Select(x => x.Kind)));
     }
 
-    private static DiscordBotConfig AllOn() => Config(c =>
+    private static DiscordBotConfig AllOn(int? criticalLimit = null) => Config(c =>
     {
         foreach (var command in Enum.GetValues<BotCommand>()) c.SetEnabled(command, true);
+        if (criticalLimit is { } limit) c.CriticalLimit = limit;
     });
 
     public static async Task<int> Run()
@@ -333,22 +350,77 @@ static class BotInteractionHandlerChecks
                   && select.Choices.Select(c => c.Label).SequenceEqual(["15 Min", "30 Min", "1 Std", "2 Std", "3 Std", "6 Std"]),
                 "The postpone button offers the minutes of the settings");
             var pickedBy = await rig.Do(rig.Select(BotCustomId.ForPostponeSelect(select!.Nonce), "60"));
-            Check(rig.Actions.Done.SequenceEqual(["postpone 1 60 Discord"]) && pickedBy.Replies[0].Update && pickedBy.Last.Text == "Verschoben um 1 Std.",
-                "Picking minutes postpones and replaces the question");
+            var reasonWindow = pickedBy.Modals.SingleOrDefault();
+            Check(reasonWindow is not null && pickedBy.Replies.Count == 0 && rig.Actions.Executed == 0 && reasonWindow.Title == "Verschieben um 1 Std – Grund"
+                  && reasonWindow.MaxLength == BotInputRules.MaxReasonLength && rig.Pending.Count == 1,
+                "Picking minutes answers with the window for the reason, nothing is postponed yet");
+            var submitted = await rig.Do(rig.Modal(reasonWindow!.Nonce, "Wartung am Abend"));
+            Check(rig.Actions.Done.SequenceEqual(["postpone 1 60 Discord: Wartung am Abend"]) && submitted.Replies[0].Update && submitted.Last.Text == "Verschoben um 1 Std."
+                  && submitted.Last.Question is null && submitted.Modals.Count == 0,
+                "Submitting the reason postpones and replaces the question, with no further confirmation");
+            Check(rig.Client.Notes.Any(x => x.Text.StartsWith("✅ Erledigt: Geplante Aktion verschieben: Server Siptah (Instanz 1), um 1 Std, Grund: Wartung am Abend", StringComparison.Ordinal)),
+                "The audit channel says who postponed, by how much and why");
+            Check((await rig.Do(rig.Modal(reasonWindow.Nonce, "again"))).Last.Text == BotMessages.German.Expired && rig.Actions.Executed == 1,
+                "A window works once");
             Check((await rig.Do(rig.Select(BotCustomId.ForPostponeSelect(select.Nonce), "60"))).Last.Text == BotMessages.German.Expired && rig.Actions.Executed == 1,
                 "A menu works once");
 
+            // Left empty the window just confirms.
             select = (await rig.Do(rig.Button(BotCustomId.ForAction(BotCommand.Postpone, 1)))).Last.Question as BotSelectQuestion;
-            Check((await rig.Do(rig.Select(BotCustomId.ForPostponeSelect(select!.Nonce), "61"))).Last.Text == BotMessages.German.InvalidInput && rig.Actions.Executed == 1,
+            var emptyWindow = (await rig.Do(rig.Select(BotCustomId.ForPostponeSelect(select!.Nonce), "30"))).Modals.Single();
+            await rig.Do(rig.Modal(emptyWindow.Nonce, "   "));
+            Check(rig.Actions.Done.Last() == "postpone 1 30 Discord", "An empty reason is no reason at all");
+
+            select = (await rig.Do(rig.Button(BotCustomId.ForAction(BotCommand.Postpone, 1)))).Last.Question as BotSelectQuestion;
+            var before61 = rig.Actions.Executed;
+            var wrongMinutes = await rig.Do(rig.Select(BotCustomId.ForPostponeSelect(select!.Nonce), "61"));
+            Check(wrongMinutes.Last.Text == BotMessages.German.InvalidInput && wrongMinutes.Modals.Count == 0 && rig.Actions.Executed == before61,
                 "Only the offered minutes can be picked");
             select = (await rig.Do(rig.Button(BotCustomId.ForAction(BotCommand.Postpone, 1)))).Last.Question as BotSelectQuestion;
-            Check((await rig.Do(rig.Select(BotCustomId.ForPostponeSelect(select!.Nonce), "30", Stranger))).Last.Text == BotDecision.PublicMessage && rig.Actions.Executed == 1,
+            Check((await rig.Do(rig.Select(BotCustomId.ForPostponeSelect(select!.Nonce), "30", Stranger))).Last.Text == BotDecision.PublicMessage && rig.Actions.Executed == before61,
                 "A stranger can not use the menu");
-            Check((await rig.Do(rig.Select(BotCustomId.ForPostponeSelect(select.Nonce), "30", SuperAdmin))).Last.Text == BotMessages.German.Expired && rig.Actions.Executed == 1,
+            Check((await rig.Do(rig.Select(BotCustomId.ForPostponeSelect(select.Nonce), "30", SuperAdmin))).Last.Text == BotMessages.German.Expired && rig.Actions.Executed == before61,
                 "Another allowed user can not answer someone else's menu");
             select = (await rig.Do(rig.Button(BotCustomId.ForAction(BotCommand.Postpone, 1)))).Last.Question as BotSelectQuestion;
-            Check((await rig.Do(rig.Select(BotCustomId.ForPostponeSelect(select!.Nonce), "30"), advanceSeconds: 200)).Last.Text == BotMessages.German.Expired && rig.Actions.Executed == 1,
+            Check((await rig.Do(rig.Select(BotCustomId.ForPostponeSelect(select!.Nonce), "30"), advanceSeconds: 200)).Last.Text == BotMessages.German.Expired && rig.Actions.Executed == before61,
                 "A menu runs out after two minutes");
+
+            // The window: only for the user it was shown to, in its channel, once, for a while, and only as a window.
+            select = (await rig.Do(rig.Button(BotCustomId.ForAction(BotCommand.Postpone, 1)))).Last.Question as BotSelectQuestion;
+            var guarded = (await rig.Do(rig.Select(BotCustomId.ForPostponeSelect(select!.Nonce), "30"))).Modals.Single();
+            Check((await rig.Do(rig.Modal(guarded.Nonce, "x", Stranger))).Last.Text == BotDecision.PublicMessage && rig.Actions.Executed == before61,
+                "A stranger can not submit the window");
+            Check((await rig.Do(rig.Modal(guarded.Nonce, "x", SuperAdmin))).Last.Text == BotMessages.German.Expired && rig.Actions.Executed == before61,
+                "Another allowed user can not submit someone else's window");
+            Check((await rig.Do(rig.Modal(guarded.Nonce, "x", channel: OtherChannel))).Replies.Count > 0 && rig.Actions.Executed == before61,
+                "A window submitted from another channel does nothing");
+            select = (await rig.Do(rig.Button(BotCustomId.ForAction(BotCommand.Postpone, 1)))).Last.Question as BotSelectQuestion;
+            var lingering = (await rig.Do(rig.Select(BotCustomId.ForPostponeSelect(select!.Nonce), "30"))).Modals.Single();
+            Check((await rig.Do(rig.Modal(lingering.Nonce, "x"), advanceSeconds: 400)).Last.Text == BotMessages.German.Expired && rig.Actions.Executed == before61,
+                "A window runs out after five minutes");
+            select = (await rig.Do(rig.Button(BotCustomId.ForAction(BotCommand.Postpone, 1)))).Last.Question as BotSelectQuestion;
+            Check((await rig.Do(rig.Button(BotCustomId.ForReasonModal(select!.Nonce)))).Last.Text == BotMessages.German.UnknownRequest
+                  && (await rig.Do(rig.Select(BotCustomId.ForReasonModal(select.Nonce), "30"))).Modals.Count == 0 && rig.Actions.Executed == before61,
+                "The ID of a window is no button and no menu");
+            var forgedWindow = await rig.Do(new BotInteraction(9000, BotInteractionKind.Modal, Operator, "x", true, Guild, Channel, [Role], BotCustomId.ForConfirm(select.Nonce),
+                Texts: new Dictionary<string, string> { ["reason"] = "x" }));
+            Check(forgedWindow.Last.Text == BotMessages.German.UnknownRequest && rig.Actions.Executed == before61, "A window with the ID of a confirmation is no question of ours");
+
+            // The reason is cleaned and kept short; it is never a macro or a line break.
+            select = (await rig.Do(rig.Button(BotCustomId.ForAction(BotCommand.Postpone, 1)))).Last.Question as BotSelectQuestion;
+            var longReason = (await rig.Do(rig.Select(BotCustomId.ForPostponeSelect(select!.Nonce), "30"))).Modals.Single();
+            await rig.Do(rig.Modal(longReason.Nonce, "{secret}\nzwei " + new string('x', 300)));
+            var cleaned = rig.Actions.Done.Last();
+            Check(!cleaned.Contains('{') && !cleaned.Contains('\n') && cleaned.Length <= "postpone 1 30 Discord: ".Length + BotInputRules.MaxReasonLength,
+                "A long reason is cut and cleaned of braces and line breaks: " + cleaned.Length);
+
+            // A window that can not be shown (the answer was too slow) does nothing and leaves nothing open.
+            select = (await rig.Do(rig.Button(BotCustomId.ForAction(BotCommand.Postpone, 1)))).Last.Question as BotSelectQuestion;
+            var tooLate = new FakeResponder { ModalPossible = false };
+            var pendingBefore = rig.Pending.Count;
+            await rig.Handler.HandleAsync(rig.Select(BotCustomId.ForPostponeSelect(select!.Nonce), "30"), tooLate, CancellationToken.None);
+            Check(tooLate.Last.Text == BotMessages.German.Failed && tooLate.Replies[0].Update && rig.Pending.Count == pendingBefore - 1,
+                "When the window can not be shown the user is told and nothing stays open");
             Check((await rig.Do(rig.Button(BotCustomId.ForAction(BotCommand.Postpone, 1), Stranger))).Last.Text == BotDecision.PublicMessage, "A stranger can not click the postpone button");
             Check((await rig.Do(rig.Button("tb1:a:postpone:5"))).Last.Text == BotMessages.German.UnknownRequest, "A button of a server that does not exist is unknown");
             Check((await rig.Do(rig.Button("tb1:a:postpone:5", Stranger))).Last.Text == BotDecision.PublicMessage, "...and still neutral for strangers");
@@ -366,7 +438,7 @@ static class BotInteractionHandlerChecks
             Check(confirm is not null && rig.Actions.Executed == 0 && ask.Last.Text.Contains("Server Exiled Lands") && ask.Last.Text.Contains("5 Min"),
                 "Stop asks first and names the server and the warning time");
             var done = await rig.Do(rig.Click(confirm!, true));
-            Check(rig.Actions.Done.Last() == "stop 0 5 Discord" && done.Replies[0].Update && done.Last.Text == "Stopp von Server Exiled Lands gestartet.",
+            Check(rig.Actions.Done.Last() == "stop 0 5 " && done.Replies[0].Update && done.Last.Text == "Stopp von Server Exiled Lands gestartet.",
                 "The confirmation stops with the default warning time");
             Check(rig.Client.Notes.Any(x => x.Channel == AuditChannel && x.Text.StartsWith("✅ Erledigt: Server stoppen: Server Exiled Lands (Instanz 0)", StringComparison.Ordinal)),
                 "Critical actions are reported to the audit channel, with the name of the server");
@@ -388,14 +460,14 @@ static class BotInteractionHandlerChecks
             var now = (await rig.Do(rig.Slash("stop", numbers: Rig.N(1, delay: 0)))).Last;
             Check(now.Text.Contains("sofort"), "Delay 0 means right away");
             await rig.Do(rig.Click((BotConfirmQuestion)now.Question!, true));
-            Check(rig.Actions.Done.Last() == "stop 1 0 Discord", "A stop without warning time");
+            Check(rig.Actions.Done.Last() == "stop 1 0 ", "A stop without warning time");
             Check((await rig.Do(rig.Slash("stop", numbers: Rig.N(1, delay: 61)))).Last.Text == BotMessages.German.InvalidInput
                   && (await rig.Do(rig.Slash("stop", numbers: Rig.N(1, delay: -1)))).Last.Text == BotMessages.German.InvalidInput, "A warning time over an hour is refused");
             Check((await rig.Do(rig.Slash("stop", numbers: Rig.N(5)))).Last.Text == BotMessages.German.UnknownServer, "Stopping an unknown server is refused");
 
             var restart = (await rig.Do(rig.Slash("restart now", numbers: Rig.N(1, delay: 10)))).Last;
             await rig.Do(rig.Click((BotConfirmQuestion)restart.Question!, true));
-            Check(rig.Actions.Done.Last() == "restart 1 10 Discord", "Restart with its warning time");
+            Check(rig.Actions.Done.Last() == "restart 1 10 ", "Restart with its warning time");
 
             // --- the restart and stop buttons ask for the warning time first (a menu, like the dialog in Trebuchet), then confirm
             var menus = new Rig(folder, AllOn());
@@ -407,26 +479,31 @@ static class BotInteractionHandlerChecks
                   && delays.Choices[0].Label == "Sofort" && delays.Choices[1].Label == "1 Min" && delays.Choices[^2].Label == "1 Std" && delays.Choices[^1].Label == "2 Std",
                 "The restart button offers the warning times of Trebuchet first and does nothing yet");
             var picked = await menus.Do(menus.Select(BotCustomId.ForPostponeSelect(delays!.Nonce), "10"));
-            var pickedConfirm = picked.Last.Question as BotConfirmQuestion;
-            Check(pickedConfirm is not null && picked.Replies[0].Update && picked.Last.Text.Contains("Server Exiled Lands") && picked.Last.Text.Contains("10 Min")
-                  && menus.Actions.Executed == before, "The chosen warning time comes back in the confirmation, nothing runs yet");
-            await menus.Do(menus.Click(pickedConfirm!, true));
-            Check(menus.Actions.Done.Last() == "restart 0 10 Discord", "Confirming restarts with the chosen warning time");
+            var pickedWindow = picked.Modals.SingleOrDefault();
+            Check(pickedWindow is not null && picked.Replies.Count == 0 && pickedWindow.Title == "Neustart (10 Min) – Grund" && menus.Actions.Executed == before,
+                "The chosen warning time opens the window for the reason, nothing runs yet");
+            var restarted = await menus.Do(menus.Modal(pickedWindow!.Nonce, "Mod-Update einspielen"));
+            Check(menus.Actions.Done.Last() == "restart 0 10 Mod-Update einspielen" && restarted.Replies[0].Update && restarted.Last.Question is null
+                  && restarted.Last.Text == "Neustart von Server Exiled Lands gestartet.",
+                "Submitting the reason restarts at once, with that reason and no further question");
+            Check(menus.Client.Notes.Any(x => x.Text.StartsWith("✅ Erledigt: Server neu starten: Server Exiled Lands (Instanz 0), Vorwarnung 10 Min, Grund: Mod-Update einspielen", StringComparison.Ordinal))
+                  && menus.Client.Notes.Any(x => x.Text.StartsWith("👍 <@", StringComparison.Ordinal) && x.Text.Contains("bestätigt: Server neu starten")),
+                "The audit channel says what was done and why");
 
             var stopMenu = (await menus.Do(menus.Button(BotCustomId.ForAction(BotCommand.Stop, 1)))).Last.Question as BotSelectQuestion;
             Check(stopMenu is not null && stopMenu.Choices.Select(c => c.Value).SequenceEqual(["0", "1", "5", "10", "15", "30", "60"]),
                 "A stop is offered up to one hour");
-            var immediate = (await menus.Do(menus.Select(BotCustomId.ForPostponeSelect(stopMenu!.Nonce), "0"))).Last;
-            Check(immediate.Text.Contains("sofort") && immediate.Question is BotConfirmQuestion, "'Right away' is a choice too");
-            await menus.Do(menus.Click((BotConfirmQuestion)immediate.Question!, true));
-            Check(menus.Actions.Done.Last() == "stop 1 0 Discord", "Stopping right away passes no warning time");
+            var immediate = (await menus.Do(menus.Select(BotCustomId.ForPostponeSelect(stopMenu!.Nonce), "0"))).Modals.SingleOrDefault();
+            Check(immediate is not null && immediate.Title == "Stopp (Sofort) – Grund", "'Right away' is a choice too");
+            await menus.Do(menus.Modal(immediate!.Nonce, null));
+            Check(menus.Actions.Done.Last() == "stop 1 0 ", "Left empty the window stops right away, with the reason of the settings");
 
             stopMenu = (await menus.Do(menus.Button(BotCustomId.ForAction(BotCommand.Stop, 0)))).Last.Question as BotSelectQuestion;
             before = menus.Actions.Executed;
             foreach (var wrong in new[] { "120", "7", "-1", "", "1e1", "0 ", "٣" })
             {
                 var refused = await menus.Do(menus.Select(BotCustomId.ForPostponeSelect(stopMenu!.Nonce), wrong));
-                Check(refused.Last.Text == BotMessages.German.InvalidInput && refused.Replies[0].Update && menus.Actions.Executed == before,
+                Check(refused.Last.Text == BotMessages.German.InvalidInput && refused.Replies[0].Update && refused.Modals.Count == 0 && menus.Actions.Executed == before,
                     $"The warning time '{wrong}' is not one of the offered ones");
                 stopMenu = (await menus.Do(menus.Button(BotCustomId.ForAction(BotCommand.Stop, 0)))).Last.Question as BotSelectQuestion;
             }
@@ -438,22 +515,22 @@ static class BotInteractionHandlerChecks
             Check((await menus.Do(menus.Select(BotCustomId.ForPostponeSelect(stopMenu!.Nonce), "5"), advanceSeconds: 200)).Last.Text == BotMessages.German.Expired
                   && menus.Actions.Executed == before, "The menu of warning times runs out after two minutes");
 
-            // The menu does not use up the limit of critical actions, the confirmation does.
-            var limited = new Rig(folder, AllOn());
+            // The menu does not use up the limit of critical actions, the entry of the reason does.
+            var limited = new Rig(folder, AllOn(criticalLimit: 3));
             for (var n = 0; n < 5; n++)
             {
                 var offered = (await limited.Do(limited.Button(BotCustomId.ForAction(BotCommand.Stop, 0)))).Last.Question as BotSelectQuestion;
-                Check(offered is not null, "The menu is offered again and again as long as nothing is confirmed");
-                Check((await limited.Do(limited.Select(BotCustomId.ForPostponeSelect(offered!.Nonce), "5"))).Last.Question is BotConfirmQuestion,
-                    "The menu answers with the confirmation while nothing is used up");
+                Check(offered is not null, "The menu is offered again and again as long as nothing is submitted");
+                Check((await limited.Do(limited.Select(BotCustomId.ForPostponeSelect(offered!.Nonce), "5"))).Modals.Count == 1,
+                    "The menu answers with the window while nothing is used up");
             }
             for (var n = 0; n < 3; n++)
             {
                 var offered = (await limited.Do(limited.Button(BotCustomId.ForAction(BotCommand.Stop, 0)))).Last.Question as BotSelectQuestion;
-                var question = (await limited.Do(limited.Select(BotCustomId.ForPostponeSelect(offered!.Nonce), "1"))).Last.Question as BotConfirmQuestion;
-                await limited.Do(limited.Click(question!, true));
+                var window = (await limited.Do(limited.Select(BotCustomId.ForPostponeSelect(offered!.Nonce), "1"))).Modals.Single();
+                await limited.Do(limited.Modal(window.Nonce, string.Empty));
             }
-            Check(limited.Actions.Executed == 3, "Three confirmed stops are carried out, each counted once (not for the menu and the confirmation)");
+            Check(limited.Actions.Executed == 3, "Three stops are carried out, each counted once (not for the menu and the window)");
             Check((await limited.Do(limited.Button(BotCustomId.ForAction(BotCommand.Stop, 0)))).Last.Text == BotMessages.German.CriticalLimit,
                 "The fourth is refused before the menu is shown");
 
@@ -509,7 +586,7 @@ static class BotInteractionHandlerChecks
             var named = (await chosen.Do(chosen.Slash("stop", numbers: Rig.N(1)))).Last;
             Check(named.Text.Contains("Server Siptah stoppen"), "The questions use the name of the server");
             var namedDone = await chosen.Do(chosen.Click((BotConfirmQuestion)named.Question!, true));
-            Check(chosen.Actions.Done.Last() == "stop 1 5 Discord" && namedDone.Last.Text == "Stopp von Server Siptah gestartet.", "...and so do the answers");
+            Check(chosen.Actions.Done.Last() == "stop 1 5 " && namedDone.Last.Text == "Stopp von Server Siptah gestartet.", "...and so do the answers");
             var namedMenu = (await chosen.Do(chosen.Button(BotCustomId.ForAction(BotCommand.RestartNow, 1)))).Last;
             Check(namedMenu.Text.Contains("Siptah"), "...and the menu of warning times");
             Check(chosen.Client.Notes.Any(x => x.Text.Contains("✅ Erledigt: Server stoppen: Server Siptah (Instanz 1)")), "...and the audit channel");
@@ -531,8 +608,8 @@ static class BotInteractionHandlerChecks
             await rig.Do(rig.Click((BotConfirmQuestion)update.Question!, true, SuperAdmin));
             Check(rig.Actions.Done.Last() == "update", "The super admin starts the update after confirming");
 
-            // limit of critical actions per server
-            rig = new Rig(folder, AllOn());
+            // limit of critical actions per server (set to three here, so the check does not need ten stops)
+            rig = new Rig(folder, AllOn(criticalLimit: 3));
             for (var n = 0; n < 3; n++)
             {
                 var q = (await rig.Do(rig.Slash("stop", numbers: Rig.N(0)))).Last.Question as BotConfirmQuestion;
@@ -641,7 +718,7 @@ static class BotInteractionHandlerChecks
             rig = new Rig(folder, Config(c => c.AllowedChannelIds = []));
             var menu = (await rig.Do(rig.Button(BotCustomId.ForAction(BotCommand.Postpone, 1), channel: Channel))).Last.Question as BotSelectQuestion;
             var elsewhere = await rig.Do(rig.Select(BotCustomId.ForPostponeSelect(menu!.Nonce), "30", channel: OtherChannel));
-            Check(elsewhere.Last.Text == BotMessages.German.InvalidInput && rig.Actions.Executed == 0, "A menu answered from another channel does nothing");
+            Check(elsewhere.Last.Text == BotMessages.German.InvalidInput && elsewhere.Modals.Count == 0 && rig.Actions.Executed == 0, "A menu answered from another channel does nothing");
 
             // --- English
             rig = new Rig(folder, Config(c => c.Language = "en"));
@@ -1056,7 +1133,10 @@ static class BotInteractionHandlerChecks
         lock (channel.Notes)
         {
             var burst = channel.Notes.Select(x => x.Text).Where(x => x.StartsWith("burst ", StringComparison.Ordinal)).ToList();
-            check(burst.Count <= BotAuditChannelFeed.QueueLimit + 1 && burst[^1] == "burst 150" && !burst.Contains("burst 2"),
+            // The line the sender had in hand when the burst began may be any early one, the rest are the newest 100.
+            var newest = burst.TakeLast(BotAuditChannelFeed.QueueLimit).ToList();
+            check(burst.Count <= BotAuditChannelFeed.QueueLimit + 1 && newest.SequenceEqual(Enumerable.Range(51, 100).Select(n => $"burst {n}"))
+                  && (burst.Count == BotAuditChannelFeed.QueueLimit || int.Parse(burst[0]["burst ".Length..], System.Globalization.CultureInfo.InvariantCulture) < 51),
                 $"More than {BotAuditChannelFeed.QueueLimit} waiting at once: the oldest are dropped ({burst.Count} sent)");
         }
         channel.NoteGate = null;

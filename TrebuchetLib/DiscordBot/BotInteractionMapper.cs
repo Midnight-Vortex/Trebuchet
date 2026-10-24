@@ -23,7 +23,13 @@ internal enum BotAckKind
     /// The click on a question of the bot in one of its own private messages (type 6): an update replaces that message,
     /// a reply is a new private message.
     /// </summary>
-    UpdateQuestion
+    UpdateQuestion,
+    /// <summary>
+    /// Not acknowledged before the handler runs: the menu of a question answers with the window for the reason, and a
+    /// window can only be the very first answer. The first answer of the handler is the acknowledgment; the Discord layer
+    /// acknowledges on its own when the handler takes too long (the window is not possible then).
+    /// </summary>
+    Lazy
 }
 
 /// <param name="NeedsRoles">Discord sent no member: the roles have to be fetched before anything is decided.</param>
@@ -41,6 +47,8 @@ internal static class BotInteractionMapper
     private const int MaxValues = 25;
     private const int MaxValueLength = 100;
     private const int AnyInstance = 1000;
+    private const int MaxModalFields = 5;
+    private const int MaxModalValueLength = 500;
 
     public static BotInteraction FromSlash(ulong interactionId, BotRawUser user, ulong? guildId, ulong? channelId, string commandName,
         IReadOnlyCollection<BotRawOption>? options)
@@ -74,6 +82,16 @@ internal static class BotInteractionMapper
             with { Numbers = numbers, Texts = texts };
     }
 
+    /// <summary>A window for the reason that was submitted: its custom ID and the text fields by name.</summary>
+    public static BotInteraction FromModal(ulong interactionId, BotRawUser user, ulong? guildId, ulong? channelId, string customId,
+        IReadOnlyDictionary<string, string>? fields)
+    {
+        var texts = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var field in (fields ?? new Dictionary<string, string>()).Take(MaxModalFields))
+            texts.TryAdd(field.Key, BotDiscordRenderer.Cut(field.Value, MaxModalValueLength));
+        return Create(interactionId, BotInteractionKind.Modal, user, guildId, channelId, customId) with { Texts = texts };
+    }
+
     public static BotInteraction FromComponent(ulong interactionId, BotInteractionKind kind, BotRawUser user, ulong? guildId, ulong? channelId,
         string customId, IReadOnlyCollection<string>? values)
     {
@@ -97,9 +115,11 @@ internal static class BotInteractionMapper
     public static BotAckKind ChooseAck(BotInteractionKind kind, string? customId, bool messageIsPrivate)
     {
         if (kind == BotInteractionKind.Slash || !messageIsPrivate) return BotAckKind.NewPrivateMessage;
-        return BotCustomId.TryParse(customId, AnyInstance, out var idKind, out _, out _, out _) && idKind != BotCustomIdKind.Action
-            ? BotAckKind.UpdateQuestion
-            : BotAckKind.NewPrivateMessage;
+        if (!BotCustomId.TryParse(customId, AnyInstance, out var idKind, out _, out _, out _) || idKind == BotCustomIdKind.Action)
+            return BotAckKind.NewPrivateMessage;
+        // The menu answers with the window for the reason: that has to be the first answer, so nothing is acknowledged before.
+        if (kind == BotInteractionKind.Select && idKind == BotCustomIdKind.PostponeSelect) return BotAckKind.Lazy;
+        return BotAckKind.UpdateQuestion;
     }
 
     /// <summary>Runs on the gateway task, before anything else can change the member: takes what is needed right now.</summary>
@@ -120,6 +140,17 @@ internal static class BotInteractionMapper
                     FromComponent(component.Id, kind, user, component.GuildId, component.ChannelId, component.Data.CustomId ?? string.Empty,
                         component.Data.Values),
                     ChooseAck(kind, component.Data.CustomId, isPrivate), user.RoleIds is null);
+            }
+            case SocketModal modal:
+            {
+                var isPrivate = modal.Message?.Flags is { } flags && flags.HasFlag(MessageFlags.Ephemeral);
+                var fields = new Dictionary<string, string>(StringComparer.Ordinal);
+                foreach (var component in modal.Data.Components ?? [])
+                    if (!string.IsNullOrEmpty(component.CustomId) && component.Value is { } value)
+                        fields.TryAdd(component.CustomId, value);
+                return new BotCapturedInteraction(
+                    FromModal(modal.Id, user, modal.GuildId, modal.ChannelId, modal.Data.CustomId ?? string.Empty, fields),
+                    ChooseAck(BotInteractionKind.Modal, modal.Data.CustomId, isPrivate), user.RoleIds is null);
             }
             default:
                 throw new NotSupportedException($"Interaction type {interaction.Type} is not handled");

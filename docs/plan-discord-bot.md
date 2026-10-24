@@ -124,7 +124,8 @@ der Stufe Super-Admin haben keinen Schalter: sie gehören immer nur dem Super-Ad
 ### 1.6 Missbrauchsschutz
 
 - **Wartezeit** pro Nutzer (Standard 3 s zwischen zwei Befehlen).
-- **Limit** für kritische Aktionen (Standard höchstens 3 pro 10 Minuten pro Server, gesamt).
+- **Limit** für kritische Aktionen (Standard höchstens 10 pro 10 Minuten pro Server, einstellbar bis 50; Dateien mit dem alten
+  Standard 3 bekommen den neuen einmal beim Laden, `LimitsVersion`).
 - **Sperre**: nach 5 abgelehnten Versuchen eines Nutzers in 10 Minuten werden seine Befehle 10 Minuten lang ohne
   Antwort ignoriert. Der Super-Admin bekommt eine Meldung (Audit-Kanal), wenn er einen Kanal eingestellt hat.
 - **Bestätigung** für kritische Aktionen: Antwort mit Knopf „Bestätigen“ / „Abbrechen“, gültig 30 Sekunden.
@@ -266,10 +267,17 @@ Wartezeit der Slash-Befehle ohne Angabe kommt aus den Einstellungen („Vorwarnz
 **Sicherheit der Buttons**: Die Meldung liegt im Kanal, jeder dort kann auf die Buttons klicken. Deshalb wird **jeder
 Klick** wie ein Befehl geprüft (Server, Kanal, User-ID **und** Rolle, Befehl an, Stufe, Wartezeit). Die Button-IDs sind
 nur Namen (`tb1:a:stop:0`), sie geben keine Rechte. Starten, Neustart und Stoppen verlangen danach noch den
-Bestätigungsknopf mit Zufallscode (nur für den, der geklickt hat, 30 Sekunden, einmal). Die Auswahl der Minuten und die
-der Wartezeit laufen über denselben Mechanismus und prüfen, dass der Wert eine der angebotenen Vorgaben **dieses
-Befehls** ist (ein Stopp nimmt keine 2 Std an). Die Auswahl der Wartezeit verbraucht das Limit kritischer Aktionen
-nicht, erst die bestätigte Aktion zählt.
+Bestätigungsknopf mit Zufallscode (nur für den, der geklickt hat, 30 Sekunden, einmal). Bei den Buttons Neustart und
+Stopp (und beim Verschieben) ist stattdessen die Auswahl der Zeit der erste und das **Fenster für den Grund** der letzte
+Schritt: die Auswahl antwortet mit einem Eingabefenster (Discord-Modal, Custom-ID `tb1:rs:<Zufallscode>`, ein Feld, darf
+leer bleiben, höchstens 100 Zeichen), das Absenden führt die Aktion aus, ohne weitere Rückfrage. Der Zufallscode hängt
+am Nutzer und am Kanal, gilt einmal und 5 Minuten; die Zahl wird beim Absenden noch einmal geprüft. Weil ein Fenster nur
+die **erste** Antwort auf die Auswahl sein kann, wird die Auswahl nicht vorab bestätigt (`BotAckKind.Lazy`); dauert der
+Handler länger als 2 Sekunden, bestätigt die Discord-Schicht selbst (dann ist kein Fenster mehr möglich, der Nutzer
+bekommt eine Meldung und beginnt neu). Die Auswahl der Minuten und die der Wartezeit prüfen, dass der Wert eine der
+angebotenen Vorgaben **dieses Befehls** ist (ein Stopp nimmt keine 2 Std an). Die Auswahl verbraucht das Limit kritischer
+Aktionen nicht, erst das Absenden des Fensters zählt. Der Grund wird bereinigt (keine Klammern, eine Zeile) und geht als
+Grund des Stopps oder Neustarts an den Launcher; leer gilt der Grund aus den Einstellungen von Trebuchet.
 
 **Welche Server der Bot verwaltet**: In den Einstellungen (Abschnitt „Server“) wählt man pro Instanz, ob der Bot sie
 verwaltet, und gibt ihr auf Wunsch einen **Namen**, den der Bot in Meldungen und Antworten benutzt (bereinigt: keine

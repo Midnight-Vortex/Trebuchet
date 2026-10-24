@@ -24,6 +24,8 @@ public sealed class BotInteractionHandler
 {
     private const int MaxEmbeds = 10;
     private static readonly TimeSpan SelectLifetime = TimeSpan.FromMinutes(2);
+    // The window for the reason stays open while someone types.
+    private static readonly TimeSpan ReasonLifetime = TimeSpan.FromMinutes(5);
     private static readonly TimeSpan ConfirmLifetime = BotPendingActions.DefaultLifetime;
 
     private static readonly IReadOnlyDictionary<string, BotCommand> Paths = new Dictionary<string, BotCommand>(StringComparer.Ordinal)
@@ -167,6 +169,9 @@ public sealed class BotInteractionHandler
             case Step.PostponeChoice:
                 await ChoicePickedAsync(i, ask, allowedPolicy, messages, responder, token).ConfigureAwait(false);
                 return;
+            case Step.ReasonSubmit:
+                await ReasonSubmittedAsync(i, ask, allowedPolicy, messages, responder, token).ConfigureAwait(false);
+                return;
         }
 
         switch (ask.Command)
@@ -198,7 +203,7 @@ public sealed class BotInteractionHandler
 
     // ---- reading the request
 
-    private enum Step { Initial, Confirm, Cancel, PostponeChoice }
+    private enum Step { Initial, Confirm, Cancel, PostponeChoice, ReasonSubmit }
 
     private sealed record Ask(
         BotCommand Command, BotCommand GuardCommand, Step Kind, int? Instance, bool FollowUp, bool Unknown, bool Expired, bool UpdateMessage,
@@ -238,6 +243,9 @@ public sealed class BotInteractionHandler
             // Maybe an old button of an instance that does not exist any more: same neutral handling.
             return Unknown(IsOwnQuestion(i.Name));
         }
+        // Only the window answers with a reason ID and only a window may: a button or menu with such an ID is no question of ours.
+        if ((kind == BotCustomIdKind.ReasonModal) != (i.Kind == BotInteractionKind.Modal))
+            return Unknown(IsOwnQuestion(i.Name));
 
         switch (kind)
         {
@@ -250,6 +258,7 @@ public sealed class BotInteractionHandler
                 {
                     BotCustomIdKind.Confirm => Step.Confirm,
                     BotCustomIdKind.Cancel => Step.Cancel,
+                    BotCustomIdKind.ReasonModal => Step.ReasonSubmit,
                     _ => Step.PostponeChoice
                 };
                 if (!_pending.TryTake(nonce, i.UserId, now, out var pending))
@@ -266,11 +275,16 @@ public sealed class BotInteractionHandler
                     ? (pending.Command == BotCommand.SetChannel ? BotCommand.SetChannel : BotCommand.Status)
                     : pending.Command;
                 int? instance = pending.Instance >= 0 && pending.Instance < count && IsManaged(policy, pending.Instance) ? pending.Instance : null;
-                return new Ask(pending.Command, guardCommand, step, instance, true, false, false, true, pending, pending.Instance, pending.Minutes, null, null,
-                    Describe(pending.Command, pending.Instance, pending.Minutes, null, string.Empty) + $" step={step}")
+                // What was typed into the window: a free text, cleaned, and last in the audit line (it may hold spaces).
+                var typed = step == Step.ReasonSubmit ? BotInputRules.SanitizeReason(text(BotDiscordRenderer.ReasonFieldId)) : null;
+                var parameters = Describe(pending.Command, pending.Instance, pending.Minutes, null, string.Empty) + $" step={(step == Step.ReasonSubmit ? "Reason" : step)}"
+                                 + (string.IsNullOrEmpty(typed) ? string.Empty : $" reason={typed}");
+                return new Ask(pending.Command, guardCommand, step, instance, true, false, false, true, pending, pending.Instance, pending.Minutes, null, typed,
+                    parameters)
                 {
                     CountDenial = step != Step.Cancel,
-                    NotFinal = step == Step.PostponeChoice && pending.Command != BotCommand.Postpone
+                    // The menu only opens the window for the reason: the action is the entry of the reason, that is what counts.
+                    NotFinal = step == Step.PostponeChoice
                 };
             }
         }
@@ -281,7 +295,7 @@ public sealed class BotInteractionHandler
 
     private static bool IsOwnQuestion(string? customId) =>
         customId is not null && (customId.StartsWith("tb1:ok:", StringComparison.Ordinal) || customId.StartsWith("tb1:no:", StringComparison.Ordinal)
-                                 || customId.StartsWith("tb1:pp:", StringComparison.Ordinal));
+                                 || customId.StartsWith("tb1:pp:", StringComparison.Ordinal) || customId.StartsWith("tb1:rs:", StringComparison.Ordinal));
 
     private static string Describe(BotCommand command, long? instance, long? minutes, long? delay, string? reason)
     {
@@ -370,45 +384,88 @@ public sealed class BotInteractionHandler
         await AnswerAsync(responder, new BotReply(text, Question: new BotSelectQuestion(nonce, messages.DelayPlaceholder, choices)), false).ConfigureAwait(false);
     }
 
-    // The answer of a menu: the minutes of a postponement (done at once) or the warning time of a restart or stop (the
-    // confirmation follows).
+    // The answer of a menu: the minutes of a postponement or the warning time of a restart or stop. It is answered with the
+    // window for the reason (it may stay empty); submitting that window is the last step, there is no further question.
     private async Task ChoicePickedAsync(BotInteraction i, Ask ask, BotPolicy policy, BotMessages messages, IBotResponder responder, CancellationToken token)
     {
-        if (ask.Command is BotCommand.RestartNow or BotCommand.Stop)
+        var minutes = 0;
+        var valid = ask.Instance is not null && i.Kind == BotInteractionKind.Select
+                    && !(ask.Pending is { ChannelId: not 0 } asked && i.ChannelId != asked.ChannelId)
+                    && i.Values is { Count: 1 };
+        if (valid)
         {
-            if (ask.Instance is null || i.Kind != BotInteractionKind.Select
-                || (ask.Pending is { ChannelId: not 0 } asked && i.ChannelId != asked.ChannelId)
-                || i.Values is not { Count: 1 } picked || !BotInputRules.TryParseDelayChoice(picked[0], ask.Command, out var delay))
+            var picked = i.Values![0];
+            valid = ask.Command switch
             {
-                await AnswerAsync(responder, new BotReply(messages.InvalidInput), true).ConfigureAwait(false);
-                return;
-            }
-            await AskConfirmationAsync(i, ask, policy, messages, responder, token, update: true, chosenDelay: delay).ConfigureAwait(false);
-            return;
+                BotCommand.RestartNow or BotCommand.Stop => BotInputRules.TryParseDelayChoice(picked, ask.Command, out minutes),
+                BotCommand.Postpone => BotInputRules.TryParsePostponeChoice(picked, policy, out minutes),
+                _ => false
+            };
         }
-        await PostponePickedAsync(i, ask, policy, messages, responder, token).ConfigureAwait(false);
-    }
-
-    private async Task PostponePickedAsync(BotInteraction i, Ask ask, BotPolicy policy, BotMessages messages, IBotResponder responder, CancellationToken token)
-    {
-        if (ask.Command != BotCommand.Postpone || ask.Instance is not { } instance
-            || i.Kind != BotInteractionKind.Select
-            || (ask.Pending is { ChannelId: not 0 } asked && i.ChannelId != asked.ChannelId)
-            || i.Values is not { Count: 1 } values || !BotInputRules.TryParsePostponeChoice(values[0], policy, out var minutes))
+        if (!valid)
         {
             await AnswerAsync(responder, new BotReply(messages.InvalidInput), true).ConfigureAwait(false);
             return;
         }
-        await RunAsync(i, ask, BotCommand.Postpone, instance, minutes, policy, messages, responder, true, token).ConfigureAwait(false);
+
+        var time = ask.Command == BotCommand.Postpone || minutes > 0 ? messages.FormatMinutes(minutes) : messages.NowChoice;
+        var title = string.Format(CultureInfo.InvariantCulture, ask.Command switch
+        {
+            BotCommand.RestartNow => messages.ModalRestart,
+            BotCommand.Stop => messages.ModalStop,
+            _ => messages.ModalPostpone
+        }, time);
+        var nonce = _pending.Create(i.UserId, ask.Command, ask.Instance!.Value, _clock(), ReasonLifetime, minutes, i.ChannelId ?? 0);
+        var modal = new BotReasonModal(nonce, title, messages.ReasonLabel, messages.ReasonPlaceholder, BotInputRules.MaxReasonLength);
+        if (!await responder.ShowModalAsync(modal).ConfigureAwait(false))
+        {
+            // Too slow (Discord was answered already) or no connection: nothing is done, the user starts again.
+            _pending.Discard(nonce, i.UserId);
+            await AnswerAsync(responder, new BotReply(messages.Failed), true).ConfigureAwait(false);
+        }
+    }
+
+    // The window for the reason was submitted (empty or not): the action runs now. The choice before it and this very step
+    // are the two steps, so there is no further confirmation.
+    private async Task ReasonSubmittedAsync(BotInteraction i, Ask ask, BotPolicy policy, BotMessages messages, IBotResponder responder, CancellationToken token)
+    {
+        var pending = ask.Pending!;
+        // The answer only counts from the channel the question was asked in.
+        if (pending.ChannelId != 0 && i.ChannelId != pending.ChannelId)
+        {
+            Audit(i, BotAuditResult.Denied, ask, "WrongChannel");
+            await AnswerAsync(responder, new BotReply(messages.NoPermission), true).ConfigureAwait(false);
+            return;
+        }
+        if (ask.Instance is not { } instance)
+        {
+            await AnswerAsync(responder, new BotReply(messages.UnknownServer), true).ConfigureAwait(false);
+            return;
+        }
+
+        // The numbers are checked again: the settings may have changed while the window was open.
+        var minutes = 0;
+        var valid = pending.Command switch
+        {
+            BotCommand.RestartNow or BotCommand.Stop => BotInputRules.TryParseDelayChoice(pending.Minutes.ToString(CultureInfo.InvariantCulture), pending.Command, out minutes),
+            BotCommand.Postpone => BotInputRules.TryParsePostponeChoice(pending.Minutes.ToString(CultureInfo.InvariantCulture), policy, out minutes),
+            _ => false
+        };
+        if (!valid)
+        {
+            await AnswerAsync(responder, new BotReply(messages.InvalidInput), true).ConfigureAwait(false);
+            return;
+        }
+        await RunAsync(i, ask, pending.Command, instance, minutes, policy, messages, responder, true, token, ask.Reason).ConfigureAwait(false);
     }
 
     private async Task AskConfirmationAsync(BotInteraction i, Ask ask, BotPolicy policy, BotMessages messages, IBotResponder responder,
-        CancellationToken token, bool update = false, int? chosenDelay = null)
+        CancellationToken token)
     {
         var command = ask.Command;
         if (!BotCommands.NeedsConfirmation(command))
         {
-            await AnswerAsync(responder, new BotReply(messages.UnknownRequest), update).ConfigureAwait(false);
+            await AnswerAsync(responder, new BotReply(messages.UnknownRequest), false).ConfigureAwait(false);
             return;
         }
 
@@ -418,19 +475,17 @@ public sealed class BotInteractionHandler
         {
             if (!TryInstance(ask, messages, out var error))
             {
-                await AnswerAsync(responder, error!, update).ConfigureAwait(false);
+                await AnswerAsync(responder, error!, false).ConfigureAwait(false);
                 return;
             }
             if (command != BotCommand.Start)
             {
                 delayMinutes = (int)Math.Round(policy.ActionDelay.TotalMinutes);
-                if (chosenDelay is { } chosen)
-                    delayMinutes = chosen;
-                else if (ask.RawDelay is { } rawDelay)
+                if (ask.RawDelay is { } rawDelay)
                 {
                     if (rawDelay < 0 || rawDelay > BotInputRules.MaxDelayMinutes(command))
                     {
-                        await AnswerAsync(responder, new BotReply(messages.InvalidInput), update).ConfigureAwait(false);
+                        await AnswerAsync(responder, new BotReply(messages.InvalidInput), false).ConfigureAwait(false);
                         return;
                     }
                     delayMinutes = (int)rawDelay;
@@ -439,7 +494,7 @@ public sealed class BotInteractionHandler
         }
         if (command == BotCommand.SetChannel && (i.ChannelId is not { } channel || !BotId.IsValid(channel)))
         {
-            await AnswerAsync(responder, new BotReply(messages.InvalidInput), update).ConfigureAwait(false);
+            await AnswerAsync(responder, new BotReply(messages.InvalidInput), false).ConfigureAwait(false);
             return;
         }
 
@@ -454,7 +509,7 @@ public sealed class BotInteractionHandler
             _ => messages.AskChannel
         };
         var nonce = _pending.Create(i.UserId, command, instance, _clock(), ConfirmLifetime, delayMinutes, i.ChannelId ?? 0);
-        await AnswerAsync(responder, new BotReply(text, Question: new BotConfirmQuestion(nonce, messages.Confirm, messages.Cancel)), update).ConfigureAwait(false);
+        await AnswerAsync(responder, new BotReply(text, Question: new BotConfirmQuestion(nonce, messages.Confirm, messages.Cancel)), false).ConfigureAwait(false);
     }
 
     private async Task ConfirmedAsync(BotInteraction i, Ask ask, BotPolicy policy, BotMessages messages, IBotResponder responder, CancellationToken token)
@@ -505,7 +560,10 @@ public sealed class BotInteractionHandler
     private async Task RunAsync(BotInteraction i, Ask ask, BotCommand command, int instance, int minutes, BotPolicy policy, BotMessages messages,
         IBotResponder responder, bool update, CancellationToken token, string? reason = null)
     {
-        var text = string.IsNullOrWhiteSpace(reason) ? "Discord" : "Discord: " + reason;
+        // The reason the user gave (empty: the reason of the settings of Trebuchet is used). Only the log of a postponement
+        // says where it came from.
+        var typed = BotInputRules.SanitizeReason(reason);
+        var text = typed.Length == 0 ? "Discord" : "Discord: " + typed;
         var requestedMinutes = minutes;
         BotPostponeBudget.Snapshot budgetBefore = default;
         if (command == BotCommand.Postpone)
@@ -532,8 +590,8 @@ public sealed class BotInteractionHandler
             {
                 BotCommand.Postpone => _actions.PostponeAsync(instance, minutes, text, token),
                 BotCommand.Resume => _actions.ResumeAsync(instance, token),
-                BotCommand.RestartNow => _actions.RestartAsync(instance, delay, "Discord", token),
-                BotCommand.Stop => _actions.StopAsync(instance, delay, "Discord", token),
+                BotCommand.RestartNow => _actions.RestartAsync(instance, delay, typed, token),
+                BotCommand.Stop => _actions.StopAsync(instance, delay, typed, token),
                 BotCommand.Start => _actions.StartAsync(instance, token),
                 BotCommand.Update => _actions.UpdateAsync(token),
                 BotCommand.CheckUpdates => _actions.CheckUpdatesAsync(token),

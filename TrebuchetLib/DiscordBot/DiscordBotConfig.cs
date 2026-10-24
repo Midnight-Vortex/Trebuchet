@@ -11,6 +11,13 @@ public sealed class DiscordBotConfig : ConfigFile<DiscordBotConfig>
 {
     /// <summary>No postponement is longer than a day, so updates are never put off for good.</summary>
     public const int HardMaxPauseMinutes = 24 * 60;
+    /// <summary>The most critical actions per server in the window of the settings that can be set.</summary>
+    public const int MaxCriticalLimit = 50;
+    /// <summary>Critical actions per server in the window by default (it was 3, which was reached while setting the bot up).</summary>
+    public const int DefaultCriticalLimit = 10;
+    // The limits of files written before the limit was raised: only these are replaced by the new default.
+    private const int OldDefaultCriticalLimit = 3;
+    private const int LimitsVersionCurrent = 2;
     public const int MaxPostponeChoices = 25;
 
     // IDs are written as text: JSON editors and scripts lose digits of numbers above 2^53. Both forms are read.
@@ -78,7 +85,7 @@ public sealed class DiscordBotConfig : ConfigFile<DiscordBotConfig>
     /// <summary>Seconds a user has to wait between two commands.</summary>
     public int CooldownSeconds { get; set; } = 3;
     /// <summary>Critical actions allowed per server within <see cref="CriticalWindowMinutes"/>.</summary>
-    public int CriticalLimit { get; set; } = 3;
+    public int CriticalLimit { get; set; } = DefaultCriticalLimit;
     public int CriticalWindowMinutes { get; set; } = 10;
     /// <summary>Refused commands of one user within <see cref="LockoutMinutes"/> that lock the user out for that time.</summary>
     public int LockoutAttempts { get; set; } = 5;
@@ -108,6 +115,24 @@ public sealed class DiscordBotConfig : ConfigFile<DiscordBotConfig>
         set => _statusMessageIds = value ?? [];
     }
 
+    /// <summary>
+    /// Which defaults of the limits the file was written with (0: a file of before the limit of critical actions was raised).
+    /// Only <see cref="UpgradeLimits"/> reads and sets it.
+    /// </summary>
+    public int LimitsVersion { get; set; }
+
+    /// <summary>
+    /// A file of an older version still holds the old default of critical actions (3), which the bot reached too fast: it
+    /// gets the new default once. A value that was chosen on purpose (anything else) stays, and so does a value chosen after
+    /// this ran.
+    /// </summary>
+    public void UpgradeLimits()
+    {
+        if (LimitsVersion >= LimitsVersionCurrent) return;
+        if (CriticalLimit == OldDefaultCriticalLimit) CriticalLimit = DefaultCriticalLimit;
+        LimitsVersion = LimitsVersionCurrent;
+    }
+
     public static string GetPath(GameEdition edition)
     {
         var folder = TrebuchetLib.Services.AppSetup.GetAppConfigDirectory();
@@ -127,7 +152,9 @@ public sealed class DiscordBotConfig : ConfigFile<DiscordBotConfig>
     {
         if (File.Exists(path) && !IsWellFormedJson(File.ReadAllText(path)))
             throw new FormatException("The file is damaged (no valid JSON). It was left as it is, a backup may exist next to it.");
-        return LoadConfig(path);
+        var config = LoadConfig(path);
+        config.UpgradeLimits();
+        return config;
     }
 
     public bool IsEnabled(BotCommand command) => EnabledCommands.Contains(command.ToString(), StringComparer.Ordinal);

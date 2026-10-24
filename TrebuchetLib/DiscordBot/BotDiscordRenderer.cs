@@ -44,6 +44,21 @@ internal static class BotDiscordRenderer
         return new BotOutgoingMessage(text, embeds, components, NoMentions());
     }
 
+    /// <summary>The id of the one text field of the window for the reason (the handler reads it by this name).</summary>
+    public const string ReasonFieldId = "reason";
+    // Limits of Discord for a window and its field.
+    private const int MaxModalTitle = 45;
+    private const int MaxModalLabel = 45;
+    private const int MaxModalPlaceholder = 100;
+
+    /// <summary>The window for the reason: one short text field that may stay empty.</summary>
+    public static Modal RenderModal(BotReasonModal modal) => new ModalBuilder()
+        .WithTitle(Cut(modal.Title, MaxModalTitle))
+        .WithCustomId(BotCustomId.ForReasonModal(modal.Nonce))
+        .AddTextInput(Cut(modal.Label, MaxModalLabel), ReasonFieldId, TextInputStyle.Short, Cut(modal.Placeholder, MaxModalPlaceholder),
+            minLength: 0, maxLength: Math.Clamp(modal.MaxLength, 1, 4000), required: false)
+        .Build();
+
     /// <summary>The public status message of a server: one embed, its buttons below, no text.</summary>
     public static BotOutgoingMessage RenderStatus(BotStatusMessage message)
     {

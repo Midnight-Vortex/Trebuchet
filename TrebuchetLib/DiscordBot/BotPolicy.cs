@@ -114,7 +114,7 @@ public sealed class BotPolicy
         }
 
         CheckLimit(issues, nameof(config.CooldownSeconds), config.CooldownSeconds, 1, 300);
-        CheckLimit(issues, nameof(config.CriticalLimit), config.CriticalLimit, 1, 20);
+        CheckLimit(issues, nameof(config.CriticalLimit), config.CriticalLimit, 1, DiscordBotConfig.MaxCriticalLimit);
         CheckLimit(issues, nameof(config.CriticalWindowMinutes), config.CriticalWindowMinutes, 1, 120);
         CheckLimit(issues, nameof(config.LockoutAttempts), config.LockoutAttempts, 1, 50);
         CheckLimit(issues, nameof(config.LockoutMinutes), config.LockoutMinutes, 1, DiscordBotConfig.HardMaxPauseMinutes);

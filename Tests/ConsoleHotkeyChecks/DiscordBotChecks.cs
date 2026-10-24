@@ -368,11 +368,12 @@ static class DiscordBotChecks
         Check(guard.Evaluate(policy, Request(Stranger), null).Outcome == BotGuardOutcome.Denied, "The lock ends");
         Check(guard.Evaluate(null, Request(), 0).Reason == BotDenyReason.NoPolicy, "Without a policy everything is refused");
 
-        // critical actions: three per server in ten minutes, counted when confirmed
+        // critical actions: ten per server in ten minutes (by default), counted when confirmed
         now = t0.AddHours(1);
         var criticalLimiter = new BotRateLimiter();
         var criticalGuard = new BotGuard(criticalLimiter, () => now);
-        for (var i = 0; i < 3; i++)
+        Check(allOnPolicy.CriticalLimit == 10 && allOnPolicy.CriticalWindow == TimeSpan.FromMinutes(10), "By default ten critical actions per server in ten minutes");
+        for (var i = 0; i < allOnPolicy.CriticalLimit; i++)
         {
             now = now.AddSeconds(5);
             Check(criticalGuard.Evaluate(allOnPolicy, Request(command: BotCommand.Stop), 0).Allowed, "The request of a critical action passes");
@@ -380,7 +381,7 @@ static class DiscordBotChecks
         }
         now = now.AddSeconds(5);
         Check(criticalGuard.Evaluate(allOnPolicy, Request(command: BotCommand.Stop), 0) is { Outcome: BotGuardOutcome.Throttled, Throttle: BotThrottle.CriticalLimit },
-            "The fourth critical action in ten minutes is refused");
+            "The eleventh critical action in ten minutes is refused");
         now = now.AddSeconds(4);
         Check(criticalGuard.Evaluate(allOnPolicy, Request(command: BotCommand.Stop), 1).Allowed, "The limit is per server");
         now = now.AddMinutes(11);
@@ -449,6 +450,27 @@ static class DiscordBotChecks
         File.WriteAllText(jsonPath, "{ \"ManagedInstances\": null, \"InstanceNames\": { \"0\": \"Haupt\" } }");
         var nullServers = DiscordBotConfig.LoadStrict(jsonPath);
         Check(nullServers.ManagedInstances is null, "Nothing written (or null) in the file is not chosen yet, old names are ignored");
+
+        // --- the limit of critical actions: raised, files written before keep nothing of the old default
+        var limitsPath = Path.Combine(folder, "limits.json");
+        bool LimitValid(int limit)
+        {
+            var c = ValidConfig();
+            c.CriticalLimit = limit;
+            return BotPolicy.Create(c).IsValid;
+        }
+        Check(new DiscordBotConfig().CriticalLimit == 10 && LimitValid(50) && !LimitValid(51) && !LimitValid(0), "Ten by default, up to fifty can be set");
+        File.WriteAllText(limitsPath, "{ \"CriticalLimit\": 3, \"CriticalWindowMinutes\": 10 }");
+        var upgraded = DiscordBotConfig.LoadStrict(limitsPath);
+        Check(upgraded.CriticalLimit == 10 && upgraded.LimitsVersion == 2, "A file with the old default of three gets the new default once");
+        upgraded.CriticalLimit = 3;
+        upgraded.SaveFile();
+        var chosen = DiscordBotConfig.LoadStrict(limitsPath);
+        Check(chosen.CriticalLimit == 3 && chosen.LimitsVersion == 2, "Three chosen afterwards stays three");
+        File.WriteAllText(limitsPath, "{ \"CriticalLimit\": 5 }");
+        Check(DiscordBotConfig.LoadStrict(limitsPath).CriticalLimit == 5, "Another value of an old file is a choice and stays");
+        File.WriteAllText(limitsPath, "{ }");
+        Check(DiscordBotConfig.LoadStrict(limitsPath).CriticalLimit == 10, "A file without the value has the default");
 
         // --- IDs of buttons
         foreach (var command in new[] { BotCommand.Start, BotCommand.Stop, BotCommand.RestartNow, BotCommand.Postpone, BotCommand.Resume, BotCommand.CheckUpdates })

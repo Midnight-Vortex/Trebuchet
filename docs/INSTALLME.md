@@ -100,10 +100,14 @@ zeigt, wann zuletzt geprüft wurde. Die Buttons passen immer zum Zustand:
 
 - **Starten:** wenn der Server gestoppt oder abgestürzt ist (beim Herunterfahren grau).
 - **Neustart / Stoppen:** erst die **Wartezeit** wählen (Sofort, 1, 5, 10, 15, 30 Min, 1 Std, beim Neustart auch 2 Std,
-  wie im Dialog in Trebuchet), dann bestätigen. Die Spieler werden wie gewohnt gewarnt.
+  wie im Dialog in Trebuchet). Danach öffnet sich ein kleines Fenster für den **Grund**: leer lassen oder etwas
+  eintippen und **Absenden**. Das führt die Aktion sofort aus, es kommt keine weitere Rückfrage. Der Grund steht im
+  Protokoll und kann in den Warnungen für die Spieler vorkommen (Makro `{reason}`); bleibt er leer, gilt der Grund aus
+  den Einstellungen von Trebuchet.
+  Die Spieler werden wie gewohnt gewarnt.
 - **Neustart verschieben / Stopp verschieben / Update verschieben:** erscheint, wenn gerade etwas ansteht. Nach dem
-  Klick wählst du aus: **15 Min, 30 Min, 1 Std, 2 Std, 3 Std, 6 Std**. Ingame steht danach „Der Neustart von
-  {servername} wurde um X Minuten verschoben.“
+  Klick wählst du aus: **15 Min, 30 Min, 1 Std, 2 Std, 3 Std, 6 Std**, danach kommt wieder das Fenster für den Grund
+  (darf leer bleiben). Ingame steht danach „Der Neustart von {servername} wurde um X Minuten verschoben.“
 - **Wieder freigeben:** hebt die Verschiebung auf.
 - **Updates prüfen:** fragt Steam, ob Mods oder der Server ein Update brauchen, und sagt dir das Ergebnis. Es wird
   **nichts installiert**. (Auch als Befehl `/updatecheck`.)
