@@ -76,6 +76,8 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     // The reason of a postponed restart and when its countdown was to end before it was postponed (null: not known).
     private sealed record PostponedRestart(string Reason, DateTime? PlannedEndUtc);
     private static readonly TimeSpan MinimumPause = TimeSpan.FromMinutes(1);
+    // Countdowns somebody started by hand (the window, Discord): the schedule and the updates did not start them.
+    private readonly HashSet<int> _manualCountdowns = [];
     // Automatic restarts (schedule, updates, RequiresRestart.txt) paused per instance, e.g. during an RP event.
     private readonly Dictionary<int, DateTime> _automaticRestartsPausedUntil = [];
     public const int CrashRestartLimit = 3;
@@ -644,7 +646,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         }
         _lastRestartReason = stopReason;
         // The main action stops directly: CloseServer would cancel this countdown.
-        await RunSequence(instance, BuildTimedCountdown(profile, delay, restart: false), () => StopServerNow(instance, stopReason), isCountdown: true);
+        await RunSequence(instance, BuildTimedCountdown(profile, delay, restart: false), () => StopServerNow(instance, stopReason), isCountdown: true, manual: true);
     }
 
     /// <summary>
@@ -680,7 +682,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         if (delay > TimeSpan.Zero && profile is not null)
         {
             // Inside the countdown RestartServerAsync restarts directly.
-            await RunSequence(instance, BuildTimedCountdown(profile, delay, restart: true), () => RestartServerAsync(instance), isCountdown: true, isRestart: true);
+            await RunSequence(instance, BuildTimedCountdown(profile, delay, restart: true), () => RestartServerAsync(instance), isCountdown: true, isRestart: true, manual: true);
             return;
         }
 
@@ -762,7 +764,22 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         return true;
     }
 
-    private async Task PauseAutomaticRestartsCore(int instance, TimeSpan pause, TimeSpan announcedShift)
+    /// <summary>
+    /// Cancels a running stop or restart countdown and nothing else: the players are told that it does not happen. A restart that
+    /// the schedule or an update started on its own would begin again with the next tick, so for such a restart the automatic
+    /// restarts wait until the daily window of the schedule has passed (a restart somebody started by hand just ends).
+    /// </summary>
+    /// <returns>False at once when no countdown runs.</returns>
+    public async Task<bool> CancelCountdown(int instance)
+    {
+        if (!_countdownInstances.Contains(instance)) return false;
+        var startedItself = _restartCountdownReasons.ContainsKey(instance) && !_manualCountdowns.Contains(instance);
+        await PauseAutomaticRestartsCore(instance, startedItself ? DailyRestartWindow + TimeSpan.FromMinutes(1) : TimeSpan.Zero,
+            TimeSpan.Zero, postpone: false);
+        return true;
+    }
+
+    private async Task PauseAutomaticRestartsCore(int instance, TimeSpan pause, TimeSpan announcedShift, bool postpone = true)
     {
         if (pause > TimeSpan.Zero)
         {
@@ -779,7 +796,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         // are told by how long (they were told it was cancelled, and a scheduled restart then never came).
         string? postponedReason = null;
         DateTime? plannedEnd = _countdownEndsUtc.TryGetValue(instance, out var end) ? end : null;
-        if (pause > TimeSpan.Zero && _restartCountdownReasons.TryGetValue(instance, out var reason))
+        if (postpone && pause > TimeSpan.Zero && _restartCountdownReasons.TryGetValue(instance, out var reason))
             postponedReason = reason;
         await CancelServerSequence(instance);
         if (postponedReason is not null)
@@ -1749,12 +1766,13 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     }
 
     private async Task RunSequence(int instance, Sequence sequence, Func<Task> mainAction, bool isCountdown = false,
-        bool isRestart = false)
+        bool isRestart = false, bool manual = false)
     {
         if (sequence.Actions.Count == 0) return;
         await CancelServerSequence(instance);
         var reason = _lastRestartReason;
         if (isCountdown) _countdownInstances.Add(instance);
+        if (isCountdown && manual) _manualCountdowns.Add(instance);
         if (isCountdown && isRestart) _restartCountdownReasons[instance] = reason;
         if (isCountdown)
             _countdownEndsUtc[instance] = DateTime.UtcNow
@@ -1802,6 +1820,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             {
                 _serverSequences.Remove(instance);
                 _countdownInstances.Remove(instance);
+                _manualCountdowns.Remove(instance);
                 _restartCountdownReasons.Remove(instance);
                 _countdownEndsUtc.Remove(instance);
                 OnServerStatusChanged();
@@ -1816,6 +1835,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             await oldSequence.Cts.CancelAsync();
             _serverSequences.Remove(instance);
             _countdownInstances.Remove(instance);
+            _manualCountdowns.Remove(instance);
             _restartCountdownReasons.Remove(instance);
             _countdownEndsUtc.Remove(instance);
             OnServerStatusChanged();

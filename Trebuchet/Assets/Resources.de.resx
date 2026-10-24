@@ -2693,4 +2693,10 @@ Bei „Token bereits in Verwendung“ läuft ein Bot mit demselben Token schon i
     <data name="DiscordBotIssueInvalidName" xml:space="preserve">
         <value>Der Name ist nicht erlaubt (ohne „Discord“ oder „Clyde“ darin, und ohne Token oder Link)</value>
     </data>
+    <data name="DiscordBotCommandCancel" xml:space="preserve">
+        <value>Countdown abbrechen (/restart cancel)</value>
+    </data>
+    <data name="DiscordBotCommandCancelText" xml:space="preserve">
+        <value>Bricht den Neustart oder Stopp ab, der gerade herunterzählt. Die Spieler erfahren, dass er ausfällt.</value>
+    </data>
 </root>

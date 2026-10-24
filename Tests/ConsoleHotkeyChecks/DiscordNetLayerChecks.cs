@@ -78,6 +78,7 @@ static class DiscordNetLayerChecks
         public Task<IReadOnlyList<BotServerStatus>> GetStatusesAsync(CancellationToken token) => Task.FromResult<IReadOnlyList<BotServerStatus>>([]);
         public Task<BotActionResult> PostponeAsync(int instance, int minutes, string reason, CancellationToken token) => Done();
         public Task<BotActionResult> ResumeAsync(int instance, CancellationToken token) => Done();
+        public Task<BotActionResult> CancelAsync(int instance, CancellationToken token) => Done();
         public Task<BotActionResult> RestartAsync(int instance, TimeSpan delay, string reason, CancellationToken token) => Done();
         public Task<BotActionResult> StopAsync(int instance, TimeSpan delay, string reason, CancellationToken token) => Done();
         public Task<BotActionResult> StartAsync(int instance, CancellationToken token) => Done();

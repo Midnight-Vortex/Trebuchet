@@ -22,6 +22,14 @@ public sealed class BotCommunityTexts
     public required string RestartingBody { get; init; }
     public required string StoppingTitle { get; init; }
     public required string StoppingBody { get; init; }
+    public required string CancelledRestartTitle { get; init; }
+    public required string CancelledRestartBody { get; init; }
+    public required string CancelledStopTitle { get; init; }
+    public required string CancelledStopBody { get; init; }
+    public required string PostponedRestartTitle { get; init; }
+    public required string PostponedStopTitle { get; init; }
+    /// <summary>{0} the unix time of the new time.</summary>
+    public required string PostponedBody { get; init; }
     public required string OnlineTitle { get; init; }
     /// <summary>{0} how long the server was offline.</summary>
     public required string OnlineAfterRestartBody { get; init; }
@@ -50,6 +58,13 @@ public sealed class BotCommunityTexts
         RestartingBody = "Bis gleich – sobald er wieder da ist, steht es hier.",
         StoppingTitle = "⏹️ Der Server wird jetzt gestoppt",
         StoppingBody = "Er bleibt vorerst aus – sobald er wieder da ist, steht es hier.",
+        CancelledRestartTitle = "✅ Der Neustart fällt aus",
+        CancelledRestartBody = "Der angekündigte Neustart findet nicht statt – der Server bleibt online.",
+        CancelledStopTitle = "✅ Der Stopp fällt aus",
+        CancelledStopBody = "Der angekündigte Stopp findet nicht statt – der Server bleibt online.",
+        PostponedRestartTitle = "⏸️ Der Neustart wurde verschoben",
+        PostponedStopTitle = "⏸️ Der Stopp wurde verschoben",
+        PostponedBody = "Neuer Zeitpunkt: <t:{0}:t> Uhr (<t:{0}:R>).\nKurz vorher melden wir uns noch einmal.",
         OnlineTitle = "🟢 Der Server ist wieder online",
         OnlineAfterRestartBody = "Der Neustart ist durch – ihr könnt euch wieder einloggen.\n**Offline:** {0}",
         OnlineAfterStopBody = "Ihr könnt euch wieder einloggen.\n**Offline:** {0}",
@@ -73,6 +88,13 @@ public sealed class BotCommunityTexts
         RestartingBody = "See you soon – when it is back, you will read it here.",
         StoppingTitle = "⏹️ The server stops now",
         StoppingBody = "It stays down for now – when it is back, you will read it here.",
+        CancelledRestartTitle = "✅ The restart is cancelled",
+        CancelledRestartBody = "The announced restart does not happen – the server stays online.",
+        CancelledStopTitle = "✅ The stop is cancelled",
+        CancelledStopBody = "The announced stop does not happen – the server stays online.",
+        PostponedRestartTitle = "⏸️ The restart was postponed",
+        PostponedStopTitle = "⏸️ The stop was postponed",
+        PostponedBody = "New time: <t:{0}:t> (<t:{0}:R>).\nWe will remind you shortly before.",
         OnlineTitle = "🟢 The server is back online",
         OnlineAfterRestartBody = "The restart is done – you can log in again.\n**Offline:** {0}",
         OnlineAfterStopBody = "You can log in again.\n**Offline:** {0}",
@@ -126,6 +148,10 @@ public sealed class BotCommunityLog : IDisposable
     // The server is gone for a restart when it goes down around the time the restart was planned for (a stop pressed an
     // hour before a planned restart is a stop).
     private static readonly TimeSpan PlannedWindow = CalmInterval;
+    // An announcement is only taken back when it was still this far ahead, and when the launcher showed nothing planned at two
+    // looks in a row (it shows nothing for a moment while it changes over from one countdown to the next).
+    private static readonly TimeSpan CancelFarEnough = TimeSpan.FromMinutes(1);
+    private static readonly TimeSpan CancelConfirmAfter = TimeSpan.FromSeconds(10);
     // Longer than the calm interval plus the time a look may take: more silence than this means the bot was away (off,
     // no Discord connection), and what happened meanwhile is old news.
     private static readonly TimeSpan StaleAfter = TimeSpan.FromMinutes(11);
@@ -133,6 +159,7 @@ public sealed class BotCommunityLog : IDisposable
     public const uint Orange = 0xE67E22;
     public const uint Red = 0xED4245;
     public const uint Green = 0x57F287;
+    public const uint Blue = 0x3498DB;
 
     private sealed class Memory
     {
@@ -145,6 +172,11 @@ public sealed class BotCommunityLog : IDisposable
         // The time the announced restart or stop was told for: the same event comes with a time that differs by seconds
         // (the schedule says 06:00:00, the countdown ends at 06:00:02), a postponement by much more.
         public DateTime? AnnouncedAt;
+        // The time the players last heard of (an announcement, or the new time of a postponement) and for which action, and since
+        // when the launcher shows nothing planned any more.
+        public DateTime? ShownAt;
+        public BotPendingAction ShownAction;
+        public DateTime? CancelSeenAt;
         public DateTime? OfflineSince;
         public bool Told;
         public bool ToldRestart;
@@ -306,6 +338,8 @@ public sealed class BotCommunityLog : IDisposable
                     memory.ToldRestart = restart;
                 }
                 memory.AnnouncedAt = null;
+                memory.ShownAt = null;
+                memory.CancelSeenAt = null;
             }
             else if (before is not null && before != BotServerState.Online && status.State == BotServerState.Online)
             {
@@ -330,6 +364,7 @@ public sealed class BotCommunityLog : IDisposable
                 if (status.Pending == BotPendingAction.None || status.Pending != memory.LastPending || status.PendingAtUtc is not null)
                     memory.LastPendingAt = status.PendingAtUtc;
                 memory.LastPending = status.Pending;
+                due = Replanned(memory, status, now, policy, texts, several, due);
                 if (status.Pending != BotPendingAction.None && status.PendingAtUtc is { } at && at > now)
                 {
                     var remaining = at - now;
@@ -338,6 +373,8 @@ public sealed class BotCommunityLog : IDisposable
                         if (memory.AnnouncedAt is not { } told || Math.Abs((at - told).TotalMinutes) > SameEventTolerance.TotalMinutes)
                         {
                             memory.AnnouncedAt = at;
+                            memory.ShownAt = at;
+                            memory.ShownAction = status.Pending;
                             Enqueue(Countdown(status, at, remaining, texts, now, several));
                         }
                         // Looked at again when the server goes down, at the latest.
@@ -353,6 +390,51 @@ public sealed class BotCommunityLog : IDisposable
             }
         }
         return due;
+    }
+
+    /// <summary>
+    /// What was announced does not happen any more (cancelled) or later than told (postponed): the players are told, they would
+    /// wait for it otherwise. Called with the lock held. Returns when to look again.
+    /// </summary>
+    private TimeSpan Replanned(Memory memory, BotServerStatus status, DateTime now, BotPolicy policy, BotCommunityTexts texts, bool several, TimeSpan due)
+    {
+        if (memory.ShownAt is not { } shown || shown - now <= CancelFarEnough)
+        {
+            memory.CancelSeenAt = null;
+            return due;
+        }
+        if (status.Pending == BotPendingAction.None)
+        {
+            memory.CancelSeenAt ??= now;
+            if (now - memory.CancelSeenAt < CancelConfirmAfter) return due < BusyInterval ? due : BusyInterval;
+            var stop = memory.ShownAction == BotPendingAction.Stop;
+            Enqueue(Embed(stop ? texts.CancelledStopTitle : texts.CancelledRestartTitle,
+                stop ? texts.CancelledStopBody : texts.CancelledRestartBody, Green, now, status, several));
+            memory.AnnouncedAt = null;
+            memory.ShownAt = null;
+            memory.CancelSeenAt = null;
+            return due;
+        }
+        memory.CancelSeenAt = null;
+        // Later than told, and still further away than the lead time: the regular announcement would come too late to say so.
+        // (Within the lead time the announcement of the new time says it.) Another kind of action is a new plan, not a postponement.
+        if (status.PendingAtUtc is { } moved && (status.Pending == BotPendingAction.Stop) == (memory.ShownAction == BotPendingAction.Stop)
+            && moved - shown > SameEventTolerance && moved - now > policy.CommunityLead)
+        {
+            Enqueue(Postponed(status, moved, texts, now, several));
+            memory.ShownAt = moved;
+            // The reminder shortly before is still to come (also when the time comes back to an earlier one).
+            memory.AnnouncedAt = null;
+        }
+        return due;
+    }
+
+    private static BotWebhookEmbed Postponed(BotServerStatus status, DateTime at, BotCommunityTexts texts, DateTime now, bool several)
+    {
+        var inv = CultureInfo.InvariantCulture;
+        var unix = new DateTimeOffset(DateTime.SpecifyKind(at, DateTimeKind.Utc)).ToUnixTimeSeconds().ToString(inv);
+        var title = status.Pending == BotPendingAction.Stop ? texts.PostponedStopTitle : texts.PostponedRestartTitle;
+        return Embed(title, string.Format(inv, texts.PostponedBody, unix), Blue, now, status, several);
     }
 
     // After a long silence only one thing is kept: the players were told the server goes down and not yet that it is back.

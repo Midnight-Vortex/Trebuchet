@@ -14,6 +14,8 @@ public sealed record BotMessages
     public required string NoServers { get; init; }
     public required string StatusTitle { get; init; }
     public required string Resumed { get; init; }
+    public required string CountdownCancelled { get; init; }
+    public required string NothingToCancel { get; init; }
     public required string NotRunning { get; init; }
     public required string AlreadyRunning { get; init; }
     public required string NothingPending { get; init; }
@@ -77,6 +79,8 @@ public sealed record BotMessages
         NoServers = "Keine Server eingerichtet.",
         StatusTitle = "Status",
         Resumed = "Die automatischen Neustarts laufen wieder.",
+        CountdownCancelled = "Abgebrochen: Der angekündigte Neustart oder Stopp findet nicht statt, die Spieler wurden informiert.",
+        NothingToCancel = "Es läuft kein Countdown, der abgebrochen werden könnte.",
         NotRunning = "Der Server läuft nicht.",
         AlreadyRunning = "Der Server läuft bereits.",
         NothingPending = "Es steht nichts an, das verschoben werden könnte.",
@@ -130,6 +134,8 @@ public sealed record BotMessages
         NoServers = "No servers set up.",
         StatusTitle = "Status",
         Resumed = "Automatic restarts run again.",
+        CountdownCancelled = "Cancelled: the announced restart or stop does not happen, the players were told.",
+        NothingToCancel = "No countdown is running that could be cancelled.",
         NotRunning = "The server is not running.",
         AlreadyRunning = "The server is already running.",
         NothingPending = "Nothing is pending that could be postponed.",

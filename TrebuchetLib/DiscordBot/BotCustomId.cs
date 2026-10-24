@@ -30,6 +30,7 @@ public static partial class BotCustomId
         (BotCommand.RestartNow, "restart"),
         (BotCommand.Postpone, "postpone"),
         (BotCommand.Resume, "resume"),
+        (BotCommand.Cancel, "cancel"),
         (BotCommand.CheckUpdates, "check")
     ];
 

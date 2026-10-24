@@ -33,6 +33,7 @@ public sealed class BotInteractionHandler
         ["status"] = BotCommand.Status,
         ["restart postpone"] = BotCommand.Postpone,
         ["restart resume"] = BotCommand.Resume,
+        ["restart cancel"] = BotCommand.Cancel,
         ["restart now"] = BotCommand.RestartNow,
         ["stop"] = BotCommand.Stop,
         ["start"] = BotCommand.Start,
@@ -77,6 +78,7 @@ public sealed class BotInteractionHandler
             new BotSlashOption("minutes", "Minutes to postpone", BotOptionType.Integer, true, 1, DiscordBotConfig.HardMaxPauseMinutes),
             new BotSlashOption("reason", "Reason (only for the log)", BotOptionType.String, false)]),
         new("restart resume", "End a postponement: automatic restarts run again", [Instance(true)]),
+        new("restart cancel", "Cancel the restart or stop that is counting down", [Instance(true)]),
         new("restart now", "Restart a server (players are warned first)", [
             Instance(true),
             new BotSlashOption("delay", "Warning time in minutes (default: from the settings)", BotOptionType.Integer, false, 0,
@@ -187,6 +189,12 @@ public sealed class BotInteractionHandler
                     await AnswerAsync(responder, resumeError!, false).ConfigureAwait(false);
                 else
                     await RunAsync(i, ask, BotCommand.Resume, ask.Instance!.Value, 0, allowedPolicy, messages, responder, false, token).ConfigureAwait(false);
+                break;
+            case BotCommand.Cancel:
+                if (!TryInstance(ask, messages, out var cancelError))
+                    await AnswerAsync(responder, cancelError!, false).ConfigureAwait(false);
+                else
+                    await RunAsync(i, ask, BotCommand.Cancel, ask.Instance!.Value, 0, allowedPolicy, messages, responder, false, token).ConfigureAwait(false);
                 break;
             case BotCommand.CheckUpdates:
                 await RunAsync(i, ask, BotCommand.CheckUpdates, -1, 0, allowedPolicy, messages, responder, false, token).ConfigureAwait(false);
@@ -598,6 +606,7 @@ public sealed class BotInteractionHandler
             {
                 BotCommand.Postpone => _actions.PostponeAsync(instance, minutes, text, token),
                 BotCommand.Resume => _actions.ResumeAsync(instance, token),
+                BotCommand.Cancel => _actions.CancelAsync(instance, token),
                 BotCommand.RestartNow => _actions.RestartAsync(instance, delay, typed, token),
                 BotCommand.Stop => _actions.StopAsync(instance, delay, typed, token),
                 BotCommand.Start => _actions.StartAsync(instance, token),
@@ -676,6 +685,7 @@ public sealed class BotInteractionHandler
             {
                 BotCommand.Postpone => string.Format(CultureInfo.InvariantCulture, messages.Postponed, messages.FormatMinutes(minutes)),
                 BotCommand.Resume => messages.Resumed,
+                BotCommand.Cancel => messages.CountdownCancelled,
                 BotCommand.RestartNow => string.Format(CultureInfo.InvariantCulture, messages.DoneRestart, server),
                 BotCommand.Stop => string.Format(CultureInfo.InvariantCulture, messages.DoneStop, server),
                 BotCommand.Start => string.Format(CultureInfo.InvariantCulture, messages.DoneStart, server),
@@ -686,7 +696,7 @@ public sealed class BotInteractionHandler
             },
             BotActionOutcome.NotRunning => messages.NotRunning,
             BotActionOutcome.AlreadyRunning => messages.AlreadyRunning,
-            BotActionOutcome.NothingPending => messages.NothingPending,
+            BotActionOutcome.NothingPending => command == BotCommand.Cancel ? messages.NothingToCancel : messages.NothingPending,
             BotActionOutcome.Busy => messages.Busy,
             _ => messages.Failed
         };

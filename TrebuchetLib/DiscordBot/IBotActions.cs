@@ -53,6 +53,9 @@ public interface IBotActions
     /// <summary>Ends a postponement (<c>Launcher.ResumeAutomaticRestarts</c>).</summary>
     Task<BotActionResult> ResumeAsync(int instance, CancellationToken token);
 
+    /// <summary>Cancels the restart or stop that is counting down (<c>Launcher.CancelCountdown</c>); the players are told.</summary>
+    Task<BotActionResult> CancelAsync(int instance, CancellationToken token);
+
     /// <summary>Restart with the warnings of the save during <paramref name="delay"/> (zero: now).</summary>
     Task<BotActionResult> RestartAsync(int instance, TimeSpan delay, string reason, CancellationToken token);
 

@@ -24,7 +24,7 @@ public sealed class DiscordBotConfig : ConfigFile<DiscordBotConfig>
     // The limits of files written before the limit was raised: only these are replaced by the new default.
     private const int OldDefaultCriticalLimit = 3;
     private const int OldDefaultCriticalWindowMinutes = 10;
-    private const int LimitsVersionCurrent = 2;
+    private const int LimitsVersionCurrent = 3;
     public const int MaxPostponeChoices = 25;
 
     // IDs are written as text: JSON editors and scripts lose digits of numbers above 2^53. Both forms are read.
@@ -154,7 +154,10 @@ public sealed class DiscordBotConfig : ConfigFile<DiscordBotConfig>
     {
         if (LimitsVersion >= LimitsVersionCurrent) return;
         // A changed window shows that the limits were set on purpose: then nothing is touched.
-        if (CriticalLimit == OldDefaultCriticalLimit && CriticalWindowMinutes == OldDefaultCriticalWindowMinutes) CriticalLimit = DefaultCriticalLimit;
+        if (LimitsVersion < 2 && CriticalLimit == OldDefaultCriticalLimit && CriticalWindowMinutes == OldDefaultCriticalWindowMinutes)
+            CriticalLimit = DefaultCriticalLimit;
+        // The new command to cancel a countdown: whoever may postpone may cancel (it can be switched off like any other).
+        if (LimitsVersion < 3 && IsEnabled(BotCommand.Postpone) && !IsEnabled(BotCommand.Cancel)) SetEnabled(BotCommand.Cancel, true);
         LimitsVersion = LimitsVersionCurrent;
     }
 

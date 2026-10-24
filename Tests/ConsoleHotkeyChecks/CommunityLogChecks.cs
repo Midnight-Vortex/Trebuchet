@@ -103,6 +103,7 @@ static class CommunityLogChecks
         public virtual Task<IReadOnlyList<BotServerStatus>> GetStatusesAsync(CancellationToken token) => Task.FromResult<IReadOnlyList<BotServerStatus>>(Statuses.ToList());
         public Task<BotActionResult> PostponeAsync(int instance, int minutes, string reason, CancellationToken token) => Done();
         public Task<BotActionResult> ResumeAsync(int instance, CancellationToken token) => Done();
+        public Task<BotActionResult> CancelAsync(int instance, CancellationToken token) => Done();
         public Task<BotActionResult> RestartAsync(int instance, TimeSpan delay, string reason, CancellationToken token) => Done();
         public Task<BotActionResult> StopAsync(int instance, TimeSpan delay, string reason, CancellationToken token) => Done();
         public Task<BotActionResult> StartAsync(int instance, CancellationToken token) => Done();
@@ -352,6 +353,7 @@ static class CommunityLogChecks
             await AutomaticAsync(Check);
             await ManualStopAsync(Check);
             await RestartSeenLateAsync(Check);
+            await PlanChangesAsync(Check);
             await PostponedAsync(Check);
             await AwayAsync(Check);
             await GateAsync(Check);
@@ -727,6 +729,128 @@ static class CommunityLogChecks
             "A server that came back while the bot was away is told late, without the offline time: " + string.Join(" | ", late.Select(x => x.Title + "/" + x.Description)));
         await scene.Look(scene.Launcher(TrebuchetLib.ProcessState.ONLINE), 120);
         check(scene.Hooks.Messages.Length == 2, "...once");
+    }
+
+    // The players were told a time: when the plan is cancelled or postponed they are told too, they would wait for it otherwise.
+    private static async Task PlanChangesAsync(Action<bool, string> check)
+    {
+        // A restart in 30 minutes, postponed by 30 minutes, the postponement lifted again (the real case, through the launcher's status).
+        using (var scene = new Scene())
+        {
+            var end = scene.Now.AddMinutes(30);
+            var counting = scene.Launcher(TrebuchetLib.ProcessState.ONLINE, x => x with
+            {
+                CountdownRunning = true, CountdownRestarts = true, CountdownEndsUtc = end, SequenceRunning = true
+            });
+            await scene.Look(counting, 0);
+            check(scene.Titles().SequenceEqual(["⏰ Der Server startet in 30 Minuten neu"]), "The restart in 30 minutes is announced: " + string.Join(" | ", scene.Titles()));
+            var postponed = scene.Launcher(TrebuchetLib.ProcessState.ONLINE, x => x with
+            {
+                RestartPostponed = true, PausedUntilUtc = end.AddMinutes(25), RestartWarningLead = TimeSpan.FromMinutes(5)
+            });
+            await scene.Look(postponed, 120);
+            var told = scene.Hooks.Messages.Select(x => x.Embed!).ToArray();
+            check(told.Length == 2 && told[1].Title == "⏸️ Der Neustart wurde verschoben" && told[1].Color == BotCommunityLog.Blue
+                  && told[1].Description.Contains($"<t:{Unix(end.AddMinutes(30))}:t>", StringComparison.Ordinal) && told[1].Description.Contains("Kurz vorher", StringComparison.Ordinal),
+                "A restart postponed beyond the lead time is told with the new time: " + string.Join(" | ", told.Select(x => x.Title + "/" + x.Description)));
+            await scene.Look(postponed, 60);
+            check(scene.Hooks.Messages.Length == 2, "...once");
+            // Lifted at once: the old time is back, and the players are told it (a countdown with the old time), not left with the new one.
+            await scene.Look(counting, 60);
+            var back = scene.Hooks.Messages.Select(x => x.Embed!).ToArray();
+            check(back.Length == 3 && back[2].Title == "⏰ Der Server startet in 26 Minuten neu" && back[2].Description.Contains($"<t:{Unix(end)}:t>", StringComparison.Ordinal),
+                "When the postponement is lifted the old time is announced again: " + string.Join(" | ", back.Select(x => x.Title)));
+        }
+
+        // Cancelled: told at the second look (a changeover shows nothing planned for a moment), once.
+        using (var scene = new Scene())
+        {
+            var end = scene.Now.AddMinutes(20);
+            var counting = scene.Launcher(TrebuchetLib.ProcessState.ONLINE, x => x with
+            {
+                CountdownRunning = true, CountdownRestarts = true, CountdownEndsUtc = end, SequenceRunning = true
+            });
+            var calm = scene.Launcher(TrebuchetLib.ProcessState.ONLINE);
+            await scene.Look(counting, 0);
+            await scene.Look(calm, 30);
+            check(scene.Hooks.Messages.Length == 1, "A countdown that is gone is not called cancelled at the first look");
+            await scene.Look(counting, 15);
+            await scene.Look(calm, 15);
+            check(scene.Hooks.Messages.Length == 1, "...and a gap of a moment is no cancellation");
+            var wait = await scene.Log.RefreshAsync(CancellationToken.None);
+            check(wait <= BotCommunityLog.BusyInterval, "While it waits to be sure it looks again soon: " + wait);
+            await scene.Look(calm, 15);
+            var cancelled = scene.Hooks.Messages.Select(x => x.Embed!).ToArray();
+            check(cancelled.Length == 2 && cancelled[1].Title == "✅ Der Neustart fällt aus" && cancelled[1].Color == BotCommunityLog.Green
+                  && cancelled[1].Description == "Der angekündigte Neustart findet nicht statt – der Server bleibt online.",
+                "A countdown that stays gone is announced as cancelled: " + string.Join(" | ", cancelled.Select(x => x.Title)));
+            await scene.Look(calm, 60);
+            await scene.Look(calm, 60);
+            check(scene.Hooks.Messages.Length == 2, "...once");
+            // The same restart planned again for about the same time is announced again (the cancellation forgot the first announcement).
+            await scene.Look(scene.Launcher(TrebuchetLib.ProcessState.ONLINE, x => x with
+            {
+                CountdownRunning = true, CountdownRestarts = true, CountdownEndsUtc = end, SequenceRunning = true
+            }), 30);
+            check(scene.Hooks.Messages.Length == 3 && scene.Hooks.Messages[2].Embed!.Title.StartsWith("⏰", StringComparison.Ordinal), "...and a new plan for the same time is announced again");
+        }
+
+        // A stop is called a stop; a stop that is planned instead of a restart is a new plan, not a postponement; going down is no cancellation.
+        using (var scene = new Scene())
+        {
+            var stopAt = scene.Now.AddMinutes(10);
+            var stopping = scene.Launcher(TrebuchetLib.ProcessState.ONLINE, x => x with { CountdownRunning = true, CountdownEndsUtc = stopAt, SequenceRunning = true });
+            await scene.Look(stopping, 0);
+            var calm = scene.Launcher(TrebuchetLib.ProcessState.ONLINE);
+            await scene.Look(calm, 30);
+            await scene.Look(calm, 30);
+            check(scene.Titles().SequenceEqual(["⏰ Der Server wird in 10 Minuten gestoppt", "✅ Der Stopp fällt aus"])
+                  && scene.Hooks.Messages[1].Embed!.Description == "Der angekündigte Stopp findet nicht statt – der Server bleibt online.",
+                "A cancelled stop says stop: " + string.Join(" | ", scene.Titles()));
+        }
+        using (var scene = new Scene())
+        {
+            var restartAt = scene.Now.AddMinutes(20);
+            var restart = scene.Launcher(TrebuchetLib.ProcessState.ONLINE, x => x with
+            {
+                CountdownRunning = true, CountdownRestarts = true, CountdownEndsUtc = restartAt, SequenceRunning = true
+            });
+            await scene.Look(restart, 0);
+            // Changed into a stop for much later, further away than the lead time: no "postponed restart", the plan is a different one.
+            var stop = scene.Launcher(TrebuchetLib.ProcessState.ONLINE, x => x with { CountdownRunning = true, CountdownEndsUtc = scene.Now.AddMinutes(90), SequenceRunning = true });
+            await scene.Look(stop, 60);
+            check(scene.Hooks.Messages.Length == 1, "A stop planned instead of a restart is no postponement: " + string.Join(" | ", scene.Titles()));
+            // The announced restart goes down at its time: that is not a cancellation, whatever the launcher shows meanwhile.
+        }
+        using (var scene = new Scene())
+        {
+            var restartAt = scene.Now.AddMinutes(20);
+            var restart = scene.Launcher(TrebuchetLib.ProcessState.ONLINE, x => x with
+            {
+                CountdownRunning = true, CountdownRestarts = true, CountdownEndsUtc = restartAt, SequenceRunning = true
+            });
+            await scene.Look(restart, 0);
+            await scene.Look(restart, 19 * 60 + 30);
+            await scene.Look(scene.Launcher(TrebuchetLib.ProcessState.ONLINE), 20);
+            await scene.Look(scene.Launcher(null, x => x with { ShuttingDown = true }), 20);
+            check(!scene.Titles().Any(x => x.Contains("fällt aus", StringComparison.Ordinal)), "The restart that happens as announced is never called cancelled: " + string.Join(" | ", scene.Titles()));
+        }
+
+        // A postponement within the lead time is told by the new countdown announcement alone.
+        using (var scene = new Scene())
+        {
+            var first = scene.Now.AddMinutes(25);
+            await scene.Look(scene.Launcher(TrebuchetLib.ProcessState.ONLINE, x => x with
+            {
+                CountdownRunning = true, CountdownRestarts = true, CountdownEndsUtc = first, SequenceRunning = true
+            }), 0);
+            await scene.Look(scene.Launcher(TrebuchetLib.ProcessState.ONLINE, x => x with
+            {
+                CountdownRunning = true, CountdownRestarts = true, CountdownEndsUtc = first.AddMinutes(4), SequenceRunning = true
+            }), 30);
+            check(scene.Titles().SequenceEqual(["⏰ Der Server startet in 25 Minuten neu", "⏰ Der Server startet in 29 Minuten neu"]),
+                "A postponement that stays within the lead time is one new announcement, not two messages: " + string.Join(" | ", scene.Titles()));
+        }
     }
 
     // The restart of a server is a restart even when the log sees it late or only half of it.

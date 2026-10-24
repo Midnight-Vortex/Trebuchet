@@ -472,11 +472,11 @@ static class DiscordBotChecks
         Check(new DiscordBotConfig().CriticalLimit == 10 && LimitValid(50) && !LimitValid(51) && !LimitValid(0), "Ten by default, up to fifty can be set");
         File.WriteAllText(limitsPath, "{ \"CriticalLimit\": 3, \"CriticalWindowMinutes\": 10 }");
         var upgraded = DiscordBotConfig.LoadStrict(limitsPath);
-        Check(upgraded.CriticalLimit == 10 && upgraded.LimitsVersion == 2, "A file with the old default of three gets the new default once");
+        Check(upgraded.CriticalLimit == 10 && upgraded.LimitsVersion == 3, "A file with the old default of three gets the new default once");
         upgraded.CriticalLimit = 3;
         upgraded.SaveFile();
         var chosen = DiscordBotConfig.LoadStrict(limitsPath);
-        Check(chosen.CriticalLimit == 3 && chosen.LimitsVersion == 2, "Three chosen afterwards stays three");
+        Check(chosen.CriticalLimit == 3 && chosen.LimitsVersion == 3, "Three chosen afterwards stays three");
         File.WriteAllText(limitsPath, "{ \"CriticalLimit\": 3, \"CriticalWindowMinutes\": 5 }");
         Check(DiscordBotConfig.LoadStrict(limitsPath).CriticalLimit == 3, "A changed window shows the limits were set on purpose: nothing is touched");
         File.WriteAllText(limitsPath, "{ \"CriticalLimit\": 5 }");
@@ -484,8 +484,22 @@ static class DiscordBotChecks
         File.WriteAllText(limitsPath, "{ }");
         Check(DiscordBotConfig.LoadStrict(limitsPath).CriticalLimit == 10, "A file without the value has the default");
 
+        // The command to cancel a countdown is new: whoever may postpone may cancel, once.
+        File.WriteAllText(limitsPath, "{ \"EnabledCommands\": [\"Status\", \"Postpone\"] }");
+        var withCancel = DiscordBotConfig.LoadStrict(limitsPath);
+        Check(withCancel.IsEnabled(BotCommand.Cancel) && withCancel.IsEnabled(BotCommand.Postpone) && !withCancel.IsEnabled(BotCommand.Stop),
+            "A file of before gets the cancel command where postponing is allowed");
+        withCancel.SetEnabled(BotCommand.Cancel, false);
+        withCancel.SaveFile();
+        Check(!DiscordBotConfig.LoadStrict(limitsPath).IsEnabled(BotCommand.Cancel), "Switched off afterwards it stays off");
+        File.WriteAllText(limitsPath, "{ \"EnabledCommands\": [\"Status\"] }");
+        Check(!DiscordBotConfig.LoadStrict(limitsPath).IsEnabled(BotCommand.Cancel), "Where postponing is not allowed, cancelling is not either");
+        Check(BotCommands.EnabledByDefault.Contains(BotCommand.Cancel) && BotCommands.LevelOf(BotCommand.Cancel) == BotLevel.Manage
+              && !BotCommands.NeedsConfirmation(BotCommand.Cancel) && !BotCommands.IsLimited(BotCommand.Cancel),
+            "Cancelling is a safe command: on by default, no confirmation, no use of the limit");
+
         // --- IDs of buttons
-        foreach (var command in new[] { BotCommand.Start, BotCommand.Stop, BotCommand.RestartNow, BotCommand.Postpone, BotCommand.Resume, BotCommand.CheckUpdates })
+        foreach (var command in new[] { BotCommand.Start, BotCommand.Stop, BotCommand.RestartNow, BotCommand.Postpone, BotCommand.Resume, BotCommand.Cancel, BotCommand.CheckUpdates })
             foreach (var instance in new[] { 0, 3, 9 })
             {
                 var id = BotCustomId.ForAction(command, instance);
@@ -495,7 +509,7 @@ static class DiscordBotChecks
         Check(!BotCustomId.TryParse(BotCustomId.ForAction(BotCommand.Stop, 5), 5, out _, out _, out _, out _), "An instance that does not exist is refused");
         foreach (var bad in new[] { null, "", "tb1", "tb2:a:stop:0", "TB1:a:stop:0", "tb1:a:Stop:0", "tb1:a:format:0", "tb1:a:stop:-1", "tb1:a:stop:0;x",
                      "tb1:a:stop:0 ", "tb1:a:stop:0\n", "tb1:ok:" + new string('a', 22) + "\n", "tb1:a:stop:", "tb1:a:stop:1000", "tb1:ok:short", "tb1:ok:" + new string('a', 23), "tb1:xx:" + new string('a', 22),
-                     "tb1:a:status:0", "tb1:a:update:0", new string('a', 101) })
+                     "tb1:a:status:0", "tb1:a:update:0", "tb1:a:Cancel:0", "tb1:a:cancel:", "tb1:a:cancel:0 ", new string('a', 101) })
             Check(!BotCustomId.TryParse(bad, 10, out _, out _, out _, out _), $"'{bad}' is no button ID");
         var code = pending.Create(Operator, BotCommand.Stop, 0, t0);
         Check(BotCustomId.TryParse(BotCustomId.ForConfirm(code), 1, out var confirmKind, out _, out _, out var confirmCode) && confirmKind == BotCustomIdKind.Confirm && confirmCode == code
@@ -581,6 +595,26 @@ static class DiscordBotChecks
         // which buttons it shows, the click is checked like every other request.
         Check(BotStatusMessageBuilder.Build(online with { Pending = BotPendingAction.Restart }, BotTexts.German, t0).Buttons.Any(b => b.Command == BotCommand.Postpone),
             "The postpone button shows while something is pending");
+
+        // While a countdown runs it can be cancelled: a button of its own, named by what is counting down.
+        foreach (var (pendingAction, label) in new[]
+                 {
+                     (BotPendingAction.Restart, "Neustart abbrechen"), (BotPendingAction.Stop, "Stopp abbrechen"), (BotPendingAction.Update, "Update abbrechen")
+                 })
+        {
+            var counting = BotStatusMessageBuilder.Build(online with { Pending = pendingAction, PendingAtUtc = t0.AddMinutes(10), Countdown = true }, BotTexts.German, t0);
+            Check(counting.Buttons.Select(b => b.Command).SequenceEqual([BotCommand.RestartNow, BotCommand.Stop, BotCommand.Postpone, BotCommand.Cancel, BotCommand.CheckUpdates])
+                  && counting.Buttons.Single(b => b.Command == BotCommand.Cancel) is { Style: BotButtonStyle.Secondary } cancelButton && cancelButton.Label == label
+                  && BotCustomId.TryParse(cancelButton.CustomId, 4, out _, out var cancelCommand, out var cancelInstance, out _) && cancelCommand == BotCommand.Cancel && cancelInstance == 1,
+                $"A running countdown ({pendingAction}) offers '{label}'");
+        }
+        Check(BotStatusMessageBuilder.Build(online with { Pending = BotPendingAction.Restart, PendingAtUtc = t0.AddMinutes(10), Countdown = true }, BotTexts.English, t0).Buttons
+                  .Single(b => b.Command == BotCommand.Cancel).Label == "Cancel restart"
+              && BotStatusMessageBuilder.Build(online with { Pending = BotPendingAction.Restart, PendingAtUtc = t0.AddMinutes(10) }, BotTexts.German, t0).Buttons.All(b => b.Command != BotCommand.Cancel)
+              && BotStatusMessageBuilder.Build(online with { Countdown = true }, BotTexts.German, t0).Buttons.All(b => b.Command != BotCommand.Cancel)
+              && BotStatusMessageBuilder.Build(online with { Pending = BotPendingAction.Stop, Countdown = true }, BotTexts.German, t0 ) is { } stopCountdown && stopCountdown.Buttons.Count == 5,
+            "Only a countdown can be cancelled (a restart that is merely planned can only be postponed); the labels follow the language");
+        Check(new BotServerStatus(0, "x", BotServerState.Online, 0, 10, null, BotPendingAction.None, null, null).Countdown == false, "A status has no countdown unless it says so");
 
         var paused = online with { PausedUntilUtc = t0.AddHours(1) };
         var pausedMessage = BotStatusMessageBuilder.Build(paused, BotTexts.German, t0);

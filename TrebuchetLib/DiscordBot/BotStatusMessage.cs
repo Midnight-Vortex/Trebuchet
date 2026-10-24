@@ -7,6 +7,7 @@ public enum BotPendingAction { None, Restart, Stop, Update }
 
 /// <summary>The state of a server instance as the bot shows it. No paths, addresses or passwords.</summary>
 /// <param name="Restarting">The server is going down to be started again (a restart is on its way), not to stay down.</param>
+/// <param name="Countdown">A countdown with warnings to the players runs: it can be cancelled.</param>
 public sealed record BotServerStatus(
     int Instance,
     string Name,
@@ -17,7 +18,8 @@ public sealed record BotServerStatus(
     BotPendingAction Pending,
     DateTime? PendingAtUtc,
     DateTime? PausedUntilUtc,
-    bool Restarting = false);
+    bool Restarting = false,
+    bool Countdown = false);
 
 /// <summary>The colors of Discord for buttons: green, red, blue and grey are all it offers.</summary>
 public enum BotButtonStyle { Success, Danger, Primary, Secondary }
@@ -112,6 +114,8 @@ public static class BotStatusMessageBuilder
                 Add(BotCommand.Stop, texts.Stop, BotButtonStyle.Danger);
                 if (status.Pending != BotPendingAction.None)
                     Add(BotCommand.Postpone, PostponeLabel(status.Pending, texts), BotButtonStyle.Secondary);
+                if (status.Countdown && status.Pending != BotPendingAction.None)
+                    Add(BotCommand.Cancel, CancelLabel(status.Pending, texts), BotButtonStyle.Secondary);
                 if (status.PausedUntilUtc is { } paused && paused > utcNow)
                     Add(BotCommand.Resume, texts.Resume, BotButtonStyle.Secondary);
                 break;
@@ -130,6 +134,13 @@ public static class BotStatusMessageBuilder
         BotPendingAction.Stop => texts.PostponeStop,
         BotPendingAction.Update => texts.PostponeUpdate,
         _ => texts.PostponeRestart
+    };
+
+    private static string CancelLabel(BotPendingAction pending, BotTexts texts) => pending switch
+    {
+        BotPendingAction.Stop => texts.CancelStop,
+        BotPendingAction.Update => texts.CancelUpdate,
+        _ => texts.CancelRestart
     };
 
     private static string PlannedText(BotPendingAction pending, BotTexts texts) => pending switch

@@ -41,6 +41,7 @@ static class BotInteractionHandlerChecks
 
         public Task<BotActionResult> PostponeAsync(int instance, int minutes, string reason, CancellationToken token) => Answer($"postpone {instance} {minutes} {reason}");
         public Task<BotActionResult> ResumeAsync(int instance, CancellationToken token) => Answer($"resume {instance}");
+        public Task<BotActionResult> CancelAsync(int instance, CancellationToken token) => Answer($"cancel {instance}");
         public Task<BotActionResult> RestartAsync(int instance, TimeSpan delay, string reason, CancellationToken token) => Answer($"restart {instance} {delay.TotalMinutes} {reason}");
         public Task<BotActionResult> StopAsync(int instance, TimeSpan delay, string reason, CancellationToken token) => Answer($"stop {instance} {delay.TotalMinutes} {reason}");
         public Task<BotActionResult> StartAsync(int instance, CancellationToken token) => Answer($"start {instance}");
@@ -456,6 +457,25 @@ static class BotInteractionHandlerChecks
             Check((await rig.Do(rig.Button("tb1:a:postpone:5", Stranger))).Last.Text == BotDecision.PublicMessage, "...and still neutral for strangers");
             var resume = await rig.Do(rig.Button(BotCustomId.ForAction(BotCommand.Resume, 0)));
             Check(rig.Actions.Done.Last() == "resume 0" && resume.Last.Text == BotMessages.German.Resumed, "The release button works at once");
+            // The button that cancels a countdown: at once, no window, no confirmation, and it does not use up the limit of critical actions.
+            var cancelButton = await rig.Do(rig.Button(BotCustomId.ForAction(BotCommand.Cancel, 0)));
+            Check(rig.Actions.Done.Last() == "cancel 0" && cancelButton.Last.Text == BotMessages.German.CountdownCancelled && cancelButton.Last.Question is null && cancelButton.Modals.Count == 0,
+                "The cancel button works at once: " + cancelButton.Last.Text);
+            var cancelSlash = await rig.Do(rig.Slash("restart cancel", numbers: Rig.N(1)));
+            Check(rig.Actions.Done.Last() == "cancel 1" && cancelSlash.Last.Text == BotMessages.German.CountdownCancelled, "...and as a command");
+            rig.Actions.Result = new BotActionResult(BotActionOutcome.NothingPending);
+            Check((await rig.Do(rig.Button(BotCustomId.ForAction(BotCommand.Cancel, 0)))).Last.Text == BotMessages.German.NothingToCancel, "Without a countdown it says so");
+            rig.Actions.Result = new BotActionResult(BotActionOutcome.Done);
+            var executedBefore = rig.Actions.Executed;
+            Check((await rig.Do(rig.Button(BotCustomId.ForAction(BotCommand.Cancel, 0), Stranger))).Last.Text == BotDecision.PublicMessage
+                  && (await rig.Do(rig.Button("tb1:a:cancel:5"))).Last.Text == BotMessages.German.UnknownRequest
+                  && (await rig.Do(rig.Slash("restart cancel", Stranger, numbers: Rig.N(0)))).Last.Text == BotDecision.PublicMessage
+                  && (await rig.Do(rig.Slash("restart cancel"))).Last.Text == BotMessages.German.InvalidInput && rig.Actions.Executed == executedBefore,
+                "A stranger, a server that does not exist and a missing server do not reach the launcher");
+            var noCancel = new Rig(folder, Config(c => c.SetEnabled(BotCommand.Cancel, false)));
+            Check((await noCancel.Do(noCancel.Button(BotCustomId.ForAction(BotCommand.Cancel, 0)))).Last.Text == BotDecision.PublicMessage && noCancel.Actions.Executed == 0
+                  && (await noCancel.Do(noCancel.Button(BotCustomId.ForAction(BotCommand.Cancel, 0), SuperAdmin))).Last.Text == BotMessages.German.CountdownCancelled,
+                "Switched off, the command is refused for users, the super admin may always cancel");
 
             // --- critical actions: off by default, then with a confirmation
             rig = new Rig(folder, Config());
@@ -606,7 +626,7 @@ static class BotInteractionHandlerChecks
             Check(chosenStatus.Last.Embeds is { Count: 1 } shown && shown[0].Title == "Siptah · Instanz 1",
                 "The status shows only the managed server, under its name");
             Check((await chosen.Do(chosen.Slash("status", numbers: Rig.N(0)))).Last.Text == BotMessages.German.UnknownServer, "A server that is not managed does not exist for the bot");
-            foreach (var path in new[] { "stop", "restart now", "start", "restart postpone", "restart resume" })
+            foreach (var path in new[] { "stop", "restart now", "start", "restart postpone", "restart resume", "restart cancel" })
                 Check((await chosen.Do(chosen.Slash(path, SuperAdmin, numbers: Rig.N(0, path == "restart postpone" ? 30 : null)))).Last.Text == BotMessages.German.UnknownServer,
                     $"'{path}' for a server that is not managed is refused, also for the super admin");
             Check((await chosen.Do(chosen.Button(BotCustomId.ForAction(BotCommand.Stop, 0)))).Last.Text == BotMessages.German.UnknownServer

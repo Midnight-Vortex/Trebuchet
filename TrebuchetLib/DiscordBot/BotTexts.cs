@@ -24,6 +24,9 @@ public sealed record BotTexts
     public required string PostponeStop { get; init; }
     public required string PostponeUpdate { get; init; }
     public required string Resume { get; init; }
+    public required string CancelRestart { get; init; }
+    public required string CancelStop { get; init; }
+    public required string CancelUpdate { get; init; }
     public required string CheckUpdates { get; init; }
     public required string UpdatedFooter { get; init; }
     /// <summary>Title of an old status message after the admin channel moved: no buttons, no state.</summary>
@@ -54,6 +57,9 @@ public sealed record BotTexts
         PostponeStop = "Stopp verschieben",
         PostponeUpdate = "Update verschieben",
         Resume = "Wieder freigeben",
+        CancelRestart = "Neustart abbrechen",
+        CancelStop = "Stopp abbrechen",
+        CancelUpdate = "Update abbrechen",
         CheckUpdates = "Updates prüfen",
         UpdatedFooter = "Aktualisiert",
         MovedTitle = "Der Admin-Kanal wurde gewechselt. Diese Meldung gilt nicht mehr.",
@@ -83,6 +89,9 @@ public sealed record BotTexts
         PostponeStop = "Postpone stop",
         PostponeUpdate = "Postpone update",
         Resume = "Release again",
+        CancelRestart = "Cancel restart",
+        CancelStop = "Cancel stop",
+        CancelUpdate = "Cancel update",
         CheckUpdates = "Check updates",
         UpdatedFooter = "Updated",
         MovedTitle = "The admin channel was changed. This message is no longer used.",

@@ -117,6 +117,18 @@ public sealed class LauncherBotActions : IBotActions, IDisposable
         }, token);
     }
 
+    public Task<BotActionResult> CancelAsync(int instance, CancellationToken token)
+    {
+        return ActAsync("cancel", instance, string.Empty, async (status, _, t) =>
+        {
+            if (Unavailable(status) is { } refused) return refused;
+            if (!status.CountdownRunning) return new BotActionResult(BotActionOutcome.NothingPending);
+            var cancel = _launcher.CancelCountdown(instance);
+            if (cancel.IsCompletedSuccessfully && !await cancel) return new BotActionResult(BotActionOutcome.NothingPending);
+            return await FinishAsync(cancel, "cancel", instance, wait: true, t);
+        }, token);
+    }
+
     public Task<BotActionResult> RestartAsync(int instance, TimeSpan delay, string reason, CancellationToken token)
     {
         var text = BotInputRules.SanitizeLauncherReason(reason);
@@ -235,7 +247,8 @@ public sealed class LauncherBotActions : IBotActions, IDisposable
             pending,
             pendingAt,
             status.PausedUntilUtc is { } paused && paused > utcNow ? paused : null,
-            status.ProcessRestarts || status.RestartRequested || (status.CountdownRunning && status.CountdownRestarts));
+            status.ProcessRestarts || status.RestartRequested || (status.CountdownRunning && status.CountdownRestarts),
+            status.CountdownRunning);
     }
 
     private static BotServerState StateOf(LauncherServerStatus status) => status.State switch

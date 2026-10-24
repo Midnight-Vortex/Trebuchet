@@ -95,7 +95,10 @@ Die Rolle `@everyone` ist **nicht erlaubt** (jeder hat sie), Trebuchet lehnt sie
    seinen Countdown beginnt. Ein **Absturz** wird nicht gemeldet, der Launcher hat ihn nicht geplant. Mit mehreren
    Servern steht der Name des Servers in der ersten Zeile. Der Community-Log läuft, solange der Bot läuft; zeigt dein
    Speicherstand schon eigene Meldungen über einen Webhook an, solltest du nur eines von beiden benutzen, sonst steht
-   alles doppelt im Kanal. Ein Stopp von Hand kurz vor einem geplanten Neustart wird als Stopp gemeldet, nicht als
+   alles doppelt im Kanal. Sagt der Log einen Neustart oder Stopp an und es kommt anders, schreibt er das auch: „✅ Der
+   Neustart fällt aus“ (abgebrochen; erst wenn es beim zweiten Blick noch so ist) und „⏸️ Der Neustart wurde verschoben“
+   mit der neuen Uhrzeit (wenn die neue Zeit noch weiter weg ist als die Vorlaufzeit; sonst kommt gleich die neue Ankündigung
+   mit der neuen Zeit). Wird die Verschiebung wieder aufgehoben, steht die alte Zeit wieder in der Ankündigung. Ein Stopp von Hand kurz vor einem geplanten Neustart wird als Stopp gemeldet, nicht als
    Neustart. War der Bot länger als ein paar Minuten weg (aus, keine Verbindung zu Discord), erzählt er danach nichts Altes als
    „jetzt“; hatte er einen Stopp oder Neustart schon gemeldet, meldet er auch „wieder online“, nur ohne Offline-Zeit.
 9. **Sicherheit prüfen** drücken. Alle Punkte müssen grün sein.
@@ -138,8 +141,18 @@ zeigt, wann zuletzt geprüft wurde. Die Buttons passen immer zum Zustand:
   Die Spieler werden wie gewohnt gewarnt.
 - **Neustart verschieben / Stopp verschieben / Update verschieben:** erscheint, wenn gerade etwas ansteht. Nach dem
   Klick wählst du aus: **15 Min, 30 Min, 1 Std, 2 Std, 3 Std, 6 Std**, danach kommt wieder das Fenster für den Grund
-  (darf leer bleiben). Ingame steht danach „Der Neustart von {servername} wurde um X Minuten verschoben.“
-- **Wieder freigeben:** hebt die Verschiebung auf.
+  (darf leer bleiben). Ingame steht danach „Der Neustart von {servername} wurde um X Minuten verschoben.“ Die Minuten
+  werden zur geplanten Zeit **addiert**: Ein Neustart in 30 Minuten, um 30 Minuten verschoben, kommt nach 60 Minuten (nicht
+  schon nach etwa 37). Der Countdown, der danach läuft, braucht seine Vorwarnzeit; die Pause endet entsprechend früher.
+- **Wieder freigeben:** hebt die Verschiebung auf und bringt die **alte Zeit** zurück: Der Neustart kommt zu der Zeit, zu der
+  er vorher geplant war (die Spieler lesen „startet in 27 Minuten neu“ mit der alten Uhrzeit), nicht mit einem neuen vollen
+  Countdown von vorn.
+- **Neustart abbrechen / Stopp abbrechen / Update abbrechen:** erscheint nur, solange ein **Countdown** läuft (auch als
+  Befehl `/restart cancel`). Er wird sofort beendet, ohne Rückfrage; die Spieler lesen ingame „fällt aus“, und der
+  Community-Log meldet es auch. Einen Neustart, den der Zeitplan oder ein Update von allein gestartet hat, würde der
+  nächste Takt gleich wieder beginnen: Die automatischen Neustarts warten deshalb kurz (bis das tägliche Fenster des
+  Zeitplans vorbei ist, in der Meldung steht dann „Verschoben bis“). Von Hand gestartete Countdowns enden einfach. Wer
+  verschieben darf, darf auch abbrechen (ausschaltbar wie jeder Befehl).
 - **Updates prüfen:** fragt Steam, ob Mods oder der Server ein Update brauchen, und sagt dir das Ergebnis. Es wird
   **nichts installiert**. (Auch als Befehl `/updatecheck`.)
 

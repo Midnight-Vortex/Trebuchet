@@ -7707,5 +7707,23 @@ namespace Trebuchet.Assets {
             }
         }
         
+        /// <summary>
+        ///   Looks up a localized string similar to Cancel the countdown (/restart cancel).
+        /// </summary>
+        public static string DiscordBotCommandCancel {
+            get {
+                return ResourceManager.GetString("DiscordBotCommandCancel", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Cancels the restart or stop that is counting down. The players are told it does not happen..
+        /// </summary>
+        public static string DiscordBotCommandCancelText {
+            get {
+                return ResourceManager.GetString("DiscordBotCommandCancelText", resourceCulture);
+            }
+        }
+        
     }
 }

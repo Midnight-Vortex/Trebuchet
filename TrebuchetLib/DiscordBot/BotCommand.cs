@@ -12,6 +12,8 @@ public enum BotCommand
     Postpone,
     /// <summary>End a postponement: the automatic restarts run again.</summary>
     Resume,
+    /// <summary>Cancel the restart or stop that is counting down: the players are told it does not happen.</summary>
+    Cancel,
     /// <summary>Restart a running server now (with the warnings of its save).</summary>
     RestartNow,
     /// <summary>Stop a running server.</summary>
@@ -48,7 +50,7 @@ public static class BotCommands
     public static BotLevel LevelOf(BotCommand command) => command switch
     {
         BotCommand.Status => BotLevel.Read,
-        BotCommand.Postpone or BotCommand.Resume or BotCommand.CheckUpdates => BotLevel.Manage,
+        BotCommand.Postpone or BotCommand.Resume or BotCommand.Cancel or BotCommand.CheckUpdates => BotLevel.Manage,
         BotCommand.RestartNow or BotCommand.Stop => BotLevel.Critical,
         BotCommand.Start or BotCommand.Update or BotCommand.SetChannel => BotLevel.SuperAdmin,
         _ => BotLevel.SuperAdmin
@@ -62,5 +64,5 @@ public static class BotCommands
 
     /// <summary>Commands that are on in a new settings file. Everything else is off until someone switches it on.</summary>
     public static IReadOnlyList<BotCommand> EnabledByDefault { get; } =
-        [BotCommand.Status, BotCommand.Postpone, BotCommand.Resume, BotCommand.CheckUpdates, BotCommand.SetChannel];
+        [BotCommand.Status, BotCommand.Postpone, BotCommand.Resume, BotCommand.Cancel, BotCommand.CheckUpdates, BotCommand.SetChannel];
 }

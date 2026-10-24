@@ -406,6 +406,16 @@ static class LauncherBotActionsChecks
                   && await OnLauncher(() => launcher.IsCountdownRunning(0)),
                 "After the release the restart is back at the time it was planned for before: " + resumed);
 
+            // The countdown can be cancelled: a restart somebody started by hand just ends, nothing is paused, the players are told.
+            check((await StatusOf(0))?.Countdown == true, "A running countdown is shown as one (it can be cancelled)");
+            var cancelled = await actions.CancelAsync(0, none);
+            var afterCancel = await WaitFor(0, x => x?.Countdown == false);
+            check(cancelled.Success && !await OnLauncher(() => launcher.IsCountdownRunning(0)) && afterCancel is { Countdown: false, PausedUntilUtc: null }
+                  && await OnLauncher(() => launcher.GetAutomaticRestartsPause(0)) is null,
+                "Cancelling a countdown ends it without pausing anything: " + cancelled + " " + afterCancel);
+            check((await actions.CancelAsync(0, none)).Outcome == BotActionOutcome.NothingPending && (await actions.CancelAsync(7, none)).Outcome == BotActionOutcome.Failed,
+                "Without a countdown there is nothing to cancel, a server that does not exist is refused");
+
             // Instances 0 and 1 installed (the binaries only), instance 1 on the save of the running instance 0.
             foreach (var instance in new[] { 0, 1 })
             {

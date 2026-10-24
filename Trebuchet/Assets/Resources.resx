@@ -2701,4 +2701,10 @@ The bot does not answer in the channel: is the admin channel set, and do you use
     <data name="DiscordBotIssueInvalidName" xml:space="preserve">
         <value>The name is not allowed (no "discord" or "clyde" in it, and no token or link)</value>
     </data>
+    <data name="DiscordBotCommandCancel" xml:space="preserve">
+        <value>Cancel the countdown (/restart cancel)</value>
+    </data>
+    <data name="DiscordBotCommandCancelText" xml:space="preserve">
+        <value>Cancels the restart or stop that is counting down. The players are told it does not happen.</value>
+    </data>
 </root>

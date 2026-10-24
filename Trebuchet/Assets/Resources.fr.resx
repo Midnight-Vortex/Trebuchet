@@ -2083,4 +2083,10 @@ Le bot ne répond pas dans le salon : le salon d’administration est-il défini
     <data name="DiscordBotIssueInvalidName" xml:space="preserve">
         <value>Le nom n'est pas autorisé (sans « discord » ni « clyde », et sans jeton ni lien)</value>
     </data>
+    <data name="DiscordBotCommandCancel" xml:space="preserve">
+        <value>Annuler le compte à rebours (/restart cancel)</value>
+    </data>
+    <data name="DiscordBotCommandCancelText" xml:space="preserve">
+        <value>Annule le redémarrage ou l'arrêt en cours de compte à rebours. Les joueurs sont informés qu'il n'a pas lieu.</value>
+    </data>
 </root>
