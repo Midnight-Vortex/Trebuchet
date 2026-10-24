@@ -62,7 +62,7 @@ public sealed partial class BotAuditChannelFeed : IDisposable
             if (Volatile.Read(ref _disposed) != 0) return;
             var policy = _policy();
             if (policy is null || policy.AuditChannelId == 0) return;
-            var clean = BotInputRules.SanitizeForLog(text);
+            var clean = BotInputRules.SanitizeNote(text);
             if (clean.Length == 0) return;
             Interlocked.Increment(ref _unsent);
             if (!_queue.Writer.TryWrite(clean)) Interlocked.Decrement(ref _unsent);
@@ -75,34 +75,29 @@ public sealed partial class BotAuditChannelFeed : IDisposable
 
     private void OnEntry(object? sender, BotAuditEntry entry) => Post(Format(entry));
 
-    /// <summary>One line for the channel: result, command, server by name, parameters, who, outcome.</summary>
+    /// <summary>A server changed its state: told in words, with the name of the server.</summary>
+    public void PostStateChange(BotServerStatus status, BotServerState before)
+    {
+        var language = _policy()?.Language;
+        Post(BotAuditTexts.For(language).StateChanged(status.Name, status.Instance, before, status.State, BotTexts.For(language)));
+    }
+
+    public void PostConnected() => Post(BotAuditTexts.For(_policy()?.Language).Connected);
+
+    public void PostProblem(DiscordBotProblem problem) => Post(BotAuditTexts.For(_policy()?.Language).ProblemText(problem));
+
+    /// <summary>
+    /// One line for the channel, in the language of the bot: who asked for what, for which server (by name), and how it
+    /// ended. Empty when the entry adds nothing.
+    /// </summary>
     public string Format(BotAuditEntry entry)
     {
-        var inv = CultureInfo.InvariantCulture;
-        var result = entry.Result switch
-        {
-            BotAuditResult.Allowed => "Asked",
-            BotAuditResult.Executed => "Done",
-            BotAuditResult.Failed => "Failed",
-            BotAuditResult.Denied => "Refused",
-            BotAuditResult.Throttled => "Slowed down",
-            BotAuditResult.LockedOut => "Locked out",
-            BotAuditResult.Cancelled => "Cancelled",
-            _ => entry.Result.ToString()
-        };
-        var parts = new List<string> { entry.Command?.ToString() ?? "unknown request" };
-        var match = InstancePattern().Match(entry.Parameters);
-        if (match.Success && int.TryParse(match.Groups[1].Value, NumberStyles.None, inv, out var instance))
-        {
-            var name = _serverName(instance);
-            parts.Add(string.IsNullOrWhiteSpace(name) ? $"server {instance}" : $"server {name} (instance {instance})");
-        }
-        var rest = InstancePattern().Replace(entry.Parameters, string.Empty).Trim();
-        var text = $"{result}: {string.Join(" · ", parts)} by <@{entry.UserId.ToString(inv)}> ({entry.UserId.ToString(inv)})";
-        if (rest.Length > 0) text += $" [{rest}]";
-        // The exact reason of a refusal is for the log file only.
-        if (entry.Result != BotAuditResult.Denied && entry.Detail.Length > 0) text += $": {entry.Detail}";
-        return text;
+        var language = _policy()?.Language;
+        string? name = null;
+        if (InstancePattern().Match(entry.Parameters) is { Success: true } match
+            && int.TryParse(match.Groups[1].Value, NumberStyles.None, CultureInfo.InvariantCulture, out var instance))
+            name = _serverName(instance);
+        return BotAuditTexts.For(language).Format(entry, name, language);
     }
 
     /// <summary>Waits until everything queued so far was sent or dropped (the tests, and the end of the bot).</summary>

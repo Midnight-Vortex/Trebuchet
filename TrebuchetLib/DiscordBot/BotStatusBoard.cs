@@ -18,7 +18,10 @@ public sealed class BotStatusBoard
         public DateTime LastWriteUtc;
         public int Failures;
         public DateTime RetryAfterUtc;
+        /// <summary>The state the audit channel was told last (null: not seen yet).</summary>
         public BotServerState? LastState;
+        /// <summary>A state that differs from <see cref="LastState"/> and since when it holds.</summary>
+        public (BotServerState State, DateTime Since)? Candidate;
     }
 
     private readonly IBotActions _actions;
@@ -46,8 +49,14 @@ public sealed class BotStatusBoard
     /// <summary>The name the board shows for a server (the last one it read), null while it has not seen it.</summary>
     public string? NameOf(int instance) => _names.TryGetValue(instance, out var name) ? name : null;
 
-    /// <summary>A line about something the board noticed: a server changed its state. Called on the thread of the refresh.</summary>
-    public Action<string>? Notes { get; init; }
+    /// <summary>
+    /// A server changed its state (the state before is the second value). Called on the thread of the refresh, once per
+    /// change that held for <see cref="SettleTime"/>.
+    /// </summary>
+    public Action<BotServerStatus, BotServerState>? Notes { get; init; }
+
+    /// <summary>How long a new state has to hold before the audit channel is told: a flicker between two steps is not news.</summary>
+    public TimeSpan SettleTime { get; init; } = TimeSpan.FromSeconds(10);
 
     /// <summary>Shortest time between two edits of the same message (Discord limits edits).</summary>
     public TimeSpan MinEditInterval { get; init; } = TimeSpan.FromSeconds(5);
@@ -132,16 +141,49 @@ public sealed class BotStatusBoard
     // Returns when this message has to be looked at again.
     private async Task<TimeSpan> RefreshOneAsync(BotServerStatus status, BotTexts texts, ulong channelId, DateTime now, bool force)
     {
+        var settle = TellStateChange(status, now);
+        var due = await RefreshMessageAsync(status, texts, channelId, now, force).ConfigureAwait(false);
+        return settle is { } wait && wait < due ? wait : due;
+    }
+
+    /// <summary>
+    /// A state that holds for <see cref="SettleTime"/> is told once, with the name of the server. A flicker (a server that is
+    /// "stopped" for a moment between two steps of its stop) is not: it would be told three times for one stop.
+    /// </summary>
+    /// <returns>When the state has to be looked at again to decide, null when nothing is undecided.</returns>
+    private TimeSpan? TellStateChange(BotServerStatus status, DateTime now)
+    {
+        if (!_entries.TryGetValue(status.Instance, out var entry))
+            _entries[status.Instance] = entry = new Entry();
+        if (entry.LastState is not { } told)
+        {
+            // The first look tells nothing, it is the starting point.
+            entry.LastState = status.State;
+            return null;
+        }
+        if (status.State == told)
+        {
+            entry.Candidate = null;
+            return null;
+        }
+        if (entry.Candidate is not { } candidate || candidate.State != status.State)
+            entry.Candidate = candidate = (status.State, now);
+        var held = now - candidate.Since;
+        if (held < SettleTime) return AtLeastASecond(SettleTime - held);
+        entry.LastState = status.State;
+        entry.Candidate = null;
+        Notes?.Invoke(status, told);
+        return null;
+    }
+
+    private async Task<TimeSpan> RefreshMessageAsync(BotServerStatus status, BotTexts texts, ulong channelId, DateTime now, bool force)
+    {
         try
         {
             var message = BotStatusMessageBuilder.Build(status, texts, now);
             var signature = Signature(message);
             if (!_entries.TryGetValue(status.Instance, out var entry))
                 _entries[status.Instance] = entry = new Entry();
-            // A state that changed since the last look is told once, with the name of the server.
-            if (entry.LastState is { } before && before != status.State)
-                Notes?.Invoke($"Server {status.Name} (instance {status.Instance}): {before} -> {status.State}");
-            entry.LastState = status.State;
             // A server that is starting or stopping is read more often, a calm one every few minutes.
             var calm = status.State is BotServerState.Starting or BotServerState.Stopping ? BusyInterval : HeartbeatInterval;
 

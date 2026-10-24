@@ -137,7 +137,7 @@ public static class BotStatusMessageBuilder
         _ => texts.PlannedRestart
     };
 
-    private static string StateText(BotServerState state, BotTexts texts) => state switch
+    internal static string StateText(BotServerState state, BotTexts texts) => state switch
     {
         BotServerState.Online => texts.StateOnline,
         BotServerState.Starting => texts.StateStarting,

@@ -277,7 +277,7 @@ static class BotInteractionHandlerChecks
             var locked = new Rig(folder, Config());
             for (var n = 0; n < 5; n++) await locked.Do(locked.Slash("status", Stranger));
             Check(locked.Audit.Recent.Any(x => x.Result == BotAuditResult.LockedOut)
-                  && locked.Client.Notes.Any(x => x.Channel == AuditChannel && x.Text.StartsWith("Locked out:", StringComparison.Ordinal)),
+                  && locked.Client.Notes.Any(x => x.Channel == AuditChannel && x.Text.StartsWith("🔒 Gesperrt:", StringComparison.Ordinal)),
                 "A lock out is logged and reported to the audit channel");
             var silent = await locked.Do(locked.Slash("status", Stranger));
             Check(silent.Replies.Count == 0, "A locked out user gets no answer");
@@ -368,7 +368,7 @@ static class BotInteractionHandlerChecks
             var done = await rig.Do(rig.Click(confirm!, true));
             Check(rig.Actions.Done.Last() == "stop 0 5 Discord" && done.Replies[0].Update && done.Last.Text == "Stopp von Server Exiled Lands gestartet.",
                 "The confirmation stops with the default warning time");
-            Check(rig.Client.Notes.Any(x => x.Channel == AuditChannel && x.Text.StartsWith("Done: Stop · server Exiled Lands (instance 0) by <@", StringComparison.Ordinal)),
+            Check(rig.Client.Notes.Any(x => x.Channel == AuditChannel && x.Text.StartsWith("✅ Erledigt: Server stoppen: Server Exiled Lands (Instanz 0)", StringComparison.Ordinal)),
                 "Critical actions are reported to the audit channel, with the name of the server");
             var secondClick = await rig.Do(rig.Click(confirm!, true));
             Check(secondClick.Last.Text == BotMessages.German.Expired && !secondClick.Replies[0].Update && rig.Actions.Executed == 1,
@@ -512,7 +512,7 @@ static class BotInteractionHandlerChecks
             Check(chosen.Actions.Done.Last() == "stop 1 5 Discord" && namedDone.Last.Text == "Stopp von Server Siptah gestartet.", "...and so do the answers");
             var namedMenu = (await chosen.Do(chosen.Button(BotCustomId.ForAction(BotCommand.RestartNow, 1)))).Last;
             Check(namedMenu.Text.Contains("Siptah"), "...and the menu of warning times");
-            Check(chosen.Client.Notes.Any(x => x.Text.Contains("Done: Stop · server Siptah (instance 1) by")), "...and the audit channel");
+            Check(chosen.Client.Notes.Any(x => x.Text.Contains("✅ Erledigt: Server stoppen: Server Siptah (Instanz 1)")), "...and the audit channel");
             var unnamed = new Rig(folder, Config(c => c.ManagedInstances = [0, 1]));
             Check((await unnamed.Do(unnamed.Slash("status"))).Last.Embeds!.Select(e => e.Title).SequenceEqual(["Exiled Lands · Instanz 0", "Siptah · Instanz 1"]),
                 "Without a name the save is shown, every chosen server is listed");
@@ -561,7 +561,7 @@ static class BotInteractionHandlerChecks
             channelAsk = (await rig.Do(rig.Slash("bot channel set", SuperAdmin, channel: OtherChannel))).Last;
             var channelDone = await rig.Do(rig.Click((BotConfirmQuestion)channelAsk.Question!, true, SuperAdmin, channel: OtherChannel));
             Check(rig.Settings.SetChannels.SequenceEqual([OtherChannel]) && channelDone.Last.Text == BotMessages.German.DoneChannel
-                  && rig.Client.Notes.Any(x => x.Text.StartsWith("Done: SetChannel", StringComparison.Ordinal) && x.Text.Contains("admin channel set")),
+                  && rig.Client.Notes.Any(x => x.Text.StartsWith("✅ Erledigt: Admin-Kanal festlegen", StringComparison.Ordinal) && x.Text.Contains("dieser Kanal ist jetzt der Admin-Kanal")),
                 "The channel of the command becomes the admin channel, reported to the audit channel");
             Check(rig.Audit.Recent.Any(x => x.Command == BotCommand.SetChannel && x.Result == BotAuditResult.Executed), "...and is in the audit log");
 
@@ -822,8 +822,9 @@ static class BotInteractionHandlerChecks
         beatActions.Statuses[0] = beatActions.Statuses[0] with { State = BotServerState.Stopping };
         beat.Now = beat.Now.AddSeconds(30);
         var stoppingWait = await beatBoard.RefreshAsync(CancellationToken.None);
-        check(stoppingWait == TimeSpan.FromSeconds(15) && beatChannel.Edits[^1].Message.Buttons[0] is { Command: BotCommand.Start, Disabled: true },
-            "While a server is stopping the next look is due in 15 seconds and the buttons wait greyed out");
+        // The new state is looked at again when it has settled (before the 15 seconds of a busy server are over).
+        check(stoppingWait == beatBoard.SettleTime && beatChannel.Edits[^1].Message.Buttons[0] is { Command: BotCommand.Start, Disabled: true },
+            "While a server is stopping the next look is due when the new state has settled and the buttons wait greyed out");
         beatActions.Statuses[0] = beatActions.Statuses[0] with { State = BotServerState.Stopped, StartedUtc = null, Players = 0 };
         beat.Now = beat.Now.AddSeconds(2);
         var tooSoon = await beatBoard.RefreshAsync(CancellationToken.None);
@@ -849,18 +850,42 @@ static class BotInteractionHandlerChecks
         };
         var notes = new List<string>();
         var tellBoard = new BotStatusBoard(tellActions, new FakeChannel(), new FakeSettings { Policy = PolicyOf(Config()), AdminChannelId = Channel },
-            () => told.Now) { Notes = notes.Add };
+            () => told.Now) { Notes = (status, before) => notes.Add($"{status.Name}: {before} -> {status.State}") };
         await tellBoard.RefreshAsync(CancellationToken.None);
         check(notes.Count == 0 && tellBoard.NameOf(0) == "Exiled Lands" && tellBoard.NameOf(5) is null, "The first look tells nothing, the board knows the name");
         tellActions.Statuses[0] = tellActions.Statuses[0] with { State = BotServerState.Stopping };
         told.Now = told.Now.AddSeconds(10);
+        var undecided = await tellBoard.RefreshAsync(CancellationToken.None);
+        check(notes.Count == 0 && undecided <= tellBoard.SettleTime, "A new state is not told at once, the board looks again when it has settled");
+        await tellBoard.RefreshAsync(CancellationToken.None);
+        told.Now = told.Now.AddSeconds(15);
         await tellBoard.RefreshAsync(CancellationToken.None);
         await tellBoard.RefreshAsync(CancellationToken.None);
+        check(notes.SequenceEqual(["Exiled Lands: Online -> Stopping"]), "A state that holds is told once, with the name of the server");
+
+        // A server that is "stopped" for a moment between two steps of its stop (the flicker that was told three times) is not news.
         tellActions.Statuses[0] = tellActions.Statuses[0] with { State = BotServerState.Stopped, Name = "Haupt-Server" };
-        told.Now = told.Now.AddSeconds(10);
+        told.Now = told.Now.AddSeconds(2);
         await tellBoard.RefreshAsync(CancellationToken.None);
-        check(notes.SequenceEqual(["Server Exiled Lands (instance 0): Online -> Stopping", "Server Haupt-Server (instance 0): Stopping -> Stopped"])
-              && tellBoard.NameOf(0) == "Haupt-Server", "A change of state is told once, with the name of the server");
+        tellActions.Statuses[0] = tellActions.Statuses[0] with { State = BotServerState.Stopping };
+        told.Now = told.Now.AddSeconds(1);
+        await tellBoard.RefreshAsync(CancellationToken.None);
+        told.Now = told.Now.AddSeconds(30);
+        await tellBoard.RefreshAsync(CancellationToken.None);
+        check(notes.Count == 1, "A state that is left again before it settled is not told: " + string.Join(" | ", notes));
+        tellActions.Statuses[0] = tellActions.Statuses[0] with { State = BotServerState.Stopped };
+        told.Now = told.Now.AddSeconds(3);
+        await tellBoard.RefreshAsync(CancellationToken.None);
+        told.Now = told.Now.AddSeconds(12);
+        await tellBoard.RefreshAsync(CancellationToken.None);
+        check(notes.SequenceEqual(["Exiled Lands: Online -> Stopping", "Haupt-Server: Stopping -> Stopped"]) && tellBoard.NameOf(0) == "Haupt-Server",
+            "The end of the stop is told once, with the name the server has by then");
+        tellActions.Statuses[0] = tellActions.Statuses[0] with { State = BotServerState.Starting };
+        told.Now = told.Now.AddSeconds(20);
+        await tellBoard.RefreshAsync(CancellationToken.None);
+        told.Now = told.Now.Add(tellBoard.SettleTime);
+        check(await tellBoard.RefreshAsync(CancellationToken.None) == tellBoard.BusyInterval && notes.Count == 3,
+            "Once the state has settled a server that starts is read every 15 seconds again");
 
         // --- only the managed servers, under their names; a server taken out gets a note instead of its buttons
         var picked = new Clock();
@@ -924,31 +949,83 @@ static class BotInteractionHandlerChecks
         Write(BotAuditResult.Denied, "", "MissingRole", BotCommand.Status);
         Write(BotAuditResult.Throttled, "instance=0", "CriticalLimit");
         Write(BotAuditResult.LockedOut, "", "too many refused requests", BotCommand.Status);
+        Write(BotAuditResult.Allowed, "instance=0 step=Cancel", "");
         Write(BotAuditResult.Cancelled, "instance=0 step=Cancel", "");
         Write(BotAuditResult.Allowed, "unknown", "", null);
         check(await feed.FlushAsync(TimeSpan.FromSeconds(5)), "The feed sends what was queued");
         string[] lines;
         lock (channel.Notes) lines = channel.Notes.Select(x => x.Text).ToArray();
-        const string by = "by <@200000000000000002> (200000000000000002)";
-        check(lines.Length == 8 && channel.Notes.All(x => x.Channel == AuditChannel), "Every entry of the audit log is told in the audit channel");
-        check(lines[0] == $"Asked: Stop · server Hauptserver (instance 0) {by}"
-              && lines[1] == $"Done: Stop · server Hauptserver (instance 0) {by} [minutes=1 step=Confirm]: Done under way"
-              && lines[2] == $"Failed: Stop · server 1 {by}: Busy stopping"
-              && lines[4] == $"Slowed down: Stop · server Hauptserver (instance 0) {by}: CriticalLimit"
-              && lines[5] == $"Locked out: Status {by}: too many refused requests"
-              && lines[6] == $"Cancelled: Stop · server Hauptserver (instance 0) {by} [step=Cancel]"
-              && lines[7] == $"Asked: unknown request {by} [unknown]",
-            "Each line says what was asked, for which server (by name), by whom and how it ended: " + string.Join(" | ", lines));
-        check(lines[3] == $"Refused: Status {by}" && !lines[3].Contains("MissingRole"), "The exact reason of a refusal stays in the log file");
-        check(lines.All(x => x.Contains("<@") && !x.Contains("Free") && !x.Contains('\n')), "The user is named by mention and ID, never by the free text name");
+        const string who = "<@200000000000000002>";
+        check(lines.Length == 8 && channel.Notes.All(x => x.Channel == AuditChannel), "Every entry of the audit log is told in the audit channel (the click on cancel by its own line)");
+        check(lines[0] == $"🔔 {who} fragt an: Server stoppen: Server Hauptserver (Instanz 0)"
+              && lines[1] == $"✅ Erledigt: Server stoppen: Server Hauptserver (Instanz 0), Vorwarnung 1 Min – läuft jetzt (von {who})"
+              && lines[2] == $"❌ Hat nicht geklappt: Server stoppen: Server 1 – gerade nicht möglich, der Server wird gerade gestoppt (von {who})"
+              && lines[4] == $"⏳ Gebremst: Server stoppen: Server Hauptserver (Instanz 0) – zu viele kritische Aktionen in kurzer Zeit (von {who})"
+              && lines[5] == $"🔒 Gesperrt: {who} hat zu viele abgelehnte Anfragen gesendet und ist vorübergehend gesperrt."
+              && lines[6] == $"↩️ Abgebrochen: Server stoppen: Server Hauptserver (Instanz 0) (von {who})"
+              && lines[7] == $"🔔 {who} fragt an: Unbekannte Anfrage",
+            "Each line says in words who asked for what, for which server (by name) and how it ended: " + string.Join(" | ", lines));
+        check(lines[3] == $"🚫 Abgelehnt: Status anzeigen (von {who}). Der genaue Grund steht im Protokoll auf dem Rechner." && !lines[3].Contains("MissingRole"),
+            "The exact reason of a refusal stays in the log file");
+        check(lines.All(x => x.Contains("<@") && !x.Contains("Free") && !x.Contains('\n') && !x.Contains("instance=") && !x.Contains("step=") && !x.Contains("(200000000000000002)")),
+            "The user is named by mention only, never by the free text name, and no technical values are shown");
 
         // The bot's own lines, as one clean line.
-        feed.Post("Discord bot connected.");
+        feed.PostConnected();
         feed.Post("two\nlines");
         feed.Post("   ");
         await feed.FlushAsync(TimeSpan.FromSeconds(5));
         lock (channel.Notes) lines = channel.Notes.Select(x => x.Text).ToArray();
-        check(lines.Length == 10 && lines[8] == "Discord bot connected." && lines[9] == "two lines", "Lines of the bot itself are sent as one clean line, empty ones are not");
+        check(lines.Length == 10 && lines[8] == "🟢 Der Discord-Bot ist verbunden." && lines[9] == "two lines", "Lines of the bot itself are sent as one clean line, empty ones are not");
+
+        // The texts in words, in German and English: steps, times, reasons, results of updates and every outcome of the launcher.
+        var de = BotAuditTexts.German;
+        var en = BotAuditTexts.English;
+        BotAuditEntry Entry(BotAuditResult result, string parameters, string detail, BotCommand? command = BotCommand.Stop) =>
+            new(DateTime.UtcNow, result, user, "x", Guild, Channel, command, parameters, detail);
+        const string blacki = "blacki Dev Server";
+        var mention = $"<@{Operator}>";
+        check(de.Format(Entry(BotAuditResult.Allowed, "instance=0", "", BotCommand.Start), blacki, "de") == $"🔔 {mention} fragt an: Server starten: Server {blacki} (Instanz 0)"
+              && de.Format(Entry(BotAuditResult.Allowed, "instance=0 step=Confirm", "", BotCommand.Start), blacki, "de") == $"👍 {mention} bestätigt: Server starten: Server {blacki} (Instanz 0)"
+              && de.Format(Entry(BotAuditResult.Executed, "instance=0 step=Confirm", "Done under way", BotCommand.Start), blacki, "de")
+              == $"✅ Erledigt: Server starten: Server {blacki} (Instanz 0) – läuft jetzt (von {mention})",
+            "A start: asked, confirmed and done, in plain words");
+        check(de.Format(Entry(BotAuditResult.Allowed, "instance=0 minutes=5 step=PostponeChoice", ""), blacki, "de")
+              == $"🕒 {mention} wählt die Zeit: Server stoppen: Server {blacki} (Instanz 0), Vorwarnung 5 Min"
+              && de.Format(Entry(BotAuditResult.Executed, "instance=0 minutes=90 reason=Wartung am Abend", "Done", BotCommand.Postpone), blacki, "de")
+              == $"✅ Erledigt: Geplante Aktion verschieben: Server {blacki} (Instanz 0), um 1 Std 30 Min, Grund: Wartung am Abend (von {mention})",
+            "The warning time, the postponement and the reason are told in words");
+        check(de.Format(Entry(BotAuditResult.Executed, "instance=0", "Done mods=0 server=False", BotCommand.CheckUpdates), blacki, "de")
+              == $"✅ Erledigt: Nach Updates suchen: Server {blacki} (Instanz 0) – keine Updates gefunden (von {mention})"
+              && de.Format(Entry(BotAuditResult.Executed, "instance=0", "Done mods=2 server=True", BotCommand.CheckUpdates), blacki, "de").Contains("2 Mod-Update(s) gefunden und Update für den Server gefunden")
+              && de.Format(Entry(BotAuditResult.Executed, "", "3 servers", BotCommand.Status), null, "de") == $"✅ Erledigt: Status anzeigen – 3 Server angezeigt (von {mention})",
+            "The result of the check for updates and of the status are told in words");
+        check(de.Describe("NotRunning", "de") == "der Server läuft nicht" && de.Describe("AlreadyRunning", "de") == "der Server läuft schon"
+              && de.Describe("Busy save in use by another instance", "de") == "gerade nicht möglich, der Speicherstand wird von einer anderen Instanz benutzt"
+              && de.Describe("Failed Steam did not answer", "de") == "Steam hat nicht geantwortet"
+              && de.Describe("finished Done", "de") == "im Hintergrund beendet"
+              && de.Describe("finished Failed update failed", "de") == "im Hintergrund beendet: das Update ist fehlgeschlagen"
+              && de.Describe("finished with an error (InvalidOperationException)", "de") == "im Hintergrund mit einem Fehler beendet"
+              && de.Describe("something new", "de") == "something new" && de.Describe("", "de").Length == 0,
+            "Outcomes of the launcher are told in words, an unknown text is shown as it is");
+        check(de.Format(Entry(BotAuditResult.Allowed, "code=Confirm", "", BotCommand.Status), null, "de").EndsWith("Rückfrage, die abgelaufen oder nicht von diesem Nutzer ist", StringComparison.Ordinal)
+              && !de.Format(Entry(BotAuditResult.Failed, "tb1:ok:secretnonce", "x", null), null, "de").Contains("secretnonce"),
+            "An old question is named as such, the technical id of a button never gets into the channel");
+        check(en.Format(Entry(BotAuditResult.Executed, "instance=0 minutes=1 step=Confirm", "Done under way"), blacki, "en")
+              == $"✅ Done: Stop server: Server {blacki} (instance 0), warning 1 min – under way (by {mention})"
+              && en.Format(Entry(BotAuditResult.Denied, "", "WrongChannel", BotCommand.Status), null, "en")
+              == $"🚫 Refused: Show status (by {mention}). The exact reason is in the log file on the computer.",
+            "The English texts say the same");
+        check(de.StateChanged(blacki, 0, BotServerState.Stopped, BotServerState.Starting, BotTexts.German) == $"🔄 Server {blacki} (Instanz 0): 🔴 Gestoppt → 🟡 Startet"
+              && en.StateChanged(null, 1, BotServerState.Starting, BotServerState.Online, BotTexts.English) == "🔄 Server 1 (instance 1): 🟡 Starting → 🟢 Online"
+              && de.ProblemText(DiscordBotProblem.TokenInUse) == "⚠️ Der Discord-Bot hat ein Problem: Der Token wird schon von einem anderen Trebuchet benutzt.",
+            "State changes and problems of the bot are told in words");
+        settings.Policy = PolicyOf(Config(c => c.Language = "en"));
+        check(feed.Format(Entry(BotAuditResult.Allowed, "instance=0", "")) == $"🔔 {mention} asks: Stop server: Server Hauptserver (instance 0)",
+            "The feed speaks the language of the bot");
+        settings.Policy = PolicyOf(Config());
+        check(BotInputRules.SanitizeNote(new string('a', 300)).Length == 300 && BotInputRules.SanitizeNote(new string('a', 900)).Length == BotInputRules.MaxNoteLength,
+            "A line of the audit channel is long enough for a whole sentence");
 
         // No audit channel: nothing is queued or sent.
         settings.Policy = PolicyOf(Config(c => c.AuditChannelId = 0));
@@ -968,7 +1045,7 @@ static class BotInteractionHandlerChecks
         Write(BotAuditResult.Executed, "instance=0", "kept");
         await feed.FlushAsync(TimeSpan.FromSeconds(5));
         lock (channel.Notes)
-            check(channel.Notes.Count == 11 && channel.Notes[^1].Text.EndsWith("kept", StringComparison.Ordinal), "A line that could not be sent is dropped, the next one goes out");
+            check(channel.Notes.Count == 11 && channel.Notes[^1].Text.Contains("– kept (von", StringComparison.Ordinal), "A line that could not be sent is dropped, the next one goes out");
 
         // A burst while the channel is busy: bounded, the newest is kept.
         var gate = new TaskCompletionSource();

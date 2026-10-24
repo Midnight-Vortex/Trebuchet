@@ -185,7 +185,11 @@ Zeit, User-ID, Anzeigename (nur zur Info), Server-/Kanal-ID, Befehl, Parameter, 
 - Letzte 200 Einträge im Panel.
 - Optional: Audit-Kanal (Kanal-ID). Der Bot schreibt dort **alles**, was er tut (jeden Eintrag des Protokolls, Zustandswechsel der
   Server, Verbindung/Fehler), eine Zeile je Ereignis, in Abständen (Warteschlange mit 100 Zeilen, die ältesten fallen weg), ohne
-  den genauen Ablehnungsgrund und nur mit User-Erwähnung und ID statt freier Namen (`BotAuditChannelFeed`).
+  den genauen Ablehnungsgrund und nur mit User-Erwähnung statt freier Namen (`BotAuditChannelFeed`). Die Zeilen sind normale
+  Sätze in der Sprache des Bots (`BotAuditTexts`: wer fragt was für welchen Server, bestätigt, erledigt, gebremst, abgelehnt,
+  Ergebnis in Worten); technische Werte (`instance=0 step=Confirm`) und Button-IDs erscheinen nicht. Ein Zustandswechsel eines
+  Servers wird erst gemeldet, wenn er `SettleTime` (10 s) gilt: ein Flackern zwischen zwei Schritten eines Stopps gibt keine
+  Mehrfachmeldung.
 - Servername: kommt aus dem Server-Speicherstand (Feld „Servername“, `ServerProfile.ServerName`), nicht aus den Bot-Einstellungen;
   unverändert (Standardname) gilt der Name des Speicherstands. Bereinigt (`BotInputRules.SanitizeName`) im Bot, im Log nur
   ohne Steuerzeichen (`SanitizeForLog`).

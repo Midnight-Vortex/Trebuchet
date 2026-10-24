@@ -2570,10 +2570,12 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             if (server.Value.State == ProcessState.CRASHED) _crashedInstances.Add(server.Key);
             else _crashedInstances.Remove(server.Key);
             server.Value.StateChanged -= OnServerStateChanged;
-            OnStateChanged();
             // Backup, scripts and the restart run outside the tick: a long backup froze the monitoring of every other
             // server, and the dashboard showed the stopped server as running until the backup was done.
+            // Started before the change is reported: it marks the instance as shutting down, so nobody (the Discord bot)
+            // reads "stopped" for a moment between the stop and its aftermath.
             _ = FinishStoppedServer(server.Key, server.Value);
+            OnStateChanged();
         }
     }
 

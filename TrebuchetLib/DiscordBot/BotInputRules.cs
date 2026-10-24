@@ -11,6 +11,8 @@ public static class BotInputRules
 {
     public const int MaxReasonLength = 100;
     public const int MaxLogTextLength = 200;
+    /// <summary>A line of the audit channel: a request with the name of a server, a reason and the outcome in words.</summary>
+    public const int MaxNoteLength = 500;
     /// <summary>The name a server instance gets in the messages of the bot.</summary>
     public const int MaxNameLength = 40;
     /// <summary>The highest instance number Discord options and button IDs can carry.</summary>
@@ -94,6 +96,9 @@ public static class BotInputRules
 
     /// <summary>A text for the log, e.g. a display name: one line, no way to fake a log line.</summary>
     public static string SanitizeForLog(string? text) => Truncate(Clean(text, MaxLogTextLength * 2).Trim(), MaxLogTextLength);
+
+    /// <summary>A line for the audit channel: like <see cref="SanitizeForLog"/>, but long enough for a whole sentence.</summary>
+    public static string SanitizeNote(string? text) => Truncate(Clean(text, MaxNoteLength * 2).Trim(), MaxNoteLength);
 
     private static string Clean(string? text, int limit)
     {

@@ -61,9 +61,13 @@ Die Rolle `@everyone` ist **nicht erlaubt** (jeder hat sie), Trebuchet lehnt sie
    benutzen der Bot (Status, Antworten, Rückfragen), das Protokoll von Trebuchet und der Audit-Kanal. Ist dort nichts
    geändert, steht der Name des Speicherstands da.
 7. **Audit-Kanal** (optional): trag die ID eines Kanals ein. Dorthin schreibt der Bot **alles, was er tut**: jede Anfrage
-   mit Server, Nutzer und Ergebnis, abgelehnte Versuche, Zustandswechsel der Server („Server Haupt (Instanz 0): Online ->
-   Stoppt“) und seine eigenen Meldungen. Der Grund einer Ablehnung steht nur im Protokoll auf dem Rechner. Nimm einen
-   eigenen Kanal, im Admin-Kanal würden die vielen Zeilen die Status-Meldungen verdrängen.
+   mit Server, Nutzer und Ergebnis, abgelehnte Versuche, Zustandswechsel der Server und seine eigenen Meldungen, in
+   normalen Sätzen und in der Sprache des Bots, zum Beispiel:
+   „🔔 @Nutzer fragt an: Server stoppen: Server Haupt (Instanz 0)“, „✅ Erledigt: Server stoppen: Server Haupt (Instanz 0),
+   Vorwarnung 5 Min – läuft jetzt (von @Nutzer)“, „🔄 Server Haupt (Instanz 0): 🟡 Wird gestoppt → 🔴 Gestoppt“.
+   Ein Zustandswechsel wird erst gemeldet, wenn er mindestens 10 Sekunden gilt (kurzes Hin und Her gibt keine
+   Mehrfachmeldung). Der Grund einer Ablehnung steht nur im Protokoll auf dem Rechner. Nimm einen eigenen Kanal, im
+   Admin-Kanal würden die vielen Zeilen die Status-Meldungen verdrängen.
 8. **Sicherheit prüfen** drücken. Alle Punkte müssen grün sein.
 9. **Starten**.
 

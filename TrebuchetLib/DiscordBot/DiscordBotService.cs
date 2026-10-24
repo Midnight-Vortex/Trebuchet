@@ -199,7 +199,7 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
                     return Task.CompletedTask;
                 }
             };
-            _board ??= new BotStatusBoard(_actions, _channel, this, logger: _logger) { Notes = _feed.Post };
+            _board ??= new BotStatusBoard(_actions, _channel, this, logger: _logger) { Notes = _feed.PostStateChange };
             session = new Session(new DiscordSocketClient(CreateClientConfig()), tokenLock, guildId);
         }
         catch (Exception)
@@ -959,9 +959,9 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
         {
             // The audit channel hears of it: connected again, or what is wrong (it can only be told once connected).
             if (announcedState == DiscordBotState.Connected && announcedProblem == DiscordBotProblem.None)
-                _feed.Post("Discord bot connected.");
+                _feed.PostConnected();
             else if (announcedState == DiscordBotState.Error)
-                _feed.Post($"Discord bot problem: {announcedProblem}");
+                _feed.PostProblem(announcedProblem);
             RaiseStateChanged();
         }
     }
