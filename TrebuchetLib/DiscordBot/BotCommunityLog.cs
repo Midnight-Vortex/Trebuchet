@@ -409,15 +409,15 @@ public sealed class BotCommunityLog : IDisposable
         }
         if (status.Pending == BotPendingAction.None)
         {
+            // The launcher says it was cancelled (after the announcement was made): no need to wait to be sure, whatever else runs.
+            var reported = status.CancelledAtUtc is { } cancelledAt && cancelledAt >= memory.ShownObservedAt - TimeSpan.FromSeconds(5);
             // A sequence of the save that is no countdown (a restart "now" with a stopping sequence of its own) shows nothing planned
             // while it runs: that is the server going down, not a cancellation.
-            if (status.Sequence)
+            if (!reported && status.Sequence)
             {
                 memory.CancelSeenAt = null;
                 return due;
             }
-            // The launcher says it was cancelled (after the announcement was made): no need to wait to be sure.
-            var reported = status.CancelledAtUtc is { } cancelledAt && cancelledAt >= memory.ShownObservedAt - TimeSpan.FromSeconds(5);
             if (!reported)
             {
                 memory.CancelSeenAt ??= now;

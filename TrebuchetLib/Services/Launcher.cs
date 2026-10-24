@@ -98,8 +98,14 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         {
             if (Interlocked.Exchange(ref _done, 1) != 0) return;
             var left = launcher._goingDown.GetValueOrDefault(instance) - 1;
-            if (left <= 0) launcher._goingDown.Remove(instance);
-            else launcher._goingDown[instance] = left;
+            if (left > 0)
+            {
+                launcher._goingDown[instance] = left;
+                return;
+            }
+            launcher._goingDown.Remove(instance);
+            // Whoever reads the status (the Discord bot) must see that it ended, there may be nothing else that tells it.
+            launcher.OnServerStatusChanged();
         }
     }
     // Automatic restarts (schedule, updates, RequiresRestart.txt) paused per instance, e.g. during an RP event.
@@ -531,7 +537,6 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     /// <param name="manual">Somebody asked for it by hand (the window, the web panel): cancelling its countdown just ends it.</param>
     public async Task RestartServerAsync(int instance, bool manual = false)
     {
-        using var goingDown = GoingDown(instance);
         // The reason shows in the log why a server restarted (schedule, server update, mod update, ...).
         if (string.IsNullOrEmpty(_lastRestartReason))
             _logger.LogInformation("Restarting server {Server}", GetInstanceLabel(instance));
@@ -557,6 +562,8 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
                 }
             }
 
+            // Not a countdown any more: from here on the server is on its way down (the notice can take a while).
+            using var goingDown = GoingDown(instance);
             if (profile is not null && !_serverSequences.ContainsKey(instance))
             {
                 await NotifyDiscordSafe(instance, profile,
@@ -832,10 +839,28 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         return true;
     }
 
+    // The notices of an instance go out in the order they were given, also when nobody waits for them (a "postponed" must not be
+    // overtaken by the "cancelled" that follows it).
+    private readonly Dictionary<int, Task> _noticeTails = [];
+
+    private async Task SendNoticeAsync(Task previous, int instance, string message)
+    {
+        try
+        {
+            await previous;
+        }
+        catch (Exception)
+        {
+            // Its failure was told where it was given.
+        }
+        await BroadcastMessage(instance, message);
+    }
+
     // The notice to the players: awaited, or started and left to finish (a failure is only logged then).
     private async Task Notice(int instance, string message, bool wait)
     {
-        var notice = BroadcastMessage(instance, message);
+        var notice = SendNoticeAsync(_noticeTails.GetValueOrDefault(instance) ?? Task.CompletedTask, instance, message);
+        _noticeTails[instance] = notice;
         if (wait)
         {
             await notice;

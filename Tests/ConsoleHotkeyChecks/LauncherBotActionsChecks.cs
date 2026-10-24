@@ -289,6 +289,19 @@ static class LauncherBotActionsChecks
                     "A caller that gave up gets nothing and does not spoil the read for the others");
             }
 
+            // A caller that gives up while the read of the others is under way: it gets nothing, the others get their state.
+            var heldRead = new HeldDispatcher();
+            using (var waiting = new LauncherBotActions(launcher, setup, files, heldRead, log))
+            {
+                using var impatient = new CancellationTokenSource(TimeSpan.FromMilliseconds(150));
+                var gaveUp = waiting.GetStatusesAsync(impatient.Token);
+                var patient = waiting.GetStatusesAsync(none);
+                await Task.Delay(400);
+                check(gaveUp.IsCompleted && (await gaveUp).Count == 0 && !patient.IsCompleted, "A caller that gives up while the read is held gets nothing and the other keeps waiting");
+                await heldRead.ReleaseOn(ui);
+                check((await patient).Count > 0 && heldRead.Ran == 1, "...and gets its state when the read is done (one read for both)");
+            }
+
             // Work the caller gave up on never runs: the caller was told it did not happen.
             var held = new HeldDispatcher();
             var heldActions = new LauncherBotActions(launcher, setup, files, held, log) { StatusReuse = TimeSpan.Zero };
@@ -454,7 +467,8 @@ static class LauncherBotActionsChecks
             await ui.InvokeAsync(() => Task.FromResult(files.Server.Get(saveA).UseRestartWarnings = true));
             await ui.InvokeAsync(() => { launcher.RestartServer(0); return Task.FromResult(true); });
             var automatic = await WaitFor(0, x => x is { Countdown: true, Automatic: true });
-            check(automatic is { Countdown: true, Automatic: true, Pending: BotPendingAction.Restart }, "A restart the launcher started on its own is shown as automatic: " + automatic);
+            check(automatic is { Countdown: true, Automatic: true, Pending: BotPendingAction.Restart, Sequence: false },
+                "A restart the launcher started on its own is shown as automatic, and its countdown is no 'going down now': " + automatic);
             check((await actions.PostponeAsync(0, 45, "Event", none)).Success, "The automatic restart can be postponed");
             var autoHeld = await WaitFor(0, x => x?.PausedUntilUtc is not null && x.Countdown == false);
             check(autoHeld is { PausedUntilUtc: not null }, "...and then waits for the pause: " + autoHeld);
@@ -477,7 +491,7 @@ static class LauncherBotActionsChecks
             // A new countdown clears the marker; a cancel of a countdown somebody started by hand holds nothing and is marked too.
             check((await actions.RestartAsync(0, TimeSpan.FromMinutes(20), "Test", none)).Success, "A restart by hand starts a countdown");
             var handCountdown = await WaitFor(0, x => x is { Countdown: true });
-            check(handCountdown is { CancelledAtUtc: null, Automatic: false }, "...a new countdown clears the mark and is not automatic: " + handCountdown);
+            check(handCountdown is { CancelledAtUtc: null, Automatic: false, Sequence: false }, "...a new countdown clears the mark, is not automatic and is no 'going down now': " + handCountdown);
             var handCancel = await actions.CancelAsync(0, none);
             var handAfter = await WaitFor(0, x => x is { Countdown: false });
             check(handCancel is { Success: true, Detail: "" } && handAfter is { CancelledAtUtc: { }, PausedUntilUtc: null }, "...cancelling it holds nothing, but is marked: " + handCancel + " " + handAfter);

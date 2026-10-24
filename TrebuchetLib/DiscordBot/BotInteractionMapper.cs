@@ -120,10 +120,12 @@ internal static class BotInteractionMapper
     /// Only a question of the bot (confirm, cancel, minutes) in a private message may be replaced by the answer. Anything
     /// else, above all a button of the public status message, gets a new private message.
     /// </summary>
-    public static BotAckKind ChooseAck(BotInteractionKind kind, string? customId, bool messageIsPrivate)
+    public static BotAckKind ChooseAck(BotInteractionKind kind, string? customId, bool messageIsPrivate, string? commandPath = null)
     {
-        // A command, or a button of the status message (a public message): answered with a new private message.
-        if (kind == BotInteractionKind.Slash) return BotAckKind.LazyPrivate;
+        // A command, or a button of the status message (a public message): answered with a new private message. A command that
+        // changes something without asking first is acknowledged before it runs, so that nothing is done when Discord does not take it
+        // (the user would see "failed" for something that happened, and trying again would do it twice).
+        if (kind == BotInteractionKind.Slash) return ActsWithoutQuestion(commandPath) ? BotAckKind.NewPrivateMessage : BotAckKind.LazyPrivate;
         if (!messageIsPrivate)
             return kind == BotInteractionKind.Button
                    && BotCustomId.TryParse(customId, AnyInstance, out var publicKind, out _, out _, out _) && publicKind == BotCustomIdKind.Action
@@ -136,6 +138,12 @@ internal static class BotInteractionMapper
         return BotAckKind.UpdateQuestion;
     }
 
+    /// <summary>
+    /// The commands that do something that is not undone by asking again, without a question first: postponing adds the minutes every
+    /// time. (Cancelling and releasing end up the same when done twice, the others ask for a confirmation first or only read.)
+    /// </summary>
+    internal static bool ActsWithoutQuestion(string? commandPath) => string.Equals(commandPath, "restart postpone", StringComparison.Ordinal);
+
     /// <summary>Runs on the gateway task, before anything else can change the member: takes what is needed right now.</summary>
     public static BotCapturedInteraction Capture(SocketInteraction interaction)
     {
@@ -143,9 +151,10 @@ internal static class BotInteractionMapper
         switch (interaction)
         {
             case SocketSlashCommand slash:
-                return new BotCapturedInteraction(
-                    FromSlash(slash.Id, user, slash.GuildId, slash.ChannelId, slash.Data.Name, slash.Data.Options?.Select(OptionOf).ToList()),
-                    BotAckKind.LazyPrivate, user.RoleIds is null);
+            {
+                var fromSlash = FromSlash(slash.Id, user, slash.GuildId, slash.ChannelId, slash.Data.Name, slash.Data.Options?.Select(OptionOf).ToList());
+                return new BotCapturedInteraction(fromSlash, ChooseAck(BotInteractionKind.Slash, null, true, fromSlash.Name), user.RoleIds is null);
+            }
             case SocketMessageComponent component:
             {
                 var kind = component.Data.Type == ComponentType.Button ? BotInteractionKind.Button : BotInteractionKind.Select;

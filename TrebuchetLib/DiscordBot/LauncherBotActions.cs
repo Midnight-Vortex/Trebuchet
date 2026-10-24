@@ -63,7 +63,7 @@ public sealed class LauncherBotActions : IBotActions, IDisposable
     {
         public Task<IReadOnlyList<BotServerStatus>> Task = null!;
         public long Version;
-        public long DoneTicks;
+        public long DoneStamp;
     }
 
     private readonly object _statusLock = new();
@@ -83,7 +83,7 @@ public sealed class LauncherBotActions : IBotActions, IDisposable
         {
             var version = Interlocked.Read(ref _statusVersion);
             if (_statusRead is { } current && current.Version == version
-                && (!current.Task.IsCompleted || DateTime.UtcNow.Ticks - Interlocked.Read(ref current.DoneTicks) < StatusReuse.Ticks))
+                && (!current.Task.IsCompleted || System.Diagnostics.Stopwatch.GetElapsedTime(Interlocked.Read(ref current.DoneStamp)) < StatusReuse))
             {
                 shared = current.Task;
             }
@@ -111,7 +111,8 @@ public sealed class LauncherBotActions : IBotActions, IDisposable
         // Let the caller that created it return the task first (it is stored under the lock).
         await Task.Yield();
         var statuses = await ReadStatusesUncachedAsync(CancellationToken.None).ConfigureAwait(false);
-        Interlocked.Exchange(ref read.DoneTicks, DateTime.UtcNow.Ticks);
+        // The stopwatch, not the clock: a clock that is set back must not keep an old read alive.
+        Interlocked.Exchange(ref read.DoneStamp, System.Diagnostics.Stopwatch.GetTimestamp());
         // Nothing came back although there are servers: the launcher did not answer, the next caller asks again.
         if (statuses.Count == 0 && InstanceCount > 0)
             lock (_statusLock)

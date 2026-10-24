@@ -413,6 +413,11 @@ static class DiscordNetLayerChecks
         Check(BotInteractionMapper.ChooseAck(BotInteractionKind.Button, actionId, false) == BotAckKind.LazyPrivate
               && BotInteractionMapper.ChooseAck(BotInteractionKind.Button, actionId, true) == BotAckKind.NewPrivateMessage,
             "A status button (on the public message) answers with a new private message the same way; one that sits on a private message is junk");
+        Check(BotInteractionMapper.ChooseAck(BotInteractionKind.Slash, null, true, "restart postpone") == BotAckKind.NewPrivateMessage
+              && BotInteractionMapper.ChooseAck(BotInteractionKind.Slash, null, false, "restart postpone") == BotAckKind.NewPrivateMessage
+              && new[] { "status", "restart cancel", "restart resume", "restart now", "stop", "start", "update", "updatecheck", "bot channel set", "unknown", "" }
+                  .All(path => BotInteractionMapper.ChooseAck(BotInteractionKind.Slash, null, true, path) == BotAckKind.LazyPrivate),
+            "A command that changes something without asking first (postponing adds every time) is acknowledged before it runs, the others lazily");
         Check(BotInteractionMapper.ChooseAck(BotInteractionKind.Button, BotCustomId.ForAction(BotCommand.Cancel, 0), false) == BotAckKind.LazyPrivate
               && BotInteractionMapper.ChooseAck(BotInteractionKind.Select, actionId, false) == BotAckKind.NewPrivateMessage
               && BotInteractionMapper.ChooseAck(BotInteractionKind.Modal, actionId, false) == BotAckKind.NewPrivateMessage

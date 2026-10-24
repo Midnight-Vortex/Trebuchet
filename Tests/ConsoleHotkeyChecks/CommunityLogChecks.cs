@@ -896,6 +896,19 @@ static class CommunityLogChecks
             check(LauncherBotActions.ToBotStatus(goingDown, scene.Now) is { Sequence: true, Pending: BotPendingAction.None },
                 "The launcher's 'going down now' reaches the status of the bot");
         }
+        // A cancel that lands while the launcher is still busy with the warning of the countdown (it counts as going down for a moment): the
+        // cancel the launcher reports is told at once, it is not swallowed by the sequence.
+        using (var scene = new Scene())
+        {
+            var end = scene.Now.AddMinutes(20);
+            await scene.Look(scene.Launcher(TrebuchetLib.ProcessState.ONLINE, x => x with
+            {
+                CountdownRunning = true, CountdownRestarts = true, CountdownEndsUtc = end, SequenceRunning = true
+            }), 0);
+            await scene.Look(scene.Launcher(TrebuchetLib.ProcessState.ONLINE, x => x with { GoingDownNow = true, CountdownCancelledUtc = scene.Now.AddSeconds(5) }), 10);
+            check(scene.Titles().SequenceEqual(["⏰ Der Server startet in 20 Minuten neu", "✅ Der Neustart fällt aus"]),
+                "A reported cancel is told even while the launcher is still busy with a sequence: " + string.Join(" | ", scene.Titles()));
+        }
 
         // A postponement within the lead time is told by the new countdown announcement alone.
         using (var scene = new Scene())

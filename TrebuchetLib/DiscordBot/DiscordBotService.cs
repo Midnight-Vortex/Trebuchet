@@ -23,7 +23,9 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
     private static readonly TimeSpan ShutdownTimeout = TimeSpan.FromSeconds(10);
     private static readonly TimeSpan RoleFetchTimeout = TimeSpan.FromSeconds(5);
     // A menu choice that opens the window for the reason is not acknowledged up front: after this long it is, on its own.
-    private static readonly TimeSpan LazyAckLimit = TimeSpan.FromSeconds(2);
+    // Discord wants the acknowledgment within three seconds of the moment it sent the interaction, which includes the way to us and the
+    // trip of the acknowledgment itself: a handler that is not done after this long is acknowledged.
+    private static readonly TimeSpan LazyAckLimit = TimeSpan.FromSeconds(1.5);
     private const int MaxInteractionsInFlight = 32;
 
     private readonly DiscordBotConfig _config;
