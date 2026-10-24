@@ -79,6 +79,8 @@ public sealed partial class BotAuditChannelFeed : IDisposable
         {
             url = null;
         }
+        // Whatever the source is: this URL never reaches a log.
+        if (url is not null) BotWebhook.RegisterSecret(url);
         lock (_webhookLock) _cachedWebhook = (url, now);
         return url;
     }
@@ -181,15 +183,8 @@ public sealed partial class BotAuditChannelFeed : IDisposable
         {
             var policy = _policy();
             if (policy is null) return;
-            if (Webhook() is { } url && _webhooks is not null)
-            {
-                // Under the name and with the picture of the settings: a bot account can not take another one per message.
-                var name = string.IsNullOrWhiteSpace(policy.AuditName) ? null : policy.AuditName;
-                var avatar = string.IsNullOrWhiteSpace(policy.AuditAvatarUrl) ? null : policy.AuditAvatarUrl;
-                await _webhooks.SendAsync(url, new BotWebhookMessage(name, avatar, text, null), token).WaitAsync(PostTimeout, token).ConfigureAwait(false);
-                _webhookFailing = false;
-                return;
-            }
+            // The webhook first; when it does not work the bot writes into the audit channel (when one is set) under its own name.
+            if (Webhook() is { } url && _webhooks is not null && await TryWebhookAsync(url, policy, text, token).ConfigureAwait(false)) return;
             if (policy.AuditChannelId == 0) return;
             await _channel.PostNoteAsync(policy.AuditChannelId, text).WaitAsync(PostTimeout, token).ConfigureAwait(false);
         }
@@ -199,12 +194,33 @@ public sealed partial class BotAuditChannelFeed : IDisposable
         }
         catch (Exception ex)
         {
-            // No connection, no permission, a webhook that was deleted: dropped, the audit log has it. A webhook that stops
-            // working is worth one warning (not one per line).
-            if (!_webhookFailing && Webhook() is not null)
-                _logger?.LogWarning("Discord bot: the audit webhook refused a line: {Error}", DiscordNetLog.Describe(ex));
-            _webhookFailing = Webhook() is not null;
+            // No connection, no permission: dropped, the audit log has it.
             _logger?.LogDebug("Posting to the audit channel failed: {Error}", DiscordNetLog.Describe(ex));
+        }
+    }
+
+    // Under the name and with the picture of the settings: a bot account can not take another one per message.
+    private async Task<bool> TryWebhookAsync(string url, BotPolicy policy, string text, CancellationToken token)
+    {
+        try
+        {
+            var name = string.IsNullOrWhiteSpace(policy.AuditName) ? null : policy.AuditName;
+            var avatar = string.IsNullOrWhiteSpace(policy.AuditAvatarUrl) ? null : policy.AuditAvatarUrl;
+            await _webhooks!.SendAsync(url, new BotWebhookMessage(name, avatar, text, null), policy.GuildId, token).WaitAsync(PostTimeout, token).ConfigureAwait(false);
+            Volatile.Write(ref _webhookFailing, false);
+            return true;
+        }
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            // A webhook that stops working (deleted, a name Discord refuses, another server) is worth one warning, not one per line.
+            if (!Volatile.Read(ref _webhookFailing))
+                _logger?.LogWarning("Discord bot: the audit webhook refused a line: {Error}", DiscordNetLog.Describe(ex));
+            Volatile.Write(ref _webhookFailing, true);
+            return false;
         }
     }
 

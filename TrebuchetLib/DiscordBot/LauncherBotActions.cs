@@ -227,7 +227,7 @@ public sealed class LauncherBotActions : IBotActions, IDisposable
             pending,
             pendingAt,
             status.PausedUntilUtc is { } paused && paused > utcNow ? paused : null,
-            status.ProcessRestarts || status.RestartRequested || status.InUpdateRound || (status.CountdownRunning && status.CountdownRestarts));
+            status.ProcessRestarts || status.RestartRequested || (status.CountdownRunning && status.CountdownRestarts));
     }
 
     private static BotServerState StateOf(LauncherServerStatus status) => status.State switch
@@ -252,8 +252,8 @@ public sealed class LauncherBotActions : IBotActions, IDisposable
         if (status.RestartRequested) return (update, null);
         // A starting or stopping sequence of the save: nothing automatic happens meanwhile.
         if (status.SequenceRunning) return (BotPendingAction.None, null);
-        // Postponed restarts and updates run once the pause is over.
-        var pauseEnd = status.PausedUntilUtc is { } paused && paused > utcNow ? paused : (DateTime?)null;
+        // Postponed restarts and updates begin once the pause is over, and the server goes down after the warnings.
+        var pauseEnd = status.PausedUntilUtc is { } paused && paused > utcNow ? paused + status.RestartWarningLead : (DateTime?)null;
         if (status.UpdatePending) return (BotPendingAction.Update, pauseEnd);
         if (status.RestartPostponed) return (BotPendingAction.Restart, pauseEnd);
         if (status.NextScheduledRestartUtc is { } next && next - utcNow <= ScheduledRestartLookAhead)

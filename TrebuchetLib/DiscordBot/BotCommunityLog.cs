@@ -124,6 +124,12 @@ public sealed class BotCommunityLog : IDisposable
     public static readonly TimeSpan BusyInterval = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan SendTimeout = TimeSpan.FromSeconds(15);
     private static readonly TimeSpan SameEventTolerance = TimeSpan.FromMinutes(2);
+    // The server is gone for a restart when it goes down around the time the restart was planned for (a stop pressed an
+    // hour before a planned restart is a stop).
+    private static readonly TimeSpan PlannedWindow = CalmInterval;
+    // Longer than the calm interval plus the time a look may take: more silence than this means the bot was away (off,
+    // no Discord connection), and what happened meanwhile is old news.
+    private static readonly TimeSpan StaleAfter = TimeSpan.FromMinutes(11);
 
     public const uint Orange = 0xE67E22;
     public const uint Red = 0xED4245;
@@ -132,7 +138,9 @@ public sealed class BotCommunityLog : IDisposable
     private sealed class Memory
     {
         public BotServerState? Last;
+        public DateTime SeenAt;
         public BotPendingAction LastPending;
+        public DateTime? LastPendingAt;
         // The time the announced restart or stop was told for: the same event comes with a time that differs by seconds
         // (the schedule says 06:00:00, the countdown ends at 06:00:02), a postponement by much more.
         public DateTime? AnnouncedAt;
@@ -148,6 +156,8 @@ public sealed class BotCommunityLog : IDisposable
     private readonly Func<DateTime> _clock;
     private readonly ILogger? _logger;
     private readonly object _lock = new();
+    // One look at a time: two loops (an old one that is ending and a new one) must not read the servers out of order.
+    private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly Dictionary<int, Memory> _memory = [];
     private readonly Channel<BotWebhookEmbed> _queue;
     private readonly CancellationTokenSource _cancel = new();
@@ -200,6 +210,8 @@ public sealed class BotCommunityLog : IDisposable
         {
             url = null;
         }
+        // Whatever the source is: this URL never reaches a log.
+        if (url is not null) BotWebhook.RegisterSecret(url);
         lock (_lock) _cachedWebhook = (url, now);
         return url;
     }
@@ -212,13 +224,14 @@ public sealed class BotCommunityLog : IDisposable
     public async Task<TimeSpan> RefreshAsync(CancellationToken token)
     {
         var next = CalmInterval;
+        await _gate.WaitAsync(token).ConfigureAwait(false);
         try
         {
             var policy = _policy();
             if (policy is not { CommunityEnabled: true } || Webhook() is null)
             {
                 // Off (or no webhook): nothing is remembered, so switching it on starts with a fresh look and says nothing old.
-                lock (_lock) _memory.Clear();
+                Reset();
                 return next;
             }
             var statuses = await _actions.GetStatusesAsync(token).ConfigureAwait(false);
@@ -240,7 +253,17 @@ public sealed class BotCommunityLog : IDisposable
             _logger?.LogWarning("Discord bot: the community log could not look at the servers: {Error}", DiscordNetLog.Describe(ex));
             next = BusyInterval;
         }
+        finally
+        {
+            _gate.Release();
+        }
         return next;
+    }
+
+    /// <summary>Forgets what was seen: the next look is a first look and says nothing about the past.</summary>
+    public void Reset()
+    {
+        lock (_lock) _memory.Clear();
     }
 
     /// <summary>One look at one server: counts the announcement and the changes, returns when to look again.</summary>
@@ -250,7 +273,9 @@ public sealed class BotCommunityLog : IDisposable
         var due = status.State is BotServerState.Starting or BotServerState.Stopping ? BusyInterval : CalmInterval;
         lock (_lock)
         {
-            if (!_memory.TryGetValue(status.Instance, out var memory)) _memory[status.Instance] = memory = new Memory();
+            if (!_memory.TryGetValue(status.Instance, out var memory) || now - memory.SeenAt > StaleAfter)
+                _memory[status.Instance] = memory = new Memory();
+            memory.SeenAt = now;
             var before = memory.Last;
             memory.Last = status.State;
 
@@ -261,7 +286,9 @@ public sealed class BotCommunityLog : IDisposable
                 // A crash says nothing: the launcher did not plan it.
                 if (status.State != BotServerState.Crashed)
                 {
-                    var restart = status.Restarting || memory.LastPending is BotPendingAction.Restart or BotPendingAction.Update;
+                    var plannedRestart = memory.LastPending is BotPendingAction.Restart or BotPendingAction.Update
+                                         && memory.LastPendingAt is { } planned && (now - planned).Duration() <= PlannedWindow;
+                    var restart = status.Restarting || plannedRestart;
                     Enqueue(restart
                         ? Embed(texts.RestartingTitle, texts.RestartingBody, Red, now, status, several)
                         : Embed(texts.StoppingTitle, texts.StoppingBody, Red, now, status, several));
@@ -285,6 +312,7 @@ public sealed class BotCommunityLog : IDisposable
             if (status.State == BotServerState.Online)
             {
                 memory.LastPending = status.Pending;
+                memory.LastPendingAt = status.PendingAtUtc;
                 if (status.Pending != BotPendingAction.None && status.PendingAtUtc is { } at && at > now)
                 {
                     var remaining = at - now;
@@ -381,7 +409,7 @@ public sealed class BotCommunityLog : IDisposable
             if (policy is not { CommunityEnabled: true } || url is null) return;
             var name = string.IsNullOrWhiteSpace(policy.CommunityName) ? null : policy.CommunityName;
             var avatar = string.IsNullOrWhiteSpace(policy.CommunityAvatarUrl) ? null : policy.CommunityAvatarUrl;
-            await _client.SendAsync(url, new BotWebhookMessage(name, avatar, null, embed), token).WaitAsync(SendTimeout, token).ConfigureAwait(false);
+            await _client.SendAsync(url, new BotWebhookMessage(name, avatar, null, embed), policy.GuildId, token).WaitAsync(SendTimeout, token).ConfigureAwait(false);
             _failing = false;
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)

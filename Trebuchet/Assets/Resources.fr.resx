@@ -2012,7 +2012,7 @@ Le bot ne répond pas dans le salon : le salon d’administration est-il défini
         <value>Nom du journal d'audit</value>
     </data>
     <data name="DiscordBotAuditNameText" xml:space="preserve">
-        <value>Nécessite le webhook d'audit. Remplace le nom défini pour le webhook dans Discord. Vide : le nom du webhook.</value>
+        <value>Nécessite le webhook d'audit. Remplace le nom défini pour le webhook dans Discord. Vide : le nom du webhook. Discord n'autorise pas « discord » ni « clyde » dans un nom.</value>
     </data>
     <data name="DiscordBotAuditAvatar" xml:space="preserve">
         <value>Image du journal d'audit</value>
@@ -2042,7 +2042,7 @@ Le bot ne répond pas dans le salon : le salon d’administration est-il défini
         <value>Nom du journal de la communauté</value>
     </data>
     <data name="DiscordBotCommunityNameText" xml:space="preserve">
-        <value>Le nom sous lequel les messages apparaissent, par ex. le nom de votre serveur ou communauté. Vide : le nom du webhook.</value>
+        <value>Le nom sous lequel les messages apparaissent, par ex. le nom de votre serveur ou communauté. Vide : le nom du webhook. Discord n'autorise pas « discord » ni « clyde » dans un nom.</value>
     </data>
     <data name="DiscordBotCommunityAvatar" xml:space="preserve">
         <value>Image du journal de la communauté</value>
@@ -2079,5 +2079,8 @@ Le bot ne répond pas dans le salon : le salon d’administration est-il défini
     </data>
     <data name="DiscordBotIssueInvalidUrl" xml:space="preserve">
         <value>Le lien n'est pas valide (un lien https sans espaces)</value>
+    </data>
+    <data name="DiscordBotIssueInvalidName" xml:space="preserve">
+        <value>Le nom n'est pas autorisé (sans « discord » ni « clyde », et sans jeton ni lien)</value>
     </data>
 </root>

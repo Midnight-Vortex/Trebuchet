@@ -194,14 +194,25 @@ Zeit, User-ID, Anzeigename (nur zur Info), Server-/Kanal-ID, Befehl, Parameter, 
 - Eigene Identität: Ein Bot-Konto kann den Namen nicht pro Nachricht ändern, ein **Webhook** schon (`username`, `avatar_url`). Deshalb
   gibt es pro Protokoll eine optionale Webhook-URL (geschützt gespeichert wie der Token, `BotWebhookStore`, nie in den Einstellungen,
   nie in Logs, `BotLogRedactor`), dazu Name (höchstens 80 Zeichen, eine Zeile) und Bild (https-Link, nur Discord holt ihn). Mit
-  Webhook schreibt `BotAuditChannelFeed` darüber (Erwähnungen pingen nie, `AllowedMentions.None`), ohne wie bisher als Bot.
+  Webhook schreibt `BotAuditChannelFeed` darüber (Erwähnungen pingen nie, `AllowedMentions.None`), ohne wie bisher als Bot; tut der
+  Webhook nicht, fällt es auf den Audit-Kanal zurück. `HttpBotWebhookClient` spricht den Webhook direkt per HTTPS an (eine
+  Verbindung für alle Nachrichten, kein blockierender Aufruf je Nachricht wie im Konstruktor von `DiscordWebhookClient`) und fragt
+  vor der ersten Nachricht `GET /webhooks/{id}/{token}` nach `guild_id`: ein Webhook eines anderen Servers als `GuildId` bekommt nie
+  eine Nachricht. `?thread_id=` der Adresse bleibt erhalten (Threads, Forum-Beiträge), 429 wird einmal nach `retry_after` (höchstens
+  10 s) wiederholt. Namen und Bild-Links mit Token/Webhook-Adresse (`BotLogRedactor`), Namen mit „discord“/„clyde“ (Discord lehnt sie
+  ab) und Links mit Benutzerangabe sind ungültige Einstellungen (`InvalidName`/`InvalidUrl`). Eine Webhook-Datei, die da ist, aber
+  nicht gelesen werden kann (anderer Windows-Benutzer), wird einmal im Log gemeldet (`BotWebhookStore.AsSource`).
 - **Community-Log** (`BotCommunityLog`): für die Spieler, eigener Kanal, eigener Webhook, Name und Bild. Pro Server kündigt er geplante
   und automatische Neustarts/Stopps `CommunityLeadMinutes` vorher an (Zeitplan des Speicherstands, Update-Runde, Countdown des
   Launchers, verschobener Neustart), meldet „startet jetzt neu“/„wird jetzt gestoppt“ und „wieder online“ mit der Offline-Zeit.
   Embeds wie im Beispiel (Titel mit Symbol, Text mit Discord-Zeitstempeln `<t:…:t>` und `<t:…:R>`, Farbe Orange/Rot/Grün, Zeit im
   Fuß). Er liest die Zustände selbst (braucht keinen Admin-Kanal), erkennt „Neustart statt Stopp“ am Prozess
-  (`LauncherServerStatus.ProcessRestarts`) oder an der zuletzt angekündigten Aktion, kündigt dasselbe Ereignis nur einmal an (die
-  Zeit weicht um Sekunden ab, eine Verschiebung um mehr), weckt sich genau zum Beginn der Vorlaufzeit und sagt zu Abstürzen nichts.
+  (`LauncherServerStatus.ProcessRestarts`) oder daran, dass der Server um die zuletzt gemeldete Zeit eines Neustarts herunterfährt
+  (ein Stopp von Hand eine Stunde davor ist ein Stopp; eine Update-Runde allein macht keinen Neustart), kündigt dasselbe Ereignis nur
+  einmal an (die Zeit weicht um Sekunden ab, eine Verschiebung um mehr), weckt sich genau zum Beginn der Vorlaufzeit und sagt zu
+  Abstürzen nichts. Ein verschobener Neustart nennt das Ende der Pause plus die Vorwarnzeit des Speicherstands
+  (`LauncherServerStatus.RestartWarningLead`): erst dann fährt der Server herunter. Nach mehr als 11 Minuten ohne Blick (Bot aus, keine
+  Verbindung) beginnt die Erinnerung neu, Altes wird nicht als „jetzt“ erzählt; zwei Blicke gleichzeitig laufen nacheinander.
 - Servername: kommt aus dem Server-Speicherstand (Feld „Servername“, `ServerProfile.ServerName`), nicht aus den Bot-Einstellungen;
   unverändert (Standardname) gilt der Name des Speicherstands. Bereinigt (`BotInputRules.SanitizeName`) im Bot, im Log nur
   ohne Steuerzeichen (`SanitizeForLog`).

@@ -2622,7 +2622,7 @@ Bei „Token bereits in Verwendung“ läuft ein Bot mit demselben Token schon i
         <value>Name des Audit-Logs</value>
     </data>
     <data name="DiscordBotAuditNameText" xml:space="preserve">
-        <value>Braucht den Audit-Webhook. Ersetzt den Namen, der in Discord für den Webhook gesetzt ist. Leer: der Name des Webhooks.</value>
+        <value>Braucht den Audit-Webhook. Ersetzt den Namen, der in Discord für den Webhook gesetzt ist. Leer: der Name des Webhooks. Discord erlaubt „Discord“ und „Clyde“ in einem Namen nicht.</value>
     </data>
     <data name="DiscordBotAuditAvatar" xml:space="preserve">
         <value>Bild des Audit-Logs</value>
@@ -2652,7 +2652,7 @@ Bei „Token bereits in Verwendung“ läuft ein Bot mit demselben Token schon i
         <value>Name des Community-Logs</value>
     </data>
     <data name="DiscordBotCommunityNameText" xml:space="preserve">
-        <value>Der Name, unter dem die Meldungen erscheinen, z. B. der Name deines Servers oder deiner Community. Leer: der Name des Webhooks.</value>
+        <value>Der Name, unter dem die Meldungen erscheinen, z. B. der Name deines Servers oder deiner Community. Leer: der Name des Webhooks. Discord erlaubt „Discord“ und „Clyde“ in einem Namen nicht.</value>
     </data>
     <data name="DiscordBotCommunityAvatar" xml:space="preserve">
         <value>Bild des Community-Logs</value>
@@ -2689,5 +2689,8 @@ Bei „Token bereits in Verwendung“ läuft ein Bot mit demselben Token schon i
     </data>
     <data name="DiscordBotIssueInvalidUrl" xml:space="preserve">
         <value>Der Link ist ungültig (ein https-Link ohne Leerzeichen)</value>
+    </data>
+    <data name="DiscordBotIssueInvalidName" xml:space="preserve">
+        <value>Der Name ist nicht erlaubt (ohne „Discord“ oder „Clyde“ darin, und ohne Token oder Link)</value>
     </data>
 </root>

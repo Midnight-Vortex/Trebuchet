@@ -2630,7 +2630,7 @@ The bot does not answer in the channel: is the admin channel set, and do you use
         <value>Name of the audit log</value>
     </data>
     <data name="DiscordBotAuditNameText" xml:space="preserve">
-        <value>Needs the audit webhook. Replaces the name set for the webhook in Discord. Empty: the name of the webhook.</value>
+        <value>Needs the audit webhook. Replaces the name set for the webhook in Discord. Empty: the name of the webhook. Discord does not allow "discord" or "clyde" in a name.</value>
     </data>
     <data name="DiscordBotAuditAvatar" xml:space="preserve">
         <value>Picture of the audit log</value>
@@ -2660,7 +2660,7 @@ The bot does not answer in the channel: is the admin channel set, and do you use
         <value>Name of the community log</value>
     </data>
     <data name="DiscordBotCommunityNameText" xml:space="preserve">
-        <value>The name the messages appear under, e.g. the name of your server or community. Empty: the name of the webhook.</value>
+        <value>The name the messages appear under, e.g. the name of your server or community. Empty: the name of the webhook. Discord does not allow "discord" or "clyde" in a name.</value>
     </data>
     <data name="DiscordBotCommunityAvatar" xml:space="preserve">
         <value>Picture of the community log</value>
@@ -2697,5 +2697,8 @@ The bot does not answer in the channel: is the admin channel set, and do you use
     </data>
     <data name="DiscordBotIssueInvalidUrl" xml:space="preserve">
         <value>The link is not valid (an https link without spaces)</value>
+    </data>
+    <data name="DiscordBotIssueInvalidName" xml:space="preserve">
+        <value>The name is not allowed (no "discord" or "clyde" in it, and no token or link)</value>
     </data>
 </root>

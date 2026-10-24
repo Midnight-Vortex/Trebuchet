@@ -7492,7 +7492,7 @@ namespace Trebuchet.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Needs the audit webhook. Replaces the name set for the webhook in Discord. Empty: the name of the webhook..
+        ///   Looks up a localized string similar to Needs the audit webhook. Replaces the name set for the webhook in Discord. Empty: the name of the webhook. Discord does not allow "discord" or "clyde" in a name.
         /// </summary>
         public static string DiscordBotAuditNameText {
             get {
@@ -7582,7 +7582,7 @@ namespace Trebuchet.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to The name the messages appear under, e.g. the name of your server or community. Empty: the name of the webhook..
+        ///   Looks up a localized string similar to The name the messages appear under, e.g. the name of your server or community. Empty: the name of the webhook. Discord does not allow "discord" or "clyde" in a name.
         /// </summary>
         public static string DiscordBotCommunityNameText {
             get {
@@ -7695,6 +7695,15 @@ namespace Trebuchet.Assets {
         public static string DiscordBotIssueInvalidUrl {
             get {
                 return ResourceManager.GetString("DiscordBotIssueInvalidUrl", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The name is not allowed (no "discord" or "clyde" in it, and no token or link).
+        /// </summary>
+        public static string DiscordBotIssueInvalidName {
+            get {
+                return ResourceManager.GetString("DiscordBotIssueInvalidName", resourceCulture);
             }
         }
         

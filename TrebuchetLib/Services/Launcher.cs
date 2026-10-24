@@ -828,8 +828,21 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             InUpdateRound = _updateRound.Contains(instance),
             UpdatePending = process is not null && running && IsUpdatePending(instance, process),
             NextScheduledRestartUtc = process is not null && running ? GetNextScheduledRestartUtc(instance, process, paused) : null,
-            PausedUntilUtc = paused
+            PausedUntilUtc = paused,
+            RestartWarningLead = process is not null && running ? GetInstanceRestartWarningLead(instance) : TimeSpan.Zero
         };
+    }
+
+    private TimeSpan GetInstanceRestartWarningLead(int instance)
+    {
+        try
+        {
+            return GetInstanceProfile(instance) is { } profile ? GetRestartWarningLead(profile) : TimeSpan.Zero;
+        }
+        catch (Exception)
+        {
+            return TimeSpan.Zero;
+        }
     }
 
     // The "Server name" of the save the instance runs, empty while it keeps the default name.

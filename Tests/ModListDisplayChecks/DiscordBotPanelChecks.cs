@@ -272,6 +272,20 @@ public static class DiscordBotPanelChecks
         editor.CommunityLeadMinutes = 61;
         check(editor.Validate(config).Issues.Any(x => x.Kind == BotConfigIssueKind.InvalidLimit && x.Detail.StartsWith(nameof(DiscordBotConfig.CommunityLeadMinutes), StringComparison.Ordinal)),
             "The lead time is limited to an hour");
+        editor.CommunityLeadMinutes = 45;
+        // A token (or a webhook address) typed into a name field, or a name Discord refuses: refused by the field, nothing is saved.
+        editor.CommunityName = string.Join(".", "MTIzNDU2Nzg5MDEyMzQ1Njc4", "GabcDE", "abcdefghijklmnopqrstuvwxyz0123456789ABCD");
+        var nameIssues = editor.Validate(config).Issues;
+        var beforeName = Json(config);
+        check(nameIssues.Count == 1 && nameIssues[0].Kind == BotConfigIssueKind.InvalidName && nameIssues[0].Detail == nameof(DiscordBotConfig.CommunityName)
+              && DiscordBotTexts.Issue(nameIssues[0]).Contains(Trebuchet.Assets.Resources.DiscordBotCommunityName, StringComparison.Ordinal)
+              && !DiscordBotTexts.Issue(nameIssues[0]).Contains("abcdefghijklmnop", StringComparison.Ordinal)
+              && editor.Save(config).Count == 1 && Json(config) == beforeName, "A token in the name is refused without repeating it, and nothing is saved");
+        editor.CommunityName = "Discord Wächter";
+        check(editor.Validate(config).Issues.Any(x => x.Kind == BotConfigIssueKind.InvalidName) && editor.Save(config).Count == 1 && Json(config) == beforeName,
+            "A name Discord refuses is told in the settings");
+        editor.AuditAvatarUrl = "https://discord.com/api/webhooks/123456789012345678/abcdefghijklmnopqrstuvwxyz0123456789ABCD";
+        check(editor.Validate(config).Issues.Any(x => x.Kind == BotConfigIssueKind.InvalidUrl && x.Detail == nameof(DiscordBotConfig.AuditAvatarUrl)), "A webhook address is no picture link");
         editor.Load(config);
 
         // The webhooks behind the secret fields of the panel: write-only, never from the environment.

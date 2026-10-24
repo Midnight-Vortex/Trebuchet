@@ -1,4 +1,5 @@
 using System.Collections.Frozen;
+using System.Globalization;
 
 namespace TrebuchetLib.DiscordBot;
 
@@ -13,7 +14,9 @@ public enum BotConfigIssueKind
     InvalidPostponeChoices,
     UnknownCommand,
     /// <summary>A link that is not an https link (the picture of a log). The detail is the name of the field.</summary>
-    InvalidUrl
+    InvalidUrl,
+    /// <summary>A name that Discord refuses for a webhook message or that carries a secret. The detail is the name of the field.</summary>
+    InvalidName
 }
 
 public sealed record BotConfigIssue(BotConfigIssueKind Kind, string Detail = "");
@@ -135,6 +138,8 @@ public sealed class BotPolicy
         CheckLimit(issues, nameof(config.CommunityLeadMinutes), config.CommunityLeadMinutes, 1, DiscordBotConfig.MaxCommunityLeadMinutes);
         CheckAvatar(issues, nameof(config.AuditAvatarUrl), config.AuditAvatarUrl);
         CheckAvatar(issues, nameof(config.CommunityAvatarUrl), config.CommunityAvatarUrl);
+        CheckName(issues, nameof(config.AuditName), config.AuditName);
+        CheckName(issues, nameof(config.CommunityName), config.CommunityName);
         CheckLimit(issues, nameof(config.LockoutAttempts), config.LockoutAttempts, 1, 50);
         CheckLimit(issues, nameof(config.LockoutMinutes), config.LockoutMinutes, 1, DiscordBotConfig.HardMaxPauseMinutes);
         CheckLimit(issues, nameof(config.ActionDelayMinutes), config.ActionDelayMinutes, 0, 60);
@@ -158,8 +163,32 @@ public sealed class BotPolicy
     private static string CleanIdentityName(string? name)
     {
         var clean = BotInputRules.SanitizeForLog(name);
-        return clean.Length <= DiscordBotConfig.MaxIdentityNameLength ? clean : clean[..DiscordBotConfig.MaxIdentityNameLength].TrimEnd();
+        if (clean.Length <= DiscordBotConfig.MaxIdentityNameLength) return clean;
+        // Cut between the characters people see: an emoji (a pair of surrogates, often joined with others) is never split.
+        var end = 0;
+        var elements = StringInfo.GetTextElementEnumerator(clean);
+        while (elements.MoveNext())
+        {
+            var next = elements.ElementIndex + elements.GetTextElement().Length;
+            if (next > DiscordBotConfig.MaxIdentityNameLength) break;
+            end = next;
+        }
+        return clean[..end].TrimEnd();
     }
+
+    // Discord refuses a webhook message whose name contains these.
+    private static readonly string[] ForbiddenNameParts = ["discord", "clyde"];
+
+    // The name is posted in public, the settings file is plain text: a token or a webhook link pasted into the wrong
+    // field (the admin copied the wrong thing) is refused here, not saved and not posted.
+    private static void CheckName(List<BotConfigIssue> issues, string field, string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return;
+        if (ContainsSecret(name) || ForbiddenNameParts.Any(x => name.Contains(x, StringComparison.OrdinalIgnoreCase)))
+            issues.Add(new BotConfigIssue(BotConfigIssueKind.InvalidName, field));
+    }
+
+    private static bool ContainsSecret(string text) => BotWebhook.Contains(text) || BotLogRedactor.Redact(text) != text;
 
     // The link only goes to Discord (it fetches the picture itself), Trebuchet never opens it: still only https, one clean link.
     private static void CheckAvatar(List<BotConfigIssue> issues, string field, string? url)
@@ -167,7 +196,8 @@ public sealed class BotPolicy
         if (string.IsNullOrWhiteSpace(url)) return;
         var text = url.Trim();
         if (text.Length > DiscordBotConfig.MaxAvatarUrlLength || text.Any(char.IsWhiteSpace) || text.Any(char.IsControl)
-            || !Uri.TryCreate(text, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps || string.IsNullOrEmpty(uri.Host))
+            || !Uri.TryCreate(text, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps || string.IsNullOrEmpty(uri.Host)
+            || uri.UserInfo.Length > 0 || ContainsSecret(text))
             issues.Add(new BotConfigIssue(BotConfigIssueKind.InvalidUrl, field));
     }
 

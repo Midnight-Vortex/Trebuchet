@@ -47,6 +47,8 @@ public sealed record LauncherServerStatus
     public bool UpdatePending { get; init; }
     /// <summary>When the restart schedule of the save restarts the server next (warnings included), within a day.</summary>
     public DateTime? NextScheduledRestartUtc { get; init; }
+    /// <summary>How long before a restart the players are warned: a restart starts this much earlier than the server goes down.</summary>
+    public TimeSpan RestartWarningLead { get; init; }
     /// <summary>The automatic restarts are paused until then.</summary>
     public DateTime? PausedUntilUtc { get; init; }
 }

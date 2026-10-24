@@ -73,7 +73,13 @@ Die Rolle `@everyone` ist **nicht erlaubt** (jeder hat sie), Trebuchet lehnt sie
    kopieren und im Panel einfügen (sie wird wie der Token verschlüsselt gespeichert und nie wieder angezeigt). Dann
    schreibt der Bot das Protokoll unter dem **Namen** und mit dem **Bild** (Link, https) aus den Einstellungen, auch ohne
    Kanal-ID; beides ersetzt, was in Discord für den Webhook eingestellt ist. Ohne Webhook schreibt der Bot unter seinem
-   eigenen Namen.
+   eigenen Namen. Der Webhook muss zu **deinem Discord-Server** gehören (der Bot schreibt nicht über den Webhook eines
+   anderen Servers), und der Name darf weder „Discord“ noch „Clyde“ enthalten (Discord lehnt ihn sonst ab; das Panel sagt
+   es dir) und kein Token und keinen Webhook-Link. Tut der Webhook nicht, was er soll (gelöscht, falscher Server), schreibt
+   der Bot das Protokoll in den Audit-Kanal, wenn dort eine Kanal-ID eingetragen ist. Für einen **Thread** oder einen
+   **Beitrag in einem Forum-Kanal** hängst du `?thread_id=<ID des Threads>` an die Webhook-URL an. Läuft der Bot unter
+   einem anderen Windows-Benutzer (zum Beispiel als geplante Aufgabe), kann er die Webhook-Datei nicht lesen: Er meldet das
+   einmal im Log, speichere die Webhooks dann mit diesem Benutzer.
 8. **Community-Log** (optional, für deine Spieler): ein eigener Kanal mit eigenem Webhook, eigenem Namen und Bild (zum
    Beispiel der Name deines Servers). Der Bot kündigt dort **geplante und automatische Neustarts und Stopps** kurz vorher
    an (Standard 30 Minuten, einstellbar 1 bis 60), sagt, wenn der Server jetzt herunterfährt, und meldet, wenn er wieder
@@ -89,7 +95,8 @@ Die Rolle `@everyone` ist **nicht erlaubt** (jeder hat sie), Trebuchet lehnt sie
    seinen Countdown beginnt. Ein **Absturz** wird nicht gemeldet, der Launcher hat ihn nicht geplant. Mit mehreren
    Servern steht der Name des Servers in der ersten Zeile. Der Community-Log läuft, solange der Bot läuft; zeigt dein
    Speicherstand schon eigene Meldungen über einen Webhook an, solltest du nur eines von beiden benutzen, sonst steht
-   alles doppelt im Kanal.
+   alles doppelt im Kanal. Ein Stopp von Hand kurz vor einem geplanten Neustart wird als Stopp gemeldet, nicht als
+   Neustart. War der Bot eine Weile weg (aus, keine Verbindung zu Discord), erzählt er danach nichts Altes als „jetzt“.
 9. **Sicherheit prüfen** drücken. Alle Punkte müssen grün sein.
 10. **Starten**.
 

@@ -41,6 +41,7 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
 
     private readonly BotAuditChannelFeed _feed;
     private readonly BotCommunityLog _community;
+    private readonly HttpBotWebhookClient _webhookClient;
     private volatile BotInteractionHandler? _handler;
     private volatile BotStatusBoard? _board;
     private CancellationTokenSource? _startCancel;
@@ -71,12 +72,12 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
         _channel = new DiscordNetChannelClient(new SocketChannelTransport(() => CurrentSession?.Client), () => VerifiedGuildId, _logger);
         _actions.StatusChanged += OnServerStatusChanged;
         // Everything the bot does goes to the audit channel (when one is set): the audit entries and what the board notices.
-        var webhookClient = new DiscordNetWebhookClient(_logger);
+        _webhookClient = new HttpBotWebhookClient(_logger);
         _feed = new BotAuditChannelFeed(_audit, _channel, () => Policy, instance => _board?.NameOf(instance), _logger,
-            webhookClient, () => webhooks?.Audit.Load());
+            _webhookClient, WebhookSource(webhooks?.Audit, "audit"));
         _feed.Start();
         // What the players of the server read (restart announced, restarting, online again), through a webhook of its own.
-        _community = new BotCommunityLog(_actions, webhookClient, () => webhooks?.Community.Load(), () => Policy, logger: _logger);
+        _community = new BotCommunityLog(_actions, _webhookClient, WebhookSource(webhooks?.Community, "community"), () => Policy, logger: _logger);
         _community.Start();
     }
 
@@ -307,7 +308,10 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
         await StopAsync().ConfigureAwait(false);
         _feed.Dispose();
         _community.Dispose();
+        _webhookClient.Dispose();
     }
+
+    private Func<string?> WebhookSource(BotWebhookStore? store, string name) => store is null ? () => null : store.AsSource(name, _logger);
 
     /// <summary>Ends a connection that must not go on (the server is missing): fail closed.</summary>
     private async Task FailClosedAsync(Session session, BotConnectionEvent reason)
