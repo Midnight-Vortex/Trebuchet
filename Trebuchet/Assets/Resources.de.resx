@@ -2084,7 +2084,7 @@ unten in den Server-Speicherständen und gelten für jedes Profil.
         <value>Audit-Kanal</value>
     </data>
     <data name="DiscordBotAuditChannelText" xml:space="preserve">
-        <value>Optionale Kanal-ID. Dorthin schreibt der Bot alles, was er tut: jede Anfrage mit Server, Nutzer und Ergebnis, abgelehnte Versuche, Zustandswechsel der Server und seine eigenen Meldungen. Leer: keiner.</value>
+        <value>Optionale Kanal-ID. Dorthin schreibt der Bot alles, was er tut, in normalen Sätzen: jede Anfrage mit Server, Nutzer und Ergebnis, abgelehnte Versuche, Zustandswechsel der Server und seine eigenen Meldungen. Mit einem Audit-Webhook unten wird die Kanal-ID nicht gebraucht. Leer: keiner.</value>
     </data>
     <data name="DiscordBotAdminChannel" xml:space="preserve">
         <value>Admin-Kanal</value>
@@ -2575,7 +2575,8 @@ Grenzen stellst du im Abschnitt „Sicherheit“ ein: Wartezeit zwischen Befehle
         <value>Die Status-Meldung zeigt pro Server den Zustand: grün = läuft, gelb = es steht etwas an, blau = verschoben, rot = gestoppt oder abgestürzt.
 Steht ein Neustart, Stopp oder Update an, erscheint der Button „… verschieben“. Ein Klick öffnet eine Auswahl (z. B. 15 Min bis 6 Std), danach ein kleines Fenster für den Grund (darf leer bleiben). Ingame bekommen die Spieler die Meldung, dass verschoben wurde.
 „Wieder freigeben“ hebt eine Verschiebung auf. Insgesamt kann nur bis zur längsten Verschiebung (Standard 6 Std) aufgeschoben werden, danach erst wieder nach dem Neustart.
-Alles, was der Bot tut oder ablehnt, steht im Abschnitt „Protokoll“.</value>
+Alles, was der Bot tut oder ablehnt, steht im Abschnitt „Protokoll“.
+Optional: Im Abschnitt „Community-Log“ richtest du einen eigenen Kanal für deine Spieler ein (Webhook, Name, Bild). Der Bot kündigt dort geplante und automatische Neustarts und Stopps kurz vorher an, sagt, wenn der Server herunterfährt, und wann er wieder online ist. Auch das Audit-Protokoll kann über einen Webhook unter eigenem Namen und Bild geschrieben werden.</value>
     </data>
     <data name="DiscordBotHelpStep12Title" xml:space="preserve">
         <value>Wenn etwas nicht klappt</value>
@@ -2610,5 +2611,83 @@ Bei „Token bereits in Verwendung“ läuft ein Bot mit demselben Token schon i
     </data>
     <data name="DiscordBotServerManaged" xml:space="preserve">
         <value>Vom Bot verwalten</value>
+    </data>
+    <data name="DiscordBotAuditWebhook" xml:space="preserve">
+        <value>Audit-Webhook</value>
+    </data>
+    <data name="DiscordBotAuditWebhookText" xml:space="preserve">
+        <value>Optional. Die Webhook-URL des Audit-Kanals (Kanal-Einstellungen → Integrationen → Webhooks → URL kopieren). Damit wird das Protokoll unter dem Namen und mit dem Bild von unten geschrieben statt unter dem Namen des Bots, und die Kanal-ID oben wird nicht gebraucht. Wird für deinen Windows-Benutzer verschlüsselt gespeichert und nie wieder angezeigt.</value>
+    </data>
+    <data name="DiscordBotAuditName" xml:space="preserve">
+        <value>Name des Audit-Logs</value>
+    </data>
+    <data name="DiscordBotAuditNameText" xml:space="preserve">
+        <value>Braucht den Audit-Webhook. Ersetzt den Namen, der in Discord für den Webhook gesetzt ist. Leer: der Name des Webhooks.</value>
+    </data>
+    <data name="DiscordBotAuditAvatar" xml:space="preserve">
+        <value>Bild des Audit-Logs</value>
+    </data>
+    <data name="DiscordBotAuditAvatarText" xml:space="preserve">
+        <value>Ein Link (https) auf ein Bild. Braucht den Audit-Webhook. Ersetzt das Bild, das in Discord für den Webhook gesetzt ist. Leer: das Bild des Webhooks.</value>
+    </data>
+    <data name="DiscordBotSectionCommunity" xml:space="preserve">
+        <value>Community-Log</value>
+    </data>
+    <data name="DiscordBotCommunityText" xml:space="preserve">
+        <value>Ein Protokoll für deine Spieler in einem eigenen Kanal: Es kündigt einen geplanten Neustart oder Stopp kurz vorher an (mit Uhrzeit), sagt, wann der Server heruntergefahren wird, und wann er wieder online ist, mit der Zeit, die er offline war. Es braucht einen eigenen Webhook und läuft, solange der Bot läuft.</value>
+    </data>
+    <data name="DiscordBotCommunityEnabled" xml:space="preserve">
+        <value>Die Community informieren</value>
+    </data>
+    <data name="DiscordBotCommunityEnabledText" xml:space="preserve">
+        <value>Kündigt Neustarts und Stopps an und meldet, dass der Server wieder da ist, im Community-Kanal.</value>
+    </data>
+    <data name="DiscordBotCommunityWebhook" xml:space="preserve">
+        <value>Community-Webhook</value>
+    </data>
+    <data name="DiscordBotCommunityWebhookText" xml:space="preserve">
+        <value>Die Webhook-URL des Community-Kanals (Kanal-Einstellungen → Integrationen → Webhooks → URL kopieren). Wird für deinen Windows-Benutzer verschlüsselt gespeichert und nie wieder angezeigt.</value>
+    </data>
+    <data name="DiscordBotCommunityName" xml:space="preserve">
+        <value>Name des Community-Logs</value>
+    </data>
+    <data name="DiscordBotCommunityNameText" xml:space="preserve">
+        <value>Der Name, unter dem die Meldungen erscheinen, z. B. der Name deines Servers oder deiner Community. Leer: der Name des Webhooks.</value>
+    </data>
+    <data name="DiscordBotCommunityAvatar" xml:space="preserve">
+        <value>Bild des Community-Logs</value>
+    </data>
+    <data name="DiscordBotCommunityAvatarText" xml:space="preserve">
+        <value>Ein Link (https) auf ein Bild, z. B. das Logo deines Servers. Leer: das Bild des Webhooks.</value>
+    </data>
+    <data name="DiscordBotCommunityLead" xml:space="preserve">
+        <value>So lange vorher ankündigen (Minuten)</value>
+    </data>
+    <data name="DiscordBotCommunityLeadText" xml:space="preserve">
+        <value>Wie lange vor einem geplanten Neustart oder Stopp die Spieler informiert werden (1 bis 60).</value>
+    </data>
+    <data name="DiscordBotWebhookSaved" xml:space="preserve">
+        <value>Webhook gespeichert</value>
+    </data>
+    <data name="DiscordBotWebhookNeedsWindows" xml:space="preserve">
+        <value>Der Webhook kann auf diesem System nicht gespeichert werden.</value>
+    </data>
+    <data name="DiscordBotWebhookInvalid" xml:space="preserve">
+        <value>Das ist keine Discord-Webhook-URL. Es wurde nichts gespeichert.</value>
+    </data>
+    <data name="DiscordBotWebhookSaveFailed" xml:space="preserve">
+        <value>Der Webhook konnte nicht gespeichert werden, Details stehen im Log von Trebuchet.</value>
+    </data>
+    <data name="DiscordBotWebhookWatermark" xml:space="preserve">
+        <value>Webhook-URL einfügen</value>
+    </data>
+    <data name="DiscordBotWebhookRemoveTitle" xml:space="preserve">
+        <value>Webhook entfernen?</value>
+    </data>
+    <data name="DiscordBotWebhookRemoveText" xml:space="preserve">
+        <value>Es wird nichts mehr darüber geschrieben. Falls die URL in falsche Hände geraten sein könnte, lösche den Webhook auch in Discord.</value>
+    </data>
+    <data name="DiscordBotIssueInvalidUrl" xml:space="preserve">
+        <value>Der Link ist ungültig (ein https-Link ohne Leerzeichen)</value>
     </data>
 </root>

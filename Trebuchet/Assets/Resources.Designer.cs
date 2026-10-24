@@ -5998,7 +5998,7 @@ namespace Trebuchet.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Optional channel ID. The bot reports critical actions and refused attempts there. Empty: none..
+        ///   Looks up a localized string similar to Optional channel ID. The bot writes everything it does there, in plain sentences: every request with server, user and result, refused attempts, state changes of the servers and its own messages. With an audit webhook below the channel ID is not needed. Empty: none.
         /// </summary>
         public static string DiscordBotAuditChannelText {
             get {
@@ -7461,6 +7461,240 @@ namespace Trebuchet.Assets {
         public static string DiscordBotServerManaged {
             get {
                 return ResourceManager.GetString("DiscordBotServerManaged", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Audit webhook.
+        /// </summary>
+        public static string DiscordBotAuditWebhook {
+            get {
+                return ResourceManager.GetString("DiscordBotAuditWebhook", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Optional. The webhook URL of the audit channel (channel settings → Integrations → Webhooks → Copy URL). With it the log is written under the name and with the picture below instead of under the name of the bot, and the channel ID above is not needed. Stored encrypted for your Windows user and never shown again..
+        /// </summary>
+        public static string DiscordBotAuditWebhookText {
+            get {
+                return ResourceManager.GetString("DiscordBotAuditWebhookText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Name of the audit log.
+        /// </summary>
+        public static string DiscordBotAuditName {
+            get {
+                return ResourceManager.GetString("DiscordBotAuditName", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Needs the audit webhook. Replaces the name set for the webhook in Discord. Empty: the name of the webhook..
+        /// </summary>
+        public static string DiscordBotAuditNameText {
+            get {
+                return ResourceManager.GetString("DiscordBotAuditNameText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Picture of the audit log.
+        /// </summary>
+        public static string DiscordBotAuditAvatar {
+            get {
+                return ResourceManager.GetString("DiscordBotAuditAvatar", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to A link (https) to an image. Needs the audit webhook. Replaces the picture set for the webhook in Discord. Empty: the picture of the webhook..
+        /// </summary>
+        public static string DiscordBotAuditAvatarText {
+            get {
+                return ResourceManager.GetString("DiscordBotAuditAvatarText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Community log.
+        /// </summary>
+        public static string DiscordBotSectionCommunity {
+            get {
+                return ResourceManager.GetString("DiscordBotSectionCommunity", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to A log for your players in a channel of its own: it announces a planned restart or stop shortly before it (with the time), says when the server goes down, and when it is back online with how long it was offline. It needs a webhook of its own and runs while the bot runs..
+        /// </summary>
+        public static string DiscordBotCommunityText {
+            get {
+                return ResourceManager.GetString("DiscordBotCommunityText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Tell the community.
+        /// </summary>
+        public static string DiscordBotCommunityEnabled {
+            get {
+                return ResourceManager.GetString("DiscordBotCommunityEnabled", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Announces restarts and stops, and that the server is back, in the community channel..
+        /// </summary>
+        public static string DiscordBotCommunityEnabledText {
+            get {
+                return ResourceManager.GetString("DiscordBotCommunityEnabledText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Community webhook.
+        /// </summary>
+        public static string DiscordBotCommunityWebhook {
+            get {
+                return ResourceManager.GetString("DiscordBotCommunityWebhook", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The webhook URL of the community channel (channel settings → Integrations → Webhooks → Copy URL). Stored encrypted for your Windows user and never shown again..
+        /// </summary>
+        public static string DiscordBotCommunityWebhookText {
+            get {
+                return ResourceManager.GetString("DiscordBotCommunityWebhookText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Name of the community log.
+        /// </summary>
+        public static string DiscordBotCommunityName {
+            get {
+                return ResourceManager.GetString("DiscordBotCommunityName", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The name the messages appear under, e.g. the name of your server or community. Empty: the name of the webhook..
+        /// </summary>
+        public static string DiscordBotCommunityNameText {
+            get {
+                return ResourceManager.GetString("DiscordBotCommunityNameText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Picture of the community log.
+        /// </summary>
+        public static string DiscordBotCommunityAvatar {
+            get {
+                return ResourceManager.GetString("DiscordBotCommunityAvatar", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to A link (https) to an image, e.g. the logo of your server. Empty: the picture of the webhook..
+        /// </summary>
+        public static string DiscordBotCommunityAvatarText {
+            get {
+                return ResourceManager.GetString("DiscordBotCommunityAvatarText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Announce this long before (minutes).
+        /// </summary>
+        public static string DiscordBotCommunityLead {
+            get {
+                return ResourceManager.GetString("DiscordBotCommunityLead", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to How long before a planned restart or stop the players are told (1 to 60)..
+        /// </summary>
+        public static string DiscordBotCommunityLeadText {
+            get {
+                return ResourceManager.GetString("DiscordBotCommunityLeadText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Webhook saved.
+        /// </summary>
+        public static string DiscordBotWebhookSaved {
+            get {
+                return ResourceManager.GetString("DiscordBotWebhookSaved", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The webhook can not be stored on this system..
+        /// </summary>
+        public static string DiscordBotWebhookNeedsWindows {
+            get {
+                return ResourceManager.GetString("DiscordBotWebhookNeedsWindows", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to This is not a Discord webhook URL. Nothing was saved..
+        /// </summary>
+        public static string DiscordBotWebhookInvalid {
+            get {
+                return ResourceManager.GetString("DiscordBotWebhookInvalid", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The webhook could not be saved, see the log of Trebuchet..
+        /// </summary>
+        public static string DiscordBotWebhookSaveFailed {
+            get {
+                return ResourceManager.GetString("DiscordBotWebhookSaveFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Paste the webhook URL.
+        /// </summary>
+        public static string DiscordBotWebhookWatermark {
+            get {
+                return ResourceManager.GetString("DiscordBotWebhookWatermark", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Remove the webhook?.
+        /// </summary>
+        public static string DiscordBotWebhookRemoveTitle {
+            get {
+                return ResourceManager.GetString("DiscordBotWebhookRemoveTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Nothing is written through it any more. If the URL may have leaked, also delete the webhook in Discord..
+        /// </summary>
+        public static string DiscordBotWebhookRemoveText {
+            get {
+                return ResourceManager.GetString("DiscordBotWebhookRemoveText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The link is not valid (an https link without spaces).
+        /// </summary>
+        public static string DiscordBotIssueInvalidUrl {
+            get {
+                return ResourceManager.GetString("DiscordBotIssueInvalidUrl", resourceCulture);
             }
         }
         

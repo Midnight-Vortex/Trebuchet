@@ -246,6 +246,51 @@ public static class DiscordBotPanelChecks
         check(editor.Save(config).Count == 0 && config.AllowedChannelIds.Count == 0 && !editor.ClearAdminChannelPending,
             "Saving allows all channels again");
 
+        // The audit log under its own name and picture, and the community log.
+        editor.Load(config);
+        editor.AuditName = "  Wächter ";
+        editor.AuditAvatarUrl = "https://example.org/a.png";
+        editor.CommunityEnabled = true;
+        editor.CommunityName = "Schatten und Licht Server";
+        editor.CommunityAvatarUrl = "https://example.org/b.png";
+        editor.CommunityLeadMinutes = 45;
+        check(editor.IsDirty, "Name, picture and community log are edits");
+        check(editor.Save(config).Count == 0 && config.AuditName == "Wächter" && config.AuditAvatarUrl == "https://example.org/a.png" && config.CommunityEnabled
+              && config.CommunityName == "Schatten und Licht Server" && config.CommunityAvatarUrl == "https://example.org/b.png" && config.CommunityLeadMinutes == 45,
+            "Name, picture and community log are saved");
+        editor.Load(config);
+        check(!editor.IsDirty && editor.CommunityName == "Schatten und Licht Server" && editor.CommunityLeadMinutes == 45 && editor.CommunityEnabled, "...and come back after loading");
+        editor.AuditName = "Wächter  ";
+        check(!editor.IsDirty, "Spaces at the end of a name are no edit");
+        editor.CommunityAvatarUrl = "http://example.org/b.png";
+        var urlIssues = editor.Validate(config).Issues;
+        var savedJson = Json(config);
+        check(urlIssues.Count == 1 && urlIssues[0].Kind == BotConfigIssueKind.InvalidUrl && urlIssues[0].Detail == nameof(DiscordBotConfig.CommunityAvatarUrl)
+              && DiscordBotTexts.Issue(urlIssues[0]).Contains(Trebuchet.Assets.Resources.DiscordBotCommunityAvatar, StringComparison.Ordinal)
+              && editor.Save(config).Count == 1 && Json(config) == savedJson, "A picture that is not an https link is refused, by the name of its field, and nothing is saved");
+        editor.CommunityAvatarUrl = "https://example.org/b.png";
+        editor.CommunityLeadMinutes = 61;
+        check(editor.Validate(config).Issues.Any(x => x.Kind == BotConfigIssueKind.InvalidLimit && x.Detail.StartsWith(nameof(DiscordBotConfig.CommunityLeadMinutes), StringComparison.Ordinal)),
+            "The lead time is limited to an hour");
+        editor.Load(config);
+
+        // The webhooks behind the secret fields of the panel: write-only, never from the environment.
+        var webhookStore = new BotWebhookStore(Path.Combine(Path.GetTempPath(), "tb-hook-" + Guid.NewGuid().ToString("N")), new FlipProtector());
+        var secret = new BotWebhookSecretStore(webhookStore);
+        try
+        {
+            check(!secret.HasSecret && !secret.FromEnvironment && secret.CanSave, "No webhook at first, and none from the environment");
+            secret.Save("https://discord.com/api/webhooks/123456789012345678/abcdefghijklmnopqrstuvwxyz0123456789ABCD");
+            check(secret.HasSecret && webhookStore.Load() is not null, "The webhook is saved through the field");
+            check(Throws<ArgumentException>(() => secret.Save("https://example.org/not-a-webhook")), "Something else is refused");
+            secret.Delete();
+            check(!secret.HasSecret, "The field can remove it");
+        }
+        finally
+        {
+            webhookStore.Delete();
+        }
+
         // Postponement choices: whole minutes only, never longer than the longest postponement.
         editor.Load(config);
         editor.PostponeChoicesText = "15, abc";
@@ -320,6 +365,7 @@ public static class DiscordBotPanelChecks
             (DiscordBotLimits.LockoutAttempts, (c, v) => c.LockoutAttempts = v, nameof(DiscordBotConfig.LockoutAttempts)),
             (DiscordBotLimits.LockoutMinutes, (c, v) => c.LockoutMinutes = v, nameof(DiscordBotConfig.LockoutMinutes)),
             (DiscordBotLimits.ActionDelay, (c, v) => c.ActionDelayMinutes = v, nameof(DiscordBotConfig.ActionDelayMinutes)),
+            (DiscordBotLimits.CommunityLead, (c, v) => c.CommunityLeadMinutes = v, nameof(DiscordBotConfig.CommunityLeadMinutes)),
             (DiscordBotLimits.MaxPause, (c, v) =>
             {
                 c.MaxPauseMinutes = v;
@@ -744,6 +790,19 @@ public static class DiscordBotPanelChecks
         private sealed class Context(TestUiThread owner) : SynchronizationContext
         {
             public override void Post(SendOrPostCallback callback, object? state) => owner.Post(() => callback(state));
+        }
+    }
+
+    private static bool Throws<T>(Action action) where T : Exception
+    {
+        try
+        {
+            action();
+            return false;
+        }
+        catch (T)
+        {
+            return true;
         }
     }
 

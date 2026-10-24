@@ -1474,7 +1474,7 @@ Losques des séquences sont utilisé, cela n'inclus que la mise en ligne et la d
         <value>Salon d'audit</value>
     </data>
     <data name="DiscordBotAuditChannelText" xml:space="preserve">
-        <value>ID de salon facultatif. Le bot y écrit tout ce qu'il fait : chaque demande avec serveur, utilisateur et résultat, les tentatives refusées, les changements d'état des serveurs et ses propres messages. Vide : aucun.</value>
+        <value>ID de salon facultatif. Le bot y écrit tout ce qu'il fait, en phrases simples : chaque demande avec serveur, utilisateur et résultat, les tentatives refusées, les changements d'état des serveurs et ses propres messages. Avec un webhook d'audit ci-dessous, l'ID du salon n'est pas nécessaire. Vide : aucun.</value>
     </data>
     <data name="DiscordBotAdminChannel" xml:space="preserve">
         <value>Salon d'administration</value>
@@ -1965,7 +1965,8 @@ Vous réglez les limites dans la section « Sécurité » : délai entre command
         <value>Le message d’état montre l’état par serveur : vert = en marche, jaune = quelque chose est prévu, bleu = reporté, rouge = arrêté ou planté.
 Quand un redémarrage, un arrêt ou une mise à jour est prévu, le bouton « … reporter » apparaît. Un clic ouvre un choix (par ex. 15 min à 6 h), puis une petite fenêtre pour la raison (elle peut rester vide). En jeu, les joueurs reçoivent le message du report.
 « Libérer à nouveau » met fin à un report. Au total, on ne peut reporter que jusqu’au report maximal (6 h par défaut), ensuite seulement après le redémarrage.
-Tout ce que le bot fait ou refuse figure dans la section « Journal ».</value>
+Tout ce que le bot fait ou refuse figure dans la section « Journal ».
+Facultatif : dans la section « Journal de la communauté », vous configurez un salon dédié à vos joueurs (webhook, nom, image). Le bot y annonce peu avant les redémarrages et arrêts prévus et automatiques, indique quand le serveur s'arrête et quand il est de nouveau en ligne. Le journal d'audit peut aussi être écrit via un webhook sous un nom et une image propres.</value>
     </data>
     <data name="DiscordBotHelpStep12Title" xml:space="preserve">
         <value>Si quelque chose ne fonctionne pas</value>
@@ -2000,5 +2001,83 @@ Le bot ne répond pas dans le salon : le salon d’administration est-il défini
     </data>
     <data name="DiscordBotServerManaged" xml:space="preserve">
         <value>Géré par le bot</value>
+    </data>
+    <data name="DiscordBotAuditWebhook" xml:space="preserve">
+        <value>Webhook d'audit</value>
+    </data>
+    <data name="DiscordBotAuditWebhookText" xml:space="preserve">
+        <value>Facultatif. L'URL du webhook du salon d'audit (paramètres du salon → Intégrations → Webhooks → Copier l'URL). Avec elle, le journal est écrit sous le nom et avec l'image ci-dessous au lieu du nom du bot, et l'ID du salon ci-dessus n'est pas nécessaire. Stockée chiffrée pour votre utilisateur Windows et jamais réaffichée.</value>
+    </data>
+    <data name="DiscordBotAuditName" xml:space="preserve">
+        <value>Nom du journal d'audit</value>
+    </data>
+    <data name="DiscordBotAuditNameText" xml:space="preserve">
+        <value>Nécessite le webhook d'audit. Remplace le nom défini pour le webhook dans Discord. Vide : le nom du webhook.</value>
+    </data>
+    <data name="DiscordBotAuditAvatar" xml:space="preserve">
+        <value>Image du journal d'audit</value>
+    </data>
+    <data name="DiscordBotAuditAvatarText" xml:space="preserve">
+        <value>Un lien (https) vers une image. Nécessite le webhook d'audit. Remplace l'image définie pour le webhook dans Discord. Vide : l'image du webhook.</value>
+    </data>
+    <data name="DiscordBotSectionCommunity" xml:space="preserve">
+        <value>Journal de la communauté</value>
+    </data>
+    <data name="DiscordBotCommunityText" xml:space="preserve">
+        <value>Un journal pour vos joueurs dans un salon dédié : il annonce un redémarrage ou un arrêt prévu peu avant (avec l'heure), indique quand le serveur s'arrête et quand il est de nouveau en ligne, avec la durée hors ligne. Il nécessite son propre webhook et fonctionne tant que le bot fonctionne.</value>
+    </data>
+    <data name="DiscordBotCommunityEnabled" xml:space="preserve">
+        <value>Informer la communauté</value>
+    </data>
+    <data name="DiscordBotCommunityEnabledText" xml:space="preserve">
+        <value>Annonce les redémarrages et arrêts, et que le serveur est de retour, dans le salon de la communauté.</value>
+    </data>
+    <data name="DiscordBotCommunityWebhook" xml:space="preserve">
+        <value>Webhook de la communauté</value>
+    </data>
+    <data name="DiscordBotCommunityWebhookText" xml:space="preserve">
+        <value>L'URL du webhook du salon de la communauté (paramètres du salon → Intégrations → Webhooks → Copier l'URL). Stockée chiffrée pour votre utilisateur Windows et jamais réaffichée.</value>
+    </data>
+    <data name="DiscordBotCommunityName" xml:space="preserve">
+        <value>Nom du journal de la communauté</value>
+    </data>
+    <data name="DiscordBotCommunityNameText" xml:space="preserve">
+        <value>Le nom sous lequel les messages apparaissent, par ex. le nom de votre serveur ou communauté. Vide : le nom du webhook.</value>
+    </data>
+    <data name="DiscordBotCommunityAvatar" xml:space="preserve">
+        <value>Image du journal de la communauté</value>
+    </data>
+    <data name="DiscordBotCommunityAvatarText" xml:space="preserve">
+        <value>Un lien (https) vers une image, par ex. le logo de votre serveur. Vide : l'image du webhook.</value>
+    </data>
+    <data name="DiscordBotCommunityLead" xml:space="preserve">
+        <value>Annoncer si longtemps avant (minutes)</value>
+    </data>
+    <data name="DiscordBotCommunityLeadText" xml:space="preserve">
+        <value>Combien de temps avant un redémarrage ou arrêt prévu les joueurs sont informés (1 à 60).</value>
+    </data>
+    <data name="DiscordBotWebhookSaved" xml:space="preserve">
+        <value>Webhook enregistré</value>
+    </data>
+    <data name="DiscordBotWebhookNeedsWindows" xml:space="preserve">
+        <value>Le webhook ne peut pas être stocké sur ce système.</value>
+    </data>
+    <data name="DiscordBotWebhookInvalid" xml:space="preserve">
+        <value>Ce n'est pas une URL de webhook Discord. Rien n'a été enregistré.</value>
+    </data>
+    <data name="DiscordBotWebhookSaveFailed" xml:space="preserve">
+        <value>Le webhook n'a pas pu être enregistré, voir le journal de Trebuchet.</value>
+    </data>
+    <data name="DiscordBotWebhookWatermark" xml:space="preserve">
+        <value>Collez l'URL du webhook</value>
+    </data>
+    <data name="DiscordBotWebhookRemoveTitle" xml:space="preserve">
+        <value>Supprimer le webhook ?</value>
+    </data>
+    <data name="DiscordBotWebhookRemoveText" xml:space="preserve">
+        <value>Plus rien n'est écrit par ce biais. Si l'URL a pu fuiter, supprimez aussi le webhook dans Discord.</value>
+    </data>
+    <data name="DiscordBotIssueInvalidUrl" xml:space="preserve">
+        <value>Le lien n'est pas valide (un lien https sans espaces)</value>
     </data>
 </root>

@@ -78,6 +78,7 @@ public sealed class DiscordBotPanel : ReactiveObject, IBottomPanel, ITickingPane
         AppSetup setup,
         DiscordBotSettingsFile settings,
         BotTokenStore tokens,
+        BotWebhooks webhooks,
         BotAuditLog audit,
         DialogueBox box,
         ILogger<DiscordBotPanel> logger)
@@ -127,6 +128,27 @@ public sealed class DiscordBotPanel : ReactiveObject, IBottomPanel, ITickingPane
             // Its reset button undoes an unsaved change; it never clears a saved ID.
             .SetDefault(() => SavedId(_settings.Config.AuditChannelId))
             .SetEnabled(CanEdit));
+
+        // The audit log under its own name and picture (through a webhook), and the community log for the players.
+        AuditWebhookField = WebhookField(webhooks.Audit, Resources.DiscordBotAuditWebhook, Resources.DiscordBotAuditWebhookText);
+        AuditNameField = TextSetting(Resources.DiscordBotAuditName, Resources.DiscordBotAuditNameText,
+            () => _editor.AuditName, v => _editor.AuditName = v, defaults.AuditName);
+        AuditAvatarField = TextSetting(Resources.DiscordBotAuditAvatar, Resources.DiscordBotAuditAvatarText,
+            () => _editor.AuditAvatarUrl, v => _editor.AuditAvatarUrl = v, defaults.AuditAvatarUrl);
+        CommunityEnabledField = Track(new ToggleField()
+            .SetTitle(Resources.DiscordBotCommunityEnabled)
+            .SetDescription(Resources.DiscordBotCommunityEnabledText)
+            .SetGetter(() => _editor.CommunityEnabled)
+            .SetSetter(v => Edit(() => _editor.CommunityEnabled = v))
+            .SetDefault(() => defaults.CommunityEnabled)
+            .SetEnabled(CanEdit));
+        CommunityWebhookField = WebhookField(webhooks.Community, Resources.DiscordBotCommunityWebhook, Resources.DiscordBotCommunityWebhookText);
+        CommunityNameField = TextSetting(Resources.DiscordBotCommunityName, Resources.DiscordBotCommunityNameText,
+            () => _editor.CommunityName, v => _editor.CommunityName = v, defaults.CommunityName);
+        CommunityAvatarField = TextSetting(Resources.DiscordBotCommunityAvatar, Resources.DiscordBotCommunityAvatarText,
+            () => _editor.CommunityAvatarUrl, v => _editor.CommunityAvatarUrl = v, defaults.CommunityAvatarUrl);
+        CommunityLeadField = Limit(Resources.DiscordBotCommunityLead, Resources.DiscordBotCommunityLeadText, DiscordBotLimits.CommunityLead,
+            () => _editor.CommunityLeadMinutes, v => _editor.CommunityLeadMinutes = v, defaults.CommunityLeadMinutes);
 
         LimitFields =
         [
@@ -395,6 +417,16 @@ public sealed class DiscordBotPanel : ReactiveObject, IBottomPanel, ITickingPane
         private set => this.RaiseAndSetIfChanged(ref _isChecking, value);
     }
 
+    // --- audit log identity and community log
+    public SecretField AuditWebhookField { get; }
+    public TextField AuditNameField { get; }
+    public TextField AuditAvatarField { get; }
+    public ToggleField CommunityEnabledField { get; }
+    public SecretField CommunityWebhookField { get; }
+    public TextField CommunityNameField { get; }
+    public TextField CommunityAvatarField { get; }
+    public IntField CommunityLeadField { get; }
+
     // --- connection
     public SecretField TokenField { get; }
     public TextField GuildField { get; }
@@ -454,6 +486,8 @@ public sealed class DiscordBotPanel : ReactiveObject, IBottomPanel, ITickingPane
             else _editor.Load(_settings.Config);
             ShowEditorValues();
             TokenField.Refresh();
+            AuditWebhookField.Refresh();
+            CommunityWebhookField.Refresh();
             ReloadAudit();
         }
         catch (Exception ex)
@@ -478,6 +512,30 @@ public sealed class DiscordBotPanel : ReactiveObject, IBottomPanel, ITickingPane
             .SetSetter(v => Edit(() => set(v)))
             .SetDefault(() => defaultValue)
             .SetEnabled(CanEdit));
+
+    private TextField TextSetting(string title, string description, Func<string> get, Action<string> set, string defaultValue) =>
+        Track(new TextField()
+            .SetTitle(title)
+            .SetDescription(description)
+            .SetGetter(get)
+            .SetSetter(v => Edit(() => set(v ?? string.Empty)))
+            .SetDefault(() => defaultValue)
+            .SetEnabled(CanEdit));
+
+    // Like the token: write-only, stored protected, saved at once (not part of the unsaved edits).
+    private SecretField WebhookField(BotWebhookStore store, string title, string description)
+    {
+        var field = new SecretField(new BotWebhookSecretStore(store))
+            .SetTitle(title)
+            .SetDescription(description)
+            .SetTexts(Resources.DiscordBotWebhookSaved, Resources.DiscordBotWebhookSaved, Resources.DiscordBotWebhookNeedsWindows,
+                Resources.DiscordBotWebhookInvalid, Resources.DiscordBotWebhookSaveFailed, Resources.DiscordBotWebhookWatermark);
+        field.ConfirmRemove = () => ConfirmAsync(Resources.DiscordBotWebhookRemoveTitle, Resources.DiscordBotWebhookRemoveText);
+        field.Saved += (_, _) => _logger.LogInformation(@"Discord bot webhook saved");
+        field.Removed += (_, _) => _logger.LogInformation(@"Discord bot webhook removed");
+        field.SaveFailed += (_, e) => _logger.LogError(@"Storing a Discord bot webhook failed: {Type}", e.Error.GetType().Name);
+        return field;
+    }
 
     private ToggleField CommandField(BotCommand command) =>
         Track(new ToggleField()

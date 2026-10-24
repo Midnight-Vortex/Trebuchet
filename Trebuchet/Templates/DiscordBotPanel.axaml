@@ -267,6 +267,9 @@
                     </Border>
 
                     <ContentControl Content="{Binding AuditChannelField}" ClipToBounds="False" />
+                    <ContentControl Content="{Binding AuditWebhookField}" ClipToBounds="False" />
+                    <ContentControl Content="{Binding AuditNameField}" ClipToBounds="False" />
+                    <ContentControl Content="{Binding AuditAvatarField}" ClipToBounds="False" />
 
                     <TextBlock Classes="SmallTitle" Text="{x:Static a:Resources.DiscordBotLimits}" Margin="0,12,0,12" />
                     <ItemsControl ItemsSource="{Binding LimitFields}" ClipToBounds="False">
@@ -317,6 +320,16 @@
                     <TextBlock Text="{Binding TokenHint}" IsVisible="{Binding HasTokenHint}" Classes="Warning" TextWrapping="Wrap" Margin="12,0,0,12" />
                     <ContentControl Content="{Binding GuildField}" ClipToBounds="False" />
                     <ContentControl Content="{Binding LanguageField}" ClipToBounds="False" />
+
+                    <!-- (c2) Community log: what the players of the server read, through a webhook of its own -->
+                    <TextBlock Classes="Title Section" Text="{x:Static a:Resources.DiscordBotSectionCommunity}" />
+                    <Border Classes="HSeparator" />
+                    <TextBlock Text="{x:Static a:Resources.DiscordBotCommunityText}" Classes="SubText" TextWrapping="Wrap" Margin="0,0,0,12" />
+                    <ContentControl Content="{Binding CommunityEnabledField}" ClipToBounds="False" />
+                    <ContentControl Content="{Binding CommunityWebhookField}" ClipToBounds="False" />
+                    <ContentControl Content="{Binding CommunityNameField}" ClipToBounds="False" />
+                    <ContentControl Content="{Binding CommunityAvatarField}" ClipToBounds="False" />
+                    <ContentControl Content="{Binding CommunityLeadField}" ClipToBounds="False" />
 
                     <!-- (d0) Servers: which instances the bot manages and the name it uses for them -->
                     <TextBlock Classes="Title Section" Text="{x:Static a:Resources.DiscordBotSectionServers}" />

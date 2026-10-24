@@ -68,8 +68,30 @@ Die Rolle `@everyone` ist **nicht erlaubt** (jeder hat sie), Trebuchet lehnt sie
    Ein Zustandswechsel wird erst gemeldet, wenn er mindestens 10 Sekunden gilt (kurzes Hin und Her gibt keine
    Mehrfachmeldung). Der Grund einer Ablehnung steht nur im Protokoll auf dem Rechner. Nimm einen eigenen Kanal, im
    Admin-Kanal würden die vielen Zeilen die Status-Meldungen verdrängen.
-8. **Sicherheit prüfen** drücken. Alle Punkte müssen grün sein.
-9. **Starten**.
+   **Eigener Name und eigenes Bild:** Ein Bot kann pro Nachricht keinen anderen Namen nehmen. Dafür gibt es den
+   **Audit-Webhook**: in Discord unter Kanal-Einstellungen → Integrationen → Webhooks einen Webhook anlegen, die URL
+   kopieren und im Panel einfügen (sie wird wie der Token verschlüsselt gespeichert und nie wieder angezeigt). Dann
+   schreibt der Bot das Protokoll unter dem **Namen** und mit dem **Bild** (Link, https) aus den Einstellungen, auch ohne
+   Kanal-ID; beides ersetzt, was in Discord für den Webhook eingestellt ist. Ohne Webhook schreibt der Bot unter seinem
+   eigenen Namen.
+8. **Community-Log** (optional, für deine Spieler): ein eigener Kanal mit eigenem Webhook, eigenem Namen und Bild (zum
+   Beispiel der Name deines Servers). Der Bot kündigt dort **geplante und automatische Neustarts und Stopps** kurz vorher
+   an (Standard 30 Minuten, einstellbar 1 bis 60), sagt, wenn der Server jetzt herunterfährt, und meldet, wenn er wieder
+   online ist, mit der Zeit, die er offline war:
+   - „⏰ Der Server startet in 30 Minuten neu“ – „Bitte sucht euch rechtzeitig einen sicheren Ort und loggt euch aus.
+     Neustart um 06:00 Uhr (in 30 Minuten).“ (Uhrzeit und „in 30 Minuten“ zeigt Discord in der Zeit des Lesers)
+   - „🔄 Der Server startet jetzt neu“ – „Bis gleich – sobald er wieder da ist, steht es hier.“
+   - „🟢 Der Server ist wieder online“ – „Der Neustart ist durch – ihr könnt euch wieder einloggen. **Offline:** 1 Min. 20 Sek.“
+
+   Dazu zählen der **Zeitplan** des Speicherstands (tägliche Neustarts), **Update-Neustarts**, ein **Countdown** des
+   Launchers (auch von Hand oder aus Discord gestartet) und ein **verschobener Neustart**, sobald seine Zeit näher
+   rückt. Ein Update, das auf die nächste Prüfung wartet, hat noch keine Zeit: Der Bot meldet sich, sobald der Launcher
+   seinen Countdown beginnt. Ein **Absturz** wird nicht gemeldet, der Launcher hat ihn nicht geplant. Mit mehreren
+   Servern steht der Name des Servers in der ersten Zeile. Der Community-Log läuft, solange der Bot läuft; zeigt dein
+   Speicherstand schon eigene Meldungen über einen Webhook an, solltest du nur eines von beiden benutzen, sonst steht
+   alles doppelt im Kanal.
+9. **Sicherheit prüfen** drücken. Alle Punkte müssen grün sein.
+10. **Starten**.
 
 Der **Super-Admin hat immer alle Rechte**: unter *Befehle* musst du für ihn nichts einschalten. Die Schalter dort gelten
 nur für die anderen Nutzer in der Liste.

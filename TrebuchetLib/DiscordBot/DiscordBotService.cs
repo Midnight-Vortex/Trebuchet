@@ -40,6 +40,7 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
     private readonly object _stateLock = new();
 
     private readonly BotAuditChannelFeed _feed;
+    private readonly BotCommunityLog _community;
     private volatile BotInteractionHandler? _handler;
     private volatile BotStatusBoard? _board;
     private CancellationTokenSource? _startCancel;
@@ -58,7 +59,7 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
     private DateTime? _connectedSinceUtc;
 
     public DiscordBotService(DiscordBotConfig config, BotTokenStore tokens, BotAuditLog audit, IBotActions actions, BotGuard guard,
-        BotPendingActions pending, ILoggerFactory loggerFactory)
+        BotPendingActions pending, ILoggerFactory loggerFactory, BotWebhooks? webhooks = null)
     {
         _config = config;
         _tokens = tokens;
@@ -70,8 +71,13 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
         _channel = new DiscordNetChannelClient(new SocketChannelTransport(() => CurrentSession?.Client), () => VerifiedGuildId, _logger);
         _actions.StatusChanged += OnServerStatusChanged;
         // Everything the bot does goes to the audit channel (when one is set): the audit entries and what the board notices.
-        _feed = new BotAuditChannelFeed(_audit, _channel, () => Policy, instance => _board?.NameOf(instance), _logger);
+        var webhookClient = new DiscordNetWebhookClient(_logger);
+        _feed = new BotAuditChannelFeed(_audit, _channel, () => Policy, instance => _board?.NameOf(instance), _logger,
+            webhookClient, () => webhooks?.Audit.Load());
         _feed.Start();
+        // What the players of the server read (restart announced, restarting, online again), through a webhook of its own.
+        _community = new BotCommunityLog(_actions, webhookClient, () => webhooks?.Community.Load(), () => Policy, logger: _logger);
+        _community.Start();
     }
 
     // A server started, went online, is stopping, stopped or crashed (or a countdown began): look at it now. Runs on
@@ -300,6 +306,7 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
         _actions.StatusChanged -= OnServerStatusChanged;
         await StopAsync().ConfigureAwait(false);
         _feed.Dispose();
+        _community.Dispose();
     }
 
     /// <summary>Ends a connection that must not go on (the server is missing): fail closed.</summary>
@@ -682,10 +689,16 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
                     && DateTime.UtcNow - session.LastCommandAttemptUtc > CommandRetryInterval
                     && await TryRegisterCommandsAsync(session).ConfigureAwait(false))
                     Apply(session, BotConnectionEvent.ReadyVerified);
-                if (session.Verified && State == DiscordBotState.Connected && _board is { } board)
+                if (session.Verified && State == DiscordBotState.Connected)
                 {
-                    var force = Interlocked.Exchange(ref session.ForceRefresh, 0) == 1;
-                    wait = await board.RefreshAsync(token, force).ConfigureAwait(false);
+                    if (_board is { } board)
+                    {
+                        var force = Interlocked.Exchange(ref session.ForceRefresh, 0) == 1;
+                        wait = await board.RefreshAsync(token, force).ConfigureAwait(false);
+                    }
+                    // The community log looks at the same moments (an event, the time it asked for), but needs no admin channel.
+                    var communityWait = await _community.RefreshAsync(token).ConfigureAwait(false);
+                    if (communityWait < wait) wait = communityWait;
                 }
                 // The commands are not registered yet: the next attempt is due.
                 if (session.Verified && !session.CommandsRegistered && wait > CommandRetryInterval) wait = CommandRetryInterval;

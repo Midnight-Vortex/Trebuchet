@@ -33,6 +33,7 @@ public static class DiscordBotLimits
     public static readonly BotLimitRange LockoutMinutes = new(1, DiscordBotConfig.HardMaxPauseMinutes);
     public static readonly BotLimitRange ActionDelay = new(0, 60);
     public static readonly BotLimitRange MaxPause = new(1, DiscordBotConfig.HardMaxPauseMinutes);
+    public static readonly BotLimitRange CommunityLead = new(1, DiscordBotConfig.MaxCommunityLeadMinutes);
 }
 
 /// <summary>
@@ -78,6 +79,15 @@ public sealed class DiscordBotSettingsEditor
     /// <summary>The minutes offered when postponing, as typed: "15, 30, 60".</summary>
     public string PostponeChoicesText { get; set; } = string.Empty;
 
+    /// <summary>The name and picture the audit log is written under (through its webhook), as typed. Empty: the ones of the webhook.</summary>
+    public string AuditName { get; set; } = string.Empty;
+    public string AuditAvatarUrl { get; set; } = string.Empty;
+    /// <summary>The community log (what the players read) is on.</summary>
+    public bool CommunityEnabled { get; set; }
+    public string CommunityName { get; set; } = string.Empty;
+    public string CommunityAvatarUrl { get; set; } = string.Empty;
+    public int CommunityLeadMinutes { get; set; }
+
     /// <summary>The server ID as typed. Empty: none.</summary>
     public string GuildIdText => _guildIdText;
     /// <summary>The audit channel ID as typed. Empty: none.</summary>
@@ -122,6 +132,12 @@ public sealed class DiscordBotSettingsEditor
         MaxPauseMinutes = config.MaxPauseMinutes;
         ActionDelayMinutes = config.ActionDelayMinutes;
         PostponeChoicesText = string.Join(@", ", config.PostponeChoices);
+        AuditName = config.AuditName ?? string.Empty;
+        AuditAvatarUrl = config.AuditAvatarUrl ?? string.Empty;
+        CommunityEnabled = config.CommunityEnabled;
+        CommunityName = config.CommunityName ?? string.Empty;
+        CommunityAvatarUrl = config.CommunityAvatarUrl ?? string.Empty;
+        CommunityLeadMinutes = config.CommunityLeadMinutes;
         ClearAdminChannelPending = false;
         _adminChannels = config.AllowedChannelIds.ToList();
         _loaded = Capture();
@@ -269,6 +285,12 @@ public sealed class DiscordBotSettingsEditor
         candidate.LockoutMinutes = LockoutMinutes;
         candidate.MaxPauseMinutes = MaxPauseMinutes;
         candidate.ActionDelayMinutes = ActionDelayMinutes;
+        candidate.AuditName = AuditName.Trim();
+        candidate.AuditAvatarUrl = AuditAvatarUrl.Trim();
+        candidate.CommunityEnabled = CommunityEnabled;
+        candidate.CommunityName = CommunityName.Trim();
+        candidate.CommunityAvatarUrl = CommunityAvatarUrl.Trim();
+        candidate.CommunityLeadMinutes = CommunityLeadMinutes;
         if (choicesValid) candidate.PostponeChoices = choices.Distinct().Order().ToList();
         if (ClearAdminChannelPending) candidate.AllowedChannelIds = [];
 
@@ -346,6 +368,12 @@ public sealed class DiscordBotSettingsEditor
         to.LockoutMinutes = from.LockoutMinutes;
         to.MaxPauseMinutes = from.MaxPauseMinutes;
         to.ActionDelayMinutes = from.ActionDelayMinutes;
+        to.AuditName = from.AuditName;
+        to.AuditAvatarUrl = from.AuditAvatarUrl;
+        to.CommunityEnabled = from.CommunityEnabled;
+        to.CommunityName = from.CommunityName;
+        to.CommunityAvatarUrl = from.CommunityAvatarUrl;
+        to.CommunityLeadMinutes = from.CommunityLeadMinutes;
         to.PostponeChoices = from.PostponeChoices.ToList();
         // The status messages belong to the bot; the channels only change when the panel widened them.
         if (channels) to.AllowedChannelIds = from.AllowedChannelIds.ToList();
@@ -380,7 +408,8 @@ public sealed class DiscordBotSettingsEditor
         string.Join(',', _commands.Order()),
         _managedChosen ? string.Join(',', _managed.Order()) : "*",
         CooldownSeconds, CriticalLimit, CriticalWindowMinutes, LockoutAttempts, LockoutMinutes, MaxPauseMinutes,
-        ActionDelayMinutes, NormalizeChoices(PostponeChoicesText), ClearAdminChannelPending);
+        ActionDelayMinutes, NormalizeChoices(PostponeChoicesText), ClearAdminChannelPending,
+        AuditName.Trim(), AuditAvatarUrl.Trim(), CommunityEnabled, CommunityName.Trim(), CommunityAvatarUrl.Trim(), CommunityLeadMinutes);
 
     private static string NormalizeChoices(string text) =>
         TryParseChoices(text, out var choices) ? string.Join(',', choices) : text.Trim();
@@ -390,7 +419,8 @@ public sealed class DiscordBotSettingsEditor
         bool AutoStart, string Language, string Guild, ulong SuperAdmin, string AuditChannel,
         string Users, string Roles, string Commands, string Managed,
         int Cooldown, int CriticalLimit, int CriticalWindow, int LockoutAttempts, int LockoutMinutes, int MaxPause,
-        int ActionDelay, string Choices, bool ClearChannel);
+        int ActionDelay, string Choices, bool ClearChannel,
+        string AuditName, string AuditAvatarUrl, bool CommunityEnabled, string CommunityName, string CommunityAvatarUrl, int CommunityLeadMinutes);
 }
 
 /// <param name="Candidate">The settings as they would be saved (not connected to the file).</param>

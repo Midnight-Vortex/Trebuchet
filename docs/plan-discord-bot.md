@@ -191,6 +191,17 @@ Zeit, User-ID, Anzeigename (nur zur Info), Server-/Kanal-ID, Befehl, Parameter, 
   Ergebnis in Worten); technische Werte (`instance=0 step=Confirm`) und Button-IDs erscheinen nicht. Ein Zustandswechsel eines
   Servers wird erst gemeldet, wenn er `SettleTime` (10 s) gilt: ein Flackern zwischen zwei Schritten eines Stopps gibt keine
   Mehrfachmeldung.
+- Eigene Identität: Ein Bot-Konto kann den Namen nicht pro Nachricht ändern, ein **Webhook** schon (`username`, `avatar_url`). Deshalb
+  gibt es pro Protokoll eine optionale Webhook-URL (geschützt gespeichert wie der Token, `BotWebhookStore`, nie in den Einstellungen,
+  nie in Logs, `BotLogRedactor`), dazu Name (höchstens 80 Zeichen, eine Zeile) und Bild (https-Link, nur Discord holt ihn). Mit
+  Webhook schreibt `BotAuditChannelFeed` darüber (Erwähnungen pingen nie, `AllowedMentions.None`), ohne wie bisher als Bot.
+- **Community-Log** (`BotCommunityLog`): für die Spieler, eigener Kanal, eigener Webhook, Name und Bild. Pro Server kündigt er geplante
+  und automatische Neustarts/Stopps `CommunityLeadMinutes` vorher an (Zeitplan des Speicherstands, Update-Runde, Countdown des
+  Launchers, verschobener Neustart), meldet „startet jetzt neu“/„wird jetzt gestoppt“ und „wieder online“ mit der Offline-Zeit.
+  Embeds wie im Beispiel (Titel mit Symbol, Text mit Discord-Zeitstempeln `<t:…:t>` und `<t:…:R>`, Farbe Orange/Rot/Grün, Zeit im
+  Fuß). Er liest die Zustände selbst (braucht keinen Admin-Kanal), erkennt „Neustart statt Stopp“ am Prozess
+  (`LauncherServerStatus.ProcessRestarts`) oder an der zuletzt angekündigten Aktion, kündigt dasselbe Ereignis nur einmal an (die
+  Zeit weicht um Sekunden ab, eine Verschiebung um mehr), weckt sich genau zum Beginn der Vorlaufzeit und sagt zu Abstürzen nichts.
 - Servername: kommt aus dem Server-Speicherstand (Feld „Servername“, `ServerProfile.ServerName`), nicht aus den Bot-Einstellungen;
   unverändert (Standardname) gilt der Name des Speicherstands. Bereinigt (`BotInputRules.SanitizeName`) im Bot, im Log nur
   ohne Steuerzeichen (`SanitizeForLog`).

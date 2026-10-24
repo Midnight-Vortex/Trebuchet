@@ -37,6 +37,8 @@ public sealed record LauncherServerStatus
     public DateTime? CountdownEndsUtc { get; init; }
     /// <summary>An automatic restart is on its way (countdown or the restart itself).</summary>
     public bool RestartRequested { get; init; }
+    /// <summary>The server process is stopping to be started again (the stop that began is a restart, not a stop).</summary>
+    public bool ProcessRestarts { get; init; }
     /// <summary>A restart was postponed by a pause: it runs when the pause is over.</summary>
     public bool RestartPostponed { get; init; }
     /// <summary>The server takes part in a common restart for an update.</summary>

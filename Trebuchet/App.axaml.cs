@@ -422,6 +422,8 @@ public partial class App : Application, IApplication
             DiscordBotSettingsFile.Load(edition, sp.GetRequiredService<ILogger<DiscordBotSettingsFile>>()));
         services.AddSingleton(sp => sp.GetRequiredService<DiscordBotSettingsFile>().Config);
         services.AddSingleton(sp => new BotTokenStore(sp.GetRequiredService<DiscordBotSettingsFile>().TokenPath));
+        // The webhooks of the audit log and of the community log: protected files next to the token.
+        services.AddSingleton(sp => BotWebhooks.ForTokenPath(sp.GetRequiredService<DiscordBotSettingsFile>().TokenPath));
         services.AddSingleton(_ => new BotAuditLog(Constants.GetLoggingDirectory().FullName));
         services.AddSingleton<BotRateLimiter>();
         services.AddSingleton(sp => new BotGuard(sp.GetRequiredService<BotRateLimiter>()));

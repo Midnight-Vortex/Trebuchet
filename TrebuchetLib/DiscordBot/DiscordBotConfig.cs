@@ -15,6 +15,12 @@ public sealed class DiscordBotConfig : ConfigFile<DiscordBotConfig>
     public const int MaxCriticalLimit = 50;
     /// <summary>Critical actions per server in the window by default (it was 3, which was reached while setting the bot up).</summary>
     public const int DefaultCriticalLimit = 10;
+    public const int DefaultCommunityLeadMinutes = 30;
+    /// <summary>The status of a server knows a scheduled restart one hour ahead, so the community can not be told earlier.</summary>
+    public const int MaxCommunityLeadMinutes = 60;
+    /// <summary>A webhook name is at most 80 characters in Discord.</summary>
+    public const int MaxIdentityNameLength = 80;
+    public const int MaxAvatarUrlLength = 512;
     // The limits of files written before the limit was raised: only these are replaced by the new default.
     private const int OldDefaultCriticalLimit = 3;
     private const int OldDefaultCriticalWindowMinutes = 10;
@@ -72,9 +78,26 @@ public sealed class DiscordBotConfig : ConfigFile<DiscordBotConfig>
         get => _allowedChannelIds;
         set => _allowedChannelIds = value ?? [];
     }
-    /// <summary>Optional channel for critical actions and refused attempts. 0: none.</summary>
+    /// <summary>Optional channel the bot writes everything it does into. 0: none (the audit webhook alone also works).</summary>
     [JsonNumberHandling(IdHandling)]
     public ulong AuditChannelId { get; set; }
+
+    /// <summary>
+    /// The name the audit log is written under. It only applies through the audit webhook (a bot account can not take another
+    /// name per message) and replaces the name set for the webhook in Discord. Empty: the one of the webhook.
+    /// </summary>
+    public string AuditName { get; set; } = string.Empty;
+    /// <summary>The picture (an https link to an image) of the audit log, like <see cref="AuditName"/>. Empty: the one of the webhook.</summary>
+    public string AuditAvatarUrl { get; set; } = string.Empty;
+
+    /// <summary>The community log: what the players of the server see (restart announced, restarting, online again).</summary>
+    public bool CommunityEnabled { get; set; }
+    /// <summary>The name of the community log, e.g. the name of the server community. Empty: the name of the webhook.</summary>
+    public string CommunityName { get; set; } = string.Empty;
+    /// <summary>The picture (an https link to an image) of the community log. Empty: the one of the webhook.</summary>
+    public string CommunityAvatarUrl { get; set; } = string.Empty;
+    /// <summary>How long before a planned restart or stop the community is told (minutes).</summary>
+    public int CommunityLeadMinutes { get; set; } = DefaultCommunityLeadMinutes;
 
     /// <summary>Names of the commands that are switched on. A command missing here is off.</summary>
     public List<string> EnabledCommands

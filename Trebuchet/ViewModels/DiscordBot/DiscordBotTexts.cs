@@ -45,6 +45,7 @@ public static class DiscordBotTexts
             BotConfigIssueKind.InvalidLimit => Resources.DiscordBotIssueInvalidLimit,
             BotConfigIssueKind.InvalidPostponeChoices => Resources.DiscordBotIssueInvalidPostponeChoices,
             BotConfigIssueKind.UnknownCommand => Resources.DiscordBotIssueUnknownCommand,
+            BotConfigIssueKind.InvalidUrl => Resources.DiscordBotIssueInvalidUrl,
             _ => issue.Kind.ToString()
         };
         // The list of choices is shown in its own field; repeating it adds nothing.
@@ -72,6 +73,9 @@ public static class DiscordBotTexts
         nameof(DiscordBotConfig.AllowedRoleIds) => Resources.DiscordBotRoles,
         nameof(DiscordBotConfig.AllowedChannelIds) => Resources.DiscordBotAdminChannel,
         nameof(DiscordBotConfig.AuditChannelId) => Resources.DiscordBotAuditChannel,
+        nameof(DiscordBotConfig.AuditAvatarUrl) => Resources.DiscordBotAuditAvatar,
+        nameof(DiscordBotConfig.CommunityAvatarUrl) => Resources.DiscordBotCommunityAvatar,
+        nameof(DiscordBotConfig.CommunityLeadMinutes) => Resources.DiscordBotCommunityLead,
         nameof(DiscordBotConfig.CooldownSeconds) => Resources.DiscordBotCooldown,
         nameof(DiscordBotConfig.CriticalLimit) => Resources.DiscordBotCriticalLimit,
         nameof(DiscordBotConfig.CriticalWindowMinutes) => Resources.DiscordBotCriticalWindow,

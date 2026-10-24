@@ -24,16 +24,27 @@ public sealed partial class BotAuditChannelFeed : IDisposable
     private readonly IBotChannelClient _channel;
     private readonly Func<BotPolicy?> _policy;
     private readonly Func<int, string?> _serverName;
+    private readonly IBotWebhookClient? _webhooks;
+    private readonly Func<string?>? _webhookUrl;
     private readonly ILogger? _logger;
     private readonly Channel<string> _queue;
     private readonly CancellationTokenSource _cancel = new();
     private Task? _sender;
     private int _disposed;
     private int _unsent;
+    private readonly object _webhookLock = new();
+    private bool _webhookFailing;
+    private (string? Url, DateTime AtUtc) _cachedWebhook;
 
+    /// <param name="webhooks">
+    /// With a webhook URL (<paramref name="webhookUrl"/>) the lines are sent through it, under the name and with the picture
+    /// of the settings. Without, the bot writes them into the audit channel under its own name.
+    /// </param>
     public BotAuditChannelFeed(BotAuditLog audit, IBotChannelClient channel, Func<BotPolicy?> policy, Func<int, string?> serverName,
-        ILogger? logger = null)
+        ILogger? logger = null, IBotWebhookClient? webhooks = null, Func<string?>? webhookUrl = null)
     {
+        _webhooks = webhooks;
+        _webhookUrl = webhookUrl;
         _queue = Channel.CreateBounded<string>(
             new BoundedChannelOptions(QueueLimit) { FullMode = BoundedChannelFullMode.DropOldest, SingleReader = true },
             _ => Interlocked.Decrement(ref _unsent));
@@ -46,6 +57,34 @@ public sealed partial class BotAuditChannelFeed : IDisposable
 
     /// <summary>Pause between two messages.</summary>
     public TimeSpan Spacing { get; init; } = DefaultSpacing;
+
+    /// <summary>How long the webhook read from its protected file is used before it is read again.</summary>
+    public TimeSpan WebhookCacheTime { get; init; } = TimeSpan.FromSeconds(5);
+
+    /// <summary>The audit webhook, null when none is set or it can not be read.</summary>
+    private string? Webhook()
+    {
+        if (_webhooks is null || _webhookUrl is null) return null;
+        var now = DateTime.UtcNow;
+        lock (_webhookLock)
+        {
+            if (now - _cachedWebhook.AtUtc < WebhookCacheTime) return _cachedWebhook.Url;
+        }
+        string? url;
+        try
+        {
+            url = _webhookUrl();
+        }
+        catch (Exception)
+        {
+            url = null;
+        }
+        lock (_webhookLock) _cachedWebhook = (url, now);
+        return url;
+    }
+
+    // A line goes out when there is a channel to write in or a webhook that knows its own.
+    private bool IsActive(BotPolicy? policy) => policy is not null && (policy.AuditChannelId != 0 || Webhook() is not null);
 
     public void Start()
     {
@@ -61,7 +100,7 @@ public sealed partial class BotAuditChannelFeed : IDisposable
         {
             if (Volatile.Read(ref _disposed) != 0) return;
             var policy = _policy();
-            if (policy is null || policy.AuditChannelId == 0) return;
+            if (!IsActive(policy)) return;
             var clean = BotInputRules.SanitizeNote(text);
             if (clean.Length == 0) return;
             Interlocked.Increment(ref _unsent);
@@ -141,7 +180,17 @@ public sealed partial class BotAuditChannelFeed : IDisposable
         try
         {
             var policy = _policy();
-            if (policy is null || policy.AuditChannelId == 0) return;
+            if (policy is null) return;
+            if (Webhook() is { } url && _webhooks is not null)
+            {
+                // Under the name and with the picture of the settings: a bot account can not take another one per message.
+                var name = string.IsNullOrWhiteSpace(policy.AuditName) ? null : policy.AuditName;
+                var avatar = string.IsNullOrWhiteSpace(policy.AuditAvatarUrl) ? null : policy.AuditAvatarUrl;
+                await _webhooks.SendAsync(url, new BotWebhookMessage(name, avatar, text, null), token).WaitAsync(PostTimeout, token).ConfigureAwait(false);
+                _webhookFailing = false;
+                return;
+            }
+            if (policy.AuditChannelId == 0) return;
             await _channel.PostNoteAsync(policy.AuditChannelId, text).WaitAsync(PostTimeout, token).ConfigureAwait(false);
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)
@@ -150,8 +199,12 @@ public sealed partial class BotAuditChannelFeed : IDisposable
         }
         catch (Exception ex)
         {
-            // No connection, no permission: dropped, the audit log has it.
-            _logger?.LogDebug(ex, "Posting to the audit channel failed");
+            // No connection, no permission, a webhook that was deleted: dropped, the audit log has it. A webhook that stops
+            // working is worth one warning (not one per line).
+            if (!_webhookFailing && Webhook() is not null)
+                _logger?.LogWarning("Discord bot: the audit webhook refused a line: {Error}", DiscordNetLog.Describe(ex));
+            _webhookFailing = Webhook() is not null;
+            _logger?.LogDebug("Posting to the audit channel failed: {Error}", DiscordNetLog.Describe(ex));
         }
     }
 

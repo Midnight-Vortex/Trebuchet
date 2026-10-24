@@ -42,6 +42,7 @@ public class BotHostCommand(IServiceProvider services, AppSetup setup, ILogger<B
         // Strict: a damaged file is never repaired from its backup (that could bring back users or roles removed on purpose).
         collection.AddSingleton(services => DiscordBotConfig.LoadStrict(DiscordBotConfig.GetPath(services.GetRequiredService<AppSetup>().Edition)));
         collection.AddSingleton(services => new BotTokenStore(DiscordBotConfig.GetTokenPath(services.GetRequiredService<AppSetup>().Edition)));
+        collection.AddSingleton(services => BotWebhooks.ForTokenPath(DiscordBotConfig.GetTokenPath(services.GetRequiredService<AppSetup>().Edition)));
         // In the log folder, next to the logs of the window.
         collection.AddSingleton(_ => new BotAuditLog(Constants.GetLoggingDirectory().FullName));
         collection.AddSingleton<BotRateLimiter>();

@@ -226,7 +226,8 @@ public sealed class LauncherBotActions : IBotActions, IDisposable
             status.State is not null ? status.StartedUtc : null,
             pending,
             pendingAt,
-            status.PausedUntilUtc is { } paused && paused > utcNow ? paused : null);
+            status.PausedUntilUtc is { } paused && paused > utcNow ? paused : null,
+            status.ProcessRestarts || status.RestartRequested || status.InUpdateRound || (status.CountdownRunning && status.CountdownRestarts));
     }
 
     private static BotServerState StateOf(LauncherServerStatus status) => status.State switch

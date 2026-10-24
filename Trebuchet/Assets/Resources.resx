@@ -2092,7 +2092,7 @@ of Server Saves and apply to every profile.
         <value>Audit channel</value>
     </data>
     <data name="DiscordBotAuditChannelText" xml:space="preserve">
-        <value>Optional channel ID. The bot writes everything it does there: every request with server, user and result, refused attempts, state changes of the servers and its own messages. Empty: none.</value>
+        <value>Optional channel ID. The bot writes everything it does there, in plain sentences: every request with server, user and result, refused attempts, state changes of the servers and its own messages. With an audit webhook below the channel ID is not needed. Empty: none.</value>
     </data>
     <data name="DiscordBotAdminChannel" xml:space="preserve">
         <value>Admin channel</value>
@@ -2583,7 +2583,8 @@ You set the limits in the section "Security": wait between commands, how many cr
         <value>The status message shows the state per server: green = running, yellow = something is pending, blue = postponed, red = stopped or crashed.
 When a restart, stop or update is pending, the button "… postpone" appears. A click opens a choice (e.g. 15 min to 6 h), then a small window for the reason (it may stay empty). In game the players get the message that it was postponed.
 "Release again" ends a postponement. Altogether you can only postpone up to the longest postponement (default 6 h), after that only again after the restart.
-Everything the bot does or refuses is in the section "Log".</value>
+Everything the bot does or refuses is in the section "Log".
+Optional: in the "Community log" section you set up a channel of its own for your players (webhook, name, picture). The bot announces planned and automatic restarts and stops there shortly before, says when the server goes down and when it is back online. The audit log can also be written through a webhook under a name and picture of its own.</value>
     </data>
     <data name="DiscordBotHelpStep12Title" xml:space="preserve">
         <value>If something does not work</value>
@@ -2618,5 +2619,83 @@ The bot does not answer in the channel: is the admin channel set, and do you use
     </data>
     <data name="DiscordBotServerManaged" xml:space="preserve">
         <value>Managed by the bot</value>
+    </data>
+    <data name="DiscordBotAuditWebhook" xml:space="preserve">
+        <value>Audit webhook</value>
+    </data>
+    <data name="DiscordBotAuditWebhookText" xml:space="preserve">
+        <value>Optional. The webhook URL of the audit channel (channel settings → Integrations → Webhooks → Copy URL). With it the log is written under the name and with the picture below instead of under the name of the bot, and the channel ID above is not needed. Stored encrypted for your Windows user and never shown again.</value>
+    </data>
+    <data name="DiscordBotAuditName" xml:space="preserve">
+        <value>Name of the audit log</value>
+    </data>
+    <data name="DiscordBotAuditNameText" xml:space="preserve">
+        <value>Needs the audit webhook. Replaces the name set for the webhook in Discord. Empty: the name of the webhook.</value>
+    </data>
+    <data name="DiscordBotAuditAvatar" xml:space="preserve">
+        <value>Picture of the audit log</value>
+    </data>
+    <data name="DiscordBotAuditAvatarText" xml:space="preserve">
+        <value>A link (https) to an image. Needs the audit webhook. Replaces the picture set for the webhook in Discord. Empty: the picture of the webhook.</value>
+    </data>
+    <data name="DiscordBotSectionCommunity" xml:space="preserve">
+        <value>Community log</value>
+    </data>
+    <data name="DiscordBotCommunityText" xml:space="preserve">
+        <value>A log for your players in a channel of its own: it announces a planned restart or stop shortly before it (with the time), says when the server goes down, and when it is back online with how long it was offline. It needs a webhook of its own and runs while the bot runs.</value>
+    </data>
+    <data name="DiscordBotCommunityEnabled" xml:space="preserve">
+        <value>Tell the community</value>
+    </data>
+    <data name="DiscordBotCommunityEnabledText" xml:space="preserve">
+        <value>Announces restarts and stops, and that the server is back, in the community channel.</value>
+    </data>
+    <data name="DiscordBotCommunityWebhook" xml:space="preserve">
+        <value>Community webhook</value>
+    </data>
+    <data name="DiscordBotCommunityWebhookText" xml:space="preserve">
+        <value>The webhook URL of the community channel (channel settings → Integrations → Webhooks → Copy URL). Stored encrypted for your Windows user and never shown again.</value>
+    </data>
+    <data name="DiscordBotCommunityName" xml:space="preserve">
+        <value>Name of the community log</value>
+    </data>
+    <data name="DiscordBotCommunityNameText" xml:space="preserve">
+        <value>The name the messages appear under, e.g. the name of your server or community. Empty: the name of the webhook.</value>
+    </data>
+    <data name="DiscordBotCommunityAvatar" xml:space="preserve">
+        <value>Picture of the community log</value>
+    </data>
+    <data name="DiscordBotCommunityAvatarText" xml:space="preserve">
+        <value>A link (https) to an image, e.g. the logo of your server. Empty: the picture of the webhook.</value>
+    </data>
+    <data name="DiscordBotCommunityLead" xml:space="preserve">
+        <value>Announce this long before (minutes)</value>
+    </data>
+    <data name="DiscordBotCommunityLeadText" xml:space="preserve">
+        <value>How long before a planned restart or stop the players are told (1 to 60).</value>
+    </data>
+    <data name="DiscordBotWebhookSaved" xml:space="preserve">
+        <value>Webhook saved</value>
+    </data>
+    <data name="DiscordBotWebhookNeedsWindows" xml:space="preserve">
+        <value>The webhook can not be stored on this system.</value>
+    </data>
+    <data name="DiscordBotWebhookInvalid" xml:space="preserve">
+        <value>This is not a Discord webhook URL. Nothing was saved.</value>
+    </data>
+    <data name="DiscordBotWebhookSaveFailed" xml:space="preserve">
+        <value>The webhook could not be saved, see the log of Trebuchet.</value>
+    </data>
+    <data name="DiscordBotWebhookWatermark" xml:space="preserve">
+        <value>Paste the webhook URL</value>
+    </data>
+    <data name="DiscordBotWebhookRemoveTitle" xml:space="preserve">
+        <value>Remove the webhook?</value>
+    </data>
+    <data name="DiscordBotWebhookRemoveText" xml:space="preserve">
+        <value>Nothing is written through it any more. If the URL may have leaked, also delete the webhook in Discord.</value>
+    </data>
+    <data name="DiscordBotIssueInvalidUrl" xml:space="preserve">
+        <value>The link is not valid (an https link without spaces)</value>
     </data>
 </root>

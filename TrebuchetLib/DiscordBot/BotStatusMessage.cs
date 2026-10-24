@@ -6,6 +6,7 @@ public enum BotServerState { Stopped, Starting, Online, Stopping, Crashed }
 public enum BotPendingAction { None, Restart, Stop, Update }
 
 /// <summary>The state of a server instance as the bot shows it. No paths, addresses or passwords.</summary>
+/// <param name="Restarting">The server is going down to be started again (a restart is on its way), not to stay down.</param>
 public sealed record BotServerStatus(
     int Instance,
     string Name,
@@ -15,7 +16,8 @@ public sealed record BotServerStatus(
     DateTime? StartedUtc,
     BotPendingAction Pending,
     DateTime? PendingAtUtc,
-    DateTime? PausedUntilUtc);
+    DateTime? PausedUntilUtc,
+    bool Restarting = false);
 
 /// <summary>The colors of Discord for buttons: green, red, blue and grey are all it offers.</summary>
 public enum BotButtonStyle { Success, Danger, Primary, Secondary }

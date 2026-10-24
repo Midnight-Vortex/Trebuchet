@@ -11,7 +11,9 @@ public enum BotConfigIssueKind
     EveryoneRole,
     InvalidLimit,
     InvalidPostponeChoices,
-    UnknownCommand
+    UnknownCommand,
+    /// <summary>A link that is not an https link (the picture of a log). The detail is the name of the field.</summary>
+    InvalidUrl
 }
 
 public sealed record BotConfigIssue(BotConfigIssueKind Kind, string Detail = "");
@@ -36,6 +38,12 @@ public sealed class BotPolicy
         RoleIds = config.AllowedRoleIds.ToFrozenSet();
         ChannelIds = config.AllowedChannelIds.ToFrozenSet();
         AuditChannelId = config.AuditChannelId;
+        AuditName = CleanIdentityName(config.AuditName);
+        AuditAvatarUrl = (config.AuditAvatarUrl ?? string.Empty).Trim();
+        CommunityEnabled = config.CommunityEnabled;
+        CommunityName = CleanIdentityName(config.CommunityName);
+        CommunityAvatarUrl = (config.CommunityAvatarUrl ?? string.Empty).Trim();
+        CommunityLead = TimeSpan.FromMinutes(config.CommunityLeadMinutes);
         EnabledCommands = Enum.GetValues<BotCommand>().Where(config.IsEnabled).ToFrozenSet();
         Cooldown = TimeSpan.FromSeconds(config.CooldownSeconds);
         CriticalLimit = config.CriticalLimit;
@@ -59,6 +67,14 @@ public sealed class BotPolicy
     /// <summary>Empty: every channel.</summary>
     public IReadOnlySet<ulong> ChannelIds { get; }
     public ulong AuditChannelId { get; }
+    /// <summary>The name and picture of the audit log through its webhook, empty: the ones of the webhook.</summary>
+    public string AuditName { get; }
+    public string AuditAvatarUrl { get; }
+    public bool CommunityEnabled { get; }
+    public string CommunityName { get; }
+    public string CommunityAvatarUrl { get; }
+    /// <summary>How long before a planned restart or stop the community is told.</summary>
+    public TimeSpan CommunityLead { get; }
     public IReadOnlySet<BotCommand> EnabledCommands { get; }
     public TimeSpan Cooldown { get; }
     public int CriticalLimit { get; }
@@ -116,6 +132,9 @@ public sealed class BotPolicy
         CheckLimit(issues, nameof(config.CooldownSeconds), config.CooldownSeconds, 1, 300);
         CheckLimit(issues, nameof(config.CriticalLimit), config.CriticalLimit, 1, DiscordBotConfig.MaxCriticalLimit);
         CheckLimit(issues, nameof(config.CriticalWindowMinutes), config.CriticalWindowMinutes, 1, 120);
+        CheckLimit(issues, nameof(config.CommunityLeadMinutes), config.CommunityLeadMinutes, 1, DiscordBotConfig.MaxCommunityLeadMinutes);
+        CheckAvatar(issues, nameof(config.AuditAvatarUrl), config.AuditAvatarUrl);
+        CheckAvatar(issues, nameof(config.CommunityAvatarUrl), config.CommunityAvatarUrl);
         CheckLimit(issues, nameof(config.LockoutAttempts), config.LockoutAttempts, 1, 50);
         CheckLimit(issues, nameof(config.LockoutMinutes), config.LockoutMinutes, 1, DiscordBotConfig.HardMaxPauseMinutes);
         CheckLimit(issues, nameof(config.ActionDelayMinutes), config.ActionDelayMinutes, 0, 60);
@@ -133,6 +152,23 @@ public sealed class BotPolicy
         return issues.Count > 0
             ? new BotPolicyResult(null, issues)
             : new BotPolicyResult(new BotPolicy(config, choices), []);
+    }
+
+    /// <summary>One clean line of at most 80 characters: the name a webhook message is sent under.</summary>
+    private static string CleanIdentityName(string? name)
+    {
+        var clean = BotInputRules.SanitizeForLog(name);
+        return clean.Length <= DiscordBotConfig.MaxIdentityNameLength ? clean : clean[..DiscordBotConfig.MaxIdentityNameLength].TrimEnd();
+    }
+
+    // The link only goes to Discord (it fetches the picture itself), Trebuchet never opens it: still only https, one clean link.
+    private static void CheckAvatar(List<BotConfigIssue> issues, string field, string? url)
+    {
+        if (string.IsNullOrWhiteSpace(url)) return;
+        var text = url.Trim();
+        if (text.Length > DiscordBotConfig.MaxAvatarUrlLength || text.Any(char.IsWhiteSpace) || text.Any(char.IsControl)
+            || !Uri.TryCreate(text, UriKind.Absolute, out var uri) || uri.Scheme != Uri.UriSchemeHttps || string.IsNullOrEmpty(uri.Host))
+            issues.Add(new BotConfigIssue(BotConfigIssueKind.InvalidUrl, field));
     }
 
     private static void CheckId(List<BotConfigIssue> issues, ulong id, string field)

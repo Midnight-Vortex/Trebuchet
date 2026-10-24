@@ -823,6 +823,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             CountdownRestarts = countdown && _restartCountdownReasons.ContainsKey(instance),
             CountdownEndsUtc = countdown && _countdownEndsUtc.TryGetValue(instance, out var end) ? end : null,
             RestartRequested = _restartsPending.Contains(instance),
+            ProcessRestarts = process?.RequestRestart ?? false,
             RestartPostponed = _postponedRestarts.ContainsKey(instance),
             InUpdateRound = _updateRound.Contains(instance),
             UpdatePending = process is not null && running && IsUpdatePending(instance, process),
