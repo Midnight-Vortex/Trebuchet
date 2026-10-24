@@ -23,6 +23,7 @@ static class LauncherBotActionsChecks
         void Check(bool condition, string message) { if (!condition) throw new Exception(message); count++; }
 
         StatusChecks(Check);
+        PostponementChecks(Check);
         DailyRestartChecks(Check);
         await LauncherChecks(Check);
         return count;
@@ -389,16 +390,21 @@ static class LauncherBotActionsChecks
                   && launcherLog.Contains("Restarting server 0 in 20 min, reason: Patch"),
                 "A restart in 20 minutes replaces the stop countdown: " + restart + " " + restartPending);
 
+            var plannedAt = restartPending?.PendingAtUtc ?? DateTime.UtcNow.AddMinutes(20);
             var postponed = await actions.PostponeAsync(0, 45, "Event", none);
             var afterPostpone = await WaitFor(0, x => x?.PausedUntilUtc is not null);
             check(postponed.Success && !await OnLauncher(() => launcher.IsCountdownRunning(0))
                                     && afterPostpone is { Pending: BotPendingAction.Restart, PausedUntilUtc: { } pausedUntil }
-                                    && afterPostpone.PendingAtUtc == pausedUntil && Near(pausedUntil, DateTime.UtcNow.AddMinutes(45))
+                                    && afterPostpone.PendingAtUtc == pausedUntil && Near(pausedUntil, DateTime.UtcNow.AddMinutes(65))
                                     && launcherLog.Contains("Restart of server 0 postponed by 45 minutes"),
-                "Postponing a restart countdown cancels it, the restart follows the pause: " + afterPostpone);
-            check((await actions.ResumeAsync(0, none)).Success
-                  && await StatusOf(0) is { Pending: BotPendingAction.Restart, PendingAtUtc: null, PausedUntilUtc: null },
-                "After the release the postponed restart is due");
+                "Postponing a restart countdown moves its end back by the minutes (20 + 45), the restart follows the pause: " + afterPostpone);
+            // Lifting the pause brings the old time back: the restart goes down in the 20 minutes it was planned for, with a countdown
+            // that fits (not a new full countdown that starts from nothing).
+            check((await actions.ResumeAsync(0, none)).Success, "The postponement can be lifted");
+            var resumed = await WaitFor(0, x => x is { Pending: BotPendingAction.Restart, PendingAtUtc: { } t, PausedUntilUtc: null } && t < DateTime.UtcNow.AddMinutes(30));
+            check(resumed is { Pending: BotPendingAction.Restart, PendingAtUtc: { } resumedAt, PausedUntilUtc: null } && Near(resumedAt, plannedAt)
+                  && await OnLauncher(() => launcher.IsCountdownRunning(0)),
+                "After the release the restart is back at the time it was planned for before: " + resumed);
 
             // Instances 0 and 1 installed (the binaries only), instance 1 on the save of the running instance 0.
             foreach (var instance in new[] { 0, 1 })
@@ -430,6 +436,27 @@ static class LauncherBotActionsChecks
             check(await actions.StartAsync(1, none) is { Outcome: BotActionOutcome.Failed } failed && (await StatusOf(1))?.State == BotServerState.Stopped,
                 "A start the launcher could not do is a failure");
         }
+    }
+
+    // When a restart countdown is postponed: the restart goes down at the old time plus the minutes (never sooner), the pause ends
+    // one warning lead before.
+    private static void PostponementChecks(Action<bool, string> check)
+    {
+        var now = new DateTime(2026, 10, 24, 15, 32, 0, DateTimeKind.Utc);
+        var lead = TimeSpan.FromMinutes(5);
+        var (pause, end) = Launcher.PlanRestartPostponement(now.AddMinutes(28), now, TimeSpan.FromMinutes(30), lead);
+        check(end == now.AddMinutes(58) && pause == TimeSpan.FromMinutes(53),
+            "A restart in 28 minutes postponed by 30 goes down in 58 minutes (not after the 30 minutes from now), the pause ends 5 minutes before: " + pause + " " + end);
+        (pause, end) = Launcher.PlanRestartPostponement(now.AddMinutes(20), now, TimeSpan.FromMinutes(45), TimeSpan.Zero);
+        check(end == now.AddMinutes(65) && pause == TimeSpan.FromMinutes(65), "Without warnings the pause ends when the restart goes down: " + pause);
+        (pause, end) = Launcher.PlanRestartPostponement(now.AddMinutes(-1), now, TimeSpan.FromMinutes(30), lead);
+        check(end == now.AddMinutes(30) && pause == TimeSpan.FromMinutes(25), "A countdown that has run out counts from now: " + pause + " " + end);
+        (pause, end) = Launcher.PlanRestartPostponement(null, now, TimeSpan.FromMinutes(15), lead);
+        check(end == now.AddMinutes(15) && pause == TimeSpan.FromMinutes(10), "Without a known end it counts from now: " + pause + " " + end);
+        (pause, end) = Launcher.PlanRestartPostponement(now.AddSeconds(30), now, TimeSpan.FromMinutes(1), lead);
+        check(pause is null && end == now.AddSeconds(90), "Too close for a pause (shorter than a minute): a countdown that ends at the new time: " + pause + " " + end);
+        (pause, end) = Launcher.PlanRestartPostponement(now.AddMinutes(10), now, TimeSpan.FromMinutes(5), lead);
+        check(pause == TimeSpan.FromMinutes(10) && end == now.AddMinutes(15), "A short shift of a restart that is further away still pauses: " + pause + " " + end);
     }
 
     private static bool Near(DateTime actual, DateTime expected) => (actual - expected).Duration() < TimeSpan.FromMinutes(1);

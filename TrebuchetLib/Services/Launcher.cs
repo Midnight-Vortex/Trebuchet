@@ -71,8 +71,11 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     private readonly Dictionary<int, DateTime> _countdownEndsUtc = [];
     // Instances whose last server process crashed and no new one runs yet, for GetServerStatuses.
     private readonly HashSet<int> _crashedInstances = [];
-    // Restarts whose countdown was cancelled by a pause: they run when the pause is over.
-    private readonly Dictionary<int, string> _postponedRestarts = [];
+    // Restarts whose countdown was cancelled by a pause: they run when the pause is over, or earlier when the pause is lifted.
+    private readonly Dictionary<int, PostponedRestart> _postponedRestarts = [];
+    // The reason of a postponed restart and when its countdown was to end before it was postponed (null: not known).
+    private sealed record PostponedRestart(string Reason, DateTime? PlannedEndUtc);
+    private static readonly TimeSpan MinimumPause = TimeSpan.FromMinutes(1);
     // Automatic restarts (schedule, updates, RequiresRestart.txt) paused per instance, e.g. during an RP event.
     private readonly Dictionary<int, DateTime> _automaticRestartsPausedUntil = [];
     public const int CrashRestartLimit = 3;
@@ -712,7 +715,54 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     /// instance (schedule, server and mod updates, RequiresRestart.txt) for <paramref name="pause"/>, e.g. during an RP
     /// event. Manual stops and restarts still work, outdated mods are updated with the first restart after the pause.
     /// </summary>
-    public async Task PauseAutomaticRestarts(int instance, TimeSpan pause)
+    public Task PauseAutomaticRestarts(int instance, TimeSpan pause) => PauseAutomaticRestartsCore(instance, pause, pause);
+
+    /// <summary>
+    /// When a restart countdown is postponed by <paramref name="shift"/> and the restart that follows the pause goes down at the new
+    /// time: the old end plus the shift (an end that has passed counts as now), never earlier. The pause ends one warning lead before
+    /// that, because the countdown that follows it takes that long.
+    /// </summary>
+    /// <returns>
+    /// The pause (null when it would be shorter than a minute: then the countdown is replaced by one that ends at the new time) and
+    /// the new end.
+    /// </returns>
+    internal static (TimeSpan? Pause, DateTime NewEndUtc) PlanRestartPostponement(DateTime? plannedEndUtc, DateTime nowUtc, TimeSpan shift,
+        TimeSpan warningLead)
+    {
+        var start = plannedEndUtc is { } planned && planned > nowUtc ? planned : nowUtc;
+        var newEnd = start + shift;
+        var pause = newEnd - warningLead - nowUtc;
+        return (pause >= MinimumPause ? pause : null, newEnd);
+    }
+
+    /// <summary>
+    /// Moves the restart a running restart countdown leads to later by <paramref name="shift"/>, like <see cref="PostponeStop"/> moves a
+    /// stop: the restart goes down at the old time plus the shift, not (as a plain pause of the shift from now would) soon after. The
+    /// automatic restarts are paused until the countdown that leads to it begins; lifting the pause early brings the old time back.
+    /// </summary>
+    /// <returns>False at once when no restart countdown runs.</returns>
+    public async Task<bool> PostponeRestart(int instance, TimeSpan shift)
+    {
+        if (shift <= TimeSpan.Zero || !_serverProcesses.ContainsKey(instance) || !_countdownInstances.Contains(instance)
+            || !_restartCountdownReasons.TryGetValue(instance, out var reason))
+            return false;
+        var now = DateTime.UtcNow;
+        DateTime? plannedEnd = _countdownEndsUtc.TryGetValue(instance, out var end) ? end : null;
+        var (pause, newEnd) = PlanRestartPostponement(plannedEnd, now, shift, GetInstanceRestartWarningLead(instance));
+        if (pause is { } wait)
+        {
+            await PauseAutomaticRestartsCore(instance, wait, shift);
+            return true;
+        }
+        // Too close for a pause: a countdown that ends at the new time (its first warning tells the players when).
+        LeaveUpdateRound(instance);
+        _logger.LogInformation("Restart of server {Server} postponed by {Minutes} minutes", GetInstanceLabel(instance),
+            (int)Math.Round(shift.TotalMinutes));
+        await RestartServerIn(instance, newEnd - now, reason);
+        return true;
+    }
+
+    private async Task PauseAutomaticRestartsCore(int instance, TimeSpan pause, TimeSpan announcedShift)
     {
         if (pause > TimeSpan.Zero)
         {
@@ -728,17 +778,18 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         // A restart countdown cancelled by a pause is postponed: it restarts when the pause is over and the players
         // are told by how long (they were told it was cancelled, and a scheduled restart then never came).
         string? postponedReason = null;
+        DateTime? plannedEnd = _countdownEndsUtc.TryGetValue(instance, out var end) ? end : null;
         if (pause > TimeSpan.Zero && _restartCountdownReasons.TryGetValue(instance, out var reason))
             postponedReason = reason;
         await CancelServerSequence(instance);
         if (postponedReason is not null)
         {
-            _postponedRestarts[instance] = postponedReason;
+            _postponedRestarts[instance] = new PostponedRestart(postponedReason, plannedEnd);
             OnServerStatusChanged();
-            _logger.LogInformation("Restart of server {Server} postponed by {Minutes} minutes", GetInstanceLabel(instance),
-                (int)Math.Round(pause.TotalMinutes));
+            var minutes = Math.Max(1, (int)Math.Round(announcedShift.TotalMinutes));
+            _logger.LogInformation("Restart of server {Server} postponed by {Minutes} minutes", GetInstanceLabel(instance), minutes);
             await BroadcastMessage(instance, _setup.Config.NotificationRestartPostponed.Replace("{minutes}",
-                Math.Max(1, (int)Math.Round(pause.TotalMinutes)).ToString(System.Globalization.CultureInfo.InvariantCulture)));
+                minutes.ToString(System.Globalization.CultureInfo.InvariantCulture)));
             return;
         }
         _logger.LogInformation("Countdown of server {Server} cancelled", GetInstanceLabel(instance));
@@ -747,11 +798,42 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
 
     public void ResumeAutomaticRestarts(int instance)
     {
-        // A postponed restart then runs with the next tick.
-        if (_automaticRestartsPausedUntil.Remove(instance))
+        if (!_automaticRestartsPausedUntil.Remove(instance)) return;
+        _logger.LogInformation("Automatic restarts of server {Server} resumed", GetInstanceLabel(instance));
+        OnServerStatusChanged();
+        // A restart that was postponed is taken back: it goes down when it was planned before (not with a new countdown that
+        // starts from nothing), and it does not wait for the next tick.
+        if (_postponedRestarts.ContainsKey(instance) && _serverProcesses.TryGetValue(instance, out var process)
+            && process.State.IsRunning() && !process.State.IsStopping()
+            && !_serverSequences.ContainsKey(instance) && !_restartsPending.Contains(instance))
+            RunPostponedRestart(instance, resumedEarly: true);
+    }
+
+    // The restart a pause postponed begins. Taken back before its time it goes down at the time it was planned for, with the
+    // warnings that fit into the time left; when the pause ran out it begins with its usual countdown.
+    private void RunPostponedRestart(int instance, bool resumedEarly)
+    {
+        if (!_postponedRestarts.Remove(instance, out var postponed)) return;
+        var reason = string.IsNullOrEmpty(postponed.Reason) ? _setup.GetReasonAutomatedRestart() : postponed.Reason;
+        if (resumedEarly && postponed.PlannedEndUtc is { } planned && planned - DateTime.UtcNow >= MinimumPause
+            && GetInstanceProfile(instance) is not null)
         {
-            _logger.LogInformation("Automatic restarts of server {Server} resumed", GetInstanceLabel(instance));
-            OnServerStatusChanged();
+            _ = RestartAtPlannedTimeAsync(instance, planned - DateTime.UtcNow, reason);
+            return;
+        }
+        _lastRestartReason = reason;
+        RestartServer(instance);
+    }
+
+    private async Task RestartAtPlannedTimeAsync(int instance, TimeSpan delay, string reason)
+    {
+        try
+        {
+            await RestartServerIn(instance, delay, reason);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to restart server {Server} at the time it was planned for", GetInstanceLabel(instance));
         }
     }
 
@@ -1750,10 +1832,9 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             if(AreAutomaticRestartsPaused(instance.Infos.Instance)) continue;
 
             // Pause over: the restart postponed by it runs now (with its countdown and warnings again).
-            if (_postponedRestarts.Remove(instance.Infos.Instance, out var postponedReason))
+            if (_postponedRestarts.ContainsKey(instance.Infos.Instance))
             {
-                _lastRestartReason = string.IsNullOrEmpty(postponedReason) ? _setup.GetReasonAutomatedRestart() : postponedReason;
-                RestartServer(instance.Infos.Instance);
+                RunPostponedRestart(instance.Infos.Instance, resumedEarly: false);
                 continue;
             }
 

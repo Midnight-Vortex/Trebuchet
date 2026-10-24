@@ -92,8 +92,16 @@ public sealed class LauncherBotActions : IBotActions, IDisposable
                 if (replan.IsCompletedSuccessfully && !await replan) return new BotActionResult(BotActionOutcome.NothingPending);
                 return await FinishAsync(replan, "postpone stop", instance, wait: false, t);
             }
-            // A restart or update countdown is cancelled and runs after the pause (the players are told), anything
-            // else automatic waits for the end of the pause.
+            // A restart or update countdown is moved like a stop: it ends at the old end plus the minutes (never sooner than
+            // before, as a pause of the minutes from now would). The restart is postponed (the players are told) and runs when
+            // the pause is over, earlier if the pause is lifted.
+            if (status.CountdownRunning && status.CountdownRestarts)
+            {
+                var replan = _launcher.PostponeRestart(instance, pause);
+                if (!(replan.IsCompletedSuccessfully && !await replan))
+                    return await FinishAsync(replan, "postpone", instance, wait: true, t);
+            }
+            // Anything else automatic waits for the end of the pause.
             return await FinishAsync(_launcher.PauseAutomaticRestarts(instance, pause), "postpone", instance, wait: true, t);
         }, token);
     }
