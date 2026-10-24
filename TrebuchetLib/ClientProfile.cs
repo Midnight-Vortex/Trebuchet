@@ -24,7 +24,7 @@ namespace TrebuchetLib
         public List<ClientConnection> ClientConnections { get; set; } = [];
         
         public static readonly long CPUThreadAffinityDefault = 0xffffffffffff;
-        public static readonly int ConfiguredInternetSpeedDefault = 25000; 
+        public static readonly int ConfiguredInternetSpeedDefault = 50000;
         public static readonly bool BackgroundSoundDefault = false;
         public static readonly bool EnableConsoleOnHotkeyDefault = false;
         public const string ConsoleHotkeyDefault = "Insert";
