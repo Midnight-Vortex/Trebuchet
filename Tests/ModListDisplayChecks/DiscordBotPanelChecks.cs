@@ -284,6 +284,21 @@ public static class DiscordBotPanelChecks
         editor.CommunityName = "Discord Wächter";
         check(editor.Validate(config).Issues.Any(x => x.Kind == BotConfigIssueKind.InvalidName) && editor.Save(config).Count == 1 && Json(config) == beforeName,
             "A name Discord refuses is told in the settings");
+        // The bot account takes the name and picture of the community log: its name is shorter than the one of a webhook message.
+        editor.Load(config);
+        editor.CommunityName = new string('N', 33);
+        check(editor.IsDirty && editor.Validate(config).Issues.Count == 0, "A long name is fine for the webhook alone");
+        editor.BotTakesCommunityIdentity = true;
+        var lengthIssues = editor.Validate(config).Issues;
+        check(lengthIssues.Count == 1 && lengthIssues[0].Kind == BotConfigIssueKind.BotNameLength && lengthIssues[0].Detail == nameof(DiscordBotConfig.CommunityName)
+              && DiscordBotTexts.Issue(lengthIssues[0]).Contains(Trebuchet.Assets.Resources.DiscordBotCommunityName, StringComparison.Ordinal)
+              && editor.Save(config).Count == 1 && !config.BotTakesCommunityIdentity, "A name too long for a bot account is refused when the bot is to take it, nothing is saved");
+        editor.CommunityName = "Schatten und Licht Server";
+        check(editor.Save(config).Count == 0 && config.BotTakesCommunityIdentity && config.CommunityName == "Schatten und Licht Server", "The switch is saved");
+        editor.Load(config);
+        check(editor.BotTakesCommunityIdentity && !editor.IsDirty, "...and comes back after loading");
+        editor.BotTakesCommunityIdentity = false;
+        check(editor.IsDirty, "Switching it off is an edit");
         editor.AuditAvatarUrl = "https://discord.com/api/webhooks/123456789012345678/abcdefghijklmnopqrstuvwxyz0123456789ABCD";
         check(editor.Validate(config).Issues.Any(x => x.Kind == BotConfigIssueKind.InvalidUrl && x.Detail == nameof(DiscordBotConfig.AuditAvatarUrl)), "A webhook address is no picture link");
         editor.Load(config);

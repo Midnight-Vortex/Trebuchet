@@ -2089,4 +2089,13 @@ Le bot ne répond pas dans le salon : le salon d’administration est-il défini
     <data name="DiscordBotCommandCancelText" xml:space="preserve">
         <value>Annule le redémarrage ou l'arrêt en cours de compte à rebours. Les joueurs sont informés qu'il n'a pas lieu.</value>
     </data>
+    <data name="DiscordBotBotIdentity" xml:space="preserve">
+        <value>Le bot prend ce nom et cette image</value>
+    </data>
+    <data name="DiscordBotBotIdentityText" xml:space="preserve">
+        <value>Le compte du bot prend lui-même le nom et l'image ci-dessus : le message d'état avec ses boutons et les réponses sont écrits par le bot, pas par le webhook. Discord n'autorise que deux changements de nom par heure, et le nom vaut pour chaque serveur où se trouve le bot. Les champs vides restent inchangés. L'image est chargée depuis cet ordinateur.</value>
+    </data>
+    <data name="DiscordBotIssueBotNameLength" xml:space="preserve">
+        <value>Le nom d'un bot comporte de 2 à 32 caractères</value>
+    </data>
 </root>

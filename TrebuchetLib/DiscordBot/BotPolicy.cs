@@ -16,7 +16,9 @@ public enum BotConfigIssueKind
     /// <summary>A link that is not an https link (the picture of a log). The detail is the name of the field.</summary>
     InvalidUrl,
     /// <summary>A name that Discord refuses for a webhook message or that carries a secret. The detail is the name of the field.</summary>
-    InvalidName
+    InvalidName,
+    /// <summary>The name does not fit a bot account (2 to 32 characters), and the bot is to take it. The detail is the name of the field.</summary>
+    BotNameLength
 }
 
 public sealed record BotConfigIssue(BotConfigIssueKind Kind, string Detail = "");
@@ -47,6 +49,7 @@ public sealed class BotPolicy
         CommunityName = CleanIdentityName(config.CommunityName);
         CommunityAvatarUrl = (config.CommunityAvatarUrl ?? string.Empty).Trim();
         CommunityLead = TimeSpan.FromMinutes(config.CommunityLeadMinutes);
+        BotTakesCommunityIdentity = config.BotTakesCommunityIdentity;
         EnabledCommands = Enum.GetValues<BotCommand>().Where(config.IsEnabled).ToFrozenSet();
         Cooldown = TimeSpan.FromSeconds(config.CooldownSeconds);
         CriticalLimit = config.CriticalLimit;
@@ -78,6 +81,8 @@ public sealed class BotPolicy
     public string CommunityAvatarUrl { get; }
     /// <summary>How long before a planned restart or stop the community is told.</summary>
     public TimeSpan CommunityLead { get; }
+    /// <summary>The bot account takes the name and picture of the community log.</summary>
+    public bool BotTakesCommunityIdentity { get; }
     public IReadOnlySet<BotCommand> EnabledCommands { get; }
     public TimeSpan Cooldown { get; }
     public int CriticalLimit { get; }
@@ -140,6 +145,10 @@ public sealed class BotPolicy
         CheckAvatar(issues, nameof(config.CommunityAvatarUrl), config.CommunityAvatarUrl);
         CheckName(issues, nameof(config.AuditName), config.AuditName);
         CheckName(issues, nameof(config.CommunityName), config.CommunityName);
+        // A bot account has a shorter name than a webhook message: only when the bot is to take it.
+        if (config.BotTakesCommunityIdentity && !string.IsNullOrWhiteSpace(config.CommunityName)
+            && CleanIdentityName(config.CommunityName).Length is < DiscordBotConfig.MinBotUsernameLength or > DiscordBotConfig.MaxBotUsernameLength)
+            issues.Add(new BotConfigIssue(BotConfigIssueKind.BotNameLength, nameof(config.CommunityName)));
         CheckLimit(issues, nameof(config.LockoutAttempts), config.LockoutAttempts, 1, 50);
         CheckLimit(issues, nameof(config.LockoutMinutes), config.LockoutMinutes, 1, DiscordBotConfig.HardMaxPauseMinutes);
         CheckLimit(issues, nameof(config.ActionDelayMinutes), config.ActionDelayMinutes, 0, 60);

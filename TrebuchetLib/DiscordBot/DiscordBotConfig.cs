@@ -20,6 +20,9 @@ public sealed class DiscordBotConfig : ConfigFile<DiscordBotConfig>
     public const int MaxCommunityLeadMinutes = 60;
     /// <summary>A webhook name is at most 80 characters in Discord.</summary>
     public const int MaxIdentityNameLength = 80;
+    /// <summary>The name of a bot account has 2 to 32 characters.</summary>
+    public const int MinBotUsernameLength = 2;
+    public const int MaxBotUsernameLength = 32;
     public const int MaxAvatarUrlLength = 512;
     // The limits of files written before the limit was raised: only these are replaced by the new default.
     private const int OldDefaultCriticalLimit = 3;
@@ -98,6 +101,12 @@ public sealed class DiscordBotConfig : ConfigFile<DiscordBotConfig>
     public string CommunityAvatarUrl { get; set; } = string.Empty;
     /// <summary>How long before a planned restart or stop the community is told (minutes).</summary>
     public int CommunityLeadMinutes { get; set; } = DefaultCommunityLeadMinutes;
+    /// <summary>
+    /// The bot account itself takes the name and picture of the community log: the status message with its buttons and the answers
+    /// are written by the bot account, and only a webhook can have another name per message. Discord allows two changes of the name
+    /// an hour, and the name is the one of the bot on every server it is on.
+    /// </summary>
+    public bool BotTakesCommunityIdentity { get; set; }
 
     /// <summary>Names of the commands that are switched on. A command missing here is off.</summary>
     public List<string> EnabledCommands

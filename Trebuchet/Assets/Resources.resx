@@ -2707,4 +2707,13 @@ The bot does not answer in the channel: is the admin channel set, and do you use
     <data name="DiscordBotCommandCancelText" xml:space="preserve">
         <value>Cancels the restart or stop that is counting down. The players are told it does not happen.</value>
     </data>
+    <data name="DiscordBotBotIdentity" xml:space="preserve">
+        <value>Bot takes this name and picture</value>
+    </data>
+    <data name="DiscordBotBotIdentityText" xml:space="preserve">
+        <value>The bot account itself takes the name and picture from above: the status message with its buttons and the answers are written by the bot, not by the webhook. Discord allows two changes of the name an hour, and the name counts for every server the bot is on. Empty fields stay as they are. The picture is fetched from this computer.</value>
+    </data>
+    <data name="DiscordBotIssueBotNameLength" xml:space="preserve">
+        <value>The name of a bot has 2 to 32 characters</value>
+    </data>
 </root>

@@ -147,6 +147,13 @@ public sealed class DiscordBotPanel : ReactiveObject, IBottomPanel, ITickingPane
             () => _editor.CommunityName, v => _editor.CommunityName = v, defaults.CommunityName);
         CommunityAvatarField = TextSetting(Resources.DiscordBotCommunityAvatar, Resources.DiscordBotCommunityAvatarText,
             () => _editor.CommunityAvatarUrl, v => _editor.CommunityAvatarUrl = v, defaults.CommunityAvatarUrl);
+        BotIdentityField = Track(new ToggleField()
+            .SetTitle(Resources.DiscordBotBotIdentity)
+            .SetDescription(Resources.DiscordBotBotIdentityText)
+            .SetGetter(() => _editor.BotTakesCommunityIdentity)
+            .SetSetter(v => Edit(() => _editor.BotTakesCommunityIdentity = v))
+            .SetDefault(() => defaults.BotTakesCommunityIdentity)
+            .SetEnabled(CanEdit));
         CommunityLeadField = Limit(Resources.DiscordBotCommunityLead, Resources.DiscordBotCommunityLeadText, DiscordBotLimits.CommunityLead,
             () => _editor.CommunityLeadMinutes, v => _editor.CommunityLeadMinutes = v, defaults.CommunityLeadMinutes);
 
@@ -422,6 +429,7 @@ public sealed class DiscordBotPanel : ReactiveObject, IBottomPanel, ITickingPane
     public TextField AuditNameField { get; }
     public TextField AuditAvatarField { get; }
     public ToggleField CommunityEnabledField { get; }
+    public ToggleField BotIdentityField { get; }
     public SecretField CommunityWebhookField { get; }
     public TextField CommunityNameField { get; }
     public TextField CommunityAvatarField { get; }

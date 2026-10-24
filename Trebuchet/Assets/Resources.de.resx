@@ -2699,4 +2699,13 @@ Bei „Token bereits in Verwendung“ läuft ein Bot mit demselben Token schon i
     <data name="DiscordBotCommandCancelText" xml:space="preserve">
         <value>Bricht den Neustart oder Stopp ab, der gerade herunterzählt. Die Spieler erfahren, dass er ausfällt.</value>
     </data>
+    <data name="DiscordBotBotIdentity" xml:space="preserve">
+        <value>Der Bot trägt diesen Namen und dieses Bild</value>
+    </data>
+    <data name="DiscordBotBotIdentityText" xml:space="preserve">
+        <value>Das Bot-Konto selbst übernimmt Namen und Bild von oben: Die Status-Meldung mit den Buttons und die Antworten schreibt der Bot, nicht der Webhook. Discord erlaubt nur zwei Namensänderungen pro Stunde, und der Name gilt auf jedem Server, auf dem der Bot ist. Leere Felder bleiben, wie sie sind. Das Bild wird von diesem Computer aus geladen.</value>
+    </data>
+    <data name="DiscordBotIssueBotNameLength" xml:space="preserve">
+        <value>Der Name eines Bots hat 2 bis 32 Zeichen</value>
+    </data>
 </root>

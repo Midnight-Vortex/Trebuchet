@@ -386,13 +386,16 @@ public sealed class BotWebhookStore
 }
 
 /// <summary>The two webhooks of the bot: the audit channel and the community channel.</summary>
-public sealed class BotWebhooks(BotWebhookStore audit, BotWebhookStore community)
+public sealed class BotWebhooks(BotWebhookStore audit, BotWebhookStore community, BotAccountIdentityStore? identity = null)
 {
     /// <summary>The two files sit next to the file of the token (same folder, same edition).</summary>
     public static BotWebhooks ForTokenPath(string tokenPath) => new(
         new BotWebhookStore(Path.ChangeExtension(tokenPath, ".audit-webhook")),
-        new BotWebhookStore(Path.ChangeExtension(tokenPath, ".community-webhook")));
+        new BotWebhookStore(Path.ChangeExtension(tokenPath, ".community-webhook")),
+        new BotAccountIdentityStore(Path.ChangeExtension(tokenPath, ".identity")));
 
     public BotWebhookStore Audit { get; } = audit;
     public BotWebhookStore Community { get; } = community;
+    /// <summary>Which picture the bot account was given (next to the token, not a secret).</summary>
+    public BotAccountIdentityStore? Identity { get; } = identity;
 }

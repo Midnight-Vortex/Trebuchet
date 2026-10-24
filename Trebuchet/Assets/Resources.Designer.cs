@@ -7725,5 +7725,32 @@ namespace Trebuchet.Assets {
             }
         }
         
+        /// <summary>
+        ///   Looks up a localized string similar to Bot takes this name and picture.
+        /// </summary>
+        public static string DiscordBotBotIdentity {
+            get {
+                return ResourceManager.GetString("DiscordBotBotIdentity", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The bot account itself takes the name and picture from above: the status message with its buttons and the answers are written by the bot, not by the webhook. Discord allows two changes of the name an hour, and the name counts for every server the bot is on. Empty fields stay as they are. The picture is fetched from this computer..
+        /// </summary>
+        public static string DiscordBotBotIdentityText {
+            get {
+                return ResourceManager.GetString("DiscordBotBotIdentityText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The name of a bot has 2 to 32 characters.
+        /// </summary>
+        public static string DiscordBotIssueBotNameLength {
+            get {
+                return ResourceManager.GetString("DiscordBotIssueBotNameLength", resourceCulture);
+            }
+        }
+        
     }
 }

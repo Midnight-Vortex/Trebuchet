@@ -87,6 +87,8 @@ public sealed class DiscordBotSettingsEditor
     public string CommunityName { get; set; } = string.Empty;
     public string CommunityAvatarUrl { get; set; } = string.Empty;
     public int CommunityLeadMinutes { get; set; }
+    /// <summary>The bot account itself takes the name and picture of the community log.</summary>
+    public bool BotTakesCommunityIdentity { get; set; }
 
     /// <summary>The server ID as typed. Empty: none.</summary>
     public string GuildIdText => _guildIdText;
@@ -138,6 +140,7 @@ public sealed class DiscordBotSettingsEditor
         CommunityName = config.CommunityName ?? string.Empty;
         CommunityAvatarUrl = config.CommunityAvatarUrl ?? string.Empty;
         CommunityLeadMinutes = config.CommunityLeadMinutes;
+        BotTakesCommunityIdentity = config.BotTakesCommunityIdentity;
         ClearAdminChannelPending = false;
         _adminChannels = config.AllowedChannelIds.ToList();
         _loaded = Capture();
@@ -291,6 +294,7 @@ public sealed class DiscordBotSettingsEditor
         candidate.CommunityName = CommunityName.Trim();
         candidate.CommunityAvatarUrl = CommunityAvatarUrl.Trim();
         candidate.CommunityLeadMinutes = CommunityLeadMinutes;
+        candidate.BotTakesCommunityIdentity = BotTakesCommunityIdentity;
         if (choicesValid) candidate.PostponeChoices = choices.Distinct().Order().ToList();
         if (ClearAdminChannelPending) candidate.AllowedChannelIds = [];
 
@@ -374,6 +378,7 @@ public sealed class DiscordBotSettingsEditor
         to.CommunityName = from.CommunityName;
         to.CommunityAvatarUrl = from.CommunityAvatarUrl;
         to.CommunityLeadMinutes = from.CommunityLeadMinutes;
+        to.BotTakesCommunityIdentity = from.BotTakesCommunityIdentity;
         to.PostponeChoices = from.PostponeChoices.ToList();
         // The status messages belong to the bot; the channels only change when the panel widened them.
         if (channels) to.AllowedChannelIds = from.AllowedChannelIds.ToList();
@@ -409,7 +414,7 @@ public sealed class DiscordBotSettingsEditor
         _managedChosen ? string.Join(',', _managed.Order()) : "*",
         CooldownSeconds, CriticalLimit, CriticalWindowMinutes, LockoutAttempts, LockoutMinutes, MaxPauseMinutes,
         ActionDelayMinutes, NormalizeChoices(PostponeChoicesText), ClearAdminChannelPending,
-        AuditName.Trim(), AuditAvatarUrl.Trim(), CommunityEnabled, CommunityName.Trim(), CommunityAvatarUrl.Trim(), CommunityLeadMinutes);
+        AuditName.Trim(), AuditAvatarUrl.Trim(), CommunityEnabled, CommunityName.Trim(), CommunityAvatarUrl.Trim(), CommunityLeadMinutes, BotTakesCommunityIdentity);
 
     private static string NormalizeChoices(string text) =>
         TryParseChoices(text, out var choices) ? string.Join(',', choices) : text.Trim();
@@ -420,7 +425,7 @@ public sealed class DiscordBotSettingsEditor
         string Users, string Roles, string Commands, string Managed,
         int Cooldown, int CriticalLimit, int CriticalWindow, int LockoutAttempts, int LockoutMinutes, int MaxPause,
         int ActionDelay, string Choices, bool ClearChannel,
-        string AuditName, string AuditAvatarUrl, bool CommunityEnabled, string CommunityName, string CommunityAvatarUrl, int CommunityLeadMinutes);
+        string AuditName, string AuditAvatarUrl, bool CommunityEnabled, string CommunityName, string CommunityAvatarUrl, int CommunityLeadMinutes, bool BotTakesCommunityIdentity);
 }
 
 /// <param name="Candidate">The settings as they would be saved (not connected to the file).</param>

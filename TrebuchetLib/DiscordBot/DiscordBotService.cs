@@ -42,6 +42,8 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
     private readonly BotAuditChannelFeed _feed;
     private readonly BotCommunityLog _community;
     private readonly HttpBotWebhookClient _webhookClient;
+    private readonly HttpBotAvatarSource _avatarSource;
+    private readonly BotAccountIdentity _identity;
     private volatile BotInteractionHandler? _handler;
     private volatile BotStatusBoard? _board;
     private CancellationTokenSource? _startCancel;
@@ -79,6 +81,9 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
         // What the players of the server read (restart announced, restarting, online again), through a webhook of its own.
         _community = new BotCommunityLog(_actions, _webhookClient, WebhookSource(webhooks?.Community, "community"), () => Policy, logger: _logger);
         _community.Start();
+        // The bot account itself can take the name and picture of the community log (when the settings ask for it).
+        _avatarSource = new HttpBotAvatarSource();
+        _identity = new BotAccountIdentity(new DiscordNetAccountClient(() => CurrentSession?.Client), _avatarSource, webhooks?.Identity, logger: _logger);
     }
 
     // A server started, went online, is stopping, stopped or crashed (or a countdown began): look at it now. Runs on
@@ -309,6 +314,27 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
         _feed.Dispose();
         _community.Dispose();
         _webhookClient.Dispose();
+        _avatarSource.Dispose();
+    }
+
+    /// <summary>The bot account takes the name and picture of the community log, in the background (Discord is slow about it).</summary>
+    private void ApplyIdentity()
+    {
+        if (Policy is not { BotTakesCommunityIdentity: true } policy || CurrentSession is not { Verified: true } session) return;
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await _identity.ApplyAsync(policy, session.Cancel.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("Discord bot: the name and picture of the bot could not be set: {Error}", DiscordNetLog.Describe(ex));
+            }
+        });
     }
 
     private Func<string?> WebhookSource(BotWebhookStore? store, string name) => store is null ? () => null : store.AsSource(name, _logger);
@@ -531,6 +557,7 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
             Apply(session, commandsOk ? BotConnectionEvent.ReadyVerified : BotConnectionEvent.ReadyVerifiedCommandsFailed);
             session.Ready.TrySetResult(ReadyOutcome.Verified);
             _logger.LogInformation("Discord bot: connected to server {Guild}", session.GuildId);
+            ApplyIdentity();
             Interlocked.Exchange(ref session.ForceRefresh, 1);
             Wake(session);
         }
@@ -785,6 +812,7 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
                 return Task.CompletedTask;
             }
             if (AdminChannelId != oldChannel) ResetBoard();
+            ApplyIdentity();
             if (session is not null) Interlocked.Exchange(ref session.ForceRefresh, 1);
             Wake(session);
         }

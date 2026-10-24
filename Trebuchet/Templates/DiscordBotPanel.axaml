@@ -329,6 +329,7 @@
                     <ContentControl Content="{Binding CommunityWebhookField}" ClipToBounds="False" />
                     <ContentControl Content="{Binding CommunityNameField}" ClipToBounds="False" />
                     <ContentControl Content="{Binding CommunityAvatarField}" ClipToBounds="False" />
+                    <ContentControl Content="{Binding BotIdentityField}" ClipToBounds="False" />
                     <ContentControl Content="{Binding CommunityLeadField}" ClipToBounds="False" />
 
                     <!-- (d0) Servers: which instances the bot manages and the name it uses for them -->

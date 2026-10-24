@@ -89,6 +89,15 @@ Die Rolle `@everyone` ist **nicht erlaubt** (jeder hat sie), Trebuchet lehnt sie
    - „🔄 Der Server startet jetzt neu“ – „Bis gleich – sobald er wieder da ist, steht es hier.“
    - „🟢 Der Server ist wieder online“ – „Der Neustart ist durch – ihr könnt euch wieder einloggen. **Offline:** 1 Min. 20 Sek.“
 
+   **Der Bot selbst unter diesem Namen:** Die Status-Meldung mit den Buttons und die Antworten schreibt das **Bot-Konto**, nicht
+   der Webhook, und ein Bot-Konto hat nur einen Namen und ein Bild. Schaltest du im Panel **„Bot trägt diesen Namen und dieses
+   Bild“** ein, übernimmt das Bot-Konto selbst Name und Bild des Community-Logs (beim Verbinden und wenn du die Einstellungen
+   änderst). Wichtig: Discord erlaubt nur **zwei Namensänderungen pro Stunde**, und der Name gilt für **jeden Server**, auf dem
+   der Bot ist; der Name muss 2 bis 32 Zeichen haben (das Panel sagt es dir). Ein Name oder Bild, das gleich ist, wird nicht
+   noch einmal gesetzt; klappt etwas nicht, steht eine Warnung im Log und es wird eine Stunde lang nicht noch einmal versucht.
+   Das Bild lädt Trebuchet selbst von deinem Computer aus (nur https, keine Weiterleitungen, nur Adressen im Internet, höchstens
+   4 MB, PNG, JPEG, GIF oder WebP). Leere Felder bleiben, wie sie sind.
+
    Dazu zählen der **Zeitplan** des Speicherstands (tägliche Neustarts), **Update-Neustarts**, ein **Countdown** des
    Launchers (auch von Hand oder aus Discord gestartet) und ein **verschobener Neustart**, sobald seine Zeit näher
    rückt. Ein Update, das auf die nächste Prüfung wartet, hat noch keine Zeit: Der Bot meldet sich, sobald der Launcher

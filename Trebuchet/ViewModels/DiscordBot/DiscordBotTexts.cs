@@ -47,6 +47,7 @@ public static class DiscordBotTexts
             BotConfigIssueKind.UnknownCommand => Resources.DiscordBotIssueUnknownCommand,
             BotConfigIssueKind.InvalidUrl => Resources.DiscordBotIssueInvalidUrl,
             BotConfigIssueKind.InvalidName => Resources.DiscordBotIssueInvalidName,
+            BotConfigIssueKind.BotNameLength => Resources.DiscordBotIssueBotNameLength,
             _ => issue.Kind.ToString()
         };
         // The list of choices is shown in its own field; repeating it adds nothing.

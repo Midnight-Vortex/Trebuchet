@@ -222,6 +222,14 @@ Zeit, User-ID, Anzeigename (nur zur Info), Server-/Kanal-ID, Befehl, Parameter, 
   kommt „wieder online“ ohne Offline-Zeit (die kennt der Bot nicht). Ein Neustart gilt auch, wenn er erst bis zu 11 Minuten später
   auffällt (die geplante Zeit liegt zwischen dem letzten Blick und jetzt) oder zuletzt „Neustart angefordert“ zu sehen war. Zwei
   Blicke gleichzeitig laufen nacheinander.
+- **Das Bot-Konto selbst** (`BotAccountIdentity`, Einstellung `BotTakesCommunityIdentity`, aus): Die Status-Meldung schreibt das Bot-Konto, nur ein
+  Webhook kann den Namen je Nachricht ändern. Eingeschaltet übernimmt das Bot-Konto per `SocketSelfUser.ModifyAsync` Name und Bild des
+  Community-Logs, im Hintergrund beim Verbinden und beim Anwenden der Einstellungen. Nur was abweicht (Name gleich: nichts; Bild: Hash der
+  Bytes, gemerkt in `<token>.identity` je Konto, damit ein Neustart nicht wieder hochlädt), höchstens alle 10 Minuten geprüft, ein
+  Fehlschlag (Discord erlaubt nur zwei Namensänderungen pro Stunde) wird eine Stunde nicht wiederholt. Name 2 bis 32 Zeichen
+  (`BotNameLength`). `HttpBotAvatarSource` lädt das Bild von hier: https auf Port 443, keine Benutzerangabe, keine Weiterleitungen, kein
+  Proxy, nur Adressen im Internet (`IsPublicAddress`, geprüft beim Verbinden, nicht nur beim Auflösen), höchstens 4 MB, Magic Bytes
+  (PNG, JPEG, GIF, WebP).
 - Servername: kommt aus dem Server-Speicherstand (Feld „Servername“, `ServerProfile.ServerName`), nicht aus den Bot-Einstellungen;
   unverändert (Standardname) gilt der Name des Speicherstands. Bereinigt (`BotInputRules.SanitizeName`) im Bot, im Log nur
   ohne Steuerzeichen (`SanitizeForLog`).
