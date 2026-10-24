@@ -2098,4 +2098,10 @@ Le bot ne répond pas dans le salon : le salon d’administration est-il défini
     <data name="DiscordBotIssueBotNameLength" xml:space="preserve">
         <value>Le nom d'un bot comporte de 2 à 32 caractères</value>
     </data>
+    <data name="SettingServerThrallDistance" xml:space="preserve">
+        <value>Distance de pertinence des esclaves</value>
+    </data>
+    <data name="SettingServerThrallDistanceText" xml:space="preserve">
+        <value>La plus grande distance d'un joueur à laquelle un esclave est encore considéré comme pertinent (dw.ThrallMaxRelevantDistance dans [SystemSettings] du Engine.ini du serveur). En unités de jeu, pas en mètres : une fondation fait environ 2,6 m de large, soit à peu près 260 unités, donc 5 fondations font environ 1300 et 10 fondations environ 2600. 0 n'écrit rien, le jeu garde sa propre valeur.</value>
+    </data>
 </root>

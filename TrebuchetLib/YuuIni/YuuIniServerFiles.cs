@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Reflection;
 using TrebuchetLib.Processes;
 using TrebuchetLib.Services;
@@ -191,6 +192,18 @@ public static class YuuIniServerFiles
         var disabled = profile.VoiceChatMode == ServerProfile.VoiceChatDisabled;
         SetOrRemove(document, "Voice", "bEnabled", disabled ? "False" : null);
         SetOrRemove(document, "OnlineSubsystem", "bHasVoiceEnabled", disabled ? "False" : null);
+    }
+
+    /// <summary>
+    /// How far from a player a thrall still counts as relevant (<c>dw.ThrallMaxRelevantDistance</c>, in game units). Nothing is
+    /// written for 0 and a line that was written before is removed, so the game keeps its own value.
+    /// </summary>
+    [IniSetting(Constants.FileIniServer, "Engine")]
+    public static void ApplyThrallDistance(AppSetup appSetup, ServerProfile profile, IniDocument document)
+    {
+        var distance = profile.ThrallMaxRelevantDistance;
+        SetOrRemove(document, "SystemSettings", "dw.ThrallMaxRelevantDistance",
+            distance > 0 ? Math.Min(distance, ServerProfile.ThrallMaxRelevantDistanceMaximum).ToString(CultureInfo.InvariantCulture) : null);
     }
 
     private static void SetOrRemove(IniDocument document, string sectionName, string key, string? value)

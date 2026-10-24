@@ -2708,4 +2708,10 @@ Bei „Token bereits in Verwendung“ läuft ein Bot mit demselben Token schon i
     <data name="DiscordBotIssueBotNameLength" xml:space="preserve">
         <value>Der Name eines Bots hat 2 bis 32 Zeichen</value>
     </data>
+    <data name="SettingServerThrallDistance" xml:space="preserve">
+        <value>Reichweite der Thralls</value>
+    </data>
+    <data name="SettingServerThrallDistanceText" xml:space="preserve">
+        <value>Die größte Entfernung von einem Spieler, bei der ein Thrall noch als relevant gilt (dw.ThrallMaxRelevantDistance im [SystemSettings] der Engine.ini des Servers). In Spieleinheiten, nicht in Metern: Ein Fundament ist etwa 2,6 m breit, also grob 260 Einheiten, 5 Fundamente sind etwa 1300, 10 Fundamente etwa 2600. 0 schreibt nichts, das Spiel behält seinen eigenen Wert.</value>
+    </data>
 </root>

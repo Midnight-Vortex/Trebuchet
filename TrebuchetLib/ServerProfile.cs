@@ -60,6 +60,12 @@ namespace TrebuchetLib
         public string ScriptPath { get; set; } = ScriptPathDefault;
         public string ScriptArguments { get; set; } = ScriptArgumentsDefault;
         public int VoiceChatMode { get; set; } = VoiceChatModeDefault;
+        /// <summary>
+        /// How far from a player (in game units, not metres) a thrall still counts as relevant: <c>dw.ThrallMaxRelevantDistance</c> in
+        /// the <c>[SystemSettings]</c> of the Engine.ini of the server. A foundation is about 2.6 m wide, roughly 260 units. 0: not
+        /// set, nothing is written and the game keeps its own value.
+        /// </summary>
+        public int ThrallMaxRelevantDistance { get; set; } = ThrallMaxRelevantDistanceDefault;
 
         public Sequence StoppingSequence { get; set; } = new();
         public Sequence StartingSequence { get; set; } = new();
@@ -203,6 +209,9 @@ namespace TrebuchetLib
         public static readonly string ScriptArgumentsDefault = string.Empty;
 
         public static readonly int VoiceChatModeDefault = VoiceChatUnchanged;
+        public static readonly int ThrallMaxRelevantDistanceDefault = 0;
+        /// <summary>The largest value of the setting (a limit for the field and for what is written).</summary>
+        public const int ThrallMaxRelevantDistanceMaximum = 100000;
 
         // Voice chat: leave it to the in-game admin panel, force it off (server setting and engine voice), or on.
         public const int VoiceChatUnchanged = 0;

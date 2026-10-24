@@ -7752,5 +7752,23 @@ namespace Trebuchet.Assets {
             }
         }
         
+        /// <summary>
+        ///   Looks up a localized string similar to Thrall relevance distance.
+        /// </summary>
+        public static string SettingServerThrallDistance {
+            get {
+                return ResourceManager.GetString("SettingServerThrallDistance", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The greatest distance from a player at which a thrall still counts as relevant (dw.ThrallMaxRelevantDistance in the [SystemSettings] of the Engine.ini of the server). In game units, not metres: a foundation is about 2.6 m wide, roughly 260 units, so 5 foundations are about 1300 and 10 foundations about 2600. 0 writes nothing, the game keeps its own value..
+        /// </summary>
+        public static string SettingServerThrallDistanceText {
+            get {
+                return ResourceManager.GetString("SettingServerThrallDistanceText", resourceCulture);
+            }
+        }
+        
     }
 }

@@ -795,6 +795,14 @@ namespace Trebuchet.ViewModels.Panels
                 .SetSetter((v) => _profile.NoAISpawn = v)
                 .SetDefault(() => ServerProfile.NoAISpawnDefault)
             );
+            Fields.Add(new IntField(0, ServerProfile.ThrallMaxRelevantDistanceMaximum)
+                .WhenFieldChanged(SaveProfile)
+                .SetTitle(AppResources.SettingServerThrallDistance)
+                .SetDescription(AppResources.SettingServerThrallDistanceText)
+                .SetGetter(() => _profile.ThrallMaxRelevantDistance)
+                .SetSetter((v) => _profile.ThrallMaxRelevantDistance = v)
+                .SetDefault(() => ServerProfile.ThrallMaxRelevantDistanceDefault)
+            );
             Fields.Add(new MultiLineTextField()
                 .WhenFieldChanged(SaveProfile)
                 .SetTitle(AppResources.SettingServerLogFilters)
