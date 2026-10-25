@@ -297,6 +297,25 @@ public static class DiscordBotPanelChecks
         check(editor.Save(config).Count == 0 && config.BotTakesCommunityIdentity && config.CommunityName == "Schatten und Licht Server", "The switch is saved");
         editor.Load(config);
         check(editor.BotTakesCommunityIdentity && !editor.IsDirty, "...and comes back after loading");
+        // The mod update log: its own switch, name and picture.
+        editor.ModUpdatesEnabled = true;
+        editor.ModUpdatesName = "  Mod Watcher ";
+        editor.ModUpdatesAvatarUrl = "https://example.org/w.png";
+        check(editor.IsDirty && editor.Save(config).Count == 0 && config.ModUpdatesEnabled && config.ModUpdatesName == "Mod Watcher"
+              && config.ModUpdatesAvatarUrl == "https://example.org/w.png", "The mod update log is saved");
+        editor.Load(config);
+        check(!editor.IsDirty && editor.ModUpdatesEnabled && editor.ModUpdatesName == "Mod Watcher" && editor.ModUpdatesAvatarUrl == "https://example.org/w.png", "...and comes back after loading");
+        editor.ModUpdatesAvatarUrl = "http://example.org/w.png";
+        var modIssues = editor.Validate(config).Issues;
+        var beforeMods = Json(config);
+        check(modIssues.Count == 1 && modIssues[0].Kind == BotConfigIssueKind.InvalidUrl && modIssues[0].Detail == nameof(DiscordBotConfig.ModUpdatesAvatarUrl)
+              && DiscordBotTexts.Issue(modIssues[0]).Contains(Trebuchet.Assets.Resources.DiscordBotModUpdatesAvatar, StringComparison.Ordinal)
+              && editor.Save(config).Count == 1 && Json(config) == beforeMods, "A picture of the mod update log that is not an https link is refused by its field");
+        editor.ModUpdatesAvatarUrl = "https://example.org/w.png";
+        editor.ModUpdatesName = "Discord Mods";
+        check(editor.Validate(config).Issues.Any(x => x.Kind == BotConfigIssueKind.InvalidName && x.Detail == nameof(DiscordBotConfig.ModUpdatesName))
+              && editor.Save(config).Count == 1 && Json(config) == beforeMods, "A name Discord refuses is refused for the mod update log too");
+        editor.Load(config);
         editor.BotTakesCommunityIdentity = false;
         check(editor.IsDirty, "Switching it off is an edit");
         editor.AuditAvatarUrl = "https://discord.com/api/webhooks/123456789012345678/abcdefghijklmnopqrstuvwxyz0123456789ABCD";

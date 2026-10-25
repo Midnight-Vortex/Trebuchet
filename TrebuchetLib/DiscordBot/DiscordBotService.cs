@@ -43,6 +43,7 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
 
     private readonly BotAuditChannelFeed _feed;
     private readonly BotCommunityLog _community;
+    private readonly BotModUpdateLog? _modUpdates;
     private readonly HttpBotWebhookClient _webhookClient;
     private readonly HttpBotAvatarSource _avatarSource;
     private readonly BotAccountIdentity _identity;
@@ -83,6 +84,13 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
         // What the players of the server read (restart announced, restarting, online again), through a webhook of its own.
         _community = new BotCommunityLog(_actions, _webhookClient, WebhookSource(webhooks?.Community, "community"), () => Policy, logger: _logger);
         _community.Start();
+        // New versions of the mods of the servers, told to the players through a webhook of their own (when the launcher can tell them).
+        if (_actions is IBotModUpdates modUpdates)
+        {
+            _modUpdates = new BotModUpdateLog(modUpdates, _webhookClient, WebhookSource(webhooks?.ModUpdates, "mod updates"), () => Policy,
+                webhooks?.ModVersions ?? new BotModUpdateStore(null), logger: _logger);
+            _modUpdates.Start();
+        }
         // The bot account itself can take the name and picture of the community log (when the settings ask for it).
         _avatarSource = new HttpBotAvatarSource();
         _identity = new BotAccountIdentity(new DiscordNetAccountClient(() => CurrentSession?.Client), _avatarSource, webhooks?.Identity, logger: _logger);
@@ -315,6 +323,7 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
         await StopAsync().ConfigureAwait(false);
         _feed.Dispose();
         _community.Dispose();
+        _modUpdates?.Dispose();
         _webhookClient.Dispose();
         _avatarSource.Dispose();
     }

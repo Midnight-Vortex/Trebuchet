@@ -89,6 +89,10 @@ public sealed class DiscordBotSettingsEditor
     public int CommunityLeadMinutes { get; set; }
     /// <summary>The bot account itself takes the name and picture of the community log.</summary>
     public bool BotTakesCommunityIdentity { get; set; }
+    /// <summary>The mod update log (what the players read about new versions of the mods) is on, with its name and picture as typed.</summary>
+    public bool ModUpdatesEnabled { get; set; }
+    public string ModUpdatesName { get; set; } = string.Empty;
+    public string ModUpdatesAvatarUrl { get; set; } = string.Empty;
 
     /// <summary>The server ID as typed. Empty: none.</summary>
     public string GuildIdText => _guildIdText;
@@ -141,6 +145,9 @@ public sealed class DiscordBotSettingsEditor
         CommunityAvatarUrl = config.CommunityAvatarUrl ?? string.Empty;
         CommunityLeadMinutes = config.CommunityLeadMinutes;
         BotTakesCommunityIdentity = config.BotTakesCommunityIdentity;
+        ModUpdatesEnabled = config.ModUpdatesEnabled;
+        ModUpdatesName = config.ModUpdatesName ?? string.Empty;
+        ModUpdatesAvatarUrl = config.ModUpdatesAvatarUrl ?? string.Empty;
         ClearAdminChannelPending = false;
         _adminChannels = config.AllowedChannelIds.ToList();
         _loaded = Capture();
@@ -295,6 +302,9 @@ public sealed class DiscordBotSettingsEditor
         candidate.CommunityAvatarUrl = CommunityAvatarUrl.Trim();
         candidate.CommunityLeadMinutes = CommunityLeadMinutes;
         candidate.BotTakesCommunityIdentity = BotTakesCommunityIdentity;
+        candidate.ModUpdatesEnabled = ModUpdatesEnabled;
+        candidate.ModUpdatesName = ModUpdatesName.Trim();
+        candidate.ModUpdatesAvatarUrl = ModUpdatesAvatarUrl.Trim();
         if (choicesValid) candidate.PostponeChoices = choices.Distinct().Order().ToList();
         if (ClearAdminChannelPending) candidate.AllowedChannelIds = [];
 
@@ -379,6 +389,9 @@ public sealed class DiscordBotSettingsEditor
         to.CommunityAvatarUrl = from.CommunityAvatarUrl;
         to.CommunityLeadMinutes = from.CommunityLeadMinutes;
         to.BotTakesCommunityIdentity = from.BotTakesCommunityIdentity;
+        to.ModUpdatesEnabled = from.ModUpdatesEnabled;
+        to.ModUpdatesName = from.ModUpdatesName;
+        to.ModUpdatesAvatarUrl = from.ModUpdatesAvatarUrl;
         to.PostponeChoices = from.PostponeChoices.ToList();
         // The status messages belong to the bot; the channels only change when the panel widened them.
         if (channels) to.AllowedChannelIds = from.AllowedChannelIds.ToList();
@@ -414,7 +427,8 @@ public sealed class DiscordBotSettingsEditor
         _managedChosen ? string.Join(',', _managed.Order()) : "*",
         CooldownSeconds, CriticalLimit, CriticalWindowMinutes, LockoutAttempts, LockoutMinutes, MaxPauseMinutes,
         ActionDelayMinutes, NormalizeChoices(PostponeChoicesText), ClearAdminChannelPending,
-        AuditName.Trim(), AuditAvatarUrl.Trim(), CommunityEnabled, CommunityName.Trim(), CommunityAvatarUrl.Trim(), CommunityLeadMinutes, BotTakesCommunityIdentity);
+        AuditName.Trim(), AuditAvatarUrl.Trim(), CommunityEnabled, CommunityName.Trim(), CommunityAvatarUrl.Trim(), CommunityLeadMinutes, BotTakesCommunityIdentity,
+        ModUpdatesEnabled, ModUpdatesName.Trim(), ModUpdatesAvatarUrl.Trim());
 
     private static string NormalizeChoices(string text) =>
         TryParseChoices(text, out var choices) ? string.Join(',', choices) : text.Trim();
@@ -425,7 +439,8 @@ public sealed class DiscordBotSettingsEditor
         string Users, string Roles, string Commands, string Managed,
         int Cooldown, int CriticalLimit, int CriticalWindow, int LockoutAttempts, int LockoutMinutes, int MaxPause,
         int ActionDelay, string Choices, bool ClearChannel,
-        string AuditName, string AuditAvatarUrl, bool CommunityEnabled, string CommunityName, string CommunityAvatarUrl, int CommunityLeadMinutes, bool BotTakesCommunityIdentity);
+        string AuditName, string AuditAvatarUrl, bool CommunityEnabled, string CommunityName, string CommunityAvatarUrl, int CommunityLeadMinutes, bool BotTakesCommunityIdentity,
+        bool ModUpdatesEnabled, string ModUpdatesName, string ModUpdatesAvatarUrl);
 }
 
 /// <param name="Candidate">The settings as they would be saved (not connected to the file).</param>

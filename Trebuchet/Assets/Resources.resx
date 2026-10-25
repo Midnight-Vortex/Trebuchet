@@ -2654,7 +2654,7 @@ The bot does not answer in the channel: is the admin channel set, and do you use
         <value>Community webhook</value>
     </data>
     <data name="DiscordBotCommunityWebhookText" xml:space="preserve">
-        <value>The webhook URL of the community channel (channel settings → Integrations → Webhooks → Copy URL). Stored encrypted for your Windows user and never shown again.</value>
+        <value>The webhook URL of the community channel (channel settings → Integrations → Webhooks → Copy URL). The channel may be on another Discord server than the bot. Stored encrypted for your Windows user and never shown again.</value>
     </data>
     <data name="DiscordBotCommunityName" xml:space="preserve">
         <value>Name of the community log</value>
@@ -2727,5 +2727,35 @@ The bot does not answer in the channel: is the admin channel set, and do you use
     </data>
     <data name="SettingUpdateRestartCountdownText" xml:space="preserve">
         <value>How long the players are warned before a server restarts for a mod or server update (the countdown starts when the update is found). It only applies to saves that have the warning messages switched on and no stopping sequence of their own, and never makes the warning shorter than the longest warning of the save. 0: only the warnings of the save.</value>
+    </data>
+    <data name="DiscordBotSectionModUpdates" xml:space="preserve">
+        <value>Mod updates</value>
+    </data>
+    <data name="DiscordBotModUpdatesText" xml:space="preserve">
+        <value>Tells your players when a mod of the server mod lists got an update: the name of the mod with its picture, when it was updated and the notes its author wrote. It needs a webhook of its own, which may be on another Discord server than the bot (for example your community server). Trebuchet looks at the mods with every check for updates; what happened before the first look is not told.</value>
+    </data>
+    <data name="DiscordBotModUpdatesEnabled" xml:space="preserve">
+        <value>Announce mod updates</value>
+    </data>
+    <data name="DiscordBotModUpdatesEnabledText" xml:space="preserve">
+        <value>Posts a message in the mod update channel whenever a mod of the server mod lists is updated.</value>
+    </data>
+    <data name="DiscordBotModUpdatesWebhook" xml:space="preserve">
+        <value>Mod update webhook</value>
+    </data>
+    <data name="DiscordBotModUpdatesWebhookText" xml:space="preserve">
+        <value>The webhook URL of the channel for mod updates (channel settings → Integrations → Webhooks → Copy URL). The channel may be on another Discord server than the bot. Stored encrypted for your Windows user and never shown again.</value>
+    </data>
+    <data name="DiscordBotModUpdatesName" xml:space="preserve">
+        <value>Name of the mod update log</value>
+    </data>
+    <data name="DiscordBotModUpdatesNameText" xml:space="preserve">
+        <value>The name the messages appear under, e.g. "Mod Watcher". Empty: the name of the webhook.</value>
+    </data>
+    <data name="DiscordBotModUpdatesAvatar" xml:space="preserve">
+        <value>Picture of the mod update log</value>
+    </data>
+    <data name="DiscordBotModUpdatesAvatarText" xml:space="preserve">
+        <value>A link (https) to an image. Empty: the picture of the webhook.</value>
     </data>
 </root>

@@ -50,6 +50,9 @@ public sealed class BotPolicy
         CommunityAvatarUrl = (config.CommunityAvatarUrl ?? string.Empty).Trim();
         CommunityLead = TimeSpan.FromMinutes(config.CommunityLeadMinutes);
         BotTakesCommunityIdentity = config.BotTakesCommunityIdentity;
+        ModUpdatesEnabled = config.ModUpdatesEnabled;
+        ModUpdatesName = CleanIdentityName(config.ModUpdatesName);
+        ModUpdatesAvatarUrl = (config.ModUpdatesAvatarUrl ?? string.Empty).Trim();
         EnabledCommands = Enum.GetValues<BotCommand>().Where(config.IsEnabled).ToFrozenSet();
         Cooldown = TimeSpan.FromSeconds(config.CooldownSeconds);
         CriticalLimit = config.CriticalLimit;
@@ -83,6 +86,10 @@ public sealed class BotPolicy
     public TimeSpan CommunityLead { get; }
     /// <summary>The bot account takes the name and picture of the community log.</summary>
     public bool BotTakesCommunityIdentity { get; }
+    /// <summary>The mod update log is on, with its own name and picture (empty: the ones of the webhook).</summary>
+    public bool ModUpdatesEnabled { get; }
+    public string ModUpdatesName { get; }
+    public string ModUpdatesAvatarUrl { get; }
     public IReadOnlySet<BotCommand> EnabledCommands { get; }
     public TimeSpan Cooldown { get; }
     public int CriticalLimit { get; }
@@ -143,8 +150,10 @@ public sealed class BotPolicy
         CheckLimit(issues, nameof(config.CommunityLeadMinutes), config.CommunityLeadMinutes, 1, DiscordBotConfig.MaxCommunityLeadMinutes);
         CheckAvatar(issues, nameof(config.AuditAvatarUrl), config.AuditAvatarUrl);
         CheckAvatar(issues, nameof(config.CommunityAvatarUrl), config.CommunityAvatarUrl);
+        CheckAvatar(issues, nameof(config.ModUpdatesAvatarUrl), config.ModUpdatesAvatarUrl);
         CheckName(issues, nameof(config.AuditName), config.AuditName);
         CheckName(issues, nameof(config.CommunityName), config.CommunityName);
+        CheckName(issues, nameof(config.ModUpdatesName), config.ModUpdatesName);
         // A bot account has a shorter name than a webhook message: only when the bot is to take it.
         if (config.BotTakesCommunityIdentity && !string.IsNullOrWhiteSpace(config.CommunityName)
             && CleanIdentityName(config.CommunityName).Length is < DiscordBotConfig.MinBotUsernameLength or > DiscordBotConfig.MaxBotUsernameLength)

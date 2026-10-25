@@ -110,6 +110,25 @@ Die Rolle `@everyone` ist **nicht erlaubt** (jeder hat sie), Trebuchet lehnt sie
    mit der neuen Zeit). Wird die Verschiebung wieder aufgehoben, steht die alte Zeit wieder in der Ankündigung. Ein Stopp von Hand kurz vor einem geplanten Neustart wird als Stopp gemeldet, nicht als
    Neustart. War der Bot länger als ein paar Minuten weg (aus, keine Verbindung zu Discord), erzählt er danach nichts Altes als
    „jetzt“; hatte er einen Stopp oder Neustart schon gemeldet, meldet er auch „wieder online“, nur ohne Offline-Zeit.
+   Wird ein Server **gestartet** (aus Discord, im Dashboard oder von Hand), ohne dass vorher ein Stopp gemeldet wurde, steht
+   „🟢 Der Server ist online“ im Kanal, ohne Offline-Zeit. Nach einem Absturz bleibt es still.
+
+   **Der Webhook des Community-Logs darf zu einem anderen Discord-Server gehören** als der Bot (der Bot auf dem Team-Discord,
+   der Community-Log auf dem Server für die Spieler). Nur der Webhook des Audit-Logs muss zu deinem Server gehören.
+
+   **Mod-Updates** (optional, unter *Community*, mit eigenem Webhook, Namen und Bild; auch auf einem anderen Discord-Server): Der
+   Bot meldet, wenn ein Mod aus den **Mod-Listen der Server** ein Update bekommen hat, wie die Meldungen eines Mod-Watchers:
+   „🔄 Update für Mod: *Name*“ (der Titel führt zur Workshop-Seite, das Bild des Mods steht am Rand), „Aktualisiert 25. Oktober
+   2026 06:47 (vor 3 Stunden)“, die **Patch-Notes** des Autors (aus der Änderungshistorie des Workshops; hat der Autor keine
+   geschrieben: „Der Autor hat keine Patch-Notes hinterlegt.“) und ein Link „Alle Änderungsnotizen“. Trebuchet schaut bei jeder
+   Prüfung auf Updates nach (Einstellungen → Updates, Standard alle 5 Minuten). Der erste Blick merkt sich nur die Versionen: was
+   davor war, wird nicht gemeldet, und Updates, die älter als zwei Tage sind, auch nicht. Links in den Notizen erscheinen als Text mit
+   der Domain, nicht anklickbar. Der Bot muss dafür laufen, der Schalter an sein und der Webhook eingetragen.
+
+   **Warnzeit vor einem Update-Neustart** (Einstellungen → Updates, Standard 15 Minuten, 0 bis 6 Stunden): So lange werden die Spieler
+   gewarnt, bevor ein Server für ein Mod- oder Server-Update neu startet; der Countdown beginnt, wenn das Update gefunden wird, die
+   Warnmeldungen des Speicherstands laufen darin. Gilt für Speicherstände mit eingeschalteten Warnmeldungen und ohne eigene
+   Stopp-Abfolge, und nie kürzer als die längste Warnung des Speicherstands. 0: nur die Warnungen des Speicherstands.
 9. **Sicherheit prüfen** drücken. Alle Punkte müssen grün sein.
 10. **Starten**.
 

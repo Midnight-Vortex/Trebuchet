@@ -131,6 +131,30 @@ public class Steam : IDebugListener, IDisposable
         return GetPublishedModFiles(results).ToList();
     }
 
+    /// <summary>
+    /// The latest change note of a mod (what its author wrote for the last update), null when there is none or Steam can not be asked
+    /// (not connected, no answer): the note is a nicety, nothing waits for it.
+    /// </summary>
+    public async Task<WorkshopChange?> GetLatestModChange(ulong modId)
+    {
+        try
+        {
+            if (!await WaitSteamConnectionAsync()) return null;
+            var changes = await _session.GetChangeHistory(modId, 1);
+            var latest = changes.FirstOrDefault();
+            return latest is null ? null : new WorkshopChange(Tools.UnixTimeStampToDateTime(latest.timestamp), latest.change_description ?? string.Empty);
+        }
+        catch (OperationCanceledException)
+        {
+            return null;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Could not read the change notes of mod {Mod}", modId);
+            return null;
+        }
+    }
+
     public void ClearModDetailsCache()
     {
         _logger.LogInformation(@"Invalidating mod details cache");

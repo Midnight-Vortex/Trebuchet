@@ -80,6 +80,8 @@ public static class DiscordBotTexts
         nameof(DiscordBotConfig.CommunityName) => Resources.DiscordBotCommunityName,
         nameof(DiscordBotConfig.CommunityAvatarUrl) => Resources.DiscordBotCommunityAvatar,
         nameof(DiscordBotConfig.CommunityLeadMinutes) => Resources.DiscordBotCommunityLead,
+        nameof(DiscordBotConfig.ModUpdatesName) => Resources.DiscordBotModUpdatesName,
+        nameof(DiscordBotConfig.ModUpdatesAvatarUrl) => Resources.DiscordBotModUpdatesAvatar,
         nameof(DiscordBotConfig.CooldownSeconds) => Resources.DiscordBotCooldown,
         nameof(DiscordBotConfig.CriticalLimit) => Resources.DiscordBotCriticalLimit,
         nameof(DiscordBotConfig.CriticalWindowMinutes) => Resources.DiscordBotCriticalWindow,

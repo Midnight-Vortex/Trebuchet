@@ -332,6 +332,15 @@
                     <ContentControl Content="{Binding BotIdentityField}" ClipToBounds="False" />
                     <ContentControl Content="{Binding CommunityLeadField}" ClipToBounds="False" />
 
+                    <!-- (c3) Mod updates: new versions of the mods of the servers, with the notes of their authors, through a webhook of its own -->
+                    <TextBlock Classes="Title Section" Text="{x:Static a:Resources.DiscordBotSectionModUpdates}" />
+                    <Border Classes="HSeparator" />
+                    <TextBlock Text="{x:Static a:Resources.DiscordBotModUpdatesText}" Classes="SubText" TextWrapping="Wrap" Margin="0,0,0,12" />
+                    <ContentControl Content="{Binding ModUpdatesEnabledField}" ClipToBounds="False" />
+                    <ContentControl Content="{Binding ModUpdatesWebhookField}" ClipToBounds="False" />
+                    <ContentControl Content="{Binding ModUpdatesNameField}" ClipToBounds="False" />
+                    <ContentControl Content="{Binding ModUpdatesAvatarField}" ClipToBounds="False" />
+
                     <!-- (d0) Servers: which instances the bot manages and the name it uses for them -->
                     <TextBlock Classes="Title Section" Text="{x:Static a:Resources.DiscordBotSectionServers}" />
                     <Border Classes="HSeparator" />

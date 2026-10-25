@@ -156,6 +156,19 @@ public sealed class DiscordBotPanel : ReactiveObject, IBottomPanel, ITickingPane
             .SetEnabled(CanEdit));
         CommunityLeadField = Limit(Resources.DiscordBotCommunityLead, Resources.DiscordBotCommunityLeadText, DiscordBotLimits.CommunityLead,
             () => _editor.CommunityLeadMinutes, v => _editor.CommunityLeadMinutes = v, defaults.CommunityLeadMinutes);
+        // New versions of the mods of the servers, told to the players through a webhook of its own.
+        ModUpdatesEnabledField = Track(new ToggleField()
+            .SetTitle(Resources.DiscordBotModUpdatesEnabled)
+            .SetDescription(Resources.DiscordBotModUpdatesEnabledText)
+            .SetGetter(() => _editor.ModUpdatesEnabled)
+            .SetSetter(v => Edit(() => _editor.ModUpdatesEnabled = v))
+            .SetDefault(() => defaults.ModUpdatesEnabled)
+            .SetEnabled(CanEdit));
+        ModUpdatesWebhookField = WebhookField(webhooks.ModUpdates, Resources.DiscordBotModUpdatesWebhook, Resources.DiscordBotModUpdatesWebhookText);
+        ModUpdatesNameField = TextSetting(Resources.DiscordBotModUpdatesName, Resources.DiscordBotModUpdatesNameText,
+            () => _editor.ModUpdatesName, v => _editor.ModUpdatesName = v, defaults.ModUpdatesName);
+        ModUpdatesAvatarField = TextSetting(Resources.DiscordBotModUpdatesAvatar, Resources.DiscordBotModUpdatesAvatarText,
+            () => _editor.ModUpdatesAvatarUrl, v => _editor.ModUpdatesAvatarUrl = v, defaults.ModUpdatesAvatarUrl);
 
         LimitFields =
         [
@@ -434,6 +447,10 @@ public sealed class DiscordBotPanel : ReactiveObject, IBottomPanel, ITickingPane
     public TextField CommunityNameField { get; }
     public TextField CommunityAvatarField { get; }
     public IntField CommunityLeadField { get; }
+    public ToggleField ModUpdatesEnabledField { get; }
+    public SecretField ModUpdatesWebhookField { get; }
+    public TextField ModUpdatesNameField { get; }
+    public TextField ModUpdatesAvatarField { get; }
 
     // --- connection
     public SecretField TokenField { get; }
@@ -496,6 +513,7 @@ public sealed class DiscordBotPanel : ReactiveObject, IBottomPanel, ITickingPane
             TokenField.Refresh();
             AuditWebhookField.Refresh();
             CommunityWebhookField.Refresh();
+            ModUpdatesWebhookField.Refresh();
             ReloadAudit();
         }
         catch (Exception ex)

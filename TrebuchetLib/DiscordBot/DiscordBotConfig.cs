@@ -108,6 +108,16 @@ public sealed class DiscordBotConfig : ConfigFile<DiscordBotConfig>
     /// </summary>
     public bool BotTakesCommunityIdentity { get; set; }
 
+    /// <summary>
+    /// The mod update log: tells the players when a mod of the server mod lists got an update, with the notes of its author, through a
+    /// webhook of its own (also of another Discord server).
+    /// </summary>
+    public bool ModUpdatesEnabled { get; set; }
+    /// <summary>The name of the mod update log. Empty: the name of the webhook.</summary>
+    public string ModUpdatesName { get; set; } = string.Empty;
+    /// <summary>The picture (an https link to an image) of the mod update log. Empty: the one of the webhook.</summary>
+    public string ModUpdatesAvatarUrl { get; set; } = string.Empty;
+
     /// <summary>Names of the commands that are switched on. A command missing here is off.</summary>
     public List<string> EnabledCommands
     {

@@ -2036,7 +2036,7 @@ Le bot ne répond pas dans le salon : le salon d’administration est-il défini
         <value>Webhook de la communauté</value>
     </data>
     <data name="DiscordBotCommunityWebhookText" xml:space="preserve">
-        <value>L'URL du webhook du salon de la communauté (paramètres du salon → Intégrations → Webhooks → Copier l'URL). Stockée chiffrée pour votre utilisateur Windows et jamais réaffichée.</value>
+        <value>L'URL du webhook du salon de la communauté (paramètres du salon → Intégrations → Webhooks → Copier l'URL). Le salon peut se trouver sur un autre serveur Discord que le bot. Stockée chiffrée pour votre utilisateur Windows et jamais réaffichée.</value>
     </data>
     <data name="DiscordBotCommunityName" xml:space="preserve">
         <value>Nom du journal de la communauté</value>
@@ -2109,5 +2109,35 @@ Le bot ne répond pas dans le salon : le salon d’administration est-il défini
     </data>
     <data name="SettingUpdateRestartCountdownText" xml:space="preserve">
         <value>Combien de temps les joueurs sont prévenus avant qu'un serveur redémarre pour une mise à jour de mod ou de serveur (le compte à rebours commence quand la mise à jour est trouvée). Ne s'applique qu'aux sauvegardes dont les messages d'avertissement sont activés et sans séquence d'arrêt propre, et ne raccourcit jamais l'avertissement le plus long de la sauvegarde. 0 : seulement les avertissements de la sauvegarde.</value>
+    </data>
+    <data name="DiscordBotSectionModUpdates" xml:space="preserve">
+        <value>Mises à jour des mods</value>
+    </data>
+    <data name="DiscordBotModUpdatesText" xml:space="preserve">
+        <value>Informe vos joueurs quand un mod des listes de mods des serveurs reçoit une mise à jour : le nom du mod avec son image, quand il a été mis à jour et les notes de son auteur. Il nécessite son propre webhook, qui peut se trouver sur un autre serveur Discord que le bot (par exemple votre serveur communautaire). Trebuchet regarde les mods à chaque vérification des mises à jour ; ce qui s'est passé avant le premier regard n'est pas annoncé.</value>
+    </data>
+    <data name="DiscordBotModUpdatesEnabled" xml:space="preserve">
+        <value>Annoncer les mises à jour des mods</value>
+    </data>
+    <data name="DiscordBotModUpdatesEnabledText" xml:space="preserve">
+        <value>Publie un message dans le salon des mises à jour dès qu'un mod des listes de mods des serveurs est mis à jour.</value>
+    </data>
+    <data name="DiscordBotModUpdatesWebhook" xml:space="preserve">
+        <value>Webhook des mises à jour des mods</value>
+    </data>
+    <data name="DiscordBotModUpdatesWebhookText" xml:space="preserve">
+        <value>L'URL du webhook du salon des mises à jour des mods (paramètres du salon → Intégrations → Webhooks → Copier l'URL). Le salon peut se trouver sur un autre serveur Discord que le bot. Stockée chiffrée pour votre utilisateur Windows et jamais réaffichée.</value>
+    </data>
+    <data name="DiscordBotModUpdatesName" xml:space="preserve">
+        <value>Nom du journal des mises à jour des mods</value>
+    </data>
+    <data name="DiscordBotModUpdatesNameText" xml:space="preserve">
+        <value>Le nom sous lequel les messages apparaissent, par ex. « Mod Watcher ». Vide : le nom du webhook.</value>
+    </data>
+    <data name="DiscordBotModUpdatesAvatar" xml:space="preserve">
+        <value>Image du journal des mises à jour des mods</value>
+    </data>
+    <data name="DiscordBotModUpdatesAvatarText" xml:space="preserve">
+        <value>Un lien (https) vers une image. Vide : l'image du webhook.</value>
     </data>
 </root>

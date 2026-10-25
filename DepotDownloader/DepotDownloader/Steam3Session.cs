@@ -485,6 +485,23 @@ namespace DepotDownloader
             throw new Exception($"EResult {(int)details.Result} ({details.Result}) while retrieving file details for pubfile {pubFile}.");
         }
 
+        /// <summary>The latest change notes of a workshop file (what its author wrote with each update), newest first.</summary>
+        public async Task<List<CPublishedFile_GetChangeHistory_Response.ChangeLog>> GetChangeHistory(ulong publishedFileId, uint count)
+        {
+            var request = new CPublishedFile_GetChangeHistory_Request
+            {
+                publishedfileid = publishedFileId,
+                total_only = false,
+                startindex = 0,
+                count = count,
+                language = 0
+            };
+            var response = await steamPublishedFile.GetChangeHistory(request);
+            if (response.Result == EResult.OK)
+                return response.Body.changes;
+            throw new Exception($"EResult {(int)response.Result} ({response.Result}) while retrieving the change history of pubfile {publishedFileId}.");
+        }
+
         public async Task<SteamCloud.UGCDetailsCallback> GetUGCDetails(UGCHandle ugcHandle)
         {
             var callback = await steamCloud.RequestUGCDetails(ugcHandle);

@@ -4,6 +4,8 @@ public class PublishedMod(SteamWorksWebAPI.PublishedFile published, UGCFileStatu
 {
     public UGCFileStatus Status { get; } = status;
     public string Title { get; } = published.Title;
+    /// <summary>The picture of the mod on the workshop (a link), empty when Steam sent none.</summary>
+    public string PreviewUrl { get; } = published.PreviewUrl;
     public ulong TimeUpdated { get;  } = published.TimeUpdated;
     /// <summary>Steam sent the file of the mod (missing after a Steam error or when it left the workshop).</summary>
     public bool HasWorkshopFile { get; } = ulong.TryParse(published.HcontentFile, out _);

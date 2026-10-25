@@ -7564,7 +7564,7 @@ namespace Trebuchet.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to The webhook URL of the community channel (channel settings → Integrations → Webhooks → Copy URL). Stored encrypted for your Windows user and never shown again..
+        ///   Looks up a localized string similar to The webhook URL of the community channel (channel settings → Integrations → Webhooks → Copy URL). The channel may be on another Discord server than the bot. Stored encrypted for your Windows user and never shown again.
         /// </summary>
         public static string DiscordBotCommunityWebhookText {
             get {
@@ -7785,6 +7785,96 @@ namespace Trebuchet.Assets {
         public static string SettingUpdateRestartCountdownText {
             get {
                 return ResourceManager.GetString("SettingUpdateRestartCountdownText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Mod updates.
+        /// </summary>
+        public static string DiscordBotSectionModUpdates {
+            get {
+                return ResourceManager.GetString("DiscordBotSectionModUpdates", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Tells your players when a mod of the server mod lists got an update: the name of the mod with its picture, when it was updated and the notes its author wrote. It needs a webhook of its own, which may be on another Discord server than the bot (for example your community server). Trebuchet looks at the mods with every check for updates; what happened before the first look is not told..
+        /// </summary>
+        public static string DiscordBotModUpdatesText {
+            get {
+                return ResourceManager.GetString("DiscordBotModUpdatesText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Announce mod updates.
+        /// </summary>
+        public static string DiscordBotModUpdatesEnabled {
+            get {
+                return ResourceManager.GetString("DiscordBotModUpdatesEnabled", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Posts a message in the mod update channel whenever a mod of the server mod lists is updated..
+        /// </summary>
+        public static string DiscordBotModUpdatesEnabledText {
+            get {
+                return ResourceManager.GetString("DiscordBotModUpdatesEnabledText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Mod update webhook.
+        /// </summary>
+        public static string DiscordBotModUpdatesWebhook {
+            get {
+                return ResourceManager.GetString("DiscordBotModUpdatesWebhook", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The webhook URL of the channel for mod updates (channel settings → Integrations → Webhooks → Copy URL). The channel may be on another Discord server than the bot. Stored encrypted for your Windows user and never shown again..
+        /// </summary>
+        public static string DiscordBotModUpdatesWebhookText {
+            get {
+                return ResourceManager.GetString("DiscordBotModUpdatesWebhookText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Name of the mod update log.
+        /// </summary>
+        public static string DiscordBotModUpdatesName {
+            get {
+                return ResourceManager.GetString("DiscordBotModUpdatesName", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The name the messages appear under, e.g. "Mod Watcher". Empty: the name of the webhook..
+        /// </summary>
+        public static string DiscordBotModUpdatesNameText {
+            get {
+                return ResourceManager.GetString("DiscordBotModUpdatesNameText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Picture of the mod update log.
+        /// </summary>
+        public static string DiscordBotModUpdatesAvatar {
+            get {
+                return ResourceManager.GetString("DiscordBotModUpdatesAvatar", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to A link (https) to an image. Empty: the picture of the webhook..
+        /// </summary>
+        public static string DiscordBotModUpdatesAvatarText {
+            get {
+                return ResourceManager.GetString("DiscordBotModUpdatesAvatarText", resourceCulture);
             }
         }
         

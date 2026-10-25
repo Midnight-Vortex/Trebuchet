@@ -8,7 +8,7 @@ namespace TrebuchetLib.DiscordBot;
 /// thread the launcher is used on. Actions that take minutes (countdowns, starts, updates) are started there and go on
 /// in the background: the answer waits only a moment for them and their later failure is logged. Never throws.
 /// </summary>
-public sealed class LauncherBotActions : IBotActions, IDisposable
+public sealed class LauncherBotActions : IBotActions, IBotModUpdates, IDisposable
 {
     /// <summary>A scheduled restart further ahead is not shown as pending.</summary>
     public static readonly TimeSpan ScheduledRestartLookAhead = TimeSpan.FromHours(1);
@@ -34,11 +34,34 @@ public sealed class LauncherBotActions : IBotActions, IDisposable
         _dispatcher = dispatcher;
         _logger = logger;
         _launcher.ServerStatusChanged += OnLauncherStatusChanged;
+        _launcher.ModVersionsChecked += OnLauncherModVersions;
     }
 
     public event EventHandler? StatusChanged;
 
-    public void Dispose() => _launcher.ServerStatusChanged -= OnLauncherStatusChanged;
+    public event EventHandler<IReadOnlyList<BotModVersion>>? ModVersionsChecked;
+
+    public void Dispose()
+    {
+        _launcher.ServerStatusChanged -= OnLauncherStatusChanged;
+        _launcher.ModVersionsChecked -= OnLauncherModVersions;
+    }
+
+    private void OnLauncherModVersions(object? sender, IReadOnlyList<PublishedMod> versions)
+    {
+        try
+        {
+            ModVersionsChecked?.Invoke(this,
+                versions.Select(x => new BotModVersion(x.PublishedFileId, x.Title, x.TimeUpdated, x.PreviewUrl)).ToList());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Discord bot: a listener of the mod versions failed");
+        }
+    }
+
+    public async Task<WorkshopChange?> GetChangeAsync(ulong modId, CancellationToken token) =>
+        await _launcher.GetModChange(modId).WaitAsync(token).ConfigureAwait(false);
 
     private void OnLauncherStatusChanged(object? sender, EventArgs e)
     {

@@ -148,6 +148,14 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     /// thread noticed it, not only on the launcher thread: handlers only take note (wake a loop) and read the state later.
     /// </summary>
     public event EventHandler? ServerStatusChanged;
+    /// <summary>
+    /// The versions Steam knows of the mods of the server mod lists, after every check for updates (what the community is told about
+    /// new versions). Raised on the thread of the check; a handler that fails does not disturb the check.
+    /// </summary>
+    public event EventHandler<IReadOnlyList<PublishedMod>>? ModVersionsChecked;
+
+    /// <summary>The latest change note of a mod, null when there is none or Steam could not be asked.</summary>
+    public Task<WorkshopChange?> GetModChange(ulong modId) => _steam.GetLatestModChange(modId);
 
     public void Dispose()
     {
@@ -1827,6 +1835,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
                 if(_appFiles.TryParseModListRef(_setup.Config.GetInstanceModlist(i), out var modListRef))
                     lists.Add(modListRef);
             }
+            var serverMods = lists.GetModsFromList().ToHashSet();
             if(_appFiles.TryParseModListRef(_setup.Config.SelectedClientModlist, out var clientModList))
                 lists.Add(clientModList);
             var ids = lists.GetModsFromList().Distinct().ToList();
@@ -1841,6 +1850,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             // No answer from the Steam web API (down, timeout) is no result: the pre-launch update then falls back to
             // updating every mod, and no restart is decided on stale data.
             if (details.Count == 0) return false;
+            RaiseModVersionsChecked(details.Where(x => serverMods.Contains(x.PublishedFileId)).ToList());
 
             _modNeedUpdate.Clear();
             // Without the file from Steam a mod cannot be downloaded: a restart for it would only repeat itself.
@@ -1858,6 +1868,18 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         {
             _logger.LogError(ex, "Failed to check mod updates");
             return false;
+        }
+    }
+
+    private void RaiseModVersionsChecked(IReadOnlyList<PublishedMod> versions)
+    {
+        try
+        {
+            ModVersionsChecked?.Invoke(this, versions);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "A listener of the mod versions failed");
         }
     }
 

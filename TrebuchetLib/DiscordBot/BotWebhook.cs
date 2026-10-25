@@ -81,7 +81,9 @@ public static partial class BotWebhook
 }
 
 /// <summary>An embed of a webhook message: what the community sees (title, text with Discord timestamps, color, time).</summary>
-public sealed record BotWebhookEmbed(string Title, string Description, uint Color, DateTime? TimestampUtc);
+/// <param name="Url">A link the title points to (https), null: none.</param>
+/// <param name="ThumbnailUrl">A small picture at the side (https), null: none.</param>
+public sealed record BotWebhookEmbed(string Title, string Description, uint Color, DateTime? TimestampUtc, string? Url = null, string? ThumbnailUrl = null);
 
 /// <summary>
 /// A message through a webhook. <paramref name="Username"/> and <paramref name="AvatarUrl"/> replace the name and the picture
@@ -294,6 +296,9 @@ public sealed class HttpBotWebhookClient : IBotWebhookClient, IDisposable
         return json.ToJsonString();
     }
 
+    private static bool IsHttps(string? link) =>
+        !string.IsNullOrEmpty(link) && link.Length <= 2000 && Uri.TryCreate(link, UriKind.Absolute, out var uri) && uri.Scheme == Uri.UriSchemeHttps;
+
     internal static JsonObject ToEmbed(BotWebhookEmbed embed)
     {
         var json = new JsonObject
@@ -304,6 +309,8 @@ public sealed class HttpBotWebhookClient : IBotWebhookClient, IDisposable
         };
         if (embed.TimestampUtc is { } time)
             json["timestamp"] = DateTime.SpecifyKind(time, DateTimeKind.Utc).ToString("yyyy-MM-dd'T'HH:mm:ss.fff'Z'", CultureInfo.InvariantCulture);
+        if (IsHttps(embed.Url)) json["url"] = embed.Url;
+        if (IsHttps(embed.ThumbnailUrl)) json["thumbnail"] = new JsonObject { ["url"] = embed.ThumbnailUrl };
         return json;
     }
 
@@ -395,17 +402,23 @@ public sealed class BotWebhookStore
     }
 }
 
-/// <summary>The two webhooks of the bot: the audit channel and the community channel.</summary>
-public sealed class BotWebhooks(BotWebhookStore audit, BotWebhookStore community, BotAccountIdentityStore? identity = null)
+/// <summary>The three webhooks of the bot: the audit channel, the community channel and the one for mod updates.</summary>
+public sealed class BotWebhooks(BotWebhookStore audit, BotWebhookStore community, BotWebhookStore modUpdates, BotModUpdateStore modVersions,
+    BotAccountIdentityStore? identity = null)
 {
-    /// <summary>The two files sit next to the file of the token (same folder, same edition).</summary>
+    /// <summary>The files sit next to the file of the token (same folder, same edition).</summary>
     public static BotWebhooks ForTokenPath(string tokenPath) => new(
         new BotWebhookStore(Path.ChangeExtension(tokenPath, ".audit-webhook")),
         new BotWebhookStore(Path.ChangeExtension(tokenPath, ".community-webhook")),
+        new BotWebhookStore(Path.ChangeExtension(tokenPath, ".modupdates-webhook")),
+        new BotModUpdateStore(Path.ChangeExtension(tokenPath, ".mod-versions")),
         new BotAccountIdentityStore(Path.ChangeExtension(tokenPath, ".identity")));
 
     public BotWebhookStore Audit { get; } = audit;
     public BotWebhookStore Community { get; } = community;
+    public BotWebhookStore ModUpdates { get; } = modUpdates;
+    /// <summary>Which version of each mod was seen last (not a secret).</summary>
+    public BotModUpdateStore ModVersions { get; } = modVersions;
     /// <summary>Which picture the bot account was given (next to the token, not a secret).</summary>
     public BotAccountIdentityStore? Identity { get; } = identity;
 }

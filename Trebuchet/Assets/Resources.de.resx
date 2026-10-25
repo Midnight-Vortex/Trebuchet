@@ -2646,7 +2646,7 @@ Bei „Token bereits in Verwendung“ läuft ein Bot mit demselben Token schon i
         <value>Community-Webhook</value>
     </data>
     <data name="DiscordBotCommunityWebhookText" xml:space="preserve">
-        <value>Die Webhook-URL des Community-Kanals (Kanal-Einstellungen → Integrationen → Webhooks → URL kopieren). Wird für deinen Windows-Benutzer verschlüsselt gespeichert und nie wieder angezeigt.</value>
+        <value>Die Webhook-URL des Community-Kanals (Kanal-Einstellungen → Integrationen → Webhooks → URL kopieren). Der Kanal darf auf einem anderen Discord-Server liegen als der Bot. Wird für deinen Windows-Benutzer verschlüsselt gespeichert und nie wieder angezeigt.</value>
     </data>
     <data name="DiscordBotCommunityName" xml:space="preserve">
         <value>Name des Community-Logs</value>
@@ -2719,5 +2719,35 @@ Bei „Token bereits in Verwendung“ läuft ein Bot mit demselben Token schon i
     </data>
     <data name="SettingUpdateRestartCountdownText" xml:space="preserve">
         <value>Wie lange die Spieler gewarnt werden, bevor ein Server für ein Mod- oder Server-Update neu startet (der Countdown beginnt, wenn das Update gefunden wird). Gilt nur für Speicherstände mit eingeschalteten Warnmeldungen und ohne eigene Stopp-Abfolge und macht die Warnung nie kürzer als die längste Warnung des Speicherstands. 0: nur die Warnungen des Speicherstands.</value>
+    </data>
+    <data name="DiscordBotSectionModUpdates" xml:space="preserve">
+        <value>Mod-Updates</value>
+    </data>
+    <data name="DiscordBotModUpdatesText" xml:space="preserve">
+        <value>Sagt deinen Spielern, wenn ein Mod aus den Mod-Listen der Server ein Update bekommen hat: der Name des Mods mit seinem Bild, wann er aktualisiert wurde und die Patch-Notes seines Autors. Es braucht einen eigenen Webhook, der auf einem anderen Discord-Server liegen darf als der Bot (zum Beispiel auf deinem Community-Server). Trebuchet schaut bei jeder Prüfung auf Updates nach den Mods; was vor dem ersten Blick passiert ist, wird nicht gemeldet.</value>
+    </data>
+    <data name="DiscordBotModUpdatesEnabled" xml:space="preserve">
+        <value>Mod-Updates ankündigen</value>
+    </data>
+    <data name="DiscordBotModUpdatesEnabledText" xml:space="preserve">
+        <value>Schreibt eine Meldung in den Mod-Update-Kanal, sobald ein Mod aus den Mod-Listen der Server aktualisiert wird.</value>
+    </data>
+    <data name="DiscordBotModUpdatesWebhook" xml:space="preserve">
+        <value>Mod-Update-Webhook</value>
+    </data>
+    <data name="DiscordBotModUpdatesWebhookText" xml:space="preserve">
+        <value>Die Webhook-URL des Kanals für Mod-Updates (Kanal-Einstellungen → Integrationen → Webhooks → URL kopieren). Der Kanal darf auf einem anderen Discord-Server liegen als der Bot. Wird für deinen Windows-Benutzer verschlüsselt gespeichert und nie wieder angezeigt.</value>
+    </data>
+    <data name="DiscordBotModUpdatesName" xml:space="preserve">
+        <value>Name des Mod-Update-Logs</value>
+    </data>
+    <data name="DiscordBotModUpdatesNameText" xml:space="preserve">
+        <value>Der Name, unter dem die Meldungen erscheinen, z. B. „Mod Watcher“. Leer: der Name des Webhooks.</value>
+    </data>
+    <data name="DiscordBotModUpdatesAvatar" xml:space="preserve">
+        <value>Bild des Mod-Update-Logs</value>
+    </data>
+    <data name="DiscordBotModUpdatesAvatarText" xml:space="preserve">
+        <value>Ein Link (https) auf ein Bild. Leer: das Bild des Webhooks.</value>
     </data>
 </root>
