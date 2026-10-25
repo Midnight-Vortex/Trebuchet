@@ -211,6 +211,8 @@ public sealed class BotModUpdateLog : IDisposable
     // look new at every look.
     private Dictionary<ulong, BotModSeen>? _known;
     private bool _loaded;
+    // The updates a line in the log said were not told (once each).
+    private readonly HashSet<(ulong Mod, ulong Content)> _notToldLogged = [];
 
     public BotModUpdateLog(IBotModUpdates updates, IBotWebhookClient client, Func<string?> webhook, Func<BotPolicy?> policy,
         BotModUpdateStore store, Func<DateTime>? clock = null, ILogger? logger = null)
@@ -304,11 +306,20 @@ public sealed class BotModUpdateLog : IDisposable
                 // An update is a new file (a new picture or text changes the time of the update, not the file) that the players were not told
                 // about yet: one the servers still have to install (found at the very first look too: the restart for it is under way), or one
                 // that appeared since the last look.
-                else if (enabled && mod.ContentId != told && now - FromUnix(mod.TimeUpdated) <= MaxAge
+                else if (mod.ContentId != told && now - FromUnix(mod.TimeUpdated) <= MaxAge
                          && (mod.NeedsUpdate || before is not null && mod.ContentId != before.Content && mod.TimeUpdated > before.Time))
                 {
-                    news.Add(mod);
-                    seen = seen with { Told = mod.ContentId };
+                    if (enabled)
+                    {
+                        news.Add(mod);
+                        seen = seen with { Told = mod.ContentId };
+                    }
+                    else if (_notToldLogged.Add((mod.Id, mod.ContentId)))
+                    {
+                        // Once per version: why nothing was written, for whoever wonders where the message stays.
+                        _logger?.LogInformation("Discord bot: the update of mod {Title} ({Id}) is not told: the mod update log is off, has no webhook, or the bot is stopped",
+                            Clean(mod.Title), mod.Id);
+                    }
                 }
                 current[mod.Id] = seen;
             }

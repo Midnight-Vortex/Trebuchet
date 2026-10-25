@@ -1829,12 +1829,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
         {
             _logger.LogInformation("Checking mod updates");
             _modListNeedUpdate.Clear();
-            var lists = new List<IPRefWithModList>();
-            for (int i = 0; i < _setup.Config.ServerInstanceCount; i++)
-            {
-                if(_appFiles.TryParseModListRef(_setup.Config.GetInstanceModlist(i), out var modListRef))
-                    lists.Add(modListRef);
-            }
+            var lists = GetServerModLists();
             var serverMods = lists.GetModsFromList().ToHashSet();
             if(_appFiles.TryParseModListRef(_setup.Config.SelectedClientModlist, out var clientModList))
                 lists.Add(clientModList);
@@ -1869,6 +1864,28 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             _logger.LogError(ex, "Failed to check mod updates");
             return false;
         }
+    }
+
+    /// <summary>
+    /// The mod lists the server instances run with: the one that is shown for the instance in the dashboard and that its start uses, so also
+    /// a list that was never chosen (the first one) or that an older version stored as a plain name. (Only listing what was chosen
+    /// explicitly left such an instance out of the check for updates: no restart for its mod updates, nothing told.)
+    /// </summary>
+    internal List<IPRefWithModList> GetServerModLists()
+    {
+        var lists = new List<IPRefWithModList>();
+        for (var i = 0; i < _setup.Config.ServerInstanceCount; i++)
+        {
+            try
+            {
+                lists.Add(_appFiles.ResolveModList(_setup.Config.GetInstanceModlist(i)));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Could not read the mod list of instance {Instance}", i);
+            }
+        }
+        return lists;
     }
 
     private void RaiseModVersionsChecked(IReadOnlyList<PublishedMod> versions)

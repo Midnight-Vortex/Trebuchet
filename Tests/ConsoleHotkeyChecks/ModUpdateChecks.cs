@@ -300,8 +300,10 @@ static class ModUpdateChecks
         var enabledPolicy = policy;
         policy = PolicyOf(c => { c.ModUpdatesEnabled = false; });
         await fresh1.LookAsync([pending], CancellationToken.None);
+        await fresh1.LookAsync([pending], CancellationToken.None);
         await fresh1.FlushAsync(TimeSpan.FromSeconds(5));
-        check(hook.Embeds.Length == before, "A mod still to be installed is not told while the log is off");
+        check(hook.Embeds.Length == before && logger.Lines.Count(x => x.Contains("Pending (3001) is not told", StringComparison.Ordinal)) == 1,
+            "A mod still to be installed is not told while the log is off, and the log of Trebuchet says why, once: " + string.Join('|', logger.Lines.Where(x => x.Contains("3001", StringComparison.Ordinal))));
         policy = enabledPolicy;
         await fresh1.LookAsync([pending], CancellationToken.None);
         await fresh1.FlushAsync(TimeSpan.FromSeconds(5));

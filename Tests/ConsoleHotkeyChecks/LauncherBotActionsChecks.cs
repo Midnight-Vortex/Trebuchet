@@ -548,6 +548,17 @@ static class LauncherBotActionsChecks
             check((await Reason(mods.Uri.OriginalString, files.Server.Ref(tag + "-gone").Uri.OriginalString)) == "no save selected",
                 "A chosen save that is gone is refused as such");
             config.SetInstanceModlist(1, mods.Uri.OriginalString);
+
+            // The check for updates looks at the mod lists the instances run with: also a list that was never chosen (the dashboard shows
+            // and starts the first one) and the plain name of older versions. Leaving them out meant no restart for their mod updates.
+            config.SetInstanceModlist(0, "");
+            config.SetInstanceModlist(1, mods.Name);
+            config.SetInstanceModlist(2, mods.Uri.OriginalString);
+            var runWith = launcher.GetServerModLists();
+            check(runWith.Count == 3 && runWith.All(x => x.Name == mods.Name && x.TryGetModList(out _)),
+                "The mod lists of the instances for the check for updates: one never chosen, a plain name and a link all count: " + string.Join(",", runWith.Select(x => x.Name)));
+            config.SetInstanceModlist(0, mods.Uri.OriginalString);
+            config.SetInstanceModlist(2, "");
         }
     }
 
