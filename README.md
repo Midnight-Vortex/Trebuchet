@@ -2,6 +2,12 @@
 
 After installing, launch Trebuchet from the Start menu or desktop shortcut. The installer deliberately does not launch it: on affected Windows versions, a process started by Setup can inherit RedirectionGuard and fail to traverse Trebuchet's Saved/profile junctions. Conan then reports that it cannot ensure `Saved/ExtractedMods` exists, even when the directory is present. If this happens after an older setup, fully close Trebuchet and relaunch it from the Start menu; reinstalling mods is not required for this directory-access error.
 
+## 0.9.29 start from Discord works, "online" after a start, community log on another server
+
+- **Starting from Discord no longer fails with "no save or mod list selected" when the dashboard shows both.** The dashboard shows (and the launcher starts) the first mod list when none was ever chosen, and also the plain name that older versions stored; the bot refused both. Now they start. A chosen save or mod list that is gone is still refused, and the reply says which one ("the chosen save / mod list is not there (any more)").
+- **The community log tells "🟢 The server is online" when a server was started** (from Discord, the dashboard or by hand), as it does after a restart. It says nothing about an offline time and does not say "again", because nobody was told it went down. After a stop or restart that was announced, "back online" with the offline time stays as before; a crash and the restart after it still say nothing.
+- **The webhook of the community log may belong to another Discord server** than the bot: your team server for the bot, a server of your own for the players. The webhook of the audit log (what only the team reads) still has to be on the server of the bot.
+
 ## 0.9.28 faster Discord bot, cancel told at once, thrall relevance distance
 
 - **The Discord bot answers faster.** A command or a button of the status message is answered with one call to Discord instead of two, the state of the servers is read once for everybody who asks at the same time (button, status message, community log), the status messages and the community log refresh side by side, and the status message can be edited every 2 seconds (it was 5). The answers of the bot no longer wait for the notice to the players in the game; that goes on in the background. If an answer takes longer than 1.5 seconds, Discord shows "thinking" as before. `/restart postpone` is still confirmed first, because it adds the minutes every time.

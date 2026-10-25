@@ -198,7 +198,8 @@ Zeit, User-ID, Anzeigename (nur zur Info), Server-/Kanal-ID, Befehl, Parameter, 
   Webhook nicht, fällt es auf den Audit-Kanal zurück. `HttpBotWebhookClient` spricht den Webhook direkt per HTTPS an (eine
   Verbindung für alle Nachrichten, keine Weiterleitungen, API-Version v10 genannt, kein blockierender Aufruf je Nachricht wie im
   Konstruktor von `DiscordWebhookClient`) und fragt vor der ersten Nachricht `GET /webhooks/{id}/{token}` nach `guild_id`: ein Webhook eines anderen Servers als `GuildId` bekommt nie
-  eine Nachricht. `?thread_id=` der Adresse bleibt erhalten (Threads, Forum-Beiträge), 429 wird einmal nach `retry_after` (höchstens
+  eine Nachricht (so beim Audit-Log; der Community-Log übergibt `BotWebhook.AnyServer`: er darf auf einem Server für die Spieler liegen,
+  das Team-Discord ist ein anderes, die Frage nach dem Server entfällt dort). `?thread_id=` der Adresse bleibt erhalten (Threads, Forum-Beiträge), 429 wird einmal nach `retry_after` (höchstens
   10 s) wiederholt. Alles zusammen (Frage nach dem Server, Nachricht, Warten) hat ein Zeitbudget (`SendWithinAsync`, Audit 10 s,
   Community 15 s); ist es um, wird der Aufruf abgebrochen, nicht nur aufgegeben: eine Zeile kommt nie doppelt an (Webhook und Kanal). Namen und Bild-Links mit Token/Webhook-Adresse (`BotLogRedactor`), Namen mit „discord“/„clyde“ (Discord lehnt sie
   ab; geprüft wird der Name, wie er gesendet wird, also ohne unsichtbare Zeichen) und Links mit Benutzerangabe sind ungültige

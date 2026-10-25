@@ -13,6 +13,12 @@ namespace TrebuchetLib.DiscordBot;
 public static partial class BotWebhook
 {
     /// <summary>
+    /// For <c>expectedGuildId</c>: the webhook may belong to any Discord server. Only for what the players read (the community log, often
+    /// on a server of its own); what is only for the team (the audit log) stays on the server of the bot.
+    /// </summary>
+    public const ulong AnyServer = ulong.MaxValue;
+
+    /// <summary>
     /// Takes what was pasted (spaces, quotes, a query like <c>?wait=true</c>) and returns the clean URL when it is one.
     /// A numeric <c>thread_id</c> stays (the webhook of a thread or a forum post), everything else of the query goes.
     /// </summary>
@@ -91,7 +97,8 @@ public interface IBotWebhookClient
 {
     /// <param name="expectedGuildId">
     /// The server the webhook must belong to (the server of the bot): a webhook of another server is never written to, so
-    /// a webhook left over from an old setup or pasted from a foreign server stays silent.
+    /// a webhook left over from an old setup or pasted from a foreign server stays silent. <see cref="BotWebhook.AnyServer"/>:
+    /// any server (the webhook is not asked, the message goes out).
     /// </param>
     /// <exception cref="Exception">Discord refused it or there is no connection: the caller logs and drops the message.</exception>
     Task SendAsync(string webhookUrl, BotWebhookMessage message, ulong expectedGuildId, CancellationToken token);
@@ -152,9 +159,12 @@ public sealed class HttpBotWebhookClient : IBotWebhookClient, IDisposable
         var webhook = BotWebhook.WithoutThread(url);
         try
         {
-            var guild = await GuildOfAsync(webhook, token).ConfigureAwait(false);
-            if (expectedGuildId == 0 || guild != expectedGuildId)
-                throw new BotWebhookException("The webhook belongs to another Discord server than the bot's.");
+            if (expectedGuildId != BotWebhook.AnyServer)
+            {
+                var guild = await GuildOfAsync(webhook, token).ConfigureAwait(false);
+                if (expectedGuildId == 0 || guild != expectedGuildId)
+                    throw new BotWebhookException("The webhook belongs to another Discord server than the bot's.");
+            }
             await PostAsync(url, Payload(message), token).ConfigureAwait(false);
         }
         catch (Exception ex) when (ex is not OperationCanceledException and not BotWebhookException)

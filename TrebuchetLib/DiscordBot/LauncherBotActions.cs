@@ -249,8 +249,9 @@ public sealed class LauncherBotActions : IBotActions, IDisposable
             if (status.Starting) return new BotActionResult(BotActionOutcome.Busy, "starting");
             if (status.ShuttingDown) return new BotActionResult(BotActionOutcome.Busy, "stopping");
             if (!status.Installed) return Fail("instance not installed");
-            // The launcher would fall back to another save or mod list: the bot only starts what was chosen.
-            if (!HasSaveAndModList(instance)) return Fail("no save or mod list selected");
+            // The launcher would fall back to another save if the chosen one is gone: the bot only starts what was chosen.
+            if (!HasSave(instance)) return Fail("no save selected");
+            if (!HasModList(instance)) return Fail("no mod list selected");
             // One save cannot run twice (the launcher refuses it as locked).
             if (all.Any(x => x.Instance != instance && (x.State is not null || x.Starting)
                              && string.Equals(x.SaveName, status.SaveName, StringComparison.OrdinalIgnoreCase)))
@@ -395,12 +396,18 @@ public sealed class LauncherBotActions : IBotActions, IDisposable
         return null;
     }
 
-    private bool HasSaveAndModList(int instance)
+    private bool HasSave(int instance) => _files.Server.TryResolve(_setup.Config.GetInstanceProfile(instance), out _);
+
+    /// <summary>
+    /// A mod list that was never chosen counts: the dashboard shows the first one as selected and starts it, and so does the launcher.
+    /// A chosen one (a link, or the plain name older versions stored) has to be there still.
+    /// </summary>
+    private bool HasModList(int instance)
     {
-        var config = _setup.Config;
-        return _files.Server.TryResolve(config.GetInstanceProfile(instance), out _)
-               && _files.TryParseModListRef(config.GetInstanceModlist(instance), out var modList)
-               && modList.TryGetModList(out _);
+        var selected = _setup.Config.GetInstanceModlist(instance);
+        if (string.IsNullOrWhiteSpace(selected)) return _files.ResolveModList(selected).TryGetModList(out _);
+        if (_files.TryParseModListRef(selected, out var modList)) return modList.TryGetModList(out _);
+        return _files.Mods.Exists(selected) && _files.Mods.Ref(selected).TryGetModList(out _);
     }
 
     /// <summary>

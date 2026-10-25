@@ -34,6 +34,9 @@ public sealed class BotCommunityTexts
     /// <summary>{0} how long the server was offline.</summary>
     public required string OnlineAfterRestartBody { get; init; }
     public required string OnlineAfterStopBody { get; init; }
+    /// <summary>A server that was started (it was not announced going down before): no offline time, nothing "again".</summary>
+    public required string StartedTitle { get; init; }
+    public required string StartedBody { get; init; }
     public required string OneMinute { get; init; }
     /// <summary>{0} minutes.</summary>
     public required string Minutes { get; init; }
@@ -68,6 +71,8 @@ public sealed class BotCommunityTexts
         OnlineTitle = "🟢 Der Server ist wieder online",
         OnlineAfterRestartBody = "Der Neustart ist durch – ihr könnt euch wieder einloggen.\n**Offline:** {0}",
         OnlineAfterStopBody = "Ihr könnt euch wieder einloggen.\n**Offline:** {0}",
+        StartedTitle = "🟢 Der Server ist online",
+        StartedBody = "Der Server wurde gestartet – ihr könnt euch jetzt einloggen.",
         OneMinute = "1 Minute",
         Minutes = "{0} Minuten",
         HoursOnly = "{0} Std.",
@@ -98,6 +103,8 @@ public sealed class BotCommunityTexts
         OnlineTitle = "🟢 The server is back online",
         OnlineAfterRestartBody = "The restart is done – you can log in again.\n**Offline:** {0}",
         OnlineAfterStopBody = "You can log in again.\n**Offline:** {0}",
+        StartedTitle = "🟢 The server is online",
+        StartedBody = "The server has started – you can log in now.",
         OneMinute = "1 minute",
         Minutes = "{0} minutes",
         HoursOnly = "{0} h",
@@ -131,7 +138,7 @@ public sealed class BotCommunityTexts
 /// The community log: tells the players of a server what happens to it, in a channel of its own through a webhook with its
 /// own name and picture: a planned restart or stop shortly before it (with the time), that it is going down now, and that
 /// it is back with how long it was offline. Planned means the launcher knows about it (schedule, update, countdown, a stop
-/// or restart from Discord or the window); a crash or a server that was down all along says nothing.
+/// or restart from Discord or the window); a crash or a server that was down all along says nothing. A server that is started says it is online.
 /// </summary>
 /// <remarks>
 /// It reads the states itself (like the status board, but without needing a status message or an admin channel) and sends
@@ -183,6 +190,8 @@ public sealed class BotCommunityLog : IDisposable
         public DateTime? OfflineSince;
         public bool Told;
         public bool ToldRestart;
+        // The server crashed since it was last online: its way back says nothing (the launcher did not plan it).
+        public bool Crashed;
         // The bot was away after the players were told: when the server is back is known, how long it was down is not.
         public bool UnknownDuration;
     }
@@ -322,6 +331,7 @@ public sealed class BotCommunityLog : IDisposable
             memory.SeenAt = now;
             var before = memory.Last;
             memory.Last = status.State;
+            if (status.State == BotServerState.Crashed) memory.Crashed = true;
 
             if (before is BotServerState.Online && status.State != BotServerState.Online)
             {
@@ -355,7 +365,13 @@ public sealed class BotCommunityLog : IDisposable
                         : string.Format(CultureInfo.InvariantCulture, template, texts.Duration(now - since));
                     Enqueue(Embed(texts.OnlineTitle, body, Green, now, status, several));
                 }
+                else if (!memory.Crashed)
+                {
+                    // Nobody was told it went down (it was off when the bot first looked, or the bot was away): it was started.
+                    Enqueue(Embed(texts.StartedTitle, texts.StartedBody, Green, now, status, several));
+                }
                 memory.Told = false;
+                memory.Crashed = false;
                 memory.UnknownDuration = false;
                 memory.OfflineSince = null;
             }
@@ -542,7 +558,7 @@ public sealed class BotCommunityLog : IDisposable
             if (policy is not { CommunityEnabled: true } || url is null) return;
             var name = string.IsNullOrWhiteSpace(policy.CommunityName) ? null : policy.CommunityName;
             var avatar = string.IsNullOrWhiteSpace(policy.CommunityAvatarUrl) ? null : policy.CommunityAvatarUrl;
-            await _client.SendWithinAsync(url, new BotWebhookMessage(name, avatar, null, embed), policy.GuildId, SendBudget, token).ConfigureAwait(false);
+            await _client.SendWithinAsync(url, new BotWebhookMessage(name, avatar, null, embed), BotWebhook.AnyServer, SendBudget, token).ConfigureAwait(false);
             _failing = false;
         }
         catch (OperationCanceledException) when (token.IsCancellationRequested)

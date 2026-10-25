@@ -399,6 +399,14 @@ static class CommunityLogChecks
         check(other is BotWebhookException && none is BotWebhookException && http.Posts == before
               && !other.Message.Contains("abcdefghijklmnop"), "A webhook of another server is never written to: " + other?.Message);
 
+        // Any server (the community log): the webhook is not asked which server it belongs to, and the message goes out.
+        var anyHttp = new FakeDiscordHttp();
+        using (var anyClient = new HttpBotWebhookClient(null, anyHttp))
+        {
+            await anyClient.SendAsync(WebhookUrl, new BotWebhookMessage(null, null, "x", null), BotWebhook.AnyServer, CancellationToken.None);
+            check(anyHttp.Gets == 0 && anyHttp.Posts == 1, "A webhook that may belong to any server is written to without asking for its server");
+        }
+
         // The webhook is gone (404): refused, and asked again next time.
         http.PostAnswer = _ => Answer(System.Net.HttpStatusCode.NotFound, "{\"message\":\"Unknown Webhook\",\"code\":10015}");
         var gone = await Capture(() => client.SendAsync(WebhookUrl, new BotWebhookMessage(null, null, "x", null), Guild, CancellationToken.None));
@@ -717,18 +725,19 @@ static class CommunityLogChecks
         await scene.Look(scene.Launcher(TrebuchetLib.ProcessState.STOPPED), 0);
         await scene.Look(scene.Launcher(TrebuchetLib.ProcessState.STOPPED), 60);
         await scene.Look(scene.Launcher(TrebuchetLib.ProcessState.ONLINE), 60);
-        check(scene.Hooks.Messages.Length == 0, "A stop that happened while the bot was away is not told as happening now, nor its end: " + string.Join(" | ", scene.Titles()));
+        // The stop is old news; the start the bot saw happen (it was stopped at its first look, a minute later it is online) is told.
+        check(scene.Titles().SequenceEqual(["🟢 Der Server ist online"]), "A stop that happened while the bot was away is not told as happening now, a start it saw is: " + string.Join(" | ", scene.Titles()));
         // The same stop seen at the usual pace is told.
         await scene.Look(scene.Launcher(TrebuchetLib.ProcessState.STOPPING), 240);
-        check(scene.Titles().SequenceEqual(["⏹️ Der Server wird jetzt gestoppt"]), "...while a stop seen at the usual pace is: " + string.Join(" | ", scene.Titles()));
+        check(scene.Titles().SequenceEqual(["🟢 Der Server ist online", "⏹️ Der Server wird jetzt gestoppt"]), "...while a stop seen at the usual pace is: " + string.Join(" | ", scene.Titles()));
         // The players were told it goes down, the bot was away while it came back: the end is told late, without a made-up offline time.
         scene.Now = scene.Now.AddHours(2);
         await scene.Look(scene.Launcher(TrebuchetLib.ProcessState.ONLINE), 0);
         var late = scene.Hooks.Messages.Select(x => x.Embed!).ToArray();
-        check(late.Length == 2 && late[1].Title == "🟢 Der Server ist wieder online" && late[1].Description == "Ihr könnt euch wieder einloggen.",
+        check(late.Length == 3 && late[2].Title == "🟢 Der Server ist wieder online" && late[2].Description == "Ihr könnt euch wieder einloggen.",
             "A server that came back while the bot was away is told late, without the offline time: " + string.Join(" | ", late.Select(x => x.Title + "/" + x.Description)));
         await scene.Look(scene.Launcher(TrebuchetLib.ProcessState.ONLINE), 120);
-        check(scene.Hooks.Messages.Length == 2, "...once");
+        check(scene.Hooks.Messages.Length == 3, "...once");
     }
 
     // The players were told a time: when the plan is cancelled or postponed they are told too, they would wait for it otherwise.
@@ -1062,7 +1071,7 @@ static class CommunityLogChecks
               && told[0].Description == $"Bitte sucht euch rechtzeitig einen sicheren Ort und loggt euch aus.\nNeustart um <t:{Unix(restartAt)}:t> Uhr (<t:{Unix(restartAt)}:R>).",
             "A planned restart is announced 30 minutes ahead with the time as Discord shows it: " + (told.Length > 0 ? told[0].Title + " | " + told[0].Description : "nothing"));
         check(hooks.Messages[0].Username == "Schatten und Licht Server" && hooks.Messages[0].AvatarUrl == "https://example.org/logo.png" && hooks.Messages[0].Text is null
-              && hooks.Sent[0].Url == WebhookUrl && hooks.Sent[0].Guild == Guild, "...under the name and with the picture of the community, for the server of the bot");
+              && hooks.Sent[0].Url == WebhookUrl && hooks.Sent[0].Guild == BotWebhook.AnyServer, "...under the name and with the picture of the community, for any server (the community often has a server of its own)");
         check(due == BotCommunityLog.CalmInterval, "While it is announced it is looked at every five minutes: " + due);
         await Look(120);
         actions.Statuses = [Server(0, "Exiled Lands", BotServerState.Online, BotPendingAction.Restart, restartAt.AddSeconds(2))];
@@ -1145,6 +1154,30 @@ static class CommunityLogChecks
         actions.Statuses = [Server(0, "Exiled Lands", BotServerState.Online)];
         await Look(60);
         check(hooks.Messages.Length == before, "A crash and the restart after it say nothing");
+
+        // A server that is started (nobody was told that it went down: it was off when it was first seen) says it is online when it
+        // is, without an offline time and without "again".
+        var beforeStart = hooks.Messages.Length;
+        actions.Statuses = [Server(0, "Exiled Lands", BotServerState.Online), Server(1, "Siptah", BotServerState.Stopped)];
+        await Look(10);
+        check(hooks.Messages.Length == beforeStart, "A server that is off all along says nothing");
+        actions.Statuses = [Server(0, "Exiled Lands", BotServerState.Online), Server(1, "Siptah", BotServerState.Starting)];
+        await Look(20);
+        check(hooks.Messages.Length == beforeStart, "...and none that is starting");
+        actions.Statuses = [Server(0, "Exiled Lands", BotServerState.Online), Server(1, "Siptah", BotServerState.Online)];
+        await Look(30);
+        check(hooks.Messages.Length == beforeStart + 1 && Posts()[^1] is { Title: "🟢 Der Server ist online", Color: BotCommunityLog.Green } startedPost
+              && startedPost.Description == "**Siptah**\nDer Server wurde gestartet – ihr könnt euch jetzt einloggen.",
+            "A server that was started tells when it is online: " + Posts()[^1].Title + " | " + Posts()[^1].Description);
+        await Look(60);
+        check(hooks.Messages.Length == beforeStart + 1, "...once");
+        // The same after a stop that was told: then it is the "back online" with the time, not this.
+        actions.Statuses = [Server(0, "Exiled Lands", BotServerState.Online), Server(1, "Siptah", BotServerState.Stopped)];
+        await Look(10);
+        actions.Statuses = [Server(0, "Exiled Lands", BotServerState.Online), Server(1, "Siptah", BotServerState.Online)];
+        await Look(40);
+        check(hooks.Messages.Length == beforeStart + 3 && Posts()[^1].Title == "🟢 Der Server ist wieder online" && Posts()[^1].Description.Contains("**Offline:** 40 Sek.", StringComparison.Ordinal),
+            "A stop that was told is answered by 'back online' with the time: " + Posts()[^1].Title + " | " + Posts()[^1].Description);
 
         // Several servers: the name tells which one. One server: the name of the log does.
         actions.Statuses = [Server(0, "Exiled Lands", BotServerState.Online), Server(1, "Siptah", BotServerState.Online)];

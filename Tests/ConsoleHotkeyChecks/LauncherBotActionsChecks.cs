@@ -526,6 +526,28 @@ static class LauncherBotActionsChecks
             await ui.InvokeAsync(() => Task.FromResult(files.Server.Get(saveB).StartingSequence = new Sequence()));
             check(await actions.StartAsync(1, none) is { Outcome: BotActionOutcome.Failed } failed && (await StatusOf(1))?.State == BotServerState.Stopped,
                 "A start the launcher could not do is a failure");
+
+            // What the dashboard shows as selected starts: a mod list that was never chosen is the first one (the launcher does the
+            // same), and so is the plain name that older versions stored. What was chosen and is gone is refused, with the reason.
+            async Task<string> Reason(string modList, string? save = null)
+            {
+                config.SetInstanceModlist(1, modList);
+                if (save is not null) config.SetInstanceProfile(1, save);
+                var result = await actions.StartAsync(1, none);
+                config.SetInstanceProfile(1, saveB.Uri.OriginalString);
+                return result.Outcome == BotActionOutcome.Failed ? result.Detail : result.Outcome.ToString();
+            }
+            var gone = files.Mods.Ref(tag + "-gone");
+            var neverChosen = await Reason("");
+            var plainName = await Reason(mods.Name);
+            var linked = await Reason(mods.Uri.OriginalString);
+            check(!neverChosen.Contains("mod list") && !plainName.Contains("mod list") && !linked.Contains("mod list"),
+                "A mod list that was never chosen, a plain name and a link to a mod list that is there are not refused: " + neverChosen + " | " + plainName + " | " + linked);
+            check((await Reason(gone.Uri.OriginalString)).Contains("mod list") && (await Reason(gone.Name)).Contains("mod list"),
+                "A chosen mod list that is gone is refused as such");
+            check((await Reason(mods.Uri.OriginalString, files.Server.Ref(tag + "-gone").Uri.OriginalString)) == "no save selected",
+                "A chosen save that is gone is refused as such");
+            config.SetInstanceModlist(1, mods.Uri.OriginalString);
         }
     }
 
