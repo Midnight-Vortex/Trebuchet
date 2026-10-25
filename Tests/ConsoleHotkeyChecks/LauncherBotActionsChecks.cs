@@ -555,7 +555,9 @@ static class LauncherBotActionsChecks
             config.SetInstanceModlist(1, mods.Name);
             config.SetInstanceModlist(2, mods.Uri.OriginalString);
             var runWith = launcher.GetServerModLists();
-            check(runWith.Count == 3 && runWith.All(x => x.Name == mods.Name && x.TryGetModList(out _)),
+            // (the list a never chosen one stands for is the first one of the folder: on a machine with more lists than this check made it is another)
+            check(runWith.Count == 3 && runWith[0].Name == files.ResolveModList("").Name && runWith[1].Name == mods.Name && runWith[2].Name == mods.Name
+                  && runWith.All(x => x.TryGetModList(out _)),
                 "The mod lists of the instances for the check for updates: one never chosen, a plain name and a link all count: " + string.Join(",", runWith.Select(x => x.Name)));
             config.SetInstanceModlist(0, mods.Uri.OriginalString);
             config.SetInstanceModlist(2, "");
