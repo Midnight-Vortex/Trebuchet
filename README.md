@@ -2,6 +2,11 @@
 
 After installing, launch Trebuchet from the Start menu or desktop shortcut. The installer deliberately does not launch it: on affected Windows versions, a process started by Setup can inherit RedirectionGuard and fail to traverse Trebuchet's Saved/profile junctions. Conan then reports that it cannot ensure `Saved/ExtractedMods` exists, even when the directory is present. If this happens after an older setup, fully close Trebuchet and relaunch it from the Start menu; reinstalling mods is not required for this directory-access error.
 
+## 0.9.32 the check for mod updates uses the mod lists the servers really run with
+
+- **The check for mod updates now looks at the mod list each server instance really runs with.** Before, only lists that were chosen explicitly in the settings were checked. An instance that shows "Mods: Default" in the dashboard without the list ever being chosen (or one whose list an older version stored as a plain name) was left out: no check of its mods, no restart for their updates and nothing told in the mod update channel. It now uses the same list as the dashboard and the start.
+- The log of Trebuchet says once per version why an update was not told ("the mod update log is off, has no webhook, or the bot is stopped").
+
 ## 0.9.31 mod updates are told at the first look too
 
 - **A mod the servers still have to install is told at once, also at the very first look.** Before, the mod update log only told updates that appeared between two of its looks, so an update found right when Trebuchet or the bot started (or when the log was switched on) was taken as the starting point and never told, although the restart for it ran. Now a mod that is outdated on the server (not one that is just new in the list) is told once per version, and what was told is remembered. The log of Trebuchet shows "tells the players about the update of mod …" when a message goes out.
