@@ -17,6 +17,8 @@ namespace TrebuchetLib
         
         public int AutoUpdateStatus { get; set; } = AutoUpdateStatusDefault;
         public TimeSpan UpdateCheckFrequency { get; set; } = UpdateCheckFrequencyDefault;
+        /// <summary>How long the players are warned before a server restarts for an update (zero: only the warnings of the save).</summary>
+        public TimeSpan UpdateRestartCountdown { get; set; } = UpdateRestartCountdownDefault;
         public string ClientPath { get; set; } = ClientPathDefault;
         public bool ManageClient { get; set; } = ManageClientDefault;
         public int MaxDownloads { get; set; } = MaxDownloadsDefault;
@@ -127,6 +129,9 @@ namespace TrebuchetLib
         public static readonly bool VerifyAllDefault = false;
         public static readonly string DataDirectoryDefault = string.Empty;
         public static readonly TimeSpan UpdateCheckFrequencyDefault = TimeSpan.FromMinutes(5);
+        public static readonly TimeSpan UpdateRestartCountdownDefault = TimeSpan.FromMinutes(15);
+        /// <summary>The longest time that can be set (more is no warning, it is a long wait for the update).</summary>
+        public static readonly TimeSpan UpdateRestartCountdownMaximum = TimeSpan.FromHours(6);
         public static readonly string NotificationServerCrashDefault = "Server {serverName} has crashed";
         public static readonly string NotificationServerOnlineDefault = "Server {serverName} is now online";
         public static readonly string NotificationServerStopDefault = "Server Shutdown: {Reason}";

@@ -2714,4 +2714,10 @@ Bei „Token bereits in Verwendung“ läuft ein Bot mit demselben Token schon i
     <data name="SettingServerThrallDistanceText" xml:space="preserve">
         <value>Die größte Entfernung von einem Spieler, bei der ein Thrall noch als relevant gilt (dw.ThrallMaxRelevantDistance im [SystemSettings] der Engine.ini des Servers). In Spieleinheiten, nicht in Metern: Ein Fundament ist etwa 2,6 m breit, also grob 260 Einheiten, 5 Fundamente sind etwa 1300, 10 Fundamente etwa 2600. 0 schreibt nichts, das Spiel behält seinen eigenen Wert.</value>
     </data>
+    <data name="SettingUpdateRestartCountdown" xml:space="preserve">
+        <value>Vorwarnzeit vor einem Update-Neustart</value>
+    </data>
+    <data name="SettingUpdateRestartCountdownText" xml:space="preserve">
+        <value>Wie lange die Spieler gewarnt werden, bevor ein Server für ein Mod- oder Server-Update neu startet (der Countdown beginnt, wenn das Update gefunden wird). Gilt nur für Speicherstände mit eingeschalteten Warnmeldungen und ohne eigene Stopp-Abfolge und macht die Warnung nie kürzer als die längste Warnung des Speicherstands. 0: nur die Warnungen des Speicherstands.</value>
+    </data>
 </root>

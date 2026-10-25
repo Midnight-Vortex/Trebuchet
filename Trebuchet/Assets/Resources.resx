@@ -2722,4 +2722,10 @@ The bot does not answer in the channel: is the admin channel set, and do you use
     <data name="SettingServerThrallDistanceText" xml:space="preserve">
         <value>The greatest distance from a player at which a thrall still counts as relevant (dw.ThrallMaxRelevantDistance in the [SystemSettings] of the Engine.ini of the server). In game units, not metres: a foundation is about 2.6 m wide, roughly 260 units, so 5 foundations are about 1300 and 10 foundations about 2600. 0 writes nothing, the game keeps its own value.</value>
     </data>
+    <data name="SettingUpdateRestartCountdown" xml:space="preserve">
+        <value>Warning before an update restart</value>
+    </data>
+    <data name="SettingUpdateRestartCountdownText" xml:space="preserve">
+        <value>How long the players are warned before a server restarts for a mod or server update (the countdown starts when the update is found). It only applies to saves that have the warning messages switched on and no stopping sequence of their own, and never makes the warning shorter than the longest warning of the save. 0: only the warnings of the save.</value>
+    </data>
 </root>

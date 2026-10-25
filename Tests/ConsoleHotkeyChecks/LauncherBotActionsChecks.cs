@@ -566,6 +566,22 @@ static class LauncherBotActionsChecks
         check(end == now.AddMinutes(30) && pause == TimeSpan.FromMinutes(25), "A countdown that has run out counts from now: " + pause + " " + end);
         (pause, end) = Launcher.PlanRestartPostponement(null, now, TimeSpan.FromMinutes(15), lead);
         check(end == now.AddMinutes(15) && pause == TimeSpan.FromMinutes(10), "Without a known end it counts from now: " + pause + " " + end);
+
+        // The warning before a restart for an update: the configured time, only for a save that warns its players at all.
+        var warns = new ServerProfile { UseRestartWarnings = true };
+        var quarter = TimeSpan.FromMinutes(15);
+        check(Launcher.GetUpdateCountdown(warns, quarter) == quarter, "A save with warnings gets the configured time before an update restart");
+        check(Launcher.GetUpdateCountdown(new ServerProfile { UseRestartWarnings = false }, quarter) == TimeSpan.Zero
+              && Launcher.GetUpdateCountdown(null, quarter) == TimeSpan.Zero, "...a save without warnings restarts at once, as before");
+        check(Launcher.GetUpdateCountdown(warns, TimeSpan.Zero) == TimeSpan.Zero && Launcher.GetUpdateCountdown(warns, TimeSpan.FromMinutes(4)) == TimeSpan.Zero,
+            "...0 or less than the longest warning of the save (5 minutes) leaves it to the warnings of the save");
+        warns.RestartWarnings = [new RestartWarning(TimeSpan.FromMinutes(30), "x")];
+        check(Launcher.GetUpdateCountdown(warns, quarter) == TimeSpan.Zero && Launcher.GetUpdateCountdown(warns, TimeSpan.FromMinutes(45)) == TimeSpan.FromMinutes(45),
+            "...and it is never shorter than the longest warning of the save");
+        warns.StoppingSequence = new Sequence { Actions = [new SequenceActionWait { WaitTime = TimeSpan.FromSeconds(4) }] };
+        check(Launcher.GetUpdateCountdown(warns, TimeSpan.FromMinutes(45)) == TimeSpan.Zero, "...and a save with a stopping sequence of its own keeps it");
+        check(Launcher.GetUpdateCountdown(new ServerProfile { UseRestartWarnings = true }, TimeSpan.FromDays(3)) == Config.UpdateRestartCountdownMaximum,
+            "...at most 6 hours");
         (pause, end) = Launcher.PlanRestartPostponement(now.AddSeconds(30), now, TimeSpan.FromMinutes(1), lead);
         check(pause is null && end == now.AddSeconds(90), "Too close for a pause (shorter than a minute): a countdown that ends at the new time: " + pause + " " + end);
         (pause, end) = Launcher.PlanRestartPostponement(now.AddMinutes(10), now, TimeSpan.FromMinutes(5), lead);

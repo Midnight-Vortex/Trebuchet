@@ -301,6 +301,14 @@ public class SettingsPanel : ReactiveObject, IRefreshablePanel, IRefreshingPanel
             .SetSetter((v) => _setup.Config.UpdateCheckFrequency = v)
             .SetDefault(() => Config.UpdateCheckFrequencyDefault)
         );
+        Fields.Add(new DurationField(TimeSpan.Zero, Config.UpdateRestartCountdownMaximum)
+            .WhenFieldChanged(SaveConfig)
+            .SetTitle(Resources.SettingUpdateRestartCountdown)
+            .SetDescription(Resources.SettingUpdateRestartCountdownText)
+            .SetGetter(() => _setup.Config.UpdateRestartCountdown)
+            .SetSetter((v) => _setup.Config.UpdateRestartCountdown = v)
+            .SetDefault(() => Config.UpdateRestartCountdownDefault)
+        );
         Fields.Add(new ToggleField()
             .WhenFieldChanged(SaveConfig)
             .SetTitle(Resources.SettingVerifyAll)

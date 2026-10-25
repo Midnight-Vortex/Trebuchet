@@ -2104,4 +2104,10 @@ Le bot ne répond pas dans le salon : le salon d’administration est-il défini
     <data name="SettingServerThrallDistanceText" xml:space="preserve">
         <value>La plus grande distance d'un joueur à laquelle un esclave est encore considéré comme pertinent (dw.ThrallMaxRelevantDistance dans [SystemSettings] du Engine.ini du serveur). En unités de jeu, pas en mètres : une fondation fait environ 2,6 m de large, soit à peu près 260 unités, donc 5 fondations font environ 1300 et 10 fondations environ 2600. 0 n'écrit rien, le jeu garde sa propre valeur.</value>
     </data>
+    <data name="SettingUpdateRestartCountdown" xml:space="preserve">
+        <value>Préavis avant un redémarrage de mise à jour</value>
+    </data>
+    <data name="SettingUpdateRestartCountdownText" xml:space="preserve">
+        <value>Combien de temps les joueurs sont prévenus avant qu'un serveur redémarre pour une mise à jour de mod ou de serveur (le compte à rebours commence quand la mise à jour est trouvée). Ne s'applique qu'aux sauvegardes dont les messages d'avertissement sont activés et sans séquence d'arrêt propre, et ne raccourcit jamais l'avertissement le plus long de la sauvegarde. 0 : seulement les avertissements de la sauvegarde.</value>
+    </data>
 </root>

@@ -7770,5 +7770,23 @@ namespace Trebuchet.Assets {
             }
         }
         
+        /// <summary>
+        ///   Looks up a localized string similar to Warning before an update restart.
+        /// </summary>
+        public static string SettingUpdateRestartCountdown {
+            get {
+                return ResourceManager.GetString("SettingUpdateRestartCountdown", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to How long the players are warned before a server restarts for a mod or server update (the countdown starts when the update is found). It only applies to saves that have the warning messages switched on and no stopping sequence of their own, and never makes the warning shorter than the longest warning of the save. 0: only the warnings of the save..
+        /// </summary>
+        public static string SettingUpdateRestartCountdownText {
+            get {
+                return ResourceManager.GetString("SettingUpdateRestartCountdownText", resourceCulture);
+            }
+        }
+        
     }
 }

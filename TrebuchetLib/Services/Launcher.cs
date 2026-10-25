@@ -517,12 +517,19 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     /// Restart requested by the tick (schedule, updates, RequiresRestart.txt). Until the server is stopping (countdown,
     /// Discord notice) the instance counts as pending, so the next ticks do not request and announce it again.
     /// </summary>
-    public async void RestartServer(int instance)
+    /// <param name="countdown">
+    /// Zero: the restart follows the warnings of the save. More: it is warned this long ahead (restarts for updates, see
+    /// <see cref="GetUpdateCountdown"/>), under the same rules as a restart somebody asked for with a delay.
+    /// </param>
+    public async void RestartServer(int instance, TimeSpan countdown = default)
     {
         if (!_restartsPending.Add(instance)) return;
         try
         {
-            await RestartServerAsync(instance);
+            if (countdown > TimeSpan.Zero)
+                await RestartServerIn(instance, countdown, _lastRestartReason, manual: false);
+            else
+                await RestartServerAsync(instance);
         }
         catch (Exception ex)
         {
@@ -2159,9 +2166,22 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
                 await BroadcastMessage(instance, announcement, discord: false);
             }
             _lastRestartReason = reasonOf(instance);
-            RestartServer(instance);
+            RestartServer(instance, GetUpdateCountdown(GetInstanceProfile(instance), _setup.Config.UpdateRestartCountdown));
         }
         return true;
+    }
+
+    /// <summary>
+    /// How long the players are warned before a restart for an update. Only a save that warns its players at all (the warnings are on and it
+    /// has no stopping sequence of its own) gets a countdown, and only when the configured time is longer than its own longest warning:
+    /// otherwise the warnings of the save run as they are.
+    /// </summary>
+    /// <returns>Zero: the save's own warnings decide.</returns>
+    internal static TimeSpan GetUpdateCountdown(ServerProfile? profile, TimeSpan configured)
+    {
+        if (profile is null || !profile.UseRestartWarnings || profile.StoppingSequence.Actions.Count > 0) return TimeSpan.Zero;
+        if (configured > Config.UpdateRestartCountdownMaximum) configured = Config.UpdateRestartCountdownMaximum;
+        return configured > GetRestartWarningLead(profile) ? configured : TimeSpan.Zero;
     }
 
     /// <summary>
