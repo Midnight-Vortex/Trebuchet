@@ -52,7 +52,8 @@ public sealed class LauncherBotActions : IBotActions, IBotModUpdates, IDisposabl
         try
         {
             ModVersionsChecked?.Invoke(this,
-                versions.Select(x => new BotModVersion(x.PublishedFileId, x.Title, x.TimeUpdated, x.ContentId, x.PreviewUrl)).ToList());
+                versions.Select(x => new BotModVersion(x.PublishedFileId, x.Title, x.TimeUpdated, x.ContentId, x.PreviewUrl,
+                    x.Status.Status == UGCStatus.Updatable && x.HasWorkshopFile)).ToList());
         }
         catch (Exception ex)
         {

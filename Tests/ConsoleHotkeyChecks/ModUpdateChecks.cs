@@ -66,6 +66,8 @@ static class ModUpdateChecks
         return created.Policy ?? throw new Exception("settings of the check are invalid: " + string.Join(", ", created.Issues.Select(x => x.Kind)));
     }
 
+    private static string fresh1Path(string folder) => Path.Combine(folder, "b.mod-versions");
+
     private static long Unix(DateTime time) => new DateTimeOffset(DateTime.SpecifyKind(time, DateTimeKind.Utc)).ToUnixTimeSeconds();
 
     public static async Task<int> Run()
@@ -168,8 +170,8 @@ static class ModUpdateChecks
         check(updates.Listeners == 1, "The log listens to the checks for updates");
 
         // A new upload has a new file version (by default it is the time of the upload); a new picture or text keeps it.
-        BotModVersion Mod(ulong id, string title, DateTime at, ulong? content = null) =>
-            new(id, title, (ulong)Unix(at), content ?? (ulong)Unix(at), "https://images.steamusercontent.com/ugc/" + id + "/");
+        BotModVersion Mod(ulong id, string title, DateTime at, ulong? content = null, bool needsUpdate = false) =>
+            new(id, title, (ulong)Unix(at), content ?? (ulong)Unix(at), "https://images.steamusercontent.com/ugc/" + id + "/", needsUpdate);
         var hourAgo = now.AddHours(-1);
         var servermod = Mod(1001, "Servermod", hourAgo);
         var hud = Mod(1002, "Enhanced HUD", hourAgo);
@@ -286,11 +288,46 @@ static class ModUpdateChecks
         await log.LookAsync([new BotModVersion(1002, "Enhanced HUD", (ulong)Unix(now.AddSeconds(1100)), 0, "https://images.steamusercontent.com/ugc/1002/")], CancellationToken.None);
         await log.FlushAsync(TimeSpan.FromSeconds(5));
         check(hook.Embeds.Length == before + 1 && store.Load()![1002].Time == (ulong)Unix(now.AddSeconds(600)), "A mod Steam sends no file for says nothing and is not forgotten");
+        // A mod the servers still have to install is an update at the first look too (the restart for it is under way, and nobody was
+        // told), once. While the log is off it is not told, and it is when the log is on and the mod is still not installed.
+        var fresh1 = new BotModUpdateLog(updates, hook, () => url, () => policy, new BotModUpdateStore(Path.Combine(folder, "b.mod-versions")), () => now, logger)
+        {
+            Spacing = TimeSpan.Zero, WebhookCacheTime = TimeSpan.Zero
+        };
+        fresh1.Start();
+        before = hook.Embeds.Length;
+        var pending = Mod(3001, "Pending", now.AddMinutes(-3), needsUpdate: true);
+        var enabledPolicy = policy;
+        policy = PolicyOf(c => { c.ModUpdatesEnabled = false; });
+        await fresh1.LookAsync([pending], CancellationToken.None);
+        await fresh1.FlushAsync(TimeSpan.FromSeconds(5));
+        check(hook.Embeds.Length == before, "A mod still to be installed is not told while the log is off");
+        policy = enabledPolicy;
+        await fresh1.LookAsync([pending], CancellationToken.None);
+        await fresh1.FlushAsync(TimeSpan.FromSeconds(5));
+        check(hook.Embeds.Length == before + 1 && hook.Embeds[^1].Title.EndsWith("Pending", StringComparison.Ordinal), "...and is told at the first look with the log on, when the servers still have to install it");
+        await fresh1.LookAsync([pending, Mod(3002, "Installed", now.AddMinutes(-3))], CancellationToken.None);
+        await fresh1.LookAsync([Mod(3001, "Pending", now.AddMinutes(-3), pending.ContentId), Mod(3002, "Installed", now.AddMinutes(-3))], CancellationToken.None);
+        await fresh1.FlushAsync(TimeSpan.FromSeconds(5));
+        check(hook.Embeds.Length == before + 1 && new BotModUpdateStore(fresh1Path(folder)).Load()![3001].Told == pending.ContentId,
+            "...once, also after it was installed, and what was told is remembered in the file");
+        fresh1.Dispose();
+        // A mod that is not installed at all (a new one in the list) is no update.
+        using (var added = new BotModUpdateLog(updates, hook, () => url, () => policy, new BotModUpdateStore(null), () => now, logger) { Spacing = TimeSpan.Zero })
+        {
+            added.Start();
+            before = hook.Embeds.Length;
+            await added.LookAsync([Mod(3100, "Brand new", now.AddMinutes(-3))], CancellationToken.None);
+            await added.FlushAsync(TimeSpan.FromSeconds(1));
+            check(hook.Embeds.Length == before, "A mod that is only new in the list (the first look, not outdated) tells nothing");
+        }
+
         // A mod missing from one answer of Steam is remembered; when it is back with a new file that is an update.
+        before = hook.Embeds.Length;
         await log.LookAsync([Mod(1001, "Servermod", now.AddSeconds(1000))], CancellationToken.None);
         await log.LookAsync([Mod(1001, "Servermod", now.AddSeconds(1000)), Mod(1002, "Enhanced HUD", now.AddSeconds(1200))], CancellationToken.None);
         await log.FlushAsync(TimeSpan.FromSeconds(5));
-        check(hook.Embeds.Length == before + 2 && hook.Embeds[^1].Title.EndsWith("Enhanced HUD", StringComparison.Ordinal), "A mod that was missing from one answer is not taken for a new one");
+        check(hook.Embeds.Length == before + 1 && hook.Embeds[^1].Title.EndsWith("Enhanced HUD", StringComparison.Ordinal), "A mod that was missing from one answer is not taken for a new one");
         // A file of versions that can not be written: the same update is not told at every look.
         var blocker = Path.Combine(folder, "blocker");
         File.WriteAllText(blocker, "x");
@@ -330,6 +367,10 @@ static class ModUpdateChecks
 
         log.Dispose();
         check(updates.Listeners == 0, "A log that is ended stops listening");
+        // A file written before the version told was remembered still reads.
+        var legacyPath = Path.Combine(folder, "legacy.mod-versions");
+        File.WriteAllText(legacyPath, "{\"7\":{\"Content\":5,\"Time\":6}}");
+        check(new BotModUpdateStore(legacyPath).Load() is { Count: 1 } legacy && legacy[7] == new BotModSeen(5, 6, 0), "A file of versions without the version told still reads");
         var other = new BotModUpdateStore(Path.Combine(folder, "none", "x", "y"));
         check(other.Load() is null && other.Save(new Dictionary<ulong, BotModSeen> { [1] = new(3, 2) }) && other.Load() is { Count: 1 } loadedBack && loadedBack[1] == new BotModSeen(3, 2)
               && new BotModUpdateStore(null).Load() is null && new BotModUpdateStore(null).Save(new Dictionary<ulong, BotModSeen>()),

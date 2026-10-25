@@ -11,10 +11,11 @@ namespace TrebuchetLib.DiscordBot;
 /// <summary>A mod of the server mod lists as Steam knows it now.</summary>
 /// <param name="TimeUpdated">When the author last updated it (unix seconds).</param>
 /// <param name="ContentId">The version of its file: it changes with an upload of the author, not with a new picture or text (0: Steam sent none).</param>
-public sealed record BotModVersion(ulong Id, string Title, ulong TimeUpdated, ulong ContentId, string PreviewUrl);
+/// <param name="NeedsUpdate">The installed file is older than this version (a mod that is not installed at all is not): the servers restart to install it.</param>
+public sealed record BotModVersion(ulong Id, string Title, ulong TimeUpdated, ulong ContentId, string PreviewUrl, bool NeedsUpdate = false);
 
-/// <summary>What was seen of a mod: its version and when it was updated.</summary>
-public sealed record BotModSeen(ulong Content, ulong Time);
+/// <summary>What was seen of a mod: its version, when it was updated, and the version the players were told about (0: none yet).</summary>
+public sealed record BotModSeen(ulong Content, ulong Time, ulong Told = 0);
 
 /// <summary>What the mod update log needs of the launcher. A fake replaces it in the tests.</summary>
 public interface IBotModUpdates
@@ -294,14 +295,20 @@ public sealed class BotModUpdateLog : IDisposable
             {
                 // No file from Steam (an error, or it left the workshop) says nothing about a new version.
                 if (mod.Id == 0 || mod.ContentId == 0 || mod.TimeUpdated == 0) continue;
-                var seen = new BotModSeen(mod.ContentId, mod.TimeUpdated);
-                if (known is not null && known.TryGetValue(mod.Id, out var before))
+                BotModSeen? before = null;
+                known?.TryGetValue(mod.Id, out before);
+                var told = before?.Told ?? 0;
+                var seen = new BotModSeen(mod.ContentId, mod.TimeUpdated, told);
+                // An older answer of Steam (a lagging server) is no new version, and what was seen stays: its newer answer is not one either.
+                if (before is not null && mod.TimeUpdated < before.Time) seen = before;
+                // An update is a new file (a new picture or text changes the time of the update, not the file) that the players were not told
+                // about yet: one the servers still have to install (found at the very first look too: the restart for it is under way), or one
+                // that appeared since the last look.
+                else if (enabled && mod.ContentId != told && now - FromUnix(mod.TimeUpdated) <= MaxAge
+                         && (mod.NeedsUpdate || before is not null && mod.ContentId != before.Content && mod.TimeUpdated > before.Time))
                 {
-                    // An older answer of Steam (a lagging server) is no new version, and what was seen stays: its newer answer is not one either.
-                    if (mod.TimeUpdated < before.Time) seen = before;
-                    // A new picture or text changes the time of the update, not the file: only a new file is an update.
-                    else if (mod.ContentId != before.Content && mod.TimeUpdated > before.Time && enabled && now - FromUnix(mod.TimeUpdated) <= MaxAge)
-                        news.Add(mod);
+                    news.Add(mod);
+                    seen = seen with { Told = mod.ContentId };
                 }
                 current[mod.Id] = seen;
             }
@@ -320,6 +327,7 @@ public sealed class BotModUpdateLog : IDisposable
             foreach (var mod in news.OrderBy(x => x.TimeUpdated).Take(MaxPerLook))
             {
                 token.ThrowIfCancellationRequested();
+                _logger?.LogInformation("Discord bot: tells the players about the update of mod {Title} ({Id})", Clean(mod.Title), mod.Id);
                 Enqueue(Compose(mod, await NoteOfAsync(mod, token).ConfigureAwait(false), texts));
             }
             if (news.Count > MaxPerLook)

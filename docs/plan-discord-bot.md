@@ -240,7 +240,9 @@ Zeit, User-ID, Anzeigename (nur zur Info), Server-/Kanal-ID, Befehl, Parameter, 
 - **Mod-Updates** (`BotModUpdateLog`, Einstellungen `ModUpdatesEnabled/Name/AvatarUrl`, Webhook `.modupdates-webhook`): Der Launcher meldet nach jeder
   Prüfung auf Updates (`Launcher.ModVersionsChecked`, nur Mods der Server-Mod-Listen) die Versionen (`PublishedMod.ContentId` = `hcontent_file`,
   `TimeUpdated`, Bild `PreviewUrl`); `LauncherBotActions` reicht sie als `IBotModUpdates` an den Log. Ein Update ist eine **neue Datei-Version**
-  (`ContentId`; ein neues Bild oder ein neuer Text ändert nur `time_updated`) mit neuerer Zeit als die gemerkte; eine ältere Antwort von
+  (`ContentId`; ein neues Bild oder ein neuer Text ändert nur `time_updated`), die noch nicht gemeldet wurde (`BotModSeen.Told`) und entweder
+  vom Launcher als „Updatable“ erkannt ist (`BotModVersion.NeedsUpdate`: die Server installieren sie noch, auch beim ersten Blick, bevor
+  ein Blick sie schon als gemerkt hat; „Missing“, ein neuer Mod in der Liste, zählt nicht) oder sich seit dem letzten Blick geändert hat und neuer ist; eine ältere Antwort von
   Steam ist kein Update und ändert nichts. Gemerkt wird im Speicher (`_known`; die Datei `.mod-versions` neben dem Token,
   `BotModUpdateStore`, lässt es nur einen Neustart überstehen, ein Schreibfehler macht dasselbe Update also nicht jedes Mal neu), höchstens
   500 Mods, ein Mod, der in einer Antwort fehlt, bleibt gemerkt, ein Mod ohne Datei von Steam sagt nichts. Der erste Blick merkt sich nur;
