@@ -9,6 +9,8 @@ public class PublishedMod(SteamWorksWebAPI.PublishedFile published, UGCFileStatu
     public ulong TimeUpdated { get;  } = published.TimeUpdated;
     /// <summary>Steam sent the file of the mod (missing after a Steam error or when it left the workshop).</summary>
     public bool HasWorkshopFile { get; } = ulong.TryParse(published.HcontentFile, out _);
+    /// <summary>The version of the file of the mod (it changes with every upload of the author, not with a new picture or text), 0 when Steam sent none.</summary>
+    public ulong ContentId { get; } = ulong.TryParse(published.HcontentFile, out var content) ? content : 0;
     public ulong PublishedFileId { get;  } = published.PublishedFileID;
     public long FileSize { get;  } = published.FileSize;
     public uint CreatorAppId { get;  } = published.CreatorAppId;

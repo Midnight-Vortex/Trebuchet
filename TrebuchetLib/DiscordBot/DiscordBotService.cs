@@ -87,7 +87,9 @@ public sealed class DiscordBotService : IDiscordBotService, IBotSettings, IDispo
         // New versions of the mods of the servers, told to the players through a webhook of their own (when the launcher can tell them).
         if (_actions is IBotModUpdates modUpdates)
         {
-            _modUpdates = new BotModUpdateLog(modUpdates, _webhookClient, WebhookSource(webhooks?.ModUpdates, "mod updates"), () => Policy,
+            // Like the community log it speaks while the bot runs (a stopped bot is silent), but it does not need the connection to Discord.
+            _modUpdates = new BotModUpdateLog(modUpdates, _webhookClient, WebhookSource(webhooks?.ModUpdates, "mod updates"),
+                () => State is DiscordBotState.Stopped or DiscordBotState.Stopping ? null : Policy,
                 webhooks?.ModVersions ?? new BotModUpdateStore(null), logger: _logger);
             _modUpdates.Start();
         }

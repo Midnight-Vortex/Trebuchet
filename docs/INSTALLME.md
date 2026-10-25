@@ -121,9 +121,10 @@ Die Rolle `@everyone` ist **nicht erlaubt** (jeder hat sie), Trebuchet lehnt sie
    „🔄 Update für Mod: *Name*“ (der Titel führt zur Workshop-Seite, das Bild des Mods steht am Rand), „Aktualisiert 25. Oktober
    2026 06:47 (vor 3 Stunden)“, die **Patch-Notes** des Autors (aus der Änderungshistorie des Workshops; hat der Autor keine
    geschrieben: „Der Autor hat keine Patch-Notes hinterlegt.“) und ein Link „Alle Änderungsnotizen“. Trebuchet schaut bei jeder
-   Prüfung auf Updates nach (Einstellungen → Updates, Standard alle 5 Minuten). Der erste Blick merkt sich nur die Versionen: was
-   davor war, wird nicht gemeldet, und Updates, die älter als zwei Tage sind, auch nicht. Links in den Notizen erscheinen als Text mit
-   der Domain, nicht anklickbar. Der Bot muss dafür laufen, der Schalter an sein und der Webhook eingetragen.
+   Prüfung auf Updates nach (Einstellungen → Updates, Standard alle 5 Minuten). Gemeldet wird eine **neue Datei-Version** des Mods
+   (ein neues Bild oder ein geänderter Text des Mods ist kein Update). Der erste Blick merkt sich nur die Versionen: was davor war,
+   wird nicht gemeldet, und Updates, die älter als zwei Tage sind, auch nicht. Links in den Notizen erscheinen als Text mit
+   der Domain, nicht anklickbar. Der Bot muss dafür gestartet sein (die Verbindung zu Discord braucht es nicht), der Schalter an und der Webhook eingetragen.
 
    **Warnzeit vor einem Update-Neustart** (Einstellungen → Updates, Standard 15 Minuten, 0 bis 6 Stunden): So lange werden die Spieler
    gewarnt, bevor ein Server für ein Mod- oder Server-Update neu startet; der Countdown beginnt, wenn das Update gefunden wird, die

@@ -140,8 +140,9 @@ public class Steam : IDebugListener, IDisposable
         try
         {
             if (!await WaitSteamConnectionAsync()) return null;
-            var changes = await _session.GetChangeHistory(modId, 1);
-            var latest = changes.FirstOrDefault();
+            // The newest of the last few (by their time, not by the order Steam sends them in).
+            var changes = await _session.GetChangeHistory(modId, 5);
+            var latest = changes.OrderByDescending(x => x.timestamp).FirstOrDefault();
             return latest is null ? null : new WorkshopChange(Tools.UnixTimeStampToDateTime(latest.timestamp), latest.change_description ?? string.Empty);
         }
         catch (OperationCanceledException)
@@ -150,10 +151,16 @@ public class Steam : IDebugListener, IDisposable
         }
         catch (Exception ex)
         {
+            // Once: that the notes can not be had (Steam says no, or does not answer) is worth a line, one per mod is not.
+            if (!_changeNotesFailureLogged)
+                _logger.LogInformation("The change notes of the mods can not be read from Steam: {Error}", ex.Message);
+            _changeNotesFailureLogged = true;
             _logger.LogDebug(ex, "Could not read the change notes of mod {Mod}", modId);
             return null;
         }
     }
+
+    private bool _changeNotesFailureLogged;
 
     public void ClearModDetailsCache()
     {

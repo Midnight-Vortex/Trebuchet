@@ -238,19 +238,28 @@ Zeit, User-ID, Anzeigename (nur zur Info), Server-/Kanal-ID, Befehl, Parameter, 
   eines Countdowns): Der Community-Log meldet den Abbruch sofort, auch wenn der Launcher noch eine Abfolge zeigt, und wartet nur bei einem
   Countdown, der ohne Meldung verschwindet, 8 s. Die Hinweise an die Spieler je Server bleiben in der Reihenfolge der Aufträge.
 - **Mod-Updates** (`BotModUpdateLog`, Einstellungen `ModUpdatesEnabled/Name/AvatarUrl`, Webhook `.modupdates-webhook`): Der Launcher meldet nach jeder
-  Prüfung auf Updates (`Launcher.ModVersionsChecked`, nur Mods der Server-Mod-Listen) die Versionen (`PublishedMod.TimeUpdated`, Bild
-  `PreviewUrl`); `LauncherBotActions` reicht sie als `IBotModUpdates` an den Log, der `TimeUpdated` je Mod mit dem zuletzt gesehenen
-  vergleicht (Datei `.mod-versions` neben dem Token, `BotModUpdateStore`). Der erste Blick merkt sich nur; gemerkt wird auch bei
-  ausgeschaltetem Log (Einschalten meldet nichts Altes); ein Mod, der nicht in der Liste war, ist keine Neuigkeit; ältere Updates als 48 h
-  auch nicht; höchstens zehn Meldungen je Blick, dann eine mit den Namen der anderen. Die Patch-Notes kommen aus
+  Prüfung auf Updates (`Launcher.ModVersionsChecked`, nur Mods der Server-Mod-Listen) die Versionen (`PublishedMod.ContentId` = `hcontent_file`,
+  `TimeUpdated`, Bild `PreviewUrl`); `LauncherBotActions` reicht sie als `IBotModUpdates` an den Log. Ein Update ist eine **neue Datei-Version**
+  (`ContentId`; ein neues Bild oder ein neuer Text ändert nur `time_updated`) mit neuerer Zeit als die gemerkte; eine ältere Antwort von
+  Steam ist kein Update und ändert nichts. Gemerkt wird im Speicher (`_known`; die Datei `.mod-versions` neben dem Token,
+  `BotModUpdateStore`, lässt es nur einen Neustart überstehen, ein Schreibfehler macht dasselbe Update also nicht jedes Mal neu), höchstens
+  500 Mods, ein Mod, der in einer Antwort fehlt, bleibt gemerkt, ein Mod ohne Datei von Steam sagt nichts. Der erste Blick merkt sich nur;
+  gemerkt wird auch bei ausgeschaltetem Log (Einschalten meldet nichts Altes); ein Mod, der nicht gemerkt war, ist keine Neuigkeit; ältere
+  Updates als 48 h auch nicht; höchstens zehn Meldungen je Blick, dann eine mit den Namen der anderen. Der Log spricht, solange der Bot nicht
+  gestoppt ist (er braucht die Verbindung zu Discord nicht). Die Patch-Notes kommen aus
   `PublishedFile.GetChangeHistory` der Steam-Verbindung (`Steam.GetLatestModChange`, nur wenn eine Meldung ansteht); eine Notiz zählt nur
   für dieses Update, wenn ihre Zeit höchstens 30 Minuten von `TimeUpdated` abweicht (sonst „keine Patch-Notes“), kann Steam nicht
-  antworten, fehlt der Notiz-Teil. BBCode wird zu Markdown (`BotModNotes`; Links als Text und Domain, nie anklickbar; nur Steams Tags
-  werden entfernt, „[Fix]“ bleibt). Gesendet wird wie beim Community-Log (Warteschlange, Abstand, ein Warnhinweis je Ausfall) mit
+  antworten, fehlt der Notiz-Teil (die letzten fünf Einträge werden gelesen, der neueste nach Zeit zählt; dass Steam sie nicht gibt, steht
+  einmal im Log). BBCode wird zu Markdown (`BotModNotes`; Links als Text und Domain, auch ein Markdown-Link des Autors wird zu Text
+  („](“ wird „]\(“); nur Steams Tags werden entfernt, „[Fix]“ bleibt; nur der Anfang der Notiz, höchstens vier Mal die Länge der
+  Anzeige, wird verarbeitet). Gesendet wird wie beim Community-Log (Warteschlange, Abstand, ein Warnhinweis je Ausfall) mit
   `BotWebhook.AnyServer`: auch ein Webhook eines anderen Servers.
 - **Warnzeit vor Update-Neustarts** (`Config.UpdateRestartCountdown`, Standard 15 Minuten): `StartUpdateRound` startet bei Speicherständen mit Warnmeldungen
   (und ohne eigene Stopp-Abfolge) `RestartServerIn` mit dieser Zeit (`Launcher.GetUpdateCountdown`: nie kürzer als die längste Warnung des
-  Speicherstands, 0 lässt es bei dessen Warnungen); der Countdown gilt als automatisch (abbrechbar, 30 Minuten Sperre).
+  Speicherstands, 0 lässt es bei dessen Warnungen; ein Speicherstand mit eingeschalteten Warnungen, aber ohne Warnzeit, bekommt keinen); der
+  Countdown gilt als automatisch (abbrechbar, 30 Minuten Sperre). Ein Neustart, den eine Pause verschoben hat (`_postponedRestarts`), beginnt
+  mit dem Countdown des Speicherstands, weil die Pause genau eine Vorwarnzeit davor endet; sonst käme er später als gemeldet. In einer Runde
+  mit mehreren Servern wartet ein Server, der sofort neu startet, auf die anderen (seine Starts sind gehalten).
 - **Das Bot-Konto selbst** (`BotAccountIdentity`, Einstellung `BotTakesCommunityIdentity`, aus): Die Status-Meldung schreibt das Bot-Konto, nur ein
   Webhook kann den Namen je Nachricht ändern. Eingeschaltet übernimmt das Bot-Konto per `SocketSelfUser.ModifyAsync` Name und Bild des
   Community-Logs, im Hintergrund beim Verbinden und beim Anwenden der Einstellungen. Nur was abweicht (Name gleich: nichts; Bild: Hash der

@@ -99,6 +99,16 @@ static class ModUpdateChecks
               && BotModNotes.ToMarkdown("[url]https://example.org/a[/url]", 500) == "example.org",
             "A link is shown as its text and the domain, never as a link: " + BotModNotes.ToMarkdown("See [url=https://apiconan.totchinuko.fr/docs?x=1]Patch Note[/url] now", 500));
         check(BotModNotes.ToMarkdown("[url=javascript:alert(1)]click[/url] [url=ftp://x/y]ftp[/url]", 500) == "click ftp", "Only a web link names its domain");
+        check(BotModNotes.ToMarkdown("[url=https://a.com]t[/url](https://evil.example)", 500) == "t [a.com]\\(https://evil.example)"
+              && BotModNotes.ToMarkdown("see [here](https://evil.example) now", 500) == "see [here]\\(https://evil.example) now",
+            "A link written in Markdown, or one disguised behind a BBCode link, is no link: " + BotModNotes.ToMarkdown("[url=https://a.com]t[/url](https://evil.example)", 500));
+        var started = System.Diagnostics.Stopwatch.StartNew();
+        var heavy = BotModNotes.ToMarkdown(string.Concat(Enumerable.Repeat("[b]", 40000)), 700);
+        check(started.Elapsed < TimeSpan.FromSeconds(2) && heavy.Length <= 701, "A note made of tags is cut before it is worked on: " + started.ElapsedMilliseconds + " ms");
+        // Only the beginning of a long note is worked on (four times what is shown): a tag that closes further away does not format it.
+        check(BotModNotes.ToMarkdown("[b]" + new string('x', 3500) + "[/b]", 700).StartsWith("xxx", StringComparison.Ordinal)
+              && BotModNotes.ToMarkdown("[b]" + new string('x', 2000) + "[/b]", 700).StartsWith("**xxx", StringComparison.Ordinal),
+            "A long note is cut at four times the length shown before it is worked on");
         check(BotModNotes.ToMarkdown("[img]https://example.org/a.png[/img]Text[hr]", 500) == "Text", "Pictures and rules are dropped");
         check(BotModNotes.ToMarkdown("[Fix] the crash, [WIP] hats", 500) == "[Fix] the crash, [WIP] hats", "A word in brackets is text, not a tag");
         check(BotModNotes.ToMarkdown("[quote=Someone]Said this[/quote] &amp; that &lt;3", 500) == "Said this & that <3", "Other tags go, the entities are read");
@@ -115,7 +125,7 @@ static class ModUpdateChecks
     {
         var updated = new DateTime(2026, 10, 25, 6, 47, 0, DateTimeKind.Utc);
         var unix = Unix(updated);
-        var mod = new BotModVersion(3412345678, "Schatten und Licht - Servermod", (ulong)unix, "https://images.steamusercontent.com/ugc/abc/def/");
+        var mod = new BotModVersion(3412345678, "Schatten und Licht - Servermod", (ulong)unix, 9001, "https://images.steamusercontent.com/ugc/abc/def/");
         var embed = BotModUpdateLog.Compose(mod, new WorkshopChange(updated, "Hotfixes usw"), BotModUpdateTexts.German);
         check(embed.Title == "🔄 Update für Mod: Schatten und Licht - Servermod"
               && embed.Description == $"Aktualisiert <t:{unix}:f> (<t:{unix}:R>)\n\n**Patch-Notes:**\nHotfixes usw\n\n[Alle Änderungsnotizen](https://steamcommunity.com/sharedfiles/filedetails/changelog/3412345678)",
@@ -157,7 +167,9 @@ static class ModUpdateChecks
         log.Start();
         check(updates.Listeners == 1, "The log listens to the checks for updates");
 
-        BotModVersion Mod(ulong id, string title, DateTime at) => new(id, title, (ulong)Unix(at), "https://images.steamusercontent.com/ugc/" + id + "/");
+        // A new upload has a new file version (by default it is the time of the upload); a new picture or text keeps it.
+        BotModVersion Mod(ulong id, string title, DateTime at, ulong? content = null) =>
+            new(id, title, (ulong)Unix(at), content ?? (ulong)Unix(at), "https://images.steamusercontent.com/ugc/" + id + "/");
         var hourAgo = now.AddHours(-1);
         var servermod = Mod(1001, "Servermod", hourAgo);
         var hud = Mod(1002, "Enhanced HUD", hourAgo);
@@ -221,7 +233,7 @@ static class ModUpdateChecks
         policy = PolicyOf(c => { c.ModUpdatesEnabled = true; c.Language = "en"; });
         await log.LookAsync([Mod(1001, "Servermod", now.AddSeconds(60)), Mod(1002, "Enhanced HUD", now.AddSeconds(30))], CancellationToken.None);
         await log.FlushAsync(TimeSpan.FromSeconds(5));
-        check(hook.Embeds.Length == before && store.Load()![1001] == (ulong)Unix(now.AddSeconds(60)), "Switched off nothing is told, but switched on again it does not tell what happened meanwhile");
+        check(hook.Embeds.Length == before && store.Load()![1001].Time == (ulong)Unix(now.AddSeconds(60)), "Switched off nothing is told, but switched on again it does not tell what happened meanwhile");
         await log.LookAsync([Mod(1001, "Servermod", now.AddSeconds(90)), Mod(1002, "Enhanced HUD", now.AddSeconds(30))], CancellationToken.None);
         await log.FlushAsync(TimeSpan.FromSeconds(5));
         check(hook.Embeds.Length == before + 1 && hook.Embeds[^1].Title == "🔄 Update for mod: Servermod" && hook.Sent[^1].Message.Username is null && hook.Sent[^1].Message.AvatarUrl is null,
@@ -240,7 +252,7 @@ static class ModUpdateChecks
         before = hook.Embeds.Length;
         var batch = Enumerable.Range(0, 14).Select(i => Mod(2000 + (ulong)i, "Mod " + i, now.AddDays(-1))).ToList();
         await log.LookAsync(batch, CancellationToken.None);
-        await log.LookAsync(batch.Select(x => x with { TimeUpdated = (ulong)Unix(now.AddMinutes(-5)) + x.Id - 2000 }).ToList(), CancellationToken.None);
+        await log.LookAsync(batch.Select(x => x with { TimeUpdated = (ulong)Unix(now.AddMinutes(-5)) + x.Id - 2000, ContentId = (ulong)Unix(now.AddMinutes(-5)) + x.Id - 2000 }).ToList(), CancellationToken.None);
         await log.FlushAsync(TimeSpan.FromSeconds(10));
         var many = hook.Embeds.Skip(before).ToArray();
         check(many.Length == BotModUpdateLog.MaxPerLook + 1 && many[^1].Title == "🔄 More mod updates" && many[^1].Description == "Mod 10, Mod 11, Mod 12, Mod 13",
@@ -249,8 +261,6 @@ static class ModUpdateChecks
         // A webhook that refuses is one warning, no exception.
         hook.Failure = new InvalidOperationException("Unknown Webhook " + WebhookUrl);
         before = hook.Embeds.Length;
-        // (the mods that were not in the last look were forgotten: this look remembers these two again)
-        await log.LookAsync([Mod(1001, "Servermod", now.AddSeconds(400)), Mod(1002, "Enhanced HUD", now.AddSeconds(450))], CancellationToken.None);
         await log.LookAsync([Mod(1001, "Servermod", now.AddSeconds(500)), Mod(1002, "Enhanced HUD", now.AddSeconds(600))], CancellationToken.None);
         await log.FlushAsync(TimeSpan.FromSeconds(5));
         check(logger.Lines.Count(x => x.StartsWith("Warning: Discord bot: the mod update webhook refused", StringComparison.Ordinal)) == 1
@@ -258,16 +268,58 @@ static class ModUpdateChecks
             "A refusing webhook is one warning without the address: " + string.Join('|', logger.Lines));
         hook.Failure = null;
 
+        // A new picture or text changes the time of the update, not the file: that is no update. An older answer of Steam is no update
+        // either, and does not make the answer after it one.
+        before = hook.Embeds.Length;
+        var settled = Mod(1001, "Servermod", now.AddSeconds(700));
+        await log.LookAsync([settled, Mod(1002, "Enhanced HUD", now.AddSeconds(600))], CancellationToken.None);
+        await log.FlushAsync(TimeSpan.FromSeconds(5));
+        before = hook.Embeds.Length;
+        await log.LookAsync([Mod(1001, "Servermod", now.AddSeconds(900), content: settled.ContentId), Mod(1002, "Enhanced HUD", now.AddSeconds(600))], CancellationToken.None);
+        await log.FlushAsync(TimeSpan.FromSeconds(5));
+        check(hook.Embeds.Length == before, "A new picture or text of a mod is no update");
+        await log.LookAsync([Mod(1001, "Servermod", now.AddSeconds(1000)), Mod(1002, "Enhanced HUD", now.AddSeconds(600))], CancellationToken.None);
+        await log.LookAsync([Mod(1001, "Servermod", now.AddSeconds(950)), Mod(1002, "Enhanced HUD", now.AddSeconds(600))], CancellationToken.None);
+        await log.LookAsync([Mod(1001, "Servermod", now.AddSeconds(1000)), Mod(1002, "Enhanced HUD", now.AddSeconds(600))], CancellationToken.None);
+        await log.FlushAsync(TimeSpan.FromSeconds(5));
+        check(hook.Embeds.Length == before + 1, "An update is told once, also when Steam answers with an older version in between: " + (hook.Embeds.Length - before));
+        await log.LookAsync([new BotModVersion(1002, "Enhanced HUD", (ulong)Unix(now.AddSeconds(1100)), 0, "https://images.steamusercontent.com/ugc/1002/")], CancellationToken.None);
+        await log.FlushAsync(TimeSpan.FromSeconds(5));
+        check(hook.Embeds.Length == before + 1 && store.Load()![1002].Time == (ulong)Unix(now.AddSeconds(600)), "A mod Steam sends no file for says nothing and is not forgotten");
+        // A mod missing from one answer of Steam is remembered; when it is back with a new file that is an update.
+        await log.LookAsync([Mod(1001, "Servermod", now.AddSeconds(1000))], CancellationToken.None);
+        await log.LookAsync([Mod(1001, "Servermod", now.AddSeconds(1000)), Mod(1002, "Enhanced HUD", now.AddSeconds(1200))], CancellationToken.None);
+        await log.FlushAsync(TimeSpan.FromSeconds(5));
+        check(hook.Embeds.Length == before + 2 && hook.Embeds[^1].Title.EndsWith("Enhanced HUD", StringComparison.Ordinal), "A mod that was missing from one answer is not taken for a new one");
+        // A file of versions that can not be written: the same update is not told at every look.
+        var blocker = Path.Combine(folder, "blocker");
+        File.WriteAllText(blocker, "x");
+        using (var unsaved = new BotModUpdateLog(updates, hook, () => url, () => policy, new BotModUpdateStore(Path.Combine(blocker, "sub", "versions")), () => now, logger)
+               { Spacing = TimeSpan.Zero, WebhookCacheTime = TimeSpan.Zero })
+        {
+            unsaved.Start();
+            await unsaved.LookAsync([Mod(1500, "Unsaved", now.AddSeconds(-10))], CancellationToken.None);
+            before = hook.Embeds.Length;
+            for (var i = 0; i < 3; i++)
+                await unsaved.LookAsync([Mod(1500, "Unsaved", now.AddSeconds(30))], CancellationToken.None);
+            await unsaved.FlushAsync(TimeSpan.FromSeconds(5));
+            check(hook.Embeds.Length == before + 1, "An update is told once even when the versions can not be written down: " + (hook.Embeds.Length - before));
+        }
+
         // Through the event of the launcher, on another thread.
         before = hook.Embeds.Length;
-        updates.Raise([Mod(1001, "Servermod", now.AddSeconds(700)), Mod(1002, "Enhanced HUD", now.AddSeconds(600))]);
+        updates.Raise([Mod(1001, "Servermod", now.AddSeconds(1300)), Mod(1002, "Enhanced HUD", now.AddSeconds(1200))]);
         await Task.Delay(50);
         await log.FlushAsync(TimeSpan.FromSeconds(5));
         check(hook.Embeds.Length == before + 1, "The check of the launcher reaches the log");
         // An unreadable file is a first look, not a crash.
         File.WriteAllText(store.FilePath!, "{ not json");
         before = hook.Embeds.Length;
-        await log.LookAsync([Mod(1001, "Servermod", now.AddSeconds(800))], CancellationToken.None);
+        using (var fresh = new BotModUpdateLog(updates, hook, () => url, () => policy, new BotModUpdateStore(store.FilePath), () => now, logger) { Spacing = TimeSpan.Zero })
+        {
+            await fresh.LookAsync([Mod(1001, "Servermod", now.AddSeconds(800))], CancellationToken.None);
+            await fresh.FlushAsync(TimeSpan.FromSeconds(1));
+        }
         check(hook.Embeds.Length == before && store.Load() is { Count: 1 }, "A broken file of versions is a first look");
         // Nothing to look at, or a cancelled look: nothing happens.
         await log.LookAsync([], CancellationToken.None);
@@ -279,7 +331,8 @@ static class ModUpdateChecks
         log.Dispose();
         check(updates.Listeners == 0, "A log that is ended stops listening");
         var other = new BotModUpdateStore(Path.Combine(folder, "none", "x", "y"));
-        check(other.Load() is null && other.Save(new Dictionary<ulong, ulong> { [1] = 2 }) && other.Load() is { Count: 1 } && new BotModUpdateStore(null).Load() is null && new BotModUpdateStore(null).Save(new Dictionary<ulong, ulong>()),
+        check(other.Load() is null && other.Save(new Dictionary<ulong, BotModSeen> { [1] = new(3, 2) }) && other.Load() is { Count: 1 } loadedBack && loadedBack[1] == new BotModSeen(3, 2)
+              && new BotModUpdateStore(null).Load() is null && new BotModUpdateStore(null).Save(new Dictionary<ulong, BotModSeen>()),
             "The versions are kept in a folder that is made when needed, and not at all without a place");
     }
 }

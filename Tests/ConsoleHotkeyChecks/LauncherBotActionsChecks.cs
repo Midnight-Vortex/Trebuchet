@@ -578,6 +578,8 @@ static class LauncherBotActionsChecks
         warns.RestartWarnings = [new RestartWarning(TimeSpan.FromMinutes(30), "x")];
         check(Launcher.GetUpdateCountdown(warns, quarter) == TimeSpan.Zero && Launcher.GetUpdateCountdown(warns, TimeSpan.FromMinutes(45)) == TimeSpan.FromMinutes(45),
             "...and it is never shorter than the longest warning of the save");
+        check(Launcher.GetUpdateCountdown(new ServerProfile { UseRestartWarnings = true, RestartWarnings = [] }, quarter) == TimeSpan.Zero,
+            "...a save with the warnings on but no warning time restarts at once as well");
         warns.StoppingSequence = new Sequence { Actions = [new SequenceActionWait { WaitTime = TimeSpan.FromSeconds(4) }] };
         check(Launcher.GetUpdateCountdown(warns, TimeSpan.FromMinutes(45)) == TimeSpan.Zero, "...and a save with a stopping sequence of its own keeps it");
         check(Launcher.GetUpdateCountdown(new ServerProfile { UseRestartWarnings = true }, TimeSpan.FromDays(3)) == Config.UpdateRestartCountdownMaximum,

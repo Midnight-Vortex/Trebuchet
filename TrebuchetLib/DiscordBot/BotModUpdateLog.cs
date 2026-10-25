@@ -10,7 +10,11 @@ namespace TrebuchetLib.DiscordBot;
 
 /// <summary>A mod of the server mod lists as Steam knows it now.</summary>
 /// <param name="TimeUpdated">When the author last updated it (unix seconds).</param>
-public sealed record BotModVersion(ulong Id, string Title, ulong TimeUpdated, string PreviewUrl);
+/// <param name="ContentId">The version of its file: it changes with an upload of the author, not with a new picture or text (0: Steam sent none).</param>
+public sealed record BotModVersion(ulong Id, string Title, ulong TimeUpdated, ulong ContentId, string PreviewUrl);
+
+/// <summary>What was seen of a mod: its version and when it was updated.</summary>
+public sealed record BotModSeen(ulong Content, ulong Time);
 
 /// <summary>What the mod update log needs of the launcher. A fake replaces it in the tests.</summary>
 public interface IBotModUpdates
@@ -65,6 +69,8 @@ public static partial class BotModNotes
     public static string ToMarkdown(string? notes, int maxLength)
     {
         if (string.IsNullOrWhiteSpace(notes)) return string.Empty;
+        // Only the beginning is shown: the work of the patterns below grows with the square of the length for a note made of tags.
+        if (notes.Length > maxLength * 4) notes = notes[..(maxLength * 4)];
         var text = WebUtility.HtmlDecode(notes).Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
         text = Headline().Replace(text, "**$1**");
         text = Bold().Replace(text, "**$1**");
@@ -79,6 +85,8 @@ public static partial class BotModNotes
         text = Images().Replace(text, string.Empty);
         text = ListItem().Replace(text, "• ");
         text = AnyTag().Replace(text, string.Empty);
+        // A link an author wrote in Markdown is not one here either: "](" is shown as text (a link the players read is never other than it says).
+        text = MaskedLink().Replace(text, "]\\(");
         text = ExtraLines().Replace(text, "\n\n");
         text = string.Join('\n', text.Split('\n').Select(x => x.TrimEnd())).Trim();
         return Shorten(text, maxLength);
@@ -112,21 +120,22 @@ public static partial class BotModNotes
     [GeneratedRegex(@"\[\*\]\s*", Options)] private static partial Regex ListItem();
     // Only the tags of Steam's BBCode: "[Fix]" in a note is text, not a tag.
     [GeneratedRegex(@"\[/?(?:h[1-6]|b|i|u|strike|spoiler|noparse|hr|url|list|olist|quote|code|table|tr|th|td|tbody|img|previewyoutube|p|center|left|right|dynamiclink|steamgroup)(?:=[^\]]*)?\]", Options)] private static partial Regex AnyTag();
+    [GeneratedRegex(@"\]\(", Options)] private static partial Regex MaskedLink();
     [GeneratedRegex(@"\n{3,}", Options)] private static partial Regex ExtraLines();
 }
 
-/// <summary>Remembers which version of each mod was seen last (the time of its last update). Not a secret.</summary>
+/// <summary>Remembers which version of each mod was seen last (and when it was updated), to survive a restart. Not a secret.</summary>
 public sealed class BotModUpdateStore(string? path)
 {
     internal string? FilePath => path;
 
     /// <returns>Null when nothing was remembered yet (the first time): the first look is the baseline, it tells nothing.</returns>
-    public Dictionary<ulong, ulong>? Load()
+    public Dictionary<ulong, BotModSeen>? Load()
     {
         if (path is null || !File.Exists(path)) return null;
         try
         {
-            return JsonSerializer.Deserialize<Dictionary<ulong, ulong>>(File.ReadAllText(path));
+            return JsonSerializer.Deserialize<Dictionary<ulong, BotModSeen>>(File.ReadAllText(path));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or JsonException)
         {
@@ -135,7 +144,7 @@ public sealed class BotModUpdateStore(string? path)
     }
 
     /// <returns>False when it could not be written (the next look then sees the same updates once more).</returns>
-    public bool Save(IReadOnlyDictionary<ulong, ulong> versions)
+    public bool Save(IReadOnlyDictionary<ulong, BotModSeen> versions)
     {
         if (path is null) return true;
         try
@@ -174,6 +183,8 @@ public sealed class BotModUpdateLog : IDisposable
     internal static readonly TimeSpan NoteTolerance = TimeSpan.FromMinutes(30);
     internal static readonly TimeSpan NoteWait = TimeSpan.FromSeconds(20);
     internal const int MaxPerLook = 10;
+    // More mods than this are not kept in mind (the oldest go first).
+    internal const int MaxRemembered = 500;
     internal const int MaxNoteLength = 700;
     private const uint Gold = 0xF1A33B;
 
@@ -195,6 +206,10 @@ public sealed class BotModUpdateLog : IDisposable
     private int _running;
     private bool _failing;
     private (string? Url, DateTime AtUtc) _cachedWebhook;
+    // What was seen is kept here (the file only lets it survive a restart): a file that can not be written must not make the same update
+    // look new at every look.
+    private Dictionary<ulong, BotModSeen>? _known;
+    private bool _loaded;
 
     public BotModUpdateLog(IBotModUpdates updates, IBotWebhookClient client, Func<string?> webhook, Func<BotPolicy?> policy,
         BotModUpdateStore store, Func<DateTime>? clock = null, ILogger? logger = null)
@@ -264,24 +279,41 @@ public sealed class BotModUpdateLog : IDisposable
         try
         {
             var policy = _policy();
-            var known = _store.Load();
+            if (!_loaded)
+            {
+                _known = _store.Load();
+                _loaded = true;
+            }
+            var known = _known;
             var enabled = policy is { ModUpdatesEnabled: true } && Webhook() is not null;
             var now = _clock();
-            var current = new Dictionary<ulong, ulong>();
+            // What was seen before stays (a mod that is missing from one answer of Steam is not forgotten), what is seen now replaces it.
+            var current = known is null ? [] : new Dictionary<ulong, BotModSeen>(known);
             var news = new List<BotModVersion>();
             foreach (var mod in versions)
             {
-                if (mod.Id == 0 || mod.TimeUpdated == 0) continue;
-                current[mod.Id] = mod.TimeUpdated;
-                if (enabled && known is not null && known.TryGetValue(mod.Id, out var before) && mod.TimeUpdated > before
-                    && now - FromUnix(mod.TimeUpdated) <= MaxAge)
-                    news.Add(mod);
+                // No file from Steam (an error, or it left the workshop) says nothing about a new version.
+                if (mod.Id == 0 || mod.ContentId == 0 || mod.TimeUpdated == 0) continue;
+                var seen = new BotModSeen(mod.ContentId, mod.TimeUpdated);
+                if (known is not null && known.TryGetValue(mod.Id, out var before))
+                {
+                    // An older answer of Steam (a lagging server) is no new version, and what was seen stays: its newer answer is not one either.
+                    if (mod.TimeUpdated < before.Time) seen = before;
+                    // A new picture or text changes the time of the update, not the file: only a new file is an update.
+                    else if (mod.ContentId != before.Content && mod.TimeUpdated > before.Time && enabled && now - FromUnix(mod.TimeUpdated) <= MaxAge)
+                        news.Add(mod);
+                }
+                current[mod.Id] = seen;
             }
-            // What is remembered is what was seen: also while the log is off, so it never tells what happened before it was on. A
-            // mod that is not in the lists any more is forgotten (its old update is no news when it comes back).
-            if (known is null || !known.OrderBy(x => x.Key).SequenceEqual(current.OrderBy(x => x.Key)))
+            foreach (var oldest in current.OrderBy(x => x.Value.Time).Take(Math.Max(0, current.Count - MaxRemembered)).Select(x => x.Key).ToList())
+                current.Remove(oldest);
+            // What is remembered is what was seen: also while the log is off, so it never tells what happened before it was on.
+            if (!Same(known, current))
+            {
+                _known = current;
                 if (!_store.Save(current))
                     _logger?.LogDebug("Discord bot: the versions of the mods could not be remembered");
+            }
             if (news.Count == 0 || policy is null) return;
 
             var texts = BotModUpdateTexts.For(policy.Language);
@@ -308,6 +340,9 @@ public sealed class BotModUpdateLog : IDisposable
             _gate.Release();
         }
     }
+
+    private static bool Same(Dictionary<ulong, BotModSeen>? a, Dictionary<ulong, BotModSeen> b) =>
+        a is not null && a.Count == b.Count && b.All(x => a.TryGetValue(x.Key, out var other) && other == x.Value);
 
     // The note of the update: null when Steam could not be asked (the message then has no notes part), a note without text when the
     // author wrote none for this update (the latest note is an older one).

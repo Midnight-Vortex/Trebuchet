@@ -2188,22 +2188,26 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
                 await BroadcastMessage(instance, announcement, discord: false);
             }
             _lastRestartReason = reasonOf(instance);
-            RestartServer(instance, GetUpdateCountdown(GetInstanceProfile(instance), _setup.Config.UpdateRestartCountdown));
+            // A restart that a pause postponed has its end planned (the pause ends one warning lead before it): it begins with the
+            // countdown of the save, not with a longer one that would end later than it was told.
+            var postponedBefore = _postponedRestarts.Remove(instance);
+            RestartServer(instance, postponedBefore ? TimeSpan.Zero : GetUpdateCountdown(GetInstanceProfile(instance), _setup.Config.UpdateRestartCountdown));
         }
         return true;
     }
 
     /// <summary>
-    /// How long the players are warned before a restart for an update. Only a save that warns its players at all (the warnings are on and it
-    /// has no stopping sequence of its own) gets a countdown, and only when the configured time is longer than its own longest warning:
-    /// otherwise the warnings of the save run as they are.
+    /// How long the players are warned before a restart for an update. Only a save that warns its players at all (the warnings are on, at
+    /// least one has a time, and it has no stopping sequence of its own) gets a countdown, and only when the configured time is longer
+    /// than its own longest warning: otherwise the warnings of the save run as they are.
     /// </summary>
     /// <returns>Zero: the save's own warnings decide.</returns>
     internal static TimeSpan GetUpdateCountdown(ServerProfile? profile, TimeSpan configured)
     {
         if (profile is null || !profile.UseRestartWarnings || profile.StoppingSequence.Actions.Count > 0) return TimeSpan.Zero;
         if (configured > Config.UpdateRestartCountdownMaximum) configured = Config.UpdateRestartCountdownMaximum;
-        return configured > GetRestartWarningLead(profile) ? configured : TimeSpan.Zero;
+        var own = GetRestartWarningLead(profile);
+        return own > TimeSpan.Zero && configured > own ? configured : TimeSpan.Zero;
     }
 
     /// <summary>
