@@ -98,7 +98,8 @@ Die Rolle `@everyone` ist **nicht erlaubt** (jeder hat sie), Trebuchet lehnt sie
    Das Bild lädt Trebuchet selbst von deinem Computer aus (nur https, keine Weiterleitungen, nur Adressen im Internet, höchstens
    4 MB, PNG, JPEG, GIF oder WebP). Leere Felder bleiben, wie sie sind.
 
-   Dazu zählen der **Zeitplan** des Speicherstands (tägliche Neustarts), **Update-Neustarts**, ein **Countdown** des
+   Dazu zählen der **Zeitplan** des Speicherstands (tägliche Neustarts; die Uhrzeit ist die, zu der der Server herunterfährt: mit
+   eingeschalteten Warnmeldungen beginnt der Countdown eine Warnzeit früher, bei 5 Minuten also um 05:55 für 06:00), **Update-Neustarts**, ein **Countdown** des
    Launchers (auch von Hand oder aus Discord gestartet) und ein **verschobener Neustart**, sobald seine Zeit näher
    rückt. Ein Update, das auf die nächste Prüfung wartet, hat noch keine Zeit: Der Bot meldet sich, sobald der Launcher
    seinen Countdown beginnt. Ein **Absturz** wird nicht gemeldet, der Launcher hat ihn nicht geplant. Mit mehreren

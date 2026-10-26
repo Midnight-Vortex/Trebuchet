@@ -2,6 +2,10 @@
 
 After installing, launch Trebuchet from the Start menu or desktop shortcut. The installer deliberately does not launch it: on affected Windows versions, a process started by Setup can inherit RedirectionGuard and fail to traverse Trebuchet's Saved/profile junctions. Conan then reports that it cannot ensure `Saved/ExtractedMods` exists, even when the directory is present. If this happens after an older setup, fully close Trebuchet and relaunch it from the Start menu; reinstalling mods is not required for this directory-access error.
 
+## 0.9.33 the daily restart goes down at the time of the schedule
+
+- **A restart of the schedule now goes down at the time you set, not five minutes later.** The time of the schedule ("the times when the server will be taken down") used to be the moment the countdown began: with the warning messages on, the server went down one warning later (5 minutes with the default warnings), so a restart set to 06:00 went down at 06:05. Now the countdown begins one warning earlier (05:55) and the server goes down at 06:00. Without warning messages nothing changes. The time the status message and the community log announce is the time the server goes down. If you set the times five minutes early to make up for it, set them to the real time now.
+
 ## 0.9.32 the check for mod updates uses the mod lists the servers really run with
 
 - **The check for mod updates now looks at the mod list each server instance really runs with.** Before, only lists that were chosen explicitly in the settings were checked. An instance that shows "Mods: Default" in the dashboard without the list ever being chosen (or one whose list an older version stored as a plain name) was left out: no check of its mods, no restart for their updates and nothing told in the mod update channel. It now uses the same list as the dashboard and the start.

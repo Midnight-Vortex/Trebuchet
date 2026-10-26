@@ -1127,9 +1127,11 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             var notBeforeUtc = process.StartUtc + GetAutoRestartMinUptime(profile);
             if (pausedUntilUtc is { } paused && paused > notBeforeUtc) notBeforeUtc = paused;
             var todayFull = profile.AutoRestartMaxPerDay > 0 && StartDateCountToday(instance) >= profile.AutoRestartMaxPerDay;
-            if (GetNextDailyRestart(profile.AutoRestartDailyTime, DateTime.Now, notBeforeUtc.ToLocalTime(), todayFull) is not { } next)
+            var lead = GetRestartWarningLead(profile);
+            // The countdown begins one warning lead before the time of the schedule, so that the server goes down at that time.
+            if (GetNextDailyRestart(GetRestartStartTimes(profile.AutoRestartDailyTime, lead), DateTime.Now, notBeforeUtc.ToLocalTime(), todayFull) is not { } next)
                 return null;
-            return DateTime.SpecifyKind(next, DateTimeKind.Local).ToUniversalTime() + GetRestartWarningLead(profile);
+            return DateTime.SpecifyKind(next, DateTimeKind.Local).ToUniversalTime() + lead;
         }
         catch (Exception ex)
         {
@@ -1140,6 +1142,20 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
 
     // After a daily restart time the tick still starts the restart during this window.
     private static readonly TimeSpan DailyRestartWindow = TimeSpan.FromMinutes(5);
+
+    /// <summary>
+    /// The times of day the restarts of the schedule begin: the time of the schedule is when the server goes down ("the times when the server
+    /// is taken down"), so the countdown with the warnings begins one warning lead earlier (the lead is zero for a save without warnings: the
+    /// restart begins at that time). Times that do not fit a day are left out; the start of a time just after midnight is the evening before.
+    /// </summary>
+    internal static List<TimeSpan> GetRestartStartTimes(IEnumerable<TimeSpan> dailyTimes, TimeSpan lead)
+    {
+        var day = TimeSpan.FromDays(1).Ticks;
+        return dailyTimes
+            .Where(x => x >= TimeSpan.Zero && x < TimeSpan.FromDays(1))
+            .Select(x => TimeSpan.FromTicks((((x - lead).Ticks % day) + day) % day))
+            .ToList();
+    }
 
     private static TimeSpan GetAutoRestartMinUptime(ServerProfile profile) =>
         profile.AutoRestartMinUptime.TotalMinutes < 10 ? TimeSpan.FromMinutes(10) : profile.AutoRestartMinUptime;
@@ -2027,7 +2043,7 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
                && serverProfile.AutoRestartMaxPerDay > 0) continue;
 
             var time = DateTime.Now.TimeOfDay;
-            if(serverProfile.AutoRestartDailyTime
+            if(GetRestartStartTimes(serverProfile.AutoRestartDailyTime, GetRestartWarningLead(serverProfile))
                .All(x => time < x || time > x + DailyRestartWindow)) continue;
 
             _lastRestartReason = _setup.GetReasonAutomatedRestart();

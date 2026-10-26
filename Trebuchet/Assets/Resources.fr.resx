@@ -1207,7 +1207,7 @@ La séquence d'arret est utilisé en lieu d'un simple arret du serveur. Cela vou
         <value>Programme des redémarrage automatique à différent moment de la journée</value>
     </data>
     <data name="SettingServerAutoRestartDailyTimeText" xml:space="preserve">
-        <value>Liste les heures durant lequels le serveur est mis hors ligne pour un redémarrage automatique. Vérifier que les heurs specifié sont compatible avec les paramétre de quantité journaliére et de durée minimum de fonctionement, ou le redémarrage sera ignoré.</value>
+        <value>Liste les heures durant lesquelles le serveur est mis hors ligne pour un redémarrage automatique. Si les messages d'avertissement sont activés, le compte à rebours commence un délai d'avertissement plus tôt (5 minutes avec les avertissements par défaut), pour que le serveur s'arrête à cette heure. Vérifier que les heures spécifiées sont compatibles avec les paramètres de quantité journalière et de durée minimum de fonctionnement, ou le redémarrage sera ignoré.</value>
     </data>
     <data name="SettingServerAutoRestartMaxPerDayText" xml:space="preserve">
         <value>Montant maximum de redémarrage par jour évalué à l'heure local, et réinitialisé à minuit. Cette limite empéche les redémarrage automatique, mais pas quand ils impliquent une mise à jour de mod ou serveur.</value>

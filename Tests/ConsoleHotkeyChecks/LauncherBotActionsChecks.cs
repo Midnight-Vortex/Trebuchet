@@ -133,6 +133,24 @@ static class LauncherBotActionsChecks
             "The window ends at midnight, as the tick compares the time of day");
         check(Next([], day) is null && Next([TimeSpan.FromHours(25), TimeSpan.FromHours(-1)], day) is null,
             "No or invalid restart times: no restart");
+
+        // The time of the schedule is when the server goes down: the countdown with the warnings begins one warning lead before it.
+        var lead = TimeSpan.FromMinutes(5);
+        check(Launcher.GetRestartStartTimes([TimeSpan.FromHours(6), TimeSpan.FromHours(18)], lead)
+                  .SequenceEqual([new TimeSpan(5, 55, 0), new TimeSpan(17, 55, 0)]),
+            "With warnings of 5 minutes a restart at 06:00 and 18:00 begins at 05:55 and 17:55");
+        check(Launcher.GetRestartStartTimes([TimeSpan.FromHours(6)], TimeSpan.Zero).SequenceEqual([TimeSpan.FromHours(6)]),
+            "Without warnings it begins at the time itself");
+        check(Launcher.GetRestartStartTimes([new TimeSpan(0, 3, 0)], lead).SequenceEqual([new TimeSpan(23, 58, 0)])
+              && Launcher.GetRestartStartTimes([TimeSpan.Zero], TimeSpan.FromMinutes(30)).SequenceEqual([new TimeSpan(23, 30, 0)]),
+            "A time just after midnight begins the evening before");
+        check(Launcher.GetRestartStartTimes([TimeSpan.FromHours(25), TimeSpan.FromHours(-1), TimeSpan.FromHours(12)], lead).SequenceEqual([new TimeSpan(11, 55, 0)]),
+            "Times that do not fit a day are left out");
+        // The tick finds the beginning five minutes before the time, and the end of the countdown is the time of the schedule.
+        var begins = Launcher.GetRestartStartTimes(noon, lead);
+        check(Next(begins, day.AddHours(11).AddMinutes(50)) == day.AddHours(11).AddMinutes(55)
+              && Next(begins, day.AddHours(11).AddMinutes(50)) + lead == day.AddHours(12),
+            "The restart of 12:00 with warnings of 5 minutes begins at 11:55 and goes down at 12:00");
     }
 
     private static async Task LauncherChecks(Action<bool, string> check)
@@ -403,8 +421,8 @@ static class LauncherBotActionsChecks
             await ui.InvokeAsync(() => Task.FromResult(files.Server.Get(saveA).UseRestartWarnings = true));
             var warned = await StatusOf(0);
             await ui.InvokeAsync(() => Task.FromResult(files.Server.Get(saveA).UseRestartWarnings = false));
-            check(warned?.PendingAtUtc - scheduled?.PendingAtUtc == TimeSpan.FromMinutes(5),
-                "The restart warnings of the save count to the time of the restart: " + warned);
+            check(warned?.PendingAtUtc == scheduled?.PendingAtUtc,
+                "With the warnings of the save the server still goes down at the time of the schedule (the countdown begins earlier): " + warned);
 
             // The "Server name" of the save is the name of the server: in the status, and in the log lines of the launcher.
             await ui.InvokeAsync(() => Task.FromResult(files.Server.Get(saveA).ServerName = "Test <Server>"));

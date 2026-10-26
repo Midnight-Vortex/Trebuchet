@@ -1611,7 +1611,7 @@ Die Stopp-Sequenz ersetzt das einfache Stoppen des Servers. So kannst du Aktione
         <value>Tägliche Neustarts zu festen Uhrzeiten planen.</value>
     </data>
     <data name="SettingServerAutoRestartDailyTimeText" xml:space="preserve">
-        <value>Uhrzeiten, zu denen der Server automatisch für einen Neustart heruntergefahren wird. Achte darauf, dass „Höchstens pro Tag“ und „Mindestlaufzeit“ den Neustart nicht verhindern.</value>
+        <value>Uhrzeiten, zu denen der Server automatisch für einen Neustart heruntergefahren wird. Sind die Warnmeldungen eingeschaltet, beginnt der Countdown eine Warnzeit früher (5 Minuten bei den Standard-Warnungen), damit der Server zu dieser Uhrzeit herunterfährt. Achte darauf, dass „Höchstens pro Tag“ und „Mindestlaufzeit“ den Neustart nicht verhindern.</value>
     </data>
     <data name="SettingServerAutoRestartMaxPerDayText" xml:space="preserve">
         <value>Höchstzahl an Neustarts pro Tag. Gezählt wird in Ortszeit, um Mitternacht wird zurückgesetzt. Das verhindert automatische Neustarts, aber nicht solche für Mod- oder Server-Updates.</value>

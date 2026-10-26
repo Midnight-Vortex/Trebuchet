@@ -2489,7 +2489,7 @@ namespace Trebuchet.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to List of the times when the server will be taken down automatically for restart. Make sure this avoid the Max Per Day and Minimum Uptime settings, otherwise the restart will be prevented..
+        ///   Looks up a localized string similar to List of the times when the server will be taken down automatically for restart. With the warning messages switched on the countdown begins one warning earlier (5 minutes with the default warnings), so that the server goes down at this time. Make sure this avoid the Max Per Day and Minimum Uptime settings, otherwise the restart will be prevented.
         /// </summary>
         public static string SettingServerAutoRestartDailyTimeText {
             get {

@@ -1215,7 +1215,7 @@ The stopping sequence will be used in place of simply stopping the server. This 
         <value>Programe daily restarts at various moment of the day.</value>
     </data>
     <data name="SettingServerAutoRestartDailyTimeText" xml:space="preserve">
-        <value>List of the times when the server will be taken down automatically for restart. Make sure this avoid the Max Per Day and Minimum Uptime settings, otherwise the restart will be prevented.</value>
+        <value>List of the times when the server will be taken down automatically for restart. With the warning messages switched on the countdown begins one warning earlier (5 minutes with the default warnings), so that the server goes down at this time. Make sure this avoid the Max Per Day and Minimum Uptime settings, otherwise the restart will be prevented.</value>
     </data>
     <data name="SettingServerAutoRestartMaxPerDayText" xml:space="preserve">
         <value>Maximum of restarts per day. Restart are evaluated in local time, and the count will be reset at midnight. This does prevent automated restarts, but not when they involve mod or server updates.</value>
