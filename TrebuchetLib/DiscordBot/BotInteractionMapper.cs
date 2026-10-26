@@ -34,8 +34,9 @@ internal enum BotAckKind
     UpdateQuestion,
     /// <summary>
     /// Not acknowledged before the handler runs: the menu of a question answers with the window for the reason, and a
-    /// window can only be the very first answer. The first answer of the handler is the acknowledgment; the Discord layer
-    /// acknowledges on its own when the handler takes too long (the window is not possible then).
+    /// window can only be the very first answer; "cancel" of a question only replaces the question. The first answer of the
+    /// handler is the acknowledgment; the Discord layer acknowledges on its own when the handler takes too long (the window
+    /// is not possible then).
     /// </summary>
     Lazy
 }
@@ -135,6 +136,9 @@ internal static class BotInteractionMapper
             return BotAckKind.NewPrivateMessage;
         // The menu answers with the window for the reason: that has to be the first answer, so nothing is acknowledged before.
         if (kind == BotInteractionKind.Select && idKind == BotCustomIdKind.PostponeSelect) return BotAckKind.Lazy;
+        // "Cancel" of a question changes nothing in the launcher: its answer replaces the question as the acknowledgment itself (one trip
+        // to Discord instead of two). A second click finds the question used up, as before.
+        if (kind == BotInteractionKind.Button && idKind == BotCustomIdKind.Cancel) return BotAckKind.Lazy;
         return BotAckKind.UpdateQuestion;
     }
 

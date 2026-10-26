@@ -424,9 +424,12 @@ static class DiscordNetLayerChecks
               && BotInteractionMapper.ChooseAck(BotInteractionKind.Button, "tb1:a:stop:", false) == BotAckKind.NewPrivateMessage,
             "Only a real action button is answered lazily, everything else on a public message is acknowledged first");
         Check(BotInteractionMapper.ChooseAck(BotInteractionKind.Button, BotCustomId.ForConfirm(nonce), true) == BotAckKind.UpdateQuestion
-              && BotInteractionMapper.ChooseAck(BotInteractionKind.Button, BotCustomId.ForCancel(nonce), true) == BotAckKind.UpdateQuestion
               && BotInteractionMapper.ChooseAck(BotInteractionKind.Modal, BotCustomId.ForReasonModal(nonce), true) == BotAckKind.UpdateQuestion,
             "Our private question is replaced by the answer (also after the window for the reason)");
+        Check(BotInteractionMapper.ChooseAck(BotInteractionKind.Button, BotCustomId.ForCancel(nonce), true) == BotAckKind.Lazy
+              && BotInteractionMapper.ChooseAck(BotInteractionKind.Button, BotCustomId.ForCancel(nonce), false) == BotAckKind.NewPrivateMessage
+              && BotInteractionMapper.ChooseAck(BotInteractionKind.Modal, BotCustomId.ForCancel(nonce), true) == BotAckKind.UpdateQuestion,
+            "Cancel of our private question is not acknowledged up front: its answer replaces the question in one call");
         Check(BotInteractionMapper.ChooseAck(BotInteractionKind.Select, BotCustomId.ForPostponeSelect(nonce), true) == BotAckKind.Lazy
               && BotInteractionMapper.ChooseAck(BotInteractionKind.Select, BotCustomId.ForPostponeSelect(nonce), false) == BotAckKind.NewPrivateMessage
               && BotInteractionMapper.ChooseAck(BotInteractionKind.Modal, BotCustomId.ForReasonModal(nonce), false) == BotAckKind.NewPrivateMessage

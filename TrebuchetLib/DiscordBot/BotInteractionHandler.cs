@@ -658,7 +658,11 @@ public sealed class BotInteractionHandler
         // Refused (busy, not running, failed): nothing was postponed, so none of the budget is used.
         if (budgeted && !result.Success) _budget.Restore(instance, budgetBefore);
         Audit(i, result.Success ? BotAuditResult.Executed : BotAuditResult.Failed, ask, $"{result.Outcome} {result.Detail}".Trim());
-        var answer = ResultText(command, instance >= 0 ? await ServerLabelAsync(instance, token).ConfigureAwait(false) : string.Empty, minutes, result, messages);
+        // The launcher names the server when it acted: no further read of the states (a trip to the launcher thread) before the answer.
+        var server = instance < 0 ? string.Empty
+            : result.ServerName is { } named ? LabelOf(instance, named)
+            : await ServerLabelAsync(instance, token).ConfigureAwait(false);
+        var answer = ResultText(command, server, minutes, result, messages);
         if (command == BotCommand.Postpone && result.Success && minutes < requestedMinutes)
             answer = string.Format(CultureInfo.InvariantCulture, messages.PostponedLimited, messages.FormatMinutes(minutes));
         await AnswerAsync(responder, new BotReply(answer), update).ConfigureAwait(false);
@@ -747,12 +751,10 @@ public sealed class BotInteractionHandler
     /// </summary>
     private async Task<string> ServerLabelAsync(int instance, CancellationToken token)
     {
-        var number = instance.ToString(CultureInfo.InvariantCulture);
         try
         {
             var statuses = await _actions.GetStatusesAsync(token).ConfigureAwait(false);
-            var name = statuses.FirstOrDefault(x => x.Instance == instance)?.Name;
-            return string.IsNullOrWhiteSpace(name) || name == "-" ? number : name;
+            return LabelOf(instance, statuses.FirstOrDefault(x => x.Instance == instance)?.Name);
         }
         catch (OperationCanceledException)
         {
@@ -760,9 +762,12 @@ public sealed class BotInteractionHandler
         }
         catch (Exception)
         {
-            return number;
+            return LabelOf(instance, null);
         }
     }
+
+    private static string LabelOf(int instance, string? name) =>
+        string.IsNullOrWhiteSpace(name) || name == "-" ? instance.ToString(CultureInfo.InvariantCulture) : name;
 
     private async Task RefreshAsync(CancellationToken token)
     {

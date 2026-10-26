@@ -22,6 +22,12 @@ public sealed record BotUpdateInfo(int OutdatedMods, bool ServerUpdate);
 public sealed record BotActionResult(BotActionOutcome Outcome, string Detail = "", BotUpdateInfo? Updates = null)
 {
     public bool Success => Outcome == BotActionOutcome.Done;
+
+    /// <summary>
+    /// How the server was named when the launcher acted on it (as in <see cref="BotServerStatus.Name"/>). Null when unknown: the
+    /// answer then reads the state of the servers for the name, which is one more trip to the launcher thread.
+    /// </summary>
+    public string? ServerName { get; init; }
 }
 
 /// <summary>

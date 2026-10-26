@@ -519,7 +519,8 @@ public sealed class LauncherBotActions : IBotActions, IBotModUpdates, IDisposabl
         _logger.Log(result.Outcome == BotActionOutcome.Failed ? LogLevel.Warning : LogLevel.Information,
             "Discord bot: {Action} server {Server} {Parameters}: {Outcome} {Detail}",
             action, server, parameters, result.Outcome, result.Detail);
-        return result;
+        // The answer names the server with it: the state read after the action is not needed for that.
+        return serverName.Length > 0 ? result with { ServerName = serverName } : result;
     }
 
     private enum DispatchEnd { Ran, Cancelled, TimedOut, Failed }

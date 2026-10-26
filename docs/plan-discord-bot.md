@@ -237,6 +237,12 @@ Zeit, User-ID, Anzeigename (nur zur Info), Server-/Kanal-ID, Befehl, Parameter, 
   (`CountdownCancelledUtc`) und ein Stopp/Neustart „jetzt“ ebenso (`GoingDownNow`, nur auf dem direkten Weg, nicht während der Warnung
   eines Countdowns): Der Community-Log meldet den Abbruch sofort, auch wenn der Launcher noch eine Abfolge zeigt, und wartet nur bei einem
   Countdown, der ohne Meldung verschwindet, 8 s. Die Hinweise an die Spieler je Server bleiben in der Reihenfolge der Aufträge.
+  „Abbrechen“ einer privaten Frage wird ebenfalls nicht vorab bestätigt (`BotAckKind.Lazy`): Es ändert im Launcher nichts, die Antwort
+  ersetzt die Frage als Bestätigung (Typ 7, ein Aufruf statt zwei). Nach einer Aktion nennt `BotActionResult.ServerName` den Server, wie
+  der Launcher ihn beim Handeln sah: Die Antwort liest den Zustand der Server dafür nicht noch einmal (ein Weg weniger über den
+  Launcher-Thread). Im Fenster läuft die Arbeit des Bots auf dem UI-Thread mit `DispatcherPriority.Normal` statt `Default`, sie wartet
+  nicht hinter Layout, Rendern und den Aufträgen der Ansichten. Die im Panel gezeigte Latenz ist die Herzschlag-Zeit der
+  Gateway-Verbindung (Netz bis zu Discord); der Gateway-Task wird von keinem Ereignis-Handler aufgehalten.
 - **Mod-Updates** (`BotModUpdateLog`, Einstellungen `ModUpdatesEnabled/Name/AvatarUrl`, Webhook `.modupdates-webhook`): Der Launcher meldet nach jeder
   Prüfung auf Updates (`Launcher.ModVersionsChecked`, nur Mods der Server-Mod-Listen) die Versionen (`PublishedMod.ContentId` = `hcontent_file`,
   `TimeUpdated`, Bild `PreviewUrl`); `LauncherBotActions` reicht sie als `IBotModUpdates` an den Log. Ein Update ist eine **neue Datei-Version**

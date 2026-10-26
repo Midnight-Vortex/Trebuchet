@@ -26,8 +26,10 @@ public sealed class AvaloniaBotDispatcher : IBotDispatcher
     private readonly HashSet<Action> _queued = [];
     private bool _closed;
 
+    // Normal, not the lowest foreground priority (Default): the short work of the bot (read the states, start an action) does not wait
+    // behind layout, render and what the views post: someone in Discord is waiting for the answer.
     public AvaloniaBotDispatcher()
-        : this(() => Dispatcher.UIThread.CheckAccess(), job => _ = Dispatcher.UIThread.InvokeAsync(job))
+        : this(() => Dispatcher.UIThread.CheckAccess(), job => _ = Dispatcher.UIThread.InvokeAsync(job, DispatcherPriority.Normal))
     {
     }
 

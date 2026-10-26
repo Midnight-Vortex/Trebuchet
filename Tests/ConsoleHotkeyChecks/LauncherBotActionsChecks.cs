@@ -354,6 +354,7 @@ static class LauncherBotActionsChecks
             var stopNow = await actions.StopAsync(0, TimeSpan.Zero, "Wartung", none);
             var stopping = await StatusOf(0);
             check(stopNow.Success && stopping?.State == BotServerState.Stopping, "A stop now stops the server: " + stopNow + " " + stopping);
+            check(stopNow.ServerName is { Length: > 0 } && stopNow.ServerName == stopping?.Name, "The result names the server as its status does");
             check((await actions.PostponeAsync(0, 30, "", none)).Outcome == BotActionOutcome.Busy
                   && (await actions.StartAsync(0, none)).Outcome == BotActionOutcome.Busy
                   && (await actions.RestartAsync(0, TimeSpan.Zero, "", none)).Outcome == BotActionOutcome.Busy,

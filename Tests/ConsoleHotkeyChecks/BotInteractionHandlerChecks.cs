@@ -495,6 +495,11 @@ static class BotInteractionHandlerChecks
             var secondClick = await rig.Do(rig.Click(confirm!, true));
             Check(secondClick.Last.Text == BotMessages.German.Expired && !secondClick.Replies[0].Update && rig.Actions.Executed == 1,
                 "A confirmation works once, the second click is answered as a new message (it does not overwrite the result)");
+            var actedOn = new Rig(folder, AllOn());
+            actedOn.Actions.Result = new BotActionResult(BotActionOutcome.Done) { ServerName = "Insel" };
+            var restartQuestion = (await actedOn.Do(actedOn.Slash("restart now", numbers: Rig.N(0)))).Last.Question as BotConfirmQuestion;
+            Check((await actedOn.Do(actedOn.Click(restartQuestion!, true))).Last.Text == "Neustart von Server Insel gestartet.",
+                "The answer names the server as the launcher did when it acted, without reading the states again");
 
             confirm = (await rig.Do(rig.Slash("stop", numbers: Rig.N(0)))).Last.Question as BotConfirmQuestion;
             var cancelled = await rig.Do(rig.Click(confirm!, false));
