@@ -109,6 +109,26 @@ internal static class ProfileMenuChecks
                 await deletion.WaitAsync(TimeSpan.FromSeconds(3));
                 Check(required.Selected?.Name == "Default" && notified, "Recreated required default refreshes panel even with same name");
             }
+
+            // A profile made with content (mod list from a mod mismatch): the suggested name is made valid and free.
+            files.Create(files.Ref("Server a-b"));
+            using (var naming = new FileMenuViewModel<SyncProfile, TestRef>("Sync", files, box, NullLogger.Instance, allowEmpty: true))
+            {
+                var creating = naming.CreateWith("Title", "Text", "Server a/b", profile => profile.Modlist = ["2", "1"]);
+                Check(box.Popup is OnBoardingNameSelection { Value: "Server a-b (2)", Title: "Title", Description: "Text" },
+                    "The name dialog suggests a valid free name and shows the given title and text");
+                await ((OnBoardingNameSelection)box.Popup!).ConfirmCommand.Execute().ToTask();
+                var made = await creating.WaitAsync(TimeSpan.FromSeconds(3));
+                Check(made?.Name == "Server a-b (2)" && files.Exists(made)
+                      && File.ReadAllText(files.GetPath(made)).Replace(" ", "").Replace("\r", "").Replace("\n", "").Contains("[\"2\",\"1\"]"),
+                    "The new profile is saved with its content");
+                Check(naming.Selected?.Equals(made) == true && naming.List.Any(x => x.Reference.Equals(made)), "The new profile is listed and selected");
+
+                var cancelled = naming.CreateWith("Title", "Text", "Other", _ => throw new Exception("A cancelled profile is not filled"));
+                await ((OnBoardingNameSelection)box.Popup!).CancelCommand.Execute().ToTask();
+                Check(await cancelled.WaitAsync(TimeSpan.FromSeconds(3)) is null && !files.Exists(files.Ref("Other"))
+                      && naming.Selected?.Equals(made) == true, "Cancelling the name creates nothing and keeps the selection");
+            }
         }
         finally
         {

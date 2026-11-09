@@ -2140,4 +2140,33 @@ Le bot ne répond pas dans le salon : le salon d’administration est-il défini
     <data name="DiscordBotModUpdatesAvatarText" xml:space="preserve">
         <value>Un lien (https) vers une image. Vide : l'image du webhook.</value>
     </data>
+    <data name="ModMismatchTip" xml:space="preserve">
+        <value>Liste de mods depuis un conflit de mods : crée une nouvelle liste de mods à partir du dernier « mod mismatch » du journal du client du jeu : tous les mods du serveur qui vous a refusé, dans l&apos;ordre du serveur.</value>
+    </data>
+    <data name="ModMismatchTitle" xml:space="preserve">
+        <value>Liste de mods depuis un conflit de mods</value>
+    </data>
+    <data name="ModMismatchNoClient" xml:space="preserve">
+        <value>Le dossier du client du jeu n&apos;est pas défini ou n&apos;existe pas. Définissez-le d&apos;abord dans les paramètres.</value>
+    </data>
+    <data name="ModMismatchNotFound" xml:space="preserve">
+        <value>Aucun conflit de mods avec des mods du Workshop n&apos;a été trouvé dans les journaux du client du jeu ({0}).
+Lancez le client avec Trebuchet et essayez de rejoindre le serveur. Quand le jeu vous refuse avec « mod mismatch », revenez ici et cliquez à nouveau sur ce bouton (le jeu peut rester ouvert).</value>
+    </data>
+    <data name="ModMismatchFound" xml:space="preserve">
+        <value>Le serveur {0} a refusé le client du jeu le {1} car les mods ne correspondent pas (trouvé dans {3}). Il utilise ces {2} mods ; Trebuchet en crée une nouvelle liste de mods, dans l&apos;ordre du serveur.
+Cliquez ensuite sur « {4} » pour télécharger les mods manquants ou obsolètes, choisissez la nouvelle liste pour le client dans le tableau de bord et rejoignez à nouveau le serveur.</value>
+    </data>
+    <data name="ModMismatchNoId" xml:space="preserve">
+        <value>{0} entrées n&apos;ont pas d&apos;identifiant du Workshop et sont ignorées : {1}</value>
+    </data>
+    <data name="ModMismatchName" xml:space="preserve">
+        <value>Nom de la nouvelle liste de mods :</value>
+    </data>
+    <data name="ModMismatchUnknownServer" xml:space="preserve">
+        <value>(inconnu)</value>
+    </data>
+    <data name="ModMismatchListName" xml:space="preserve">
+        <value>Serveur {0}</value>
+    </data>
 </root>

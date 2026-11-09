@@ -7878,5 +7878,86 @@ namespace Trebuchet.Assets {
             }
         }
         
+        /// <summary>
+        ///   Looks up a localized string similar to Mod list from a mod mismatch: makes a new mod list from the last &quot;mod mismatch&quot; in the log of the game client: all mods of the server that refused you, in the order of the server..
+        /// </summary>
+        public static string ModMismatchTip {
+            get {
+                return ResourceManager.GetString("ModMismatchTip", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Mod list from a mod mismatch.
+        /// </summary>
+        public static string ModMismatchTitle {
+            get {
+                return ResourceManager.GetString("ModMismatchTitle", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The folder of the game client is not set or does not exist. Set it in the settings first..
+        /// </summary>
+        public static string ModMismatchNoClient {
+            get {
+                return ResourceManager.GetString("ModMismatchNoClient", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to No mod mismatch with workshop mods was found in the logs of the game client ({0}). Start the client with Trebuchet and try to join the server. When the game refuses you with &quot;mod mismatch&quot;, come back here and click this button again (the game may stay open)..
+        /// </summary>
+        public static string ModMismatchNotFound {
+            get {
+                return ResourceManager.GetString("ModMismatchNotFound", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The server {0} refused the game client on {1} because the mods do not match (found in {3}). It runs these {2} mods; Trebuchet makes a new mod list with them, in the order of the server. Then click &quot;{4}&quot; to download missing or outdated mods, choose the new list for the client in the dashboard and join again..
+        /// </summary>
+        public static string ModMismatchFound {
+            get {
+                return ResourceManager.GetString("ModMismatchFound", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to {0} entries have no workshop id and are left out: {1}.
+        /// </summary>
+        public static string ModMismatchNoId {
+            get {
+                return ResourceManager.GetString("ModMismatchNoId", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Name of the new mod list:.
+        /// </summary>
+        public static string ModMismatchName {
+            get {
+                return ResourceManager.GetString("ModMismatchName", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to (unknown).
+        /// </summary>
+        public static string ModMismatchUnknownServer {
+            get {
+                return ResourceManager.GetString("ModMismatchUnknownServer", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Server {0}.
+        /// </summary>
+        public static string ModMismatchListName {
+            get {
+                return ResourceManager.GetString("ModMismatchListName", resourceCulture);
+            }
+        }
+        
     }
 }

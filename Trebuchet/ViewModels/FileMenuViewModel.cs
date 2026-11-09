@@ -152,6 +152,47 @@ public class FileMenuViewModel<T, TRef> : ReactiveObject, IFileMenuViewModel, ID
         Selected = reference;
     }
 
+    /// <summary>
+    /// Asks for the name of a new profile (the suggestion is made free and valid first), creates it, lets <paramref name="fill"/>
+    /// set its content, saves and selects it. Null when the user cancelled or the profile could not be made.
+    /// </summary>
+    public async Task<TRef?> CreateWith(string title, string description, string suggestion, Action<T> fill)
+    {
+        var name = (await GetNewProfileName(GetFreeName(suggestion), title, description))?.Trim();
+        if (string.IsNullOrEmpty(name)) return null;
+        var reference = _fileHandler.Ref(name);
+        try
+        {
+            _logger.LogInformation(@"Create {name}", name);
+            var profile = _fileHandler.Create(reference);
+            fill(profile);
+            profile.SaveFile();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, @"Failed to create {name}", name);
+            await _dialogue.OpenErrorAsync($@"Failed to create the profile ({ex.Message})");
+            return null;
+        }
+        RefreshList();
+        Selected = reference;
+        return reference;
+    }
+
+    /// <summary><paramref name="name"/> without characters a file name cannot have, with " (2)", " (3)" ... when it is taken.</summary>
+    private string GetFreeName(string name)
+    {
+        var invalid = Path.GetInvalidFileNameChars();
+        name = new string(name.Select(x => invalid.Contains(x) ? '-' : x).ToArray()).Trim();
+        if (name.Length == 0 || ValidateName(name).IsValid) return name;
+        for (var i = 2; i < 1000; i++)
+        {
+            var candidate = $@"{name} ({i})";
+            if (ValidateName(candidate).IsValid) return candidate;
+        }
+        return name;
+    }
+
     private async Task OnImport()
     {
         if (Application.Current?.ApplicationLifetime is not IClassicDesktopStyleApplicationLifetime desktop) return;
@@ -325,9 +366,9 @@ public class FileMenuViewModel<T, TRef> : ReactiveObject, IFileMenuViewModel, ID
         return Validation.Valid;
     }
         
-    private async Task<string?> GetNewProfileName(string name = "")
+    private async Task<string?> GetNewProfileName(string name = "", string? title = null, string? description = null)
     {
-        var modal = new OnBoardingNameSelection(Resources.Create, string.Empty)
+        var modal = new OnBoardingNameSelection(title ?? Resources.Create, description ?? string.Empty)
             .SetValidation(ValidateName);
         modal.Value = name;
         await _dialogue.OpenAsync(modal);

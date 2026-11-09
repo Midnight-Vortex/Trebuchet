@@ -859,7 +859,7 @@ WARNUNG: Dies kann dazu führen, dass die Erkennung von Zombie-Prozessen nicht m
         <value>Unbenannt</value>
     </data>
     <data name="Update" xml:space="preserve">
-        <value>Aktualierung</value>
+        <value>Aktualisierung</value>
     </data>
     <data name="UpdateAllMods" xml:space="preserve">
         <value>Aktualisiere alle Mods</value>
@@ -2749,5 +2749,34 @@ Bei „Token bereits in Verwendung“ läuft ein Bot mit demselben Token schon i
     </data>
     <data name="DiscordBotModUpdatesAvatarText" xml:space="preserve">
         <value>Ein Link (https) auf ein Bild. Leer: das Bild des Webhooks.</value>
+    </data>
+    <data name="ModMismatchTip" xml:space="preserve">
+        <value>Modliste aus einem Mod-Mismatch: legt aus dem letzten „Mod-Mismatch“ im Log des Spiel-Clients eine neue Modliste an: alle Mods des Servers, der dich abgewiesen hat, in der Reihenfolge des Servers.</value>
+    </data>
+    <data name="ModMismatchTitle" xml:space="preserve">
+        <value>Modliste aus einem Mod-Mismatch</value>
+    </data>
+    <data name="ModMismatchNoClient" xml:space="preserve">
+        <value>Der Ordner des Spiel-Clients ist nicht gesetzt oder existiert nicht. Lege ihn zuerst in den Einstellungen fest.</value>
+    </data>
+    <data name="ModMismatchNotFound" xml:space="preserve">
+        <value>In den Logs des Spiel-Clients ({0}) wurde kein Mod-Mismatch mit Workshop-Mods gefunden.
+Starte den Client mit Trebuchet und versuche, dem Server beizutreten. Wenn das Spiel dich mit „Mod-Mismatch“ abweist, komm hierher zurück und klicke diesen Button erneut (das Spiel darf offen bleiben).</value>
+    </data>
+    <data name="ModMismatchFound" xml:space="preserve">
+        <value>Der Server {0} hat den Spiel-Client am {1} wegen nicht passender Mods abgewiesen (gefunden in {3}). Er läuft mit diesen {2} Mods; Trebuchet legt daraus eine neue Modliste in der Reihenfolge des Servers an.
+Klicke danach auf „{4}“, um fehlende oder veraltete Mods herunterzuladen, wähle die neue Liste im Dashboard für den Client und tritt erneut bei.</value>
+    </data>
+    <data name="ModMismatchNoId" xml:space="preserve">
+        <value>{0} Einträge haben keine Workshop-ID und werden ausgelassen: {1}</value>
+    </data>
+    <data name="ModMismatchName" xml:space="preserve">
+        <value>Name der neuen Modliste:</value>
+    </data>
+    <data name="ModMismatchUnknownServer" xml:space="preserve">
+        <value>(unbekannt)</value>
+    </data>
+    <data name="ModMismatchListName" xml:space="preserve">
+        <value>Server {0}</value>
     </data>
 </root>

@@ -2758,4 +2758,33 @@ The bot does not answer in the channel: is the admin channel set, and do you use
     <data name="DiscordBotModUpdatesAvatarText" xml:space="preserve">
         <value>A link (https) to an image. Empty: the picture of the webhook.</value>
     </data>
+    <data name="ModMismatchTip" xml:space="preserve">
+        <value>Mod list from a mod mismatch: makes a new mod list from the last &quot;mod mismatch&quot; in the log of the game client: all mods of the server that refused you, in the order of the server.</value>
+    </data>
+    <data name="ModMismatchTitle" xml:space="preserve">
+        <value>Mod list from a mod mismatch</value>
+    </data>
+    <data name="ModMismatchNoClient" xml:space="preserve">
+        <value>The folder of the game client is not set or does not exist. Set it in the settings first.</value>
+    </data>
+    <data name="ModMismatchNotFound" xml:space="preserve">
+        <value>No mod mismatch with workshop mods was found in the logs of the game client ({0}).
+Start the client with Trebuchet and try to join the server. When the game refuses you with &quot;mod mismatch&quot;, come back here and click this button again (the game may stay open).</value>
+    </data>
+    <data name="ModMismatchFound" xml:space="preserve">
+        <value>The server {0} refused the game client on {1} because the mods do not match (found in {3}). It runs these {2} mods; Trebuchet makes a new mod list with them, in the order of the server.
+Then click &quot;{4}&quot; to download missing or outdated mods, choose the new list for the client in the dashboard and join again.</value>
+    </data>
+    <data name="ModMismatchNoId" xml:space="preserve">
+        <value>{0} entries have no workshop id and are left out: {1}</value>
+    </data>
+    <data name="ModMismatchName" xml:space="preserve">
+        <value>Name of the new mod list:</value>
+    </data>
+    <data name="ModMismatchUnknownServer" xml:space="preserve">
+        <value>(unknown)</value>
+    </data>
+    <data name="ModMismatchListName" xml:space="preserve">
+        <value>Server {0}</value>
+    </data>
 </root>

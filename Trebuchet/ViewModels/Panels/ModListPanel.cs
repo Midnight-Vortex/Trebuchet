@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Reactive;
 using System.Threading.Tasks;
@@ -54,6 +55,7 @@ namespace Trebuchet.ViewModels.Panels
             Workshop = ReactiveCommand.Create(OnExploreWorkshop);
             EditAsText = ReactiveCommand.CreateFromTask(OnEditModListAsText);
             RefreshList = ReactiveCommand.CreateFromTask(() => ModList.SetList(_profile.Modlist, true));
+            CreateFromMismatch = ReactiveCommand.CreateFromTask(OnCreateFromMismatch);
             DropFiles = ReactiveCommand.Create<List<IStorageItem>?>(OnDropFiles);
 
             var canDownloadMods = blocker.WhenAnyValue(x => x.CanDownloadMods);
@@ -79,6 +81,8 @@ namespace Trebuchet.ViewModels.Panels
         public ReactiveCommand<Unit, Unit> EditAsText { get; }
         public ReactiveCommand<Unit, Unit> Update { get; }
         public ReactiveCommand<Unit, Unit> RefreshList { get; }
+        /// <summary>Makes a new mod list from the last mod mismatch in the log of the game client.</summary>
+        public ReactiveCommand<Unit, Unit> CreateFromMismatch { get; }
         public ReactiveCommand<List<IStorageItem>?, Unit> DropFiles { get; }
         
         public FileMenuViewModel<ModListProfile, ModListProfileRef> FileMenu { get; }
@@ -168,6 +172,63 @@ namespace Trebuchet.ViewModels.Panels
                     await _box.OpenErrorAsync(ex.Message);
                 }
             }
+        }
+
+        /// <summary>
+        /// A server refuses a client whose mods differ with the list of all its mods (workshop ids, in its order), and the client
+        /// writes that list to its log. The game cannot fix the mods Trebuchet manages, so the list becomes a new Trebuchet mod list.
+        /// </summary>
+        private async Task OnCreateFromMismatch()
+        {
+            var clientFolder = _setup.GetClientFolder();
+            if (string.IsNullOrWhiteSpace(clientFolder) || !Directory.Exists(clientFolder))
+            {
+                await _box.OpenErrorAsync(Resources.ModMismatchTitle, Resources.ModMismatchNoClient);
+                return;
+            }
+
+            string logFolder = Path.Combine(clientFolder, Constants.FolderGameSave, Constants.FolderGameSaveLog);
+            ModMismatchReport? report;
+            try
+            {
+                report = await Task.Run(() =>
+                {
+                    logFolder = ModMismatchLog.GetClientLogFolder(clientFolder);
+                    return ModMismatchLog.FindNewest(logFolder);
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, @"Failed to read the client logs in {folder}", logFolder);
+                await _box.OpenErrorAsync(Resources.ModMismatchTitle, ex.Message);
+                return;
+            }
+
+            var modlist = report?.GetModlist() ?? [];
+            if (report is null || modlist.Count == 0)
+            {
+                _logger.LogInformation(@"No mod mismatch with workshop mods in the client logs in {folder}", logFolder);
+                await _box.OpenAsync(new OnBoardingMessage(Resources.ModMismatchTitle,
+                    string.Format(Resources.ModMismatchNotFound, logFolder)));
+                return;
+            }
+
+            var server = string.IsNullOrWhiteSpace(report.Server) ? Resources.ModMismatchUnknownServer : report.Server;
+            var time = report.TimeUtc?.ToLocalTime().ToString(@"yyyy-MM-dd HH:mm") ?? @"?";
+            var description = string.Format(Resources.ModMismatchFound, server, time, modlist.Count,
+                Path.GetFileName(report.LogFile), Resources.Update);
+            var withoutId = report.GetEntriesWithoutId().ToList();
+            if (withoutId.Count > 0)
+                description += Environment.NewLine + string.Format(Resources.ModMismatchNoId, withoutId.Count, string.Join(@", ", withoutId));
+            description += Environment.NewLine + Resources.ModMismatchName;
+
+            var suggestion = string.Format(Resources.ModMismatchListName,
+                string.IsNullOrWhiteSpace(report.Server) ? time : report.Server);
+            var reference = await FileMenu.CreateWith(Resources.ModMismatchTitle, description, suggestion,
+                profile => profile.Modlist = modlist);
+            if (reference is not null)
+                _logger.LogInformation(@"Mod list {name} made from the mod mismatch of {server} in {file} ({count} mods)",
+                    reference.Name, report.Server, report.LogFile, modlist.Count);
         }
 
         private void OnSearchClosing(object? sender, CancelEventArgs e)

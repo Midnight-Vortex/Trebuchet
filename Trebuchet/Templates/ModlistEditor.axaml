@@ -42,6 +42,10 @@
                                 <TextBlock Text="{x:Static a:Resources.Edit}" />
                             </StackPanel>
                         </Button>
+                        <!-- Icon only: with a label the toolbar no longer fits next to the size at the smallest window width. -->
+                        <Button Margin="0 0 6 0" Command="{Binding CreateFromMismatch}" Classes="Base" ToolTip.Tip="{x:Static a:Resources.ModMismatchTip}">
+                            <i:Icon Value="mdi-file-search" Classes="Normal"/>
+                        </Button>
                     </StackPanel>
                 </DockPanel>
             </Border>
