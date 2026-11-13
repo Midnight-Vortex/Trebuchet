@@ -56,8 +56,14 @@ public static class Constants
     public const string GameArgsModList = "-modlist=\"{0}\"";
     public const string GameArgsContinueSession = "--continuesession";
     public const string GameArgsUseAllCore = "-useallavailablecores";
-    /// <summary>Enhanced client: mounts the mod paks where they are instead of extracting copies to Saved\ExtractedMods first.</summary>
-    public const string GameArgsMountModsInPlace = "-dpcvar=dw.MountModsInPlace=1";
+    /// <summary>Section of Engine.ini whose entries the game applies as console variables at start, before it mounts the mods.
+    /// The server profile writes dw.ThrallMaxRelevantDistance there too.</summary>
+    public const string IniSectionSystemSettings = "SystemSettings";
+    /// <summary>
+    /// Enhanced: 1 mounts the mods out of their workshop paks (no hash check) and deletes Saved\ExtractedMods, 0 (default)
+    /// extracts and verifies them first. The shipping game does not read the start option -dpcvar, so it is set in Engine.ini.
+    /// </summary>
+    public const string CVarMountModsInPlace = "dw.MountModsInPlace";
     public const string RegexSavedFolder = @"ConanSandbox([\\/]+)Saved";
     public const string ServerArgsMaxPlayers = "-MaxPlayers={0}";
     public const string ServerArgsMultiHome = "-MULTIHOME={0}";

@@ -2783,6 +2783,6 @@ Klicke danach auf „{4}“, um fehlende oder veraltete Mods herunterzuladen, w�
         <value>Mods direkt einbinden</value>
     </data>
     <data name="SettingMountModsInPlaceText" xml:space="preserve">
-        <value>Startoption -dpcvar=dw.MountModsInPlace=1 (neu seit dem Enhanced-Update): Das Spiel nutzt die Mod-Dateien dort, wo sie liegen, statt sie zuerst nach Saved\ExtractedMods zu entpacken. Soll das Spiel schneller starten lassen. Solange das Spiel läuft, warten Updates der Mods, die es nutzt, bis es geschlossen ist.</value>
+        <value>Experimentell (laut Spiel). Das Spiel nutzt die Mod-Dateien ungeprüft dort, wo sie liegen, statt sie zuerst nach Saved\ExtractedMods zu entpacken; diesen Ordner löscht es. Soll das Spiel schneller starten lassen. Trebuchet setzt dafür dw.MountModsInPlace=1 in der Engine.ini (die Startoption -dpcvar bewirkt im veröffentlichten Spiel nichts). Eine komprimiert gebaute Mod kann so nicht genutzt werden. Solange das Spiel läuft, warten Updates seiner Mods, bis es geschlossen ist. Wieder ausgeschaltet, entpackt das Spiel beim nächsten Start alle Mods neu.</value>
     </data>
 </root>

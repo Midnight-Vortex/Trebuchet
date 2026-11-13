@@ -116,6 +116,28 @@ public static class YuuIniClientFiles
             document.Remove(section);
     }
 
+    /// <summary>
+    /// Mounting the mods in place is a console variable of the Enhanced game. Its shipping build does not read the start
+    /// option -dpcvar, but it applies [SystemSettings] of Engine.ini at start, before the mods are mounted.
+    /// Off removes only this entry (the game's default is to extract); other entries of the section are the user's.
+    /// </summary>
+    [IniSetting(Constants.FileIniUser, "Engine")]
+    public static void ModMounting(AppSetup setup, ClientProfile profile, IniDocument document)
+    {
+        var enabled = setup.IsEnhanced && profile.MountModsInPlace;
+        if (!enabled && !document.HasSection(Constants.IniSectionSystemSettings)) return;
+
+        var section = document.GetSection(Constants.IniSectionSystemSettings);
+        if (enabled)
+        {
+            section.SetParameter(Constants.CVarMountModsInPlace, "1");
+            return;
+        }
+
+        section.GetParameters(Constants.CVarMountModsInPlace).ForEach(section.Remove);
+        if (section.GetParameters().Count == 0) document.Remove(section);
+    }
+
     [IniSetting(Constants.FileIniDefault, "Scalability")]
     public static void UltraSetting(AppSetup setup, ClientProfile profile, IniDocument document)
     {

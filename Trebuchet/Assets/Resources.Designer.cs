@@ -7969,7 +7969,7 @@ namespace Trebuchet.Assets {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Start option -dpcvar=dw.MountModsInPlace=1 (new since the Enhanced update): the game uses the mod files where they are instead of extracting them to Saved\ExtractedMods first. Is supposed to make the game start faster. While the game runs, updates of the mods it uses wait until it is closed..
+        ///   Looks up a localized string similar to Experimental (the game says so). The game uses the mod files where they are, without checking them, instead of extracting them to Saved\ExtractedMods first; it deletes that folder. Is supposed to make the game start faster. Trebuchet sets dw.MountModsInPlace=1 in Engine.ini for it (the start option -dpcvar does nothing in the released game). A mod that was built compressed cannot be used this way. While the game runs, updates of its mods wait until it is closed. Switched off again, the game extracts all mods anew at its next start..
         /// </summary>
         public static string SettingMountModsInPlaceText {
             get {

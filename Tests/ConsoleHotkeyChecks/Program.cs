@@ -28,10 +28,28 @@ foreach (var edition in Enum.GetValues<GameEdition>())
     var launchArgs = new ClientProfile().GetClientArgs("mods with spaces.txt", true, edition);
     Check(launchArgs.Contains(Constants.GameArgsExt) == (edition == GameEdition.EnhancedPtc), "Only Enhanced PTC uses external service argument");
     Check(launchArgs.Contains("-modlist=\"mods with spaces.txt\"") && launchArgs.Contains(Constants.GameArgsContinueSession), "Keep mod list quoting and auto-connect");
-    Check(!launchArgs.Contains("MountModsInPlace"), "Mods are not mounted in place unless the client profile asks for it");
-    var inPlaceArgs = new ClientProfile { MountModsInPlace = true }.GetClientArgs("mods.txt", false, edition);
-    Check(inPlaceArgs.Split(' ').Contains("-dpcvar=dw.MountModsInPlace=1") == (edition is GameEdition.Enhanced or GameEdition.EnhancedPtc),
-        "The option to mount mods in place starts the Enhanced client with -dpcvar=dw.MountModsInPlace=1, never Legacy");
+
+    // Mounting the mods in place: the shipping game does not read the start option -dpcvar (it extracted the mods all the
+    // same), so the option is the console variable in [SystemSettings] of the user Engine.ini, for Enhanced only.
+    var inPlace = new ClientProfile { MountModsInPlace = true };
+    Check(!inPlace.GetClientArgs("mods.txt", false, edition).Contains("dpcvar"), "Mounting mods in place is no start option");
+    var enhanced = edition is GameEdition.Enhanced or GameEdition.EnhancedPtc;
+    var engineIni = Yuu.Ini.IniParser.Parse("[Audio]\nUnfocusedVolumeMultiplier=1.0\n");
+    YuuIniClientFiles.ModMounting(setup, new ClientProfile(), engineIni);
+    Check(!engineIni.ToString().Contains("SystemSettings"), "Without the option no section is added to Engine.ini");
+    YuuIniClientFiles.ModMounting(setup, inPlace, engineIni);
+    YuuIniClientFiles.ModMounting(setup, inPlace, engineIni);
+    var written = engineIni.ToString().Replace(" ", "").Replace("\r", "");
+    Check(written.Contains("[SystemSettings]\ndw.MountModsInPlace=1\n") == enhanced
+          && written.Split("dw.MountModsInPlace").Length == (enhanced ? 2 : 1) && written.Contains("[Audio]"),
+        "The option writes dw.MountModsInPlace=1 once into [SystemSettings] of the Enhanced Engine.ini, never for Legacy");
+    YuuIniClientFiles.ModMounting(setup, new ClientProfile(), engineIni);
+    Check(!engineIni.ToString().Contains("MountModsInPlace") && !engineIni.ToString().Contains("SystemSettings"),
+        "Switching the option off removes the entry and the section it left empty");
+    var ownIni = Yuu.Ini.IniParser.Parse("[SystemSettings]\nr.Streaming.PoolSize=3000\ndw.MountModsInPlace=1\n");
+    YuuIniClientFiles.ModMounting(setup, new ClientProfile(), ownIni);
+    Check(ownIni.ToString().Contains("r.Streaming.PoolSize") && !ownIni.ToString().Contains("MountModsInPlace"),
+        "Switching the option off keeps the user's own entries of the section");
 }
 Check(Constants.ParseEditionArgs(["--ptc"]) == GameEdition.EnhancedPtc, "PTC alone selects Enhanced PTC");
 Check(Constants.ParseEditionArgs(["--ptc", "--live"]) is null, "Conflicting edition arguments do not select a build");
