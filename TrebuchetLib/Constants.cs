@@ -56,6 +56,8 @@ public static class Constants
     public const string GameArgsModList = "-modlist=\"{0}\"";
     public const string GameArgsContinueSession = "--continuesession";
     public const string GameArgsUseAllCore = "-useallavailablecores";
+    /// <summary>Enhanced client: mounts the mod paks where they are instead of extracting copies to Saved\ExtractedMods first.</summary>
+    public const string GameArgsMountModsInPlace = "-dpcvar=dw.MountModsInPlace=1";
     public const string RegexSavedFolder = @"ConanSandbox([\\/]+)Saved";
     public const string ServerArgsMaxPlayers = "-MaxPlayers={0}";
     public const string ServerArgsMultiHome = "-MULTIHOME={0}";

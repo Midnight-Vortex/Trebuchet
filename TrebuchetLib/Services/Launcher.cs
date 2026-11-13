@@ -1763,7 +1763,8 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             mods = mods.Except(skipped).ToList();
             if (mods.Count == 0) return true;
         }
-        // The Enhanced game client runs on extracted copies, Legacy keeps the workshop files open.
+        // The Enhanced game client runs on extracted copies unless it mounts the mods in place (client profile option);
+        // then it keeps the workshop files open like Legacy. The check sees which files are really in use.
         if (IsClientRunning() && !CanReplaceModFiles(mods))
         {
             _logger.LogInformation("Mods are not updated now, their files are in use by the game client");
@@ -2171,8 +2172,9 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
             return;
         }
 
-        // The Enhanced game client only reads a workshop file while extracting it (it runs on copies), Legacy keeps
-        // the files open: mod updates wait only while an outdated file is really in use.
+        // The Enhanced game client only reads a workshop file while extracting it (it runs on copies), Legacy and an
+        // Enhanced client that mounts the mods in place keep the files open: mod updates wait only while an outdated
+        // file is really in use.
         var outdatedIds = outdatedByInstance.Values.SelectMany(x => x).Select(x => x.PublishedFileId).Distinct().ToList();
         if (IsClientRunning() && !CanReplaceModFiles(outdatedIds))
         {

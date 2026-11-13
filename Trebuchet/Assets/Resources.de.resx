@@ -2779,4 +2779,10 @@ Klicke danach auf „{4}“, um fehlende oder veraltete Mods herunterzuladen, w�
     <data name="ModMismatchListName" xml:space="preserve">
         <value>Server {0}</value>
     </data>
+    <data name="SettingMountModsInPlace" xml:space="preserve">
+        <value>Mods direkt einbinden</value>
+    </data>
+    <data name="SettingMountModsInPlaceText" xml:space="preserve">
+        <value>Startoption -dpcvar=dw.MountModsInPlace=1 (neu seit dem Enhanced-Update): Das Spiel nutzt die Mod-Dateien dort, wo sie liegen, statt sie zuerst nach Saved\ExtractedMods zu entpacken. Soll das Spiel schneller starten lassen. Solange das Spiel läuft, warten Updates der Mods, die es nutzt, bis es geschlossen ist.</value>
+    </data>
 </root>

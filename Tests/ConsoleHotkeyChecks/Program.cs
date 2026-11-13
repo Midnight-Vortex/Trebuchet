@@ -28,6 +28,10 @@ foreach (var edition in Enum.GetValues<GameEdition>())
     var launchArgs = new ClientProfile().GetClientArgs("mods with spaces.txt", true, edition);
     Check(launchArgs.Contains(Constants.GameArgsExt) == (edition == GameEdition.EnhancedPtc), "Only Enhanced PTC uses external service argument");
     Check(launchArgs.Contains("-modlist=\"mods with spaces.txt\"") && launchArgs.Contains(Constants.GameArgsContinueSession), "Keep mod list quoting and auto-connect");
+    Check(!launchArgs.Contains("MountModsInPlace"), "Mods are not mounted in place unless the client profile asks for it");
+    var inPlaceArgs = new ClientProfile { MountModsInPlace = true }.GetClientArgs("mods.txt", false, edition);
+    Check(inPlaceArgs.Split(' ').Contains("-dpcvar=dw.MountModsInPlace=1") == (edition is GameEdition.Enhanced or GameEdition.EnhancedPtc),
+        "The option to mount mods in place starts the Enhanced client with -dpcvar=dw.MountModsInPlace=1, never Legacy");
 }
 Check(Constants.ParseEditionArgs(["--ptc"]) == GameEdition.EnhancedPtc, "PTC alone selects Enhanced PTC");
 Check(Constants.ParseEditionArgs(["--ptc", "--live"]) is null, "Conflicting edition arguments do not select a build");

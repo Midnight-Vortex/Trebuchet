@@ -16,6 +16,8 @@ namespace TrebuchetLib
         public bool EnableAsyncScene { get; set; } = EnableAsyncSceneDefault;
         public bool Log { get; set; } = LogDefault;
         public List<string> LogFilters { get; set; } = LogFiltersDefault;
+        /// <summary>Enhanced only: start option -dpcvar=dw.MountModsInPlace=1 (mods are mounted without extracted copies).</summary>
+        public bool MountModsInPlace { get; set; } = MountModsInPlaceDefault;
         public int ProcessPriority { get; set; } = ProcessPriorityDefault;
         public bool RemoveIntroVideo { get; set; } = RemoveIntroVideoDefault;
         public bool TotAdminDoNotLoadServerList { get; set; } = TotAdminDoNotLoadServerListDefault;
@@ -31,6 +33,7 @@ namespace TrebuchetLib
         public static readonly int AddedTexturePoolDefault = 0;
         public static readonly bool EnableAsyncSceneDefault = false;
         public static readonly bool LogDefault = false;
+        public static readonly bool MountModsInPlaceDefault = false;
         public static readonly int ProcessPriorityDefault = 0;
         public static readonly bool RemoveIntroVideoDefault = false;
         public static readonly bool TotAdminDoNotLoadServerListDefault = false;
@@ -91,6 +94,8 @@ namespace TrebuchetLib
             if (edition == GameEdition.EnhancedPtc) args.Add(Constants.GameArgsExt);
             if (Log) args.Add(Constants.GameArgsLog);
             if (UseAllCores) args.Add(Constants.GameArgsUseAllCore);
+            if (MountModsInPlace && (edition is GameEdition.Enhanced or GameEdition.EnhancedPtc))
+                args.Add(Constants.GameArgsMountModsInPlace);
             args.Add(string.Format(Constants.GameArgsModList, modlistPath));
             if(autoConnect) args.Add(Constants.GameArgsContinueSession);
 

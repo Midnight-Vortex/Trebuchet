@@ -2787,4 +2787,10 @@ Then click &quot;{4}&quot; to download missing or outdated mods, choose the new 
     <data name="ModMismatchListName" xml:space="preserve">
         <value>Server {0}</value>
     </data>
+    <data name="SettingMountModsInPlace" xml:space="preserve">
+        <value>Mount mods in place</value>
+    </data>
+    <data name="SettingMountModsInPlaceText" xml:space="preserve">
+        <value>Start option -dpcvar=dw.MountModsInPlace=1 (new since the Enhanced update): the game uses the mod files where they are instead of extracting them to Saved\ExtractedMods first. Is supposed to make the game start faster. While the game runs, updates of the mods it uses wait until it is closed.</value>
+    </data>
 </root>

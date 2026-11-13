@@ -164,6 +164,16 @@ namespace Trebuchet.ViewModels.Panels
                 .SetSetter((v) => _profile.UseAllCores = v)
                 .SetDefault(() => ClientProfile.UseAllCoresDefault)
             );
+            // A setting of the Enhanced mod system (dw.*): Legacy has no extracted copies to skip.
+            if (_setup.IsEnhanced)
+                Fields.Add(new ToggleField()
+                    .WhenFieldChanged(SaveProfile)
+                    .SetTitle(AppResources.SettingMountModsInPlace)
+                    .SetDescription(AppResources.SettingMountModsInPlaceText)
+                    .SetGetter(() => _profile.MountModsInPlace)
+                    .SetSetter((v) => _profile.MountModsInPlace = v)
+                    .SetDefault(() => ClientProfile.MountModsInPlaceDefault)
+                );
             Fields.Add(new ComboBoxField()
                 .WhenFieldChanged(SaveProfile)
                 .SetDescription(AppResources.SettingProcessPrioText)

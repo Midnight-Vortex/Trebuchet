@@ -7959,5 +7959,23 @@ namespace Trebuchet.Assets {
             }
         }
         
+        /// <summary>
+        ///   Looks up a localized string similar to Mount mods in place.
+        /// </summary>
+        public static string SettingMountModsInPlace {
+            get {
+                return ResourceManager.GetString("SettingMountModsInPlace", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Start option -dpcvar=dw.MountModsInPlace=1 (new since the Enhanced update): the game uses the mod files where they are instead of extracting them to Saved\ExtractedMods first. Is supposed to make the game start faster. While the game runs, updates of the mods it uses wait until it is closed..
+        /// </summary>
+        public static string SettingMountModsInPlaceText {
+            get {
+                return ResourceManager.GetString("SettingMountModsInPlaceText", resourceCulture);
+            }
+        }
+        
     }
 }

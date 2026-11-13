@@ -2169,4 +2169,10 @@ Cliquez ensuite sur « {4} » pour télécharger les mods manquants ou obsolète
     <data name="ModMismatchListName" xml:space="preserve">
         <value>Serveur {0}</value>
     </data>
+    <data name="SettingMountModsInPlace" xml:space="preserve">
+        <value>Monter les mods sur place</value>
+    </data>
+    <data name="SettingMountModsInPlaceText" xml:space="preserve">
+        <value>Option de lancement -dpcvar=dw.MountModsInPlace=1 (nouvelle depuis la mise à jour Enhanced) : le jeu utilise les fichiers des mods là où ils sont au lieu de les extraire d&apos;abord dans Saved\ExtractedMods. Censé accélérer le démarrage du jeu. Tant que le jeu tourne, les mises à jour des mods qu&apos;il utilise attendent sa fermeture.</value>
+    </data>
 </root>
