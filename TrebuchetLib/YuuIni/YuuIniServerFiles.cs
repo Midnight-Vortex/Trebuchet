@@ -206,6 +206,18 @@ public static class YuuIniServerFiles
             distance > 0 ? Math.Min(distance, ServerProfile.ThrallMaxRelevantDistanceMaximum).ToString(CultureInfo.InvariantCulture) : null);
     }
 
+    /// <summary>
+    /// Mounting the mods in place (<c>dw.MountModsInPlace</c>, Enhanced): the server applies [SystemSettings] of its Engine.ini
+    /// before it mounts the mods; its shipping build does not read the start option -dpcvar. Off removes the line, also one
+    /// written by hand: the game then extracts the mods again.
+    /// </summary>
+    [IniSetting(Constants.FileIniServer, "Engine")]
+    public static void ApplyModMounting(AppSetup appSetup, ServerProfile profile, IniDocument document)
+    {
+        SetOrRemove(document, Constants.IniSectionSystemSettings, Constants.CVarMountModsInPlace,
+            appSetup.IsEnhanced && profile.MountModsInPlace ? "1" : null);
+    }
+
     private static void SetOrRemove(IniDocument document, string sectionName, string key, string? value)
     {
         var section = document.GetSection(sectionName);

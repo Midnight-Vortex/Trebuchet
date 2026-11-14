@@ -2785,4 +2785,7 @@ Klicke danach auf „{4}“, um fehlende oder veraltete Mods herunterzuladen, w�
     <data name="SettingMountModsInPlaceText" xml:space="preserve">
         <value>Experimentell (laut Spiel). Das Spiel nutzt die Mod-Dateien ungeprüft dort, wo sie liegen, statt sie zuerst nach Saved\ExtractedMods zu entpacken; diesen Ordner löscht es. Soll das Spiel schneller starten lassen. Trebuchet setzt dafür dw.MountModsInPlace=1 in der Engine.ini (die Startoption -dpcvar bewirkt im veröffentlichten Spiel nichts). Eine komprimiert gebaute Mod kann so nicht genutzt werden. Solange das Spiel läuft, warten Updates seiner Mods, bis es geschlossen ist. Wieder ausgeschaltet, entpackt das Spiel beim nächsten Start alle Mods neu.</value>
     </data>
+    <data name="SettingServerMountModsInPlaceText" xml:space="preserve">
+        <value>Experimentell (laut Spiel). Der Server nutzt die Mod-Dateien ungeprüft dort, wo sie liegen, statt sie zuerst nach Saved\ExtractedMods zu entpacken; diesen Ordner löscht er. Lässt den Server schneller starten. Trebuchet setzt dafür dw.MountModsInPlace=1 in der Engine.ini des Servers (die Startoption -dpcvar bewirkt im veröffentlichten Spiel nichts). Eine komprimiert gebaute Mod kann so nicht genutzt werden. Ausgeschaltet entfernt Trebuchet den Eintrag (auch einen von Hand geschriebenen), und der Server entpackt beim nächsten Start alle Mods neu.</value>
+    </data>
 </root>

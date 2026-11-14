@@ -2175,4 +2175,7 @@ Cliquez ensuite sur « {4} » pour télécharger les mods manquants ou obsolète
     <data name="SettingMountModsInPlaceText" xml:space="preserve">
         <value>Expérimental (d&apos;après le jeu). Le jeu utilise les fichiers des mods là où ils sont, sans les vérifier, au lieu de les extraire d&apos;abord dans Saved\ExtractedMods ; il supprime ce dossier. Censé accélérer le démarrage du jeu. Trebuchet écrit pour cela dw.MountModsInPlace=1 dans Engine.ini (l&apos;option de lancement -dpcvar ne fait rien dans le jeu publié). Un mod compilé avec compression ne peut pas être utilisé ainsi. Tant que le jeu tourne, les mises à jour de ses mods attendent sa fermeture. Une fois désactivée, le jeu extrait à nouveau tous les mods au prochain démarrage.</value>
     </data>
+    <data name="SettingServerMountModsInPlaceText" xml:space="preserve">
+        <value>Expérimental (d&apos;après le jeu). Le serveur utilise les fichiers des mods là où ils sont, sans les vérifier, au lieu de les extraire d&apos;abord dans Saved\ExtractedMods ; il supprime ce dossier. Accélère le démarrage du serveur. Trebuchet écrit pour cela dw.MountModsInPlace=1 dans le fichier Engine.ini du serveur (l&apos;option de lancement -dpcvar ne fait rien dans le jeu publié). Un mod compilé avec compression ne peut pas être utilisé ainsi. Désactivée, Trebuchet retire l&apos;entrée (même écrite à la main) et le serveur extrait à nouveau tous les mods au prochain démarrage.</value>
+    </data>
 </root>

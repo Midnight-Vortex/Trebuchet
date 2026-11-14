@@ -803,6 +803,16 @@ namespace Trebuchet.ViewModels.Panels
                 .SetSetter((v) => _profile.ThrallMaxRelevantDistance = v)
                 .SetDefault(() => ServerProfile.ThrallMaxRelevantDistanceDefault)
             );
+            // A setting of the Enhanced mod system (dw.*): Legacy has no extracted copies to skip.
+            if (_setup.IsEnhanced)
+                Fields.Add(new ToggleField()
+                    .WhenFieldChanged(SaveProfile)
+                    .SetTitle(AppResources.SettingMountModsInPlace)
+                    .SetDescription(AppResources.SettingServerMountModsInPlaceText)
+                    .SetGetter(() => _profile.MountModsInPlace)
+                    .SetSetter((v) => _profile.MountModsInPlace = v)
+                    .SetDefault(() => ServerProfile.MountModsInPlaceDefault)
+                );
             Fields.Add(new MultiLineTextField()
                 .WhenFieldChanged(SaveProfile)
                 .SetTitle(AppResources.SettingServerLogFilters)

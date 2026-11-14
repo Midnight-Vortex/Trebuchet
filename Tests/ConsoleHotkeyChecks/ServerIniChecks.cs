@@ -54,6 +54,32 @@ static class ServerIniChecks
         Check(typeof(YuuIniServerFiles).GetMethod(nameof(YuuIniServerFiles.ApplyThrallDistance))!
                   .GetCustomAttributes(typeof(IniSettingAttribute), true).Cast<IniSettingAttribute>().Any(x => x.Path.EndsWith("Engine.ini", StringComparison.Ordinal) && x.Path.Contains("WindowsServer", StringComparison.Ordinal)),
             "It goes into the Engine.ini of the server (WindowsServer), not the one of the client");
+
+        // Mounting the mods in place: dw.MountModsInPlace=1 next to the thrall distance, for Enhanced only, in any order.
+        var mounting = Yuu.Ini.IniParser.Parse("[OnlineSubsystem]\nServerName=Test\n");
+        YuuIniServerFiles.ApplyModMounting(setup, new ServerProfile(), mounting);
+        Check(!ServerProfile.MountModsInPlaceDefault && !Text(mounting).Contains("SystemSettings"), "Off by default: nothing is written");
+        var both = new ServerProfile { MountModsInPlace = true, ThrallMaxRelevantDistance = 1300 };
+        YuuIniServerFiles.ApplyModMounting(setup, both, mounting);
+        YuuIniServerFiles.ApplyThrallDistance(setup, both, mounting);
+        YuuIniServerFiles.ApplyModMounting(setup, both, mounting);
+        text = Text(mounting);
+        Check(text.Contains("dw.MountModsInPlace=1") && text.Contains("dw.ThrallMaxRelevantDistance=1300")
+              && text.Split("[SystemSettings]").Length == 2 && text.Split("dw.MountModsInPlace").Length == 2,
+            "On: one line in the one [SystemSettings], next to the thrall distance: " + text.Replace("\n", "|"));
+        YuuIniServerFiles.ApplyThrallDistance(setup, new ServerProfile { MountModsInPlace = true }, mounting);
+        Check(Text(mounting).Contains("dw.MountModsInPlace=1") && !Text(mounting).Contains("ThrallMaxRelevantDistance"),
+            "Switching the thrall distance off keeps the mod mounting");
+        var byHand = Yuu.Ini.IniParser.Parse("[SystemSettings]\ndw.ThrallMaxRelevantDistance = 1300\ndw.MountModsInPlace = 1\n");
+        YuuIniServerFiles.ApplyModMounting(setup, new ServerProfile(), byHand);
+        Check(!Text(byHand).Contains("MountModsInPlace") && Text(byHand).Contains("dw.ThrallMaxRelevantDistance=1300"),
+            "Off removes the line (also one written by hand) and keeps the others");
+        var legacy = Yuu.Ini.IniParser.Parse("[OnlineSubsystem]\nServerName=Test\n");
+        YuuIniServerFiles.ApplyModMounting(new AppSetup(new Config(), GameEdition.Legacy, false, false), new ServerProfile { MountModsInPlace = true }, legacy);
+        Check(!Text(legacy).Contains("MountModsInPlace"), "A Legacy server never gets the setting");
+        Check(System.Text.Json.JsonSerializer.Deserialize<ServerProfile>(System.Text.Json.JsonSerializer.Serialize(new ServerProfile { MountModsInPlace = true }))?.MountModsInPlace == true
+              && System.Text.Json.JsonSerializer.Deserialize<ServerProfile>("{}")?.MountModsInPlace == false,
+            "The option is saved with the profile, and a profile of before has it off");
         return count;
     }
 }

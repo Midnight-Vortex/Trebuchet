@@ -66,6 +66,11 @@ namespace TrebuchetLib
         /// set, nothing is written and the game keeps its own value.
         /// </summary>
         public int ThrallMaxRelevantDistance { get; set; } = ThrallMaxRelevantDistanceDefault;
+        /// <summary>
+        /// Enhanced only: <c>dw.MountModsInPlace=1</c> in the <c>[SystemSettings]</c> of the Engine.ini of the server. The server
+        /// mounts the mods out of their workshop paks (no hash check) and deletes Saved\ExtractedMods instead of extracting them.
+        /// </summary>
+        public bool MountModsInPlace { get; set; } = MountModsInPlaceDefault;
 
         public Sequence StoppingSequence { get; set; } = new();
         public Sequence StartingSequence { get; set; } = new();
@@ -210,6 +215,7 @@ namespace TrebuchetLib
 
         public static readonly int VoiceChatModeDefault = VoiceChatUnchanged;
         public static readonly int ThrallMaxRelevantDistanceDefault = 0;
+        public static readonly bool MountModsInPlaceDefault = false;
         /// <summary>The largest value of the setting (a limit for the field and for what is written).</summary>
         public const int ThrallMaxRelevantDistanceMaximum = 100000;
 

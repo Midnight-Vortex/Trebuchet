@@ -7977,5 +7977,14 @@ namespace Trebuchet.Assets {
             }
         }
         
+        /// <summary>
+        ///   Looks up a localized string similar to Experimental (the game says so). The server uses the mod files where they are, without checking them, instead of extracting them to Saved\ExtractedMods first; it deletes that folder. Makes the server start faster. Trebuchet sets dw.MountModsInPlace=1 in the Engine.ini of the server for it (the start option -dpcvar does nothing in the released game). A mod that was built compressed cannot be used this way. Switched off, Trebuchet removes the entry (also one you wrote by hand) and the server extracts all mods anew at its next start..
+        /// </summary>
+        public static string SettingServerMountModsInPlaceText {
+            get {
+                return ResourceManager.GetString("SettingServerMountModsInPlaceText", resourceCulture);
+            }
+        }
+        
     }
 }
