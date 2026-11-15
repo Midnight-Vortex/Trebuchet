@@ -2796,4 +2796,52 @@ Then click &quot;{4}&quot; to download missing or outdated mods, choose the new 
     <data name="SettingServerMountModsInPlaceText" xml:space="preserve">
         <value>Experimental (the game says so). The server uses the mod files where they are, without checking them, instead of extracting them to Saved\ExtractedMods first; it deletes that folder. Makes the server start faster. Trebuchet sets dw.MountModsInPlace=1 in the Engine.ini of the server for it (the start option -dpcvar does nothing in the released game). A mod that was built compressed cannot be used this way. Switched off, Trebuchet removes the entry (also one you wrote by hand) and the server extracts all mods anew at its next start.</value>
     </data>
+    <data name="SettingProfileDirectory" xml:space="preserve">
+        <value>Directory for saves and profiles</value>
+    </data>
+    <data name="SettingProfileDirectoryText" xml:space="preserve">
+        <value>This directory holds your game saves, server saves, mod lists, sync lists and backups (by default in your Documents folder). When you change it, Trebuchet copies them to the new place, restarts and then removes the old files. The game and all servers have to be stopped for it, and the directory has to be on a local drive.</value>
+    </data>
+    <data name="ProfileDirectoryBusy" xml:space="preserve">
+        <value>Stop the game and all servers first and wait for running downloads: saves cannot be moved while they are in use.</value>
+    </data>
+    <data name="ProfileDirectorySame" xml:space="preserve">
+        <value>This is the directory in use.</value>
+    </data>
+    <data name="ProfileDirectoryNetwork" xml:space="preserve">
+        <value>The directory has to be on a local drive: the game reaches its saves through a link that cannot point to a network path.</value>
+    </data>
+    <data name="ProfileDirectoryOverlap" xml:space="preserve">
+        <value>Choose a directory outside the current saves, the game installation and the downloaded data.</value>
+    </data>
+    <data name="ProfileDirectoryUseExisting" xml:space="preserve">
+        <value>There are already saves or profiles in {0}. Trebuchet does not mix them with yours. Use the ones that are there?
+Your current files stay untouched in {1}, but are no longer used.</value>
+    </data>
+    <data name="ProfileDirectoryConfirm" xml:space="preserve">
+        <value>Move the saves and profiles?
+From: {0}
+To: {1}
+{2} files, {3}. Trebuchet copies them, compares the copy, restarts and then removes the old files. Extracted mods (ExtractedMods) are not copied, the game makes them again.</value>
+    </data>
+    <data name="ProfileDirectoryNoSpace" xml:space="preserve">
+        <value>Not enough free space on the target drive: {0} needed, {1} free.</value>
+    </data>
+    <data name="ProfileDirectoryMoving" xml:space="preserve">
+        <value>Moving saves and profiles</value>
+    </data>
+    <data name="ProfileDirectoryFailed" xml:space="preserve">
+        <value>The saves and profiles were not moved and nothing was changed: {0}</value>
+    </data>
+    <data name="ProfileDirectoryMissing" xml:space="preserve">
+        <value>The directory for saves and profiles is not available: {0}. Connect the drive or restore the folder, then start Trebuchet again. To go back to the Documents folder, remove the entry &quot;ProfileDirectory&quot; from {1}.</value>
+    </data>
+    <data name="ProfileDirectoryOccupied" xml:space="preserve">
+        <value>This directory holds a folder &quot;Backups&quot; that is not from Trebuchet. Choose another directory, for example an empty folder inside it.</value>
+    </data>
+    <data name="ProfileDirectoryLinks" xml:space="preserve">
+        <value>These saves are links to other folders (for example to another drive) and cannot be moved along:
+{0}
+Replace the links by the real folders, or remove them and set them up again in the new directory afterwards. Nothing was changed.</value>
+    </data>
 </root>

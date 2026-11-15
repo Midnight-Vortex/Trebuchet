@@ -57,6 +57,10 @@ class Program
         // services and on Steam, Steam on the progress callback); without them lamb and kill failed with
         // "Unable to resolve service" before doing anything.
         var appSetup = new AppSetup(Config.LoadConfig(Constants.GetConfigPath(_edition)), _edition, false, _experiment);
+        // As in Trebuchet: no start on a missing directory of the saves and profiles (empty saves would be created there).
+        if (!appSetup.IsDataDirectoryAvailable())
+            throw new DirectoryNotFoundException(
+                $"The directory for saves and profiles is not available: {appSetup.Config.ProfileDirectory}. Connect the drive or restore the folder.");
         collection.AddSingleton(services =>
         {
             _services = services;

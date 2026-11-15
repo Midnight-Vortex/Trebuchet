@@ -2,6 +2,18 @@
 
 After installing, launch Trebuchet from the Start menu or desktop shortcut. The installer deliberately does not launch it: on affected Windows versions, a process started by Setup can inherit RedirectionGuard and fail to traverse Trebuchet's Saved/profile junctions. Conan then reports that it cannot ensure `Saved/ExtractedMods` exists, even when the directory is present. If this happens after an older setup, fully close Trebuchet and relaunch it from the Start menu; reinstalling mods is not required for this directory-access error.
 
+## 0.9.39 a directory of your choice for saves and profiles
+
+- **New setting "Directory for saves and profiles" (Settings, next to the directory for downloaded data).** Your game saves, server saves, mod lists, sync lists and backups lie in your Documents folder by default (`Documents\totchinuko\trebuchet\<edition>`). Now you can move them, for example to another drive or out of a folder that OneDrive syncs. "Change" asks for the directory, shows what will be moved and how big it is, copies it, compares the copy with the original, restarts Trebuchet and then removes the old files. "Reset" moves everything back to Documents the same way. The setting is per edition (Legacy, Enhanced, Enhanced PTC).
+  - The game and all servers have to be stopped, and no download may run.
+  - The directory has to be on a local drive (the game reaches its saves through a link that cannot point to a network path) and outside the game installation and the current saves. It may be the directory of the downloaded data.
+  - A directory that already holds saves or profiles is never mixed with yours: Trebuchet offers to use the ones that are there (yours stay where they are, unused) or to cancel.
+  - The extracted mods inside a save (`ExtractedMods`, up to tens of GB) are not copied, the game makes them again.
+  - A save that is a link to another folder (a junction to another drive) is not moved along: Trebuchet names such saves and changes nothing until the links are gone.
+  - If the copy fails, something writes into the saves meanwhile or you cancel, what was copied is removed and nothing changes. What a crash or power loss leaves in the target is marked as unfinished and removed before the next try; it is never taken for saves.
+  - The old files are removed only when the new directory holds at least as much as they do.
+  - If the directory is missing at a later start (drive not connected), Trebuchet does not start with empty saves: it tells you the directory and how to go back to Documents.
+
 ## 0.9.38 "Mount mods in place" for servers
 
 - **The option "Mount mods in place" is now in the server saves too (Enhanced).** It sets `dw.MountModsInPlace=1` in `[SystemSettings]` of the Engine.ini of the server, as the client option does for the game. Seen on a server with 65 mods: nothing is extracted any more, the mods are mounted in 5 seconds and the server deleted its `Saved\ExtractedMods`. It is off by default. **If you wrote the line into the Engine.ini of the server by hand, switch the option on:** with the option off Trebuchet removes the line at the next start of the server, and the server extracts all mods again. The game calls the setting experimental: the mod files are not checked, and a mod that was built compressed cannot be used this way.

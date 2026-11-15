@@ -132,6 +132,14 @@ public partial class App : Application, IApplication
         if(osSpecifics.IsProcessElevated())
             _logger.LogInformation(@"Process is elevated");
 
+        // After a move of the saves and profiles the old folders go now, before a panel opens or watches them.
+        if (await Task.Run(() => ProfileDirectoryMove.FinishCleanup(setup)) is { } cleanup)
+            _logger.LogInformation(@"{Cleanup}", cleanup);
+        // No start on a missing directory of the saves: the profile menus would create empty default saves there.
+        if (!setup.IsDataDirectoryAvailable())
+            throw new DirectoryNotFoundException(string.Format(Assets.Resources.ProfileDirectoryMissing,
+                setup.Config.ProfileDirectory, Constants.GetConfigPath(edition)));
+
         await Task.Run(() => _serviceProvider.GetRequiredService<AppFiles>().SetupFolders());
 
         MainWindow mainWindow = new ();

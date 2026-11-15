@@ -2178,4 +2178,52 @@ Cliquez ensuite sur « {4} » pour télécharger les mods manquants ou obsolète
     <data name="SettingServerMountModsInPlaceText" xml:space="preserve">
         <value>Expérimental (d&apos;après le jeu). Le serveur utilise les fichiers des mods là où ils sont, sans les vérifier, au lieu de les extraire d&apos;abord dans Saved\ExtractedMods ; il supprime ce dossier. Accélère le démarrage du serveur. Trebuchet écrit pour cela dw.MountModsInPlace=1 dans le fichier Engine.ini du serveur (l&apos;option de lancement -dpcvar ne fait rien dans le jeu publié). Un mod compilé avec compression ne peut pas être utilisé ainsi. Désactivée, Trebuchet retire l&apos;entrée (même écrite à la main) et le serveur extrait à nouveau tous les mods au prochain démarrage.</value>
     </data>
+    <data name="SettingProfileDirectory" xml:space="preserve">
+        <value>Dossier des sauvegardes et profils</value>
+    </data>
+    <data name="SettingProfileDirectoryText" xml:space="preserve">
+        <value>Ce dossier contient vos sauvegardes du jeu, les sauvegardes des serveurs, les listes de mods, les listes de synchronisation et les copies de sécurité (par défaut dans votre dossier Documents). Quand vous le changez, Trebuchet les copie au nouvel endroit, redémarre puis supprime les anciens fichiers. Le jeu et tous les serveurs doivent être arrêtés, et le dossier doit se trouver sur un disque local.</value>
+    </data>
+    <data name="ProfileDirectoryBusy" xml:space="preserve">
+        <value>Arrêtez d&apos;abord le jeu et tous les serveurs et attendez la fin des téléchargements : les sauvegardes ne peuvent pas être déplacées tant qu&apos;elles sont utilisées.</value>
+    </data>
+    <data name="ProfileDirectorySame" xml:space="preserve">
+        <value>C&apos;est le dossier utilisé actuellement.</value>
+    </data>
+    <data name="ProfileDirectoryNetwork" xml:space="preserve">
+        <value>Le dossier doit se trouver sur un disque local : le jeu accède à ses sauvegardes par un lien qui ne peut pas pointer vers un chemin réseau.</value>
+    </data>
+    <data name="ProfileDirectoryOverlap" xml:space="preserve">
+        <value>Choisissez un dossier en dehors des sauvegardes actuelles, de l&apos;installation du jeu et des données téléchargées.</value>
+    </data>
+    <data name="ProfileDirectoryUseExisting" xml:space="preserve">
+        <value>Il y a déjà des sauvegardes ou des profils dans {0}. Trebuchet ne les mélange pas avec les vôtres. Utiliser ceux qui s&apos;y trouvent ?
+Vos fichiers actuels restent intacts dans {1}, mais ne sont plus utilisés.</value>
+    </data>
+    <data name="ProfileDirectoryConfirm" xml:space="preserve">
+        <value>Déplacer les sauvegardes et profils ?
+De : {0}
+Vers : {1}
+{2} fichiers, {3}. Trebuchet les copie, compare la copie, redémarre puis supprime les anciens fichiers. Les mods extraits (ExtractedMods) ne sont pas copiés, le jeu les recrée.</value>
+    </data>
+    <data name="ProfileDirectoryNoSpace" xml:space="preserve">
+        <value>Pas assez d&apos;espace libre sur le disque cible : {0} nécessaires, {1} libres.</value>
+    </data>
+    <data name="ProfileDirectoryMoving" xml:space="preserve">
+        <value>Déplacement des sauvegardes et profils</value>
+    </data>
+    <data name="ProfileDirectoryFailed" xml:space="preserve">
+        <value>Les sauvegardes et profils n&apos;ont pas été déplacés et rien n&apos;a été modifié : {0}</value>
+    </data>
+    <data name="ProfileDirectoryMissing" xml:space="preserve">
+        <value>Le dossier des sauvegardes et profils n&apos;est pas disponible : {0}. Connectez le disque ou restaurez le dossier, puis relancez Trebuchet. Pour revenir au dossier Documents, supprimez l&apos;entrée « ProfileDirectory » de {1}.</value>
+    </data>
+    <data name="ProfileDirectoryOccupied" xml:space="preserve">
+        <value>Ce dossier contient un dossier « Backups » qui ne vient pas de Trebuchet. Choisissez un autre dossier, par exemple un dossier vide à l&apos;intérieur.</value>
+    </data>
+    <data name="ProfileDirectoryLinks" xml:space="preserve">
+        <value>Ces sauvegardes sont des liens vers d&apos;autres dossiers (par exemple vers un autre disque) et ne peuvent pas être déplacées :
+{0}
+Remplacez les liens par les vrais dossiers, ou supprimez-les et recréez-les ensuite dans le nouveau dossier. Rien n&apos;a été modifié.</value>
+    </data>
 </root>

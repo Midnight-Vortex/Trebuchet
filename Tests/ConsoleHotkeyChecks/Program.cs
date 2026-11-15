@@ -166,6 +166,7 @@ checks += await CrashLauncherChecks.Run();
 checks += CrashLeadChecks.Run();
 checks += await CrashDataChecks.Run();
 checks += await DirectoryCopyChecks.Run();
+checks += await ProfileDirectoryMoveChecks.Run();
 checks += await ServerStopChecks.Run();
 checks += await ServerStabilityChecks.Run();
 Console.WriteLine($"Passed {checks} console hotkey and background copy checks.");

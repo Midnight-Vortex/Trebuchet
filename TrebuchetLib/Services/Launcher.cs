@@ -1446,6 +1446,17 @@ public class Launcher : IDisposable, IProgress<SequenceProgress>
     }
 
     /// <summary>
+    /// A game client or server runs, is being started or stopped, or waits for a restart: their saves are in use, or
+    /// about to be (a stopping sequence may still write a backup after the process is gone).
+    /// </summary>
+    public bool IsAnythingRunningOrStarting()
+    {
+        return _serverProcesses.Count > 0 || _conanClientProcess != null || _launchingInstances.Count > 0
+               || _backgroundStarts.Count > 0 || _heldStarts.Count > 0 || _startingProcesses.Count > 0
+               || _serverSequences.Count > 0 || _restartsPending.Count > 0;
+    }
+
+    /// <summary>
     ///     Kill the client process.
     /// </summary>
     public async Task KillClient()

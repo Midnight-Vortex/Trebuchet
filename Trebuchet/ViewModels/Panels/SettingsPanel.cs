@@ -210,6 +210,10 @@ public class SettingsPanel : ReactiveObject, IRefreshablePanel, IRefreshingPanel
             .SetTitle(Resources.OnBoardingDataDirectory)
             .SetDescription(Resources.OnBoardingDataDirectorySub)
         );
+        Fields.Add(AppDataDirectoryField.ForProfiles(_operations, _setup)
+            .SetTitle(Resources.SettingProfileDirectory)
+            .SetDescription(Resources.SettingProfileDirectoryText)
+        );
         Fields.Add(new TitleField().SetTitle(Resources.CatMiscellaneous));
 
         var appName = AppConstants.GetAutoStartName(_setup.Edition);

@@ -29,6 +29,13 @@ namespace TrebuchetLib
         public string[] SelectedServerModlists { get => _selectedServerModlists; set => _selectedServerModlists = value; }
         public string[] SelectedServerProfiles { get => _selectedServerProfiles; set => _selectedServerProfiles = value; }
         public string DataDirectory { get; set; } = DataDirectoryDefault;
+        /// <summary>
+        /// Root of the game saves, server saves, mod lists, sync lists and backups (with the edition folder below it, as in
+        /// Documents). Empty: the Documents folder. Only <c>ProfileDirectoryMove</c> changes it, after it copied the data.
+        /// </summary>
+        public string ProfileDirectory { get; set; } = ProfileDirectoryDefault;
+        /// <summary>The root the data was moved away from: its folders are removed at the next start. Empty: nothing to do.</summary>
+        public string ProfileDirectoryCleanup { get; set; } = string.Empty;
         public string NotificationServerCrash { get; set; } = NotificationServerCrashDefault;
         public string NotificationServerOnline { get; set; } = NotificationServerOnlineDefault;
         public string NotificationServerStop { get; set; } = NotificationServerStopDefault;
@@ -128,6 +135,7 @@ namespace TrebuchetLib
         public static readonly int ServerInstanceCountDefault = 0;
         public static readonly bool VerifyAllDefault = false;
         public static readonly string DataDirectoryDefault = string.Empty;
+        public static readonly string ProfileDirectoryDefault = string.Empty;
         public static readonly TimeSpan UpdateCheckFrequencyDefault = TimeSpan.FromMinutes(5);
         public static readonly TimeSpan UpdateRestartCountdownDefault = TimeSpan.FromMinutes(15);
         /// <summary>The longest time that can be set (more is no warning, it is a long wait for the update).</summary>

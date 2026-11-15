@@ -33,7 +33,8 @@ public class Operations : IDisposable
         TaskBlocker taskBlocker, 
         ILogger<Operations> logger,
         IUpdater updater,
-        Steam steam)
+        Steam steam,
+        Launcher launcher)
     {
         _appFiles = appFiles;
         _osSpecific = osSpecific;
@@ -43,6 +44,7 @@ public class Operations : IDisposable
         _logger = logger;
         _updater = updater;
         _steam = steam;
+        _launcher = launcher;
         
         SetupFileWatcher();
         
@@ -61,6 +63,7 @@ public class Operations : IDisposable
     private readonly ILogger<Operations> _logger;
     private readonly IUpdater _updater;
     private readonly Steam _steam;
+    private readonly Launcher _launcher;
     private FileSystemWatcher _modWatcher;
 
     public event EventHandler<FileSystemEventArgs>? ModFileChanged; 
@@ -296,6 +299,220 @@ public class Operations : IDisposable
         if(arg is null) return Validation.Invalid(Resources.ErrorInvalidDirectory);
         if (!AppFiles.IsDirectoryValidForData(arg)) return Validation.Invalid(Resources.ErrorInvalidDirectory);
         return Validation.Valid;
+    }
+
+    /// <summary>
+    /// Moves the saves and profiles of this edition (game saves, server saves, mod lists, sync lists, backups) to another
+    /// directory: asks for it, copies and compares, points the Saved links to the new place and changes the settings. The
+    /// old files stay until the next start removes them (<see cref="ProfileDirectoryMove.FinishCleanup"/>). A directory
+    /// that already holds saves is never mixed with them: it can only be used as it is.
+    /// </summary>
+    /// <param name="toDefault">Back to the Documents folder instead of asking for a directory.</param>
+    /// <returns>True when the settings were changed: the caller saves them and restarts Trebuchet.</returns>
+    public async Task<bool> OnBoardingChangeProfileDirectory(bool toDefault)
+    {
+        var title = Resources.SettingProfileDirectory;
+        if (_launcher.IsAnythingRunningOrStarting() || _steam.Status != SteamStatus.StandBy)
+        {
+            await _dialogueBox.OpenErrorAsync(title, Resources.ProfileDirectoryBusy);
+            throw new OperationCanceledException(@"Saves are in use");
+        }
+
+        var edition = _setup.Edition;
+        var source = _setup.GetDataDirectory().FullName;
+        string target;
+        if (toDefault)
+        {
+            target = AppSetup.GetDataDirectoryDefault().FullName;
+            Directory.CreateDirectory(target);
+        }
+        else
+        {
+            var choice = new OnBoardingDirectory(title, Resources.SettingProfileDirectoryText)
+                .SetValidation(x => ValidateProfileDirectory(source, x));
+            await _dialogueBox.OpenAsync(choice);
+            if (choice.Value is null) throw new OperationCanceledException(@"OnBoarding was cancelled");
+            target = Path.GetFullPath(choice.Value);
+        }
+
+        var check = ProfileDirectoryMove.Check(source, target, edition, GetProfileDirectoryForbidden());
+        if (check == ProfileDirectoryCheck.Unfinished)
+        {
+            // What a move that did not finish (crash, power loss) left there was never in use: it goes before a new copy.
+            _logger.LogInformation(@"Removing what an unfinished move left in {target}", target);
+            await Task.Run(() => ProfileDirectoryMove.Discard(target, edition));
+            check = ProfileDirectoryMove.Check(source, target, edition, GetProfileDirectoryForbidden());
+        }
+        if (check == ProfileDirectoryCheck.HasData)
+        {
+            var use = new OnBoardingConfirmation(title, string.Format(Resources.ProfileDirectoryUseExisting, target, source));
+            await _dialogueBox.OpenAsync(use);
+            if (!use.Result) throw new OperationCanceledException(@"OnBoarding was cancelled");
+            _logger.LogInformation(@"Saves and profiles: using the ones in {target}, the ones in {source} stay", target, source);
+            // The next start takes the directory as there by its edition folder.
+            Directory.CreateDirectory(Path.Combine(target, _setup.VersionFolder));
+            return await SwitchProfileDirectory(toDefault ? string.Empty : target, string.Empty, title);
+        }
+        if (check != ProfileDirectoryCheck.Ok)
+        {
+            await _dialogueBox.OpenErrorAsync(title, GetProfileDirectoryError(check));
+            throw new OperationCanceledException(@"Invalid directory");
+        }
+
+        // A save that is a link to another drive would not be copied, and its link would go with the old folders.
+        var links = await Task.Run(() => ProfileDirectoryMove.FindLinks(source, edition));
+        if (links.Count > 0)
+        {
+            await _dialogueBox.OpenErrorAsync(title, string.Format(Resources.ProfileDirectoryLinks, string.Join(Environment.NewLine, links)));
+            throw new OperationCanceledException(@"Saves are links");
+        }
+
+        var size = await Task.Run(() => ProfileDirectoryMove.Measure(source, edition));
+        var free = GetFreeSpace(target);
+        // Some room to spare: the drive of the saves should not be filled to the last byte.
+        if (free is { } available && available < size.Bytes + 256L * 1024 * 1024)
+        {
+            await _dialogueBox.OpenErrorAsync(title,
+                string.Format(Resources.ProfileDirectoryNoSpace, FormatSize(size.Bytes), FormatSize(available)));
+            throw new OperationCanceledException(@"Not enough space");
+        }
+
+        var confirm = new OnBoardingConfirmation(title,
+            string.Format(Resources.ProfileDirectoryConfirm, source, target, size.Files, FormatSize(size.Bytes)));
+        await _dialogueBox.OpenAsync(confirm);
+        if (!confirm.Result) throw new OperationCanceledException(@"OnBoarding was cancelled");
+
+        _logger.LogInformation(@"Moving saves and profiles from {source} to {target} ({files} files, {bytes} bytes)",
+            source, target, size.Files, size.Bytes);
+        using var cancellation = new CancellationTokenSource();
+        var progress = new OnBoardingProgress<double>(Resources.ProfileDirectoryMoving, target, 0, 1, cancellation);
+        _dialogueBox.Show(progress);
+        try
+        {
+            await ProfileDirectoryMove.CopyAsync(source, target, edition, progress, cancellation.Token);
+            progress.CanCancel = false;
+            // A start during the copy (the bot, the schedule) uses the old saves: the copy may miss what it wrote.
+            if (_launcher.IsAnythingRunningOrStarting())
+            {
+                await Task.Run(() => ProfileDirectoryMove.Discard(target, edition));
+                throw new IOException(Resources.ProfileDirectoryBusy);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            _dialogueBox.Close();
+            _logger.LogInformation(@"Moving saves and profiles was cancelled, nothing was changed");
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _dialogueBox.Close();
+            _logger.LogError(ex, @"Moving saves and profiles failed, nothing was changed");
+            await _dialogueBox.OpenErrorAsync(title, string.Format(Resources.ProfileDirectoryFailed, ex.Message));
+            throw new OperationCanceledException(@"Move failed");
+        }
+        _dialogueBox.Close();
+
+        RetargetSaveLinks(source, target, edition);
+        if (await SwitchProfileDirectory(toDefault ? string.Empty : target, source, title)) return true;
+        // The settings still name the old directory: the links go back and the copy, which is not in use, is removed.
+        RetargetSaveLinks(target, source, edition);
+        await Task.Run(() => ProfileDirectoryMove.Discard(target, edition));
+        throw new OperationCanceledException(@"Settings not saved");
+    }
+
+    /// <summary>
+    /// Writes the directory (and the old one to clean up) into the settings and saves them. When they cannot be saved
+    /// the values go back, so that the running Trebuchet and the settings on disk never name different directories.
+    /// </summary>
+    private async Task<bool> SwitchProfileDirectory(string directory, string cleanup, string title)
+    {
+        var config = _setup.Config;
+        var (oldDirectory, oldCleanup) = (config.ProfileDirectory, config.ProfileDirectoryCleanup);
+        config.ProfileDirectory = directory;
+        config.ProfileDirectoryCleanup = cleanup;
+        try
+        {
+            config.SaveFile();
+            return true;
+        }
+        catch (Exception ex)
+        {
+            config.ProfileDirectory = oldDirectory;
+            config.ProfileDirectoryCleanup = oldCleanup;
+            _logger.LogError(ex, @"The directory for saves and profiles could not be saved, nothing was changed");
+            await _dialogueBox.OpenErrorAsync(title, string.Format(Resources.ProfileDirectoryFailed, ex.Message));
+            return false;
+        }
+    }
+
+    private Validation ValidateProfileDirectory(string source, string? arg)
+    {
+        if (string.IsNullOrWhiteSpace(arg)) return Validation.Invalid(Resources.ErrorInvalidDirectory);
+        var check = ProfileDirectoryMove.Check(source, arg, _setup.Edition, GetProfileDirectoryForbidden());
+        return check is ProfileDirectoryCheck.Ok or ProfileDirectoryCheck.HasData or ProfileDirectoryCheck.Unfinished
+            ? Validation.Valid
+            : Validation.Invalid(GetProfileDirectoryError(check));
+    }
+
+    private static string GetProfileDirectoryError(ProfileDirectoryCheck check) => check switch
+    {
+        ProfileDirectoryCheck.Same => Resources.ProfileDirectorySame,
+        ProfileDirectoryCheck.Network => Resources.ProfileDirectoryNetwork,
+        ProfileDirectoryCheck.Overlap => Resources.ProfileDirectoryOverlap,
+        ProfileDirectoryCheck.Occupied => Resources.ProfileDirectoryOccupied,
+        _ => Resources.ErrorInvalidDirectory
+    };
+
+    // The saves do not belong into the game, the workshop mods, the server installations or a save itself (Saved link).
+    private List<string> GetProfileDirectoryForbidden() =>
+    [
+        _setup.GetClientFolder(), _setup.GetWorkshopFolder(), _setup.GetServerInstancePath(), _setup.GetPrimaryJunction()
+    ];
+
+    /// <summary>
+    /// The Saved links of the game and of the server instances point into the saves. The launcher sets them at every
+    /// start; until then they would point to folders that are removed, so they follow the move right away.
+    /// </summary>
+    private void RetargetSaveLinks(string source, string target, GameEdition edition)
+    {
+        var links = new List<string> { _setup.GetPrimaryJunction() };
+        for (var i = 0; i < _setup.Config.ServerInstanceCount; i++)
+            links.Add(Path.Combine(_setup.GetInstancePath(i), Constants.FolderGameSave));
+        foreach (var link in links)
+        {
+            try
+            {
+                if (!_osSpecific.IsSymbolicLink(link)) continue;
+                var mapped = ProfileDirectoryMove.MapPath(_osSpecific.GetSymbolicLinkTarget(link), source, target, edition);
+                if (mapped is null || !Directory.Exists(mapped)) continue;
+                _osSpecific.MakeSymbolicLink(link, mapped);
+                _logger.LogInformation(@"Saved link {link} now points to {target}", link, mapped);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, @"Saved link {link} was not changed, the next start of the game or server sets it", link);
+            }
+        }
+    }
+
+    private static long? GetFreeSpace(string directory)
+    {
+        try
+        {
+            var root = Path.GetPathRoot(Path.GetFullPath(directory));
+            return string.IsNullOrEmpty(root) ? null : new DriveInfo(root).AvailableFreeSpace;
+        }
+        catch (Exception ex) when (ex is ArgumentException or IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    private static string FormatSize(long bytes)
+    {
+        const double mb = 1024d * 1024d;
+        return bytes >= 1024 * mb ? $@"{bytes / (1024 * mb):0.0} GB" : $@"{Math.Max(bytes / mb, 0.1):0.0} MB";
     }
 
     public async Task<bool> OnBoardingRemoveUnusedMods()

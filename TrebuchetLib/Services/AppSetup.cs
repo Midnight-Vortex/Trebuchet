@@ -31,9 +31,31 @@ public class AppSetup
     
     public string VersionFolder => Constants.GetVersionFolder(Edition);
     
+    /// <summary>
+    /// The root of the game saves, server saves, mod lists, sync lists and backups: the directory of the settings, or the
+    /// Documents folder. There is no fallback to Documents when the directory of the settings is missing: profile menus
+    /// would create empty default saves there and a server could start on one (see <see cref="IsDataDirectoryAvailable"/>).
+    /// </summary>
     public DirectoryInfo GetDataDirectory()
     {
+        var custom = Config.ProfileDirectory;
+        return string.IsNullOrWhiteSpace(custom) ? GetDataDirectoryDefault() : new DirectoryInfo(custom);
+    }
+
+    public static DirectoryInfo GetDataDirectoryDefault()
+    {
         return typeof(Config).GetStandardFolder(Environment.SpecialFolder.MyDocuments);
+    }
+
+    /// <summary>
+    /// False when the settings name a directory for saves and profiles whose edition folder is not there (drive not
+    /// connected, folder deleted): a move always leaves that folder, so Trebuchet must not start and create empty saves.
+    /// </summary>
+    public bool IsDataDirectoryAvailable()
+    {
+        if (string.IsNullOrWhiteSpace(Config.ProfileDirectory)) return true;
+        try { return Directory.Exists(Path.Combine(Config.ProfileDirectory, VersionFolder)); }
+        catch { return false; }
     }
     
     public DirectoryInfo GetCommonAppDataDirectory()

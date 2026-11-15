@@ -16,17 +16,22 @@ public static class DirectoryCopy
     public static Task CopyAsync(string source, string destination, CancellationToken token, IProgress<double>? progress = null)
         => CopyWithLoadAsync(source, destination, token, progress, new CopySystemLoad().Read, TimeSpan.FromSeconds(1));
 
+    /// <param name="skip">Directories this returns true for are left out with everything in them.</param>
+    public static Task CopyAsync(string source, string destination, CancellationToken token, IProgress<double>? progress,
+        Func<DirectoryInfo, bool> skip)
+        => CopyWithLoadAsync(source, destination, token, progress, new CopySystemLoad().Read, TimeSpan.FromSeconds(1), skip);
+
     internal static Task CopyWithLoadAsync(string source, string destination, CancellationToken token, IProgress<double>? progress,
-        Func<CopyLoad> sampleLoad, TimeSpan sampleInterval)
+        Func<CopyLoad> sampleLoad, TimeSpan sampleInterval, Func<DirectoryInfo, bool>? skip = null)
         => Task.Run(async () =>
         {
             await CopyGate.WaitAsync(token).ConfigureAwait(false);
-            try { await CopyCore(source, destination, token, progress, sampleLoad, sampleInterval).ConfigureAwait(false); }
+            try { await CopyCore(source, destination, token, progress, sampleLoad, sampleInterval, skip).ConfigureAwait(false); }
             finally { CopyGate.Release(); }
         }, token);
 
     private static async Task CopyCore(string source, string destination, CancellationToken token, IProgress<double>? progress,
-        Func<CopyLoad> sampleLoad, TimeSpan sampleInterval)
+        Func<CopyLoad> sampleLoad, TimeSpan sampleInterval, Func<DirectoryInfo, bool>? skip)
     {
         source = Path.TrimEndingDirectorySeparator(Path.GetFullPath(source));
         destination = Path.TrimEndingDirectorySeparator(Path.GetFullPath(destination));
@@ -40,7 +45,7 @@ public static class DirectoryCopy
         long total = 0;
         var fileCount = 0;
         // Stream metadata; never retain one FileInfo per file in a potentially huge mod cache.
-        foreach (var entry in Entries(source, token))
+        foreach (var entry in Entries(source, token, skip))
             if (entry is FileInfo file)
             {
                 total = checked(total + file.Length);
@@ -112,7 +117,7 @@ public static class DirectoryCopy
         {
             try
             {
-                foreach (var entry in Entries(source, ct))
+                foreach (var entry in Entries(source, ct, skip))
                 {
                     var target = Path.Combine(destination, Path.GetRelativePath(source, entry.FullName));
                     if ((File.Exists(target) || Directory.Exists(target))
@@ -220,16 +225,17 @@ public static class DirectoryCopy
         }
     }
 
-    private static IEnumerable<FileSystemInfo> Entries(string directory, CancellationToken token)
+    internal static IEnumerable<FileSystemInfo> Entries(string directory, CancellationToken token, Func<DirectoryInfo, bool>? skip = null)
     {
         foreach (var entry in new DirectoryInfo(directory).EnumerateFileSystemInfos())
         {
             token.ThrowIfCancellationRequested();
             // Preserve existing copy semantics: copy file contents, but do not traverse directory junctions.
             if (entry is DirectoryInfo && (entry.Attributes & FileAttributes.ReparsePoint) != 0) continue;
+            if (entry is DirectoryInfo skipped && skip?.Invoke(skipped) == true) continue;
             yield return entry;
             if (entry is DirectoryInfo child)
-                foreach (var nested in Entries(child.FullName, token)) yield return nested;
+                foreach (var nested in Entries(child.FullName, token, skip)) yield return nested;
         }
     }
 }

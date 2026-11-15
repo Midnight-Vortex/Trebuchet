@@ -7986,5 +7986,131 @@ namespace Trebuchet.Assets {
             }
         }
         
+        /// <summary>
+        ///   Looks up a localized string similar to Directory for saves and profiles.
+        /// </summary>
+        public static string SettingProfileDirectory {
+            get {
+                return ResourceManager.GetString("SettingProfileDirectory", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to This directory holds your game saves, server saves, mod lists, sync lists and backups (by default in your Documents folder). When you change it, Trebuchet copies them to the new place, restarts and then removes the old files. The game and all servers have to be stopped for it, and the directory has to be on a local drive..
+        /// </summary>
+        public static string SettingProfileDirectoryText {
+            get {
+                return ResourceManager.GetString("SettingProfileDirectoryText", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Stop the game and all servers first and wait for running downloads: saves cannot be moved while they are in use..
+        /// </summary>
+        public static string ProfileDirectoryBusy {
+            get {
+                return ResourceManager.GetString("ProfileDirectoryBusy", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to This is the directory in use..
+        /// </summary>
+        public static string ProfileDirectorySame {
+            get {
+                return ResourceManager.GetString("ProfileDirectorySame", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The directory has to be on a local drive: the game reaches its saves through a link that cannot point to a network path..
+        /// </summary>
+        public static string ProfileDirectoryNetwork {
+            get {
+                return ResourceManager.GetString("ProfileDirectoryNetwork", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Choose a directory outside the current saves, the game installation and the downloaded data..
+        /// </summary>
+        public static string ProfileDirectoryOverlap {
+            get {
+                return ResourceManager.GetString("ProfileDirectoryOverlap", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to There are already saves or profiles in {0}. Trebuchet does not mix them with yours. Use the ones that are there? Your current files stay untouched in {1}, but are no longer used..
+        /// </summary>
+        public static string ProfileDirectoryUseExisting {
+            get {
+                return ResourceManager.GetString("ProfileDirectoryUseExisting", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Move the saves and profiles? From: {0} To: {1} {2} files, {3}. Trebuchet copies them, compares the copy, restarts and then removes the old files. Extracted mods (ExtractedMods) are not copied, the game makes them again..
+        /// </summary>
+        public static string ProfileDirectoryConfirm {
+            get {
+                return ResourceManager.GetString("ProfileDirectoryConfirm", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Not enough free space on the target drive: {0} needed, {1} free..
+        /// </summary>
+        public static string ProfileDirectoryNoSpace {
+            get {
+                return ResourceManager.GetString("ProfileDirectoryNoSpace", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Moving saves and profiles.
+        /// </summary>
+        public static string ProfileDirectoryMoving {
+            get {
+                return ResourceManager.GetString("ProfileDirectoryMoving", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The saves and profiles were not moved and nothing was changed: {0}.
+        /// </summary>
+        public static string ProfileDirectoryFailed {
+            get {
+                return ResourceManager.GetString("ProfileDirectoryFailed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to The directory for saves and profiles is not available: {0}. Connect the drive or restore the folder, then start Trebuchet again. To go back to the Documents folder, remove the entry &quot;ProfileDirectory&quot; from {1}..
+        /// </summary>
+        public static string ProfileDirectoryMissing {
+            get {
+                return ResourceManager.GetString("ProfileDirectoryMissing", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to This directory holds a folder &quot;Backups&quot; that is not from Trebuchet. Choose another directory, for example an empty folder inside it..
+        /// </summary>
+        public static string ProfileDirectoryOccupied {
+            get {
+                return ResourceManager.GetString("ProfileDirectoryOccupied", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to These saves are links to other folders (for example to another drive) and cannot be moved along: {0} Replace the links by the real folders, or remove them and set them up again in the new directory afterwards. Nothing was changed..
+        /// </summary>
+        public static string ProfileDirectoryLinks {
+            get {
+                return ResourceManager.GetString("ProfileDirectoryLinks", resourceCulture);
+            }
+        }
+        
     }
 }

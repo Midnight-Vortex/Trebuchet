@@ -2788,4 +2788,52 @@ Klicke danach auf „{4}“, um fehlende oder veraltete Mods herunterzuladen, w�
     <data name="SettingServerMountModsInPlaceText" xml:space="preserve">
         <value>Experimentell (laut Spiel). Der Server nutzt die Mod-Dateien ungeprüft dort, wo sie liegen, statt sie zuerst nach Saved\ExtractedMods zu entpacken; diesen Ordner löscht er. Lässt den Server schneller starten. Trebuchet setzt dafür dw.MountModsInPlace=1 in der Engine.ini des Servers (die Startoption -dpcvar bewirkt im veröffentlichten Spiel nichts). Eine komprimiert gebaute Mod kann so nicht genutzt werden. Ausgeschaltet entfernt Trebuchet den Eintrag (auch einen von Hand geschriebenen), und der Server entpackt beim nächsten Start alle Mods neu.</value>
     </data>
+    <data name="SettingProfileDirectory" xml:space="preserve">
+        <value>Verzeichnis für Speicherstände und Profile</value>
+    </data>
+    <data name="SettingProfileDirectoryText" xml:space="preserve">
+        <value>Dieses Verzeichnis enthält deine Spiel-Speicherstände, Server-Speicherstände, Modlisten, Sync-Listen und Backups (standardmäßig in deinem Dokumente-Ordner). Wenn du es änderst, kopiert Trebuchet sie an den neuen Ort, startet neu und entfernt danach die alten Dateien. Spiel und alle Server müssen dafür gestoppt sein, und das Verzeichnis muss auf einem lokalen Laufwerk liegen.</value>
+    </data>
+    <data name="ProfileDirectoryBusy" xml:space="preserve">
+        <value>Stoppe zuerst das Spiel und alle Server und warte laufende Downloads ab: Speicherstände lassen sich nicht verschieben, solange sie benutzt werden.</value>
+    </data>
+    <data name="ProfileDirectorySame" xml:space="preserve">
+        <value>Das ist das Verzeichnis, das gerade benutzt wird.</value>
+    </data>
+    <data name="ProfileDirectoryNetwork" xml:space="preserve">
+        <value>Das Verzeichnis muss auf einem lokalen Laufwerk liegen: Das Spiel erreicht seine Speicherstände über eine Verknüpfung, die nicht auf einen Netzwerkpfad zeigen kann.</value>
+    </data>
+    <data name="ProfileDirectoryOverlap" xml:space="preserve">
+        <value>Wähle ein Verzeichnis außerhalb der aktuellen Speicherstände, der Spielinstallation und der heruntergeladenen Daten.</value>
+    </data>
+    <data name="ProfileDirectoryUseExisting" xml:space="preserve">
+        <value>In {0} liegen bereits Speicherstände oder Profile. Trebuchet mischt sie nicht mit deinen. Die vorhandenen benutzen?
+Deine aktuellen Dateien bleiben unverändert in {1}, werden aber nicht mehr benutzt.</value>
+    </data>
+    <data name="ProfileDirectoryConfirm" xml:space="preserve">
+        <value>Speicherstände und Profile verschieben?
+Von: {0}
+Nach: {1}
+{2} Dateien, {3}. Trebuchet kopiert sie, vergleicht die Kopie, startet neu und entfernt danach die alten Dateien. Entpackte Mods (ExtractedMods) werden nicht kopiert, das Spiel legt sie neu an.</value>
+    </data>
+    <data name="ProfileDirectoryNoSpace" xml:space="preserve">
+        <value>Nicht genug freier Speicher auf dem Ziellaufwerk: {0} benötigt, {1} frei.</value>
+    </data>
+    <data name="ProfileDirectoryMoving" xml:space="preserve">
+        <value>Speicherstände und Profile werden verschoben</value>
+    </data>
+    <data name="ProfileDirectoryFailed" xml:space="preserve">
+        <value>Die Speicherstände und Profile wurden nicht verschoben, nichts wurde geändert: {0}</value>
+    </data>
+    <data name="ProfileDirectoryMissing" xml:space="preserve">
+        <value>Das Verzeichnis für Speicherstände und Profile ist nicht erreichbar: {0}. Schließe das Laufwerk an oder stelle den Ordner wieder her und starte Trebuchet dann neu. Um zum Dokumente-Ordner zurückzukehren, entferne den Eintrag „ProfileDirectory“ aus {1}.</value>
+    </data>
+    <data name="ProfileDirectoryOccupied" xml:space="preserve">
+        <value>In diesem Verzeichnis liegt ein Ordner „Backups“, der nicht von Trebuchet stammt. Wähle ein anderes Verzeichnis, zum Beispiel einen leeren Ordner darin.</value>
+    </data>
+    <data name="ProfileDirectoryLinks" xml:space="preserve">
+        <value>Diese Speicherstände sind Verknüpfungen auf andere Ordner (zum Beispiel auf ein anderes Laufwerk) und können nicht mit umziehen:
+{0}
+Ersetze die Verknüpfungen durch die echten Ordner, oder entferne sie und richte sie danach im neuen Verzeichnis wieder ein. Es wurde nichts geändert.</value>
+    </data>
 </root>
